@@ -1,0 +1,51 @@
+key: FIFO
+title: FIFO (First In, First Out)
+category: 5강 Process Scheduling, 정책
+---
+'''FIFO'''(First In, First Out) = '''FCFS'''(First Come, First Served)는 도착한 순서대로 job을 끝까지 실행하는 가장 단순한 [[스케줄링]] 정책이다. 슬라이드 평가는 "Very simple and easy to implement" 한 줄이 전부다.
+
+{analogy}'''은행 번호표'''다. 1번부터 차례로 부르고, 한 번 부른 사람은 용무가 끝날 때까지 창구를 차지한다. 공평해 보이지만 앞사람이 부동산 대출 상담을 시작하면 뒤에서 잔액 조회 하나 하려던 사람들이 전부 40분을 기다린다. 이게 [[convoy effect]]다.{/analogy}
+
+== 가정이 유지될 때 ==
+
+[[img:L5-10.png|FIFO: A, B, C가 각 10초. 평균 turnaround = (10+20+30)/3 = 20초|medium]]
+
+'''워크로드 가정 1'''(모든 job이 같은 시간 실행)이 살아 있으면 FIFO도 나쁘지 않다. A, B, C가 각 10초면 평균 [[turnaround time]]은 $(10+20+30)/3 = 20$초로, 어떤 정책을 써도 이보다 못한 게 나오기 어렵다.
+
+{info}녹음본에서 교수님이 짚은 포인트: 모든 job이 '''동시에 도착하고 길이도 같으면''' 애초에 "첫 번째"라는 개념이 없고, 어떤 정책을 써도 '''random policy와 결과가 같다'''. FIFO의 장단점은 가정을 풀어야만 보인다.{/info}
+
+== 가정 1을 풀면 무너진다 ==
+
+[[img:L5-11.png|A=100초, B=C=10초. FIFO면 평균 turnaround가 110초|medium]]
+
+<pre class="txt">
+ A(100) → B(10) → C(10)
+ A: 0 ──────────────────── 100   turnaround = 100
+ B:                   100 ── 110  turnaround = 110
+ C:                        110 ── 120  turnaround = 120
+ 평균 = (100 + 110 + 120) / 3 = 110초
+</pre>
+
+10초짜리 B, C가 100초를 기다렸다. 해법은 순서를 바꾸는 것 — [[SJF]].
+
+== 시험에서 ==
+
+{exam}2025F 중간고사 '''Problem 2 (용어 단답형)'''에 "짧은 작업들이 무거운 작업 뒤에 줄 서는 현상 (2 words)"이 나왔고 정답은 '''Convoy effect'''였다. FIFO 자체보다 '''FIFO의 문제점 이름'''이 출제 대상이다. → [[convoy effect]], [[2025F 중간고사 족보]]{/exam}
+
+{|
+! 항목 || FIFO
+|-
+| 최적화 || 없음 (구현 단순함이 유일한 장점)
+|-
+| 나쁜 지표 || [[turnaround time]], [[response time]] 둘 다
+|-
+| [[선점]]? || '''✗ 비선점'''
+|-
+| 무너지는 지점 || 워크로드 가정 1 해제 → [[convoy effect]]
+|}
+
+[[sim:sched_gantt]]
+
+== 관련 문서 ==
+* [[스케줄링]] · [[convoy effect]] · [[SJF]]
+* [[스케줄링 지표]] · [[turnaround time]]

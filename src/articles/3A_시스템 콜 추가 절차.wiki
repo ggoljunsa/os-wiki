@@ -1,0 +1,302 @@
+key: 시스템 콜 추가 절차
+title: 시스템 콜 추가 절차 (xv6에 syscall 하나 붙이기)
+category: 3강 From Program to Process, 과제1, 용어
+---
+'''시스템 콜 추가 절차'''는 [[xv6]]에 새 [[시스템 콜]] 하나를 붙이기 위해 손대야 하는 파일과 그 순서다. 과제 1([[과제1 xv6 alarm]])의 전반부가 통째로 이 작업이고, 여기서 막히면 [[sigalarm]]/[[sigreturn]] 구현은 시작조차 못 한다.
+
+{warn}
+'''과제 안내문의 p.30~34 지시에 대하여.''' Assignment 1 PDF의 Tips 1은 "First, fix this regarding the '''3-From_Program_to_Process (30p-34p)'''"라고 쓰여 있다. 그런데 현재 배포된 3강 PDF의 p.30~34는 mechanism/policy · [[프로세스 API]] · 프로세스 생성 · [[프로세스 상태]]이고, '''시스템 콜을 추가하는 구체적 절차는 슬라이드에 없다'''.<br>
+TA가 가리킨 것은 [[프로세스 API]] 장(= "OS는 시스템 콜이라는 인터페이스로 서비스를 노출한다")으로 보이며, 실제 절차는 [[xv6]] 소스에서 기존 시스템 콜(`sys_getpid` 등)을 흉내 내며 익혀야 한다. 이 문서가 그 빈칸을 메운다.
+{/warn}
+
+{analogy}
+🏢 '''관공서에 새 민원 창구를 여는 일'''이다. ① 민원 안내책자에 항목을 추가하고(`user.h`) ② 접수 번호표 기계에 버튼을 만들고(`usys.pl`) ③ 내부 문서번호를 부여하고(`syscall.h`) ④ 문서번호 → 담당 부서 배정표에 한 줄 넣고(`syscall.c`) ⑤ 담당 부서에 실제로 일할 직원을 앉히고(`sysproc.c`) ⑥ 그 업무에 필요한 서류철을 민원인 파일에 끼운다(`proc.h`/`proc.c`). 여섯 군데 중 하나라도 빠지면 "그런 창구 없습니다"(링크 에러)나 "담당자가 없습니다"(unknown sys call)가 뜬다.
+{/analogy}
+
+== 전체 그림 ==
+
+<pre class="ascii">
+  ┌─ user space ────────────────────────────────────────────────┐
+  │                                                             │
+  │  alarmtest.c                                                │
+  │     sigalarm(2, periodic);                                  │
+  │          │                                                  │
+  │          │ ① user/user.h      : 함수 선언                    │
+  │          ▼                                                  │
+  │  usys.S (자동 생성)                                          │
+  │     sigalarm:  li a7, SYS_sigalarm                          │
+  │                ecall                                        │
+  │                ret         ② user/usys.pl 이 이 스텁을 생성   │
+  └──────────────┬──────────────────────────────────────────────┘
+                 │  ecall  → 트랩 → uservec → usertrap()
+  ┌──────────────▼──────────────────────────────────────────────┐
+  │  kernel space                                               │
+  │                                                             │
+  │  usertrap()  →  syscall()                                   │
+  │                    num = p->trapframe->a7;                  │
+  │                    p->trapframe->a0 = syscalls[num]();       │
+  │                         │                                   │
+  │                         │ ③ kernel/syscall.h : SYS_sigalarm 번호 │
+  │                         │ ④ kernel/syscall.c : 테이블에 등록  │
+  │                         ▼                                   │
+  │                    sys_sigalarm()   ⑤ kernel/sysproc.c      │
+  │                         │                                   │
+  │                         ▼                                   │
+  │                    p->alarm_interval = ...   ⑥ kernel/proc.h│
+  └─────────────────────────────────────────────────────────────┘
+</pre>
+
+== 파일별 체크리스트 ==
+
+=== ① `user/user.h` — 유저가 부를 함수 선언 ===
+
+과제 안내문이 문구까지 지정해 준다.
+
+<pre class="c">
+// system calls
+int fork(void);
+int exit(int) __attribute__((noreturn));
+int wait(int*);
+...
+int sigalarm(int ticks, void (*handler)());
+int sigreturn(void);
+</pre>
+
+{warn}
+`void (*handler)()`는 '''함수 포인터''' 타입이다. 여기를 `int handler`로 대충 쓰면 `alarmtest.c`가 컴파일되지 않는다 (원본 테스트 코드를 고치면 안 된다).
+{/warn}
+
+=== ② `user/usys.pl` — 스텁 어셈블리 생성기 ===
+
+이 Perl 스크립트가 빌드 때 `user/usys.S`를 만들어 낸다. 한 줄만 추가하면 된다.
+
+<pre class="sh">
+entry("fork");
+entry("exit");
+entry("wait");
+...
+entry("sigalarm");
+entry("sigreturn");
+</pre>
+
+생성되는 어셈블리는 이런 모양이다.
+
+<pre class="asm">
+.global sigalarm
+sigalarm:
+ li a7, SYS_sigalarm      # 시스템 콜 번호를 a7 에
+ ecall                    # 트랩 발생 → 커널 진입
+ ret                      # 반환값은 a0 에 들어 있다
+</pre>
+
+{tip}
+'''이 세 줄이 시스템 콜의 전부다.''' 번호를 `a7`에 싣고, `ecall`로 [[트랩]]을 일으키고, 돌아오면 [[a0]]에 결과가 있다. 4강에서 배우는 [[제한적 직접 실행]]의 유저 쪽 절반이 바로 여기다. → [[usys.pl]], [[xv6 시스템 콜 경로]]
+{/tip}
+
+=== ③ `kernel/syscall.h` — 번호 부여 ===
+
+<pre class="c">
+#define SYS_fork    1
+#define SYS_exit    2
+#define SYS_wait    3
+...
+#define SYS_close  21
+#define SYS_sigalarm  22
+#define SYS_sigreturn 23
+</pre>
+
+{warn}
+'''기존 번호를 재사용하거나 중간에 끼워 넣지 말 것.''' 번호는 `syscalls[]` 배열의 '''인덱스'''이므로, 끼워 넣으면 다른 시스템 콜이 전부 밀려 `usertests`가 통째로 깨진다. 반드시 '''마지막 번호 다음'''을 쓴다.
+{/warn}
+
+=== ④ `kernel/syscall.c` — 테이블 등록 (두 군데) ===
+
+<pre class="c">
+// (1) extern 선언 추가
+extern uint64 sys_close(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
+
+// (2) 함수 포인터 테이블에 등록
+static uint64 (*syscalls[])(void) = {
+[SYS_fork]      sys_fork,
+[SYS_exit]      sys_exit,
+...
+[SYS_close]     sys_close,
+[SYS_sigalarm]  sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
+};
+</pre>
+
+그리고 디스패치를 실제로 하는 함수가 이것이다.
+
+<pre class="c">
+void
+syscall(void)
+{
+  int num;
+  struct proc *p = myproc();
+
+  num = p->trapframe->a7;                       // ← 번호는 a7 에서 꺼낸다
+  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    p->trapframe->a0 = syscalls[num]();         // ← 반환값은 a0 에 넣는다
+  } else {
+    printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
+    p->trapframe->a0 = -1;
+  }
+}
+</pre>
+
+{exam}
+'''`p->trapframe->a0 = syscalls[num]();` 이 한 줄이 2026-09-23 퀴즈 4번의 정답 근거다.'''<br>
+[[sigreturn]]이 `return 0;`을 하면 커널이 그 0을 `p->trapframe->a0`에 '''덮어쓴다'''. 그런데 `sys_sigreturn`은 방금 `*p->trapframe = p->alarm_saved;`로 원래 문맥을 복원한 참이므로, 애써 복원한 [[a0]]가 0으로 날아간다. 그래서 정답은 `return 0;` 대신 '''`return p->trapframe->a0;`'''. → [[a0 복원]], [[퀴즈1 복기]]
+{/exam}
+
+=== ⑤ `kernel/sysproc.c` — 실제 구현 ===
+
+인자를 꺼내는 방법은 기존 시스템 콜을 흉내 내면 된다 (과제 안내문: "You can find how we can get the argument of the system call by analyzing the implementation of the other system calls").
+
+<pre class="c">
+// 인자 꺼내는 헬퍼들
+//   argint(n, &ip)   : n 번째 인자를 int 로
+//   argaddr(n, &ap)  : n 번째 인자를 uint64 주소로
+//   argstr(n, buf, max) : 문자열로
+
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  uint64 handler;
+
+  argint(0, &interval);        // 첫 번째 인자: ticks
+  argaddr(1, &handler);        // 두 번째 인자: 함수 포인터
+
+  struct proc *p = myproc();
+  p->alarm_interval = interval;
+  p->alarm_handler  = handler;
+  p->alarm_elapsed  = 0;       // 카운터 리셋
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  *p->trapframe = p->alarm_saved;   // 인터럽트당한 문맥 통째 복원
+  p->alarm_active = 0;              // 재진입 금지 해제
+  p->alarm_elapsed = 0;
+  return p->trapframe->a0;          // ← a0 를 보존하려면 이렇게
+}
+</pre>
+
+{warn}
+인자는 '''레지스터가 아니라 [[trapframe]]에서''' 꺼낸다. 유저가 `a0`, `a1`에 실어 보낸 값이 트랩 시점에 [[trapframe]]으로 저장됐기 때문이다. 그래서 `argint`/`argaddr`는 내부적으로 `p->trapframe->a0`, `->a1`을 읽는다.
+{/warn}
+
+=== ⑥ `kernel/proc.h` + `kernel/proc.c` — 프로세스별 상태 ===
+
+시스템 콜이 프로세스마다 기억해야 할 것이 있으면 [[struct proc]]에 필드를 추가한다.
+
+<pre class="c">
+// kernel/proc.h : struct proc 끝부분
+  // --- Assignment 1: alarm ---
+  int alarm_interval;            // sigalarm(n, fn) 의 n
+  uint64 alarm_handler;          // sigalarm(n, fn) 의 fn
+  int alarm_elapsed;             // 마지막 알람 이후 흐른 tick
+  int alarm_active;              // 핸들러 실행 중이면 1
+  struct trapframe alarm_saved;  // 값 복사본 (포인터 아님!)
+</pre>
+
+<pre class="c">
+// kernel/proc.c : allocproc() 의 found: 레이블 뒤
+  p->alarm_interval = 0;
+  p->alarm_handler  = 0;
+  p->alarm_elapsed  = 0;
+  p->alarm_active   = 0;
+  memset(&p->alarm_saved, 0, sizeof(p->alarm_saved));
+</pre>
+
+과제 안내문도 같은 곳을 지목한다: "You can initialize proc fields in '''`allocproc()`''' in `proc.c`."
+
+=== ⑦ (과제 한정) `Makefile` — 테스트 프로그램 등록 ===
+
+<pre class="sh">
+UPROGS=\
+	$U/_cat\
+	$U/_echo\
+	...
+	$U/_alarmtest\
+</pre>
+
+과제 안내문의 첫 힌트가 이것이다: "You'll need to modify the '''Makefile''' to cause `alarmtest.c` to be compiled as an xv6 user program." → [[alarmtest]]
+
+== 순서 요약 ==
+
+{| class="table"
+! # || 파일 || 넣는 것 || 빠뜨리면
+|-
+| ① || `user/user.h` || 함수 프로토타입 || 컴파일 에러 (implicit declaration)
+|-
+| ② || `user/usys.pl` || `entry("이름");` || '''링크 에러''' (undefined reference)
+|-
+| ③ || `kernel/syscall.h` || `#define SYS_이름 번호` || `syscall.c`에서 심볼 없음
+|-
+| ④ || `kernel/syscall.c` || `extern` 선언 + `syscalls[]` 등록 || 런타임에 "'''unknown sys call'''"
+|-
+| ⑤ || `kernel/sysproc.c` || `sys_이름()` 본체 || 링크 에러
+|-
+| ⑥ || `kernel/proc.h`, `proc.c` || 필드 추가 + `allocproc()` 초기화 || 쓰레기 값으로 오동작
+|-
+| ⑦ || `Makefile` || `$U/_alarmtest\` || `alarmtest` 명령이 없음
+|}
+
+{warn}
+'''증상으로 어디를 빠뜨렸는지 역추적하기''' — 시험·디버깅 모두에서 유용하다.<br>
+· `undefined reference to 'sigalarm'` → ② `usys.pl`<br>
+· `unknown sys call 22` → ④ `syscall.c` 테이블<br>
+· 컴파일은 되는데 값이 이상함 → ⑥ `allocproc()` 초기화
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(나열)''' [[xv6]]에 새 시스템 콜 `sigalarm`을 추가할 때 수정해야 하는 파일을 모두 쓰고, 각 파일에 무엇을 넣는지 한 줄씩 쓰시오.
+{/quiz}
+{answer}
+① `user/user.h` — 함수 프로토타입<br>
+② `user/usys.pl` — `entry("sigalarm");` (a7 세팅 + `ecall` 스텁 생성)<br>
+③ `kernel/syscall.h` — `#define SYS_sigalarm 22`<br>
+④ `kernel/syscall.c` — `extern uint64 sys_sigalarm(void);` + `syscalls[]` 배열 등록<br>
+⑤ `kernel/sysproc.c` — `sys_sigalarm()` 본체 (`argint`/`argaddr`로 인자 획득)<br>
+⑥ `kernel/proc.h` / `proc.c` — [[struct proc]] 필드 추가 + `allocproc()` 초기화<br>
+(+ 과제에서는 `Makefile`에 `$U/_alarmtest\`)
+{/answer}
+
+{quiz}
+'''(코드 빈칸)''' `kernel/syscall.c`의 `syscall()` 함수에서 빈칸을 채우시오.
+<pre class="c">
+num = p->trapframe->________;
+if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+  p->trapframe->________ = syscalls[num]();
+}
+</pre>
+{/quiz}
+{answer}
+첫 번째 = '''`a7`''' (시스템 콜 번호), 두 번째 = '''`a0`''' (반환값).<br>
+"번호는 a7으로 들어가고 결과는 a0로 나온다"가 [[RISC-V]] 호출 규약의 핵심이다.
+{/answer}
+
+{quiz}
+'''(디버깅)''' `sigalarm`을 추가했더니 xv6 부팅 후 `alarmtest` 실행 시 `unknown sys call 22`가 출력된다. 어느 파일의 무엇을 빠뜨렸는가?
+{/quiz}
+{answer}
+'''`kernel/syscall.c`의 `syscalls[]` 배열 등록'''이다. 번호(`syscall.h`)와 유저 스텁(`usys.pl`)은 정상이라 `ecall`은 번호 22를 들고 커널에 도달했지만, 테이블에 `[SYS_sigalarm] sys_sigalarm,` 항목이 없어 `syscalls[22]`가 NULL이므로 else 분기로 빠진 것이다.
+{/answer}
+
+== 관련 문서 ==
+* [[시스템 콜]] / [[프로세스 API]]
+* [[과제1 xv6 alarm]] / [[sigalarm]] / [[sigreturn]] / [[alarmtest]]
+* [[struct proc]] / [[myproc]] / [[usys.pl]]
+* [[xv6 시스템 콜 경로]] / [[트랩]] / [[usertrap]] / [[trapframe]]
+* [[a0]] / [[a0 복원]] / [[RISC-V]] / [[xv6]]
+* [[퀴즈1 복기]]

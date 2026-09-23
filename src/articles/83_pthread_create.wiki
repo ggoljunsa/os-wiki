@@ -1,0 +1,90 @@
+key: pthread_create
+title: pthread_create
+category: 8강 Concurrency, 용어
+---
+'''`pthread_create`'''는 [[스레드]]를 만드는 POSIX API다. 8강 p.29의 주인공이며, 프로세스의 [[fork]]에 대응하는 위치에 있다.
+
+[[img:L8-29.png|Thread Creation — pthread_create의 네 인자|medium]]
+
+<pre class="c">
+#include &lt;pthread.h&gt;
+
+int
+pthread_create(          pthread_t      *thread,
+                   const pthread_attr_t *attr,
+                         void *         (*start_routine)(void *),
+                         void *         arg);
+</pre>
+
+== 인자 네 개 ==
+
+{|
+! 인자 || 슬라이드 설명 || 보통 쓰는 값
+|-
+| `thread` || "Used to '''interact''' with this thread." `pthread_t` 변수의 '''주소'''를 넘기면 채워 준다 || `&p1`
+|-
+| `attr` || "Used to specify any '''attributes''' this thread might have — '''Stack size, Scheduling priority''', …" || `NULL` (기본값)
+|-
+| `start_routine` || "the function this thread '''start running in'''." `void *`를 받아 `void *`를 반환하는 '''함수 포인터''' || `mythread`
+|-
+| `arg` || "the argument to be passed to the function. '''a void pointer allows us to pass in any type of argument.'''" || 문자열, 구조체 포인터
+|}
+
+반환값은 성공 시 0, 실패 시 에러 코드다.
+
+{exam}🎯 `attr`이 무엇을 지정하는지 묻는 빈칸 문제가 나오기 좋다. 슬라이드에 적힌 두 가지는 '''stack size'''와 '''scheduling priority'''다. 그대로 외울 것.{/exam}
+
+== 함수 포인터 타입 읽기 ==
+
+`void *(*start_routine)(void *)`를 안쪽부터 읽으면:
+# `start_routine` — 이름
+# `(*start_routine)` — 포인터다
+# `(*start_routine)(void *)` — `void *`를 받는 '''함수'''를 가리키는 포인터
+# `void *(*start_routine)(void *)` — 그 함수는 `void *`를 반환한다
+
+== 왜 `void *`인가 ==
+
+C에는 제네릭이 없으니 "아무 포인터"를 받게 해서 범용성을 확보한 것이다. 인자가 여러 개면 '''구조체로 묶어서''' 주소를 넘기고, 받는 쪽에서 캐스팅한다.
+
+<pre class="c">
+typedef struct { int a; int b; } myarg_t;
+
+void *mythread(void *arg) {
+    myarg_t *args = (myarg_t *) arg;    // 원래 타입으로 캐스팅
+    printf("%d %d\n", args->a, args->b);
+    return NULL;
+}
+
+int main() {
+    pthread_t p;
+    myarg_t args = { 10, 20 };
+    pthread_create(&p, NULL, mythread, &args);
+    pthread_join(p, NULL);
+    return 0;
+}
+</pre>
+
+{warn}흔한 실수 두 가지.
+① '''스레드 함수에서 자기 스택의 지역 변수 주소를 리턴'''하면, 스레드가 끝나며 [[스레드 스택|스택]]이 사라져 dangling pointer가 된다.
+② `main`에서 만든 `args`를 스레드에 넘겨 놓고 `main`이 먼저 리턴해 버려도 같은 문제가 생긴다 — 그래서 [[pthread_join]]이 필요하다.{/warn}
+
+{info}컴파일할 때 '''`-pthread`''' 옵션이 필요하다. 슬라이드 p.38의 명령줄: `gcc -o main main.c -Wall -pthread`{/info}
+
+== 내부 동작 ==
+
+`pthread_create`는 시스템 콜이 '''아니다'''. 라이브러리 함수이고, 내부에서 이렇게 움직인다 (리눅스/glibc 기준):
+
+# `mmap`으로 [[스레드 스택|스택]] 영역(+ guard page + [[TLS]] 블록 + 스레드 디스크립터)을 할당 — '''유저 레벨'''
+# `clone(start_thread, 스택_꼭대기, CLONE_VM | CLONE_FILES | CLONE_FS | CLONE_SIGHAND | CLONE_THREAD | CLONE_SETTLS | …, arg)` 호출 — '''여기서만 커널'''
+# 커널은 새 task(`task_struct`)를 만들고, 넘겨받은 스택 포인터로 시작시킨다
+
+{analogy}🎭 [[fork]]가 '''집을 통째로 복사'''해서 독립시키는 것이라면, `pthread_create`는 '''같은 집에 책상 하나 더 들여놓고 룸메이트를 들이는''' 것이다. 이사(주소 공간 생성)가 없으니 훨씬 싸다.{/analogy}
+
+{info}리눅스 커널 입장에서 '''프로세스와 스레드의 차이는 공유 플래그 차이뿐'''이다. `fork()`는 사실상 "아무것도 공유하지 않는 `clone`"이다. `CLONE_VM`이 붙으면 [[주소 공간]]을 공유하는 "address-space-shared process" = 스레드가 된다.{/info}
+
+{quiz}`pthread_create`의 네 번째 인자 타입이 `void *`인 이유는? 인자를 두 개 넘기려면 어떻게 하는가?{/quiz}
+{answer}C에 제네릭이 없어 "아무 타입이나" 넘길 수 있게 하기 위해서다. 인자가 여러 개면 '''구조체를 하나 만들어''' 그 주소를 넘기고, 스레드 함수에서 원래 타입으로 캐스팅한다.{/answer}
+
+== 관련 문서 ==
+* [[pthread_join]] · [[스레드]] · [[스레드 스택]] · [[TLS]]
+* [[fork]] · [[스레드와 프로세스 비교]]

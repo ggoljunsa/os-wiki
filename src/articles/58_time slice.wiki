@@ -1,0 +1,61 @@
+key: time slice
+title: time slice (타임 슬라이스 / scheduling quantum)
+category: 5강 Process Scheduling, 용어
+---
+'''time slice'''(타임 슬라이스) = '''scheduling quantum'''은 한 job이 [[선점]]당하기 전까지 연속으로 CPU를 쓸 수 있는 시간 길이다. [[Round Robin]]과 [[MLFQ]]의 핵심 파라미터이며, 그 길이 하나로 스케줄러의 성격이 통째로 바뀐다.
+
+{analogy}'''발표 시간 타이머'''다. 한 사람당 1분씩 주면 모두가 금방 마이크를 잡아 보지만(빠른 [[response time]]), 마이크를 넘기느라 시간을 다 쓴다([[컨텍스트 스위치]] 오버헤드). 10분씩 주면 마이크 넘기는 횟수는 줄지만 뒷사람은 한참 기다린다. '''발표 시간 = 반응성과 오버헤드의 trade-off.'''{/analogy}
+
+== 두 가지 제약 ==
+
+=== 1. 타이머 주기의 배수여야 한다 ===
+
+{def}
+The length of a time slice must be a '''multiple of the timer-interrupt period'''.
+{/def}
+
+[[타이머 인터럽트]]가 10ms마다 울린다면 OS가 CPU를 되찾을 수 있는 순간도 10ms 간격뿐이다. 따라서 슬라이스는 10, 20, 30ms … 만 가능하다. 7ms짜리 슬라이스는 물리적으로 만들 수 없다.
+
+=== 2. 길이 자체가 trade-off ===
+
+{|
+! 슬라이스 || [[response time]] || 오버헤드
+|-
+| '''짧다''' || '''좋음''' || '''나쁨''' — the cost of context switching will '''dominate''' overall performance
+|-
+| '''길다''' || 나쁨 || 좋음 — '''amortize''' the cost of switching
+|}
+
+{exam}녹음본(2026-09-09)에서 교수님이 든 숫자를 그대로 옮긴다.
+* [[컨텍스트 스위치]] 비용 ≈ '''100 사이클 이상, 대략 1μs'''.
+* 슬라이스 1ms → 오버헤드 '''0.1%'''
+* 슬라이스 10ms → 오버헤드 '''0.01%''' (amortize 성공)
+* 대신 10ms 슬라이스면 job이 많을 때 response time이 초 단위로 늘어난다.
+* 교수님 예시: "League of Legends 같은 실시간 게임에서는 10ms만 늘어도 user experience가 확 나빠진다."
+
+슬라이드 노란 박스: "Deciding on the length of the time slice presents a '''trade-off to a system designer'''." 서술형으로 나오면 '''짧으면 response↑/오버헤드↑, 길면 amortize↑/response↓''' 양쪽을 다 써야 만점이다.{/exam}
+
+<pre class="txt">
+ 오버헤드 = 전환 비용 / (슬라이스 + 전환 비용)
+
+ 전환 1μs, 슬라이스 1μs   →  1/2      = 50%    ← 일을 거의 못 한다
+ 전환 1μs, 슬라이스 1ms   →  1/1001   ≈ 0.1%
+ 전환 1μs, 슬라이스 10ms  →  1/10001  ≈ 0.01%
+</pre>
+
+== MLFQ에서는 큐마다 다르다 ==
+
+[[img:L5-41.png|Q2=10ms, Q1=20ms, Q0=40ms. 높은 큐는 짧게, 낮은 큐는 길게|medium]]
+
+* 높은 우선순위 큐 → 대화형 job이 모여 있으니 '''짧은 슬라이스''' (10ms 이하)
+* 낮은 우선순위 큐 → CPU-bound job이니 '''긴 슬라이스''' (100ms)
+* Solaris 기본값: 최고 우선순위 20ms → 최하위 수백 ms
+
+== 고정 슬라이스를 버린 스케줄러 ==
+
+[[CFS]]는 '''고정 time slice 개념 자체가 없다'''. 대신 [[sched_latency]]를 프로세스 수 $n$으로 나눠 슬라이스를 '''동적으로''' 계산하고, [[min_granularity]]로 하한을 둔다. → [[비례 지분 스케줄링]]
+
+== 관련 문서 ==
+* [[Round Robin]] · [[MLFQ]] · [[컨텍스트 스위치]] · [[타이머 인터럽트]]
+* [[response time]] — 슬라이스가 직접 좌우하는 지표
+* [[sched_latency]] · [[min_granularity]] — CFS의 동적 슬라이스

@@ -1,0 +1,152 @@
+key: 주소 공간
+title: 주소 공간 (Address Space)
+category: 3강 From Program to Process, 용어
+---
+'''주소 공간'''(Memory Address Space)은 [[프로세스]]를 구성하는 두 축 중 하나로, 그 프로세스가 접근할 수 있는 메모리의 전부다. 나머지 한 축인 control flow가 "무엇을 실행하는가"라면, 주소 공간은 "무엇을 만질 수 있는가"다.
+
+{def}
+'''Memory Address Space''' (3강 p.23)<br>
+"Process includes two key abstractions: ① '''Control flow''' (a.k.a thread), ② '''Memory address space''' — '''set of rights''' of a process (to access the memory). Each process has an '''exclusive''' address space."
+{/def}
+
+{tip}
+0831 녹음본에서 교수님이 "please remember"를 붙여 강조한 문장: "'''the memory address space is actually related to the set of rights of the process''', and it is a key concept in the '''protection'''."<br>
+→ 주소 공간은 "메모리 덩어리"가 아니라 '''접근 권한의 집합'''이다. 정의를 물으면 이 표현을 쓸 것.
+{/tip}
+
+{analogy}
+🏨 '''호텔 객실'''이다. 손님(프로세스)은 자기 카드키로 열리는 방 안에서는 뭐든 할 수 있지만, 옆방 문은 열리지 않는다. 그리고 재미있는 건 — 모든 손님이 자기 방을 "101호"라고 부른다. 각자의 카드키가 실제로는 서로 다른 물리적 문에 매핑되기 때문이다. 이것이 [[가상화|가상 주소]]다. 카드키 매핑표를 관리하는 프런트가 [[커널|OS]]다.
+{/analogy}
+
+== 배치 ==
+
+[[img:L3-25.png|3강 p.25. 왼쪽 Memory 안의 프로세스 주소 공간과, 오른쪽에서 그 명령어를 Fetch-Decode-Execute하는 CPU. "프로세스 = 주소 공간 + 제어 흐름" 그림.|large]]
+
+<pre class="ascii">
+      N ┌─────────────────────────────┐
+        │   Kernel virtual memory     │   커널 영역 (유저는 접근 불가)
+        ├─────────────────────────────┤
+        │   User stack                │   지역 변수, 함수 인자, 리턴 주소
+        │            ↓                │   아래로 성장
+        ├─────────────────────────────┤
+        │                             │
+        │        (빈 공간)             │   stack 과 heap 이 서로를 향해 자란다
+        │                             │
+        ├─────────────────────────────┤
+        │            ↑                │   위로 성장
+        │   Heap                      │   malloc / free
+        ├─────────────────────────────┤
+        │   Read/write segment        │   .data (초기화된 전역)
+        │   (.data, .bss)             │   .bss  (미초기화 전역)
+        ├─────────────────────────────┤
+        │   Read-only segment         │   .init .text .rodata
+        │   (e.g., code)              │   코드와 상수
+      0 └─────────────────────────────┘
+</pre>
+
+{| class="table"
+! 영역 || 무엇이 || 언제 생기나 || 권한
+|-
+| Kernel virtual memory || OS 코드·자료구조 || 부팅 시 || 유저 모드에서 접근 불가
+|-
+| '''[[스택|User stack]]''' || 지역 변수, 함수 인자, 리턴 주소 || '''런타임''' (created at runtime) || R/W
+|-
+| '''[[힙|Heap]]''' || `malloc()`으로 잡은 동적 데이터 || '''런타임''' (created by malloc) || R/W
+|-
+| Read/write segment || `.data`, `.bss` || 로드 시 (실행 파일에서) || R/W
+|-
+| Read-only segment || `.init`, `.text`, `.rodata` || 로드 시 (실행 파일에서) || '''읽기 전용'''
+|}
+
+{warn}
+'''stack과 heap만 런타임에 만들어진다.''' 나머지는 실행 파일에서 그대로 복사된다. "실행 파일에 없는데 프로세스에는 있는 것"을 묻는 문제의 답이 이 둘이다. → [[프로그램 로딩]]
+{/warn}
+
+{warn}
+코드 영역이 '''읽기 전용'''인 것은 우연이 아니다. 자기 코드를 수정할 수 없게 해야 보안과 [[OS 설계 목표|protection]]이 성립하고, 덕분에 같은 프로그램을 여러 번 실행해도 '''코드 페이지는 물리적으로 공유'''할 수 있다.
+{/warn}
+
+{tip}
+0831 녹음본, 왜 이 구분이 최적화로 이어지는가: "you can have the same read/write segments and the same read-only segments for multiple programs. But some internal data, dynamic data like '''stack and heap would be different''' … this characteristic is some key characteristic that we can '''optimize the memory space management'''."
+{/tip}
+
+== 왜 "가상" 주소 공간인가 ==
+
+{def}
+'''Virtualization''' (3강 p.26)<br>
+"OS provides two key virtualization for each process:<br>
+· '''Logical control flow''' — Each program '''seems''' to have exclusive use of the CPU (+ stack)<br>
+· '''Private virtual address space''' — Each program '''seems''' to have exclusive use of main memory"
+{/def}
+
+[[img:L2-20.png|2강 p.20. 각 Task는 자기만의 private virtual memory를 보고, OS가 그것을 물리 메모리의 서로 다른 영역에 매핑한다.|large]]
+
+2강의 `mem.c` 데모가 증거다. 같은 프로그램을 두 번 띄우면 '''둘 다 `0x00200000`'''을 출력하는데, 값은 서로 독립적으로 증가한다.
+
+<pre class="sh">
+prompt> ./mem &; ./mem &
+(24113) memory address of p: 00200000
+(24114) memory address of p: 00200000     ← 같은 주소
+(24113) p: 1
+(24114) p: 1
+(24114) p: 2
+(24113) p: 2
+</pre>
+
+{warn}
+'''"주소가 같으면 같은 메모리"라는 직관이 깨지는 지점이다.''' 프로그램이 보는 것은 전부 '''가상 주소'''이고, 물리 주소로의 변환(address translation)은 OS와 하드웨어(page/segment table)가 몰래 처리한다. → [[가상화]]
+{/warn}
+
+== 주소 공간과 프로세스의 관계 ==
+
+<pre class="ascii">
+   프로세스 = Control flow  +  Address space
+              ───────────      ─────────────
+              "무엇을 실행"      "무엇을 만질 수 있나"
+              PC, 레지스터       stack/heap/data/code
+              exclusive         exclusive
+              ↓                 ↓
+              logical           private virtual
+              control flow      address space
+              (CPU 독점 착각)     (메모리 독점 착각)
+</pre>
+
+* [[fork]] → 주소 공간이 '''복사'''된다
+* [[exec]] → 주소 공간이 '''폐기되고 새로 만들어진다'''
+* [[스레드]] → 같은 주소 공간을 '''공유'''한다 (그래서 [[race condition]]이 생긴다)
+
+{tip}
+[[스레드]]와 [[프로세스]]의 차이가 정확히 여기서 갈린다. 스레드는 control flow는 따로 갖지만 주소 공간은 공유한다. 그래서 8강의 `counter++` 문제가 성립하는 것이다. → [[스레드와 프로세스 비교]]
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "프로세스가 메모리에 접근할 수 있는 '''권한의 집합'''이며, 각 프로세스가 배타적으로 갖는 것"은?
+{/quiz}
+{answer}
+'''Memory address space'''(주소 공간). 슬라이드 원문 "'''set of rights''' of a process (to access the memory)"를 쓸 수 있으면 만점.
+{/answer}
+
+{quiz}
+'''(개념)''' 주소 공간의 다섯 영역 중, 실행 파일에서 복사되는 것이 아니라 '''런타임에 생성'''되는 것 두 개를 고르고 그 이유를 한 문장으로 쓰시오.
+{/quiz}
+{answer}
+'''User stack'''과 '''Heap'''. 함수 호출 깊이와 `malloc` 요청량은 '''실행해 봐야 알 수 있는''' 동적 정보라서 실행 파일에 미리 담을 수 없기 때문이다.
+{/answer}
+
+{quiz}
+'''(서술)''' `./mem`을 두 개 띄웠더니 둘 다 `p`의 주소로 `0x00200000`을 출력했다. 두 프로세스가 같은 메모리를 공유하는가? 한 문장으로 답하시오.
+{/quiz}
+{answer}
+'''아니다.''' 출력된 것은 '''가상 주소'''이며, OS가 두 프로세스의 동일한 가상 주소를 서로 다른 물리 주소로 매핑하므로 값이 독립적으로 증가한다.
+{/answer}
+
+== 관련 문서 ==
+* [[프로세스]] — 주소 공간 + control flow
+* [[프로그램 로딩]] — 이 배치가 만들어지는 과정
+* [[스택]] / [[힙]] / [[스택 포인터]]
+* [[가상화]] — private virtual address space
+* [[fork]] / [[exec]] — 주소 공간의 복사와 교체
+* [[스레드]] / [[스레드와 프로세스 비교]] — 주소 공간을 공유하면 벌어지는 일
+* [[유저 모드와 커널 모드]] — kernel virtual memory에 손댈 수 없는 이유

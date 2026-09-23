@@ -1,0 +1,89 @@
+key: trapframe
+title: trapframe (struct trapframe)
+category: 4강 LDE, 과제1, 용어
+---
+'''trapframe'''은 [[xv6]]에서 '''트랩이 났을 때 유저 레지스터를 통째로 담아 두는 구조체'''다. 4강 슬라이드의 "user state saved by HW in the '''kernel stack'''"을 [[RISC-V]] [[xv6]]가 구체화한 것으로, '''프로세스마다 한 페이지'''가 할당되어 `p->trapframe`으로 접근한다.
+
+{analogy}
+trapframe은 '''책갈피'''다. 읽던 책을 덮기 전에 ① 몇 페이지였는지([[epc]]) ② 손에 뭘 들고 있었는지(레지스터 31개)를 적어 끼워 둔다. [[과제1 xv6 alarm|과제 1]]의 [[alarm_saved]]는 '''그 책갈피를 통째로 복사한 사본'''이고, 알람은 '''원본 책갈피의 페이지 번호만 몰래 바꿔 쓰는 장난'''이다.
+{/analogy}
+
+== 구조체 필드 ==
+
+<pre class="c">
+// kernel/proc.h
+struct trapframe {
+  /*   0 */ uint64 kernel_satp;   // ┐ 커널 페이지 테이블 주소
+  /*   8 */ uint64 kernel_sp;     // │ 이 프로세스의 커널 스택 top
+  /*  16 */ uint64 kernel_trap;   // │ usertrap() 의 주소
+  /*  24 */ uint64 epc;           // │ ★ 끊긴 유저 PC 사본
+  /*  32 */ uint64 kernel_hartid; // ┘ CPU 번호
+  /*  40 */ uint64 ra;            // ┐
+  /*  48 */ uint64 sp;            // │
+  /*  56 */ uint64 gp;            // │
+  /*  64 */ uint64 tp;            // │
+  /*  72 */ uint64 t0;            // │ 유저 범용 레지스터 31개
+  ...                             // │ (t0–t6, s0–s11, a0–a7)
+  /* 112 */ uint64 a0;            // │ ★ 인자 1 겸 반환값
+  ...                             // │
+  /* 168 */ uint64 a7;            // │ ★ 시스템 콜 번호
+  ...                             // │
+  /* 280 */ uint64 t6;            // ┘
+};
+</pre>
+
+{| class="table"
+! 묶음 || 필드 || 누가 채우나 || 언제
+|-
+| '''커널 정보''' || `kernel_satp`, `kernel_sp`, `kernel_trap`, `kernel_hartid` || '''[[usertrapret]]'''이 '''미리''' 채워 둠 || 유저로 나가기 직전
+|-
+| '''복귀 주소''' || '''[[epc]]''' || '''[[usertrap]]'''이 `r_sepc()`로 || 트랩 진입 직후
+|-
+| '''유저 레지스터 31개''' || `ra sp gp tp t0–t6 s0–s11 a0–a7` || '''`uservec`'''(trampoline.S)이 어셈블리로 || 트랩 진입 순간
+|}
+
+{warn}
+'''`x0`는 없다.''' RISC-V의 `x0`는 항상 0이라 저장할 필요가 없다. 그래서 범용 레지스터는 32개가 아니라 '''31개'''. 그리고 '''PC는 범용 레지스터가 아니다''' — 그래서 `epc`라는 '''별도 칸'''을 만들어 따로 적는다.
+{/warn}
+
+== 왜 커널 정보까지 들어 있나 ==
+
+트랩 직후에는 '''모드는 커널인데 페이지 테이블은 아직 유저 것'''이다. 이 상태에서 커널 스택 주소나 커널 페이지 테이블 주소를 알아내려면 어딘가에서 읽어야 하는데, 유저 주소 공간에서 읽을 수 있는 유일한 커널 데이터가 '''trapframe 페이지'''다. 그래서 [[usertrapret]]이 나가기 전에 "다음에 들어올 때 쓸 정보"를 미리 적어 둔다.
+
+<pre class="ascii">
+   유저 주소 공간 꼭대기
+   ┌──────────────────────────┐  MAXVA
+   │ trampoline (uservec/userret)│  ← 유저·커널 양쪽에 같은 주소로 매핑
+   ├──────────────────────────┤
+   │ TRAPFRAME  (1 page)      │  ← p->trapframe 이 가리키는 곳
+   │   kernel_satp … epc      │     PTE_U 없음 → 유저 코드는 못 읽음
+   │   ra sp … a0 … t6        │
+   ├──────────────────────────┤
+   │ user stack               │
+   │ heap / data / text       │
+   └──────────────────────────┘
+</pre>
+
+== 과제 1에서의 역할 ==
+
+<pre class="c">
+p->alarm_saved = *p->trapframe;   // 백업: 구조체 "값" 통째 복사 (= memmove)
+p->trapframe->epc = handler;      // 원본의 복귀 주소만 바꿔치기
+...
+*p->trapframe = p->alarm_saved;   // 복원: 31 레지스터 + epc 전부 되돌림
+</pre>
+
+{warn}
+'''`p->alarm_saved = p->trapframe;`는 틀렸다''' — 그건 포인터 대입이고(타입도 안 맞음), 설령 된다 해도 '''같은 페이지를 가리키는 두 번째 이름'''일 뿐이라 백업이 아니다. `*`를 붙여 '''내용물'''을 복사해야 한다. 퀴즈 1의 2번 ② 빈칸이 정확히 이것.
+{/warn}
+
+{quiz}
+타이머 인터럽트로 이미 `p->trapframe`에 유저 문맥이 저장되는데, 왜 [[alarm_saved]]라는 사본이 또 필요한가?
+{/quiz}
+{answer}
+`p->trapframe`은 '''"지금 이 트랩"용 슬롯 하나'''뿐이고 트랩마다 덮어써진다. 핸들러는 '''user mode'''에서 돌면서 자신의 [[시스템 콜]](최소한 [[sigreturn]])로 또 트랩을 일으키므로, 그 순간 원래 문맥이 사라진다. → 핸들러 시작 '''전에''' 별도 슬롯으로 복사해야 한다. (퀴즈 1 3번 (a), 10점)
+{/answer}
+
+== 관련 문서 ==
+* [[epc]] · [[sepc]] · [[usertrap]] · [[usertrapret]] · [[sret]] · [[커널 스택]]
+* [[alarm_saved]] · [[a0]] · [[a0 복원]] · [[과제1 xv6 alarm]] · [[struct proc]]

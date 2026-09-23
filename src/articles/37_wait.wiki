@@ -1,0 +1,130 @@
+key: wait
+title: wait()
+category: 3강 From Program to Process, 용어
+---
+'''`wait()`'''는 부모 프로세스가 '''자식이 끝날 때까지 블록'''되었다가, 끝난 자식을 회수(reap)하는 [[시스템 콜]]이다. [[프로세스 API]]의 Wait 갈래이며, `ZOMBIE` 상태를 없애는 유일한 방법이다.
+
+{def}
+3강 p.31 — "'''Wait''': Wait for a process to stop running — e.g., `wait()` and `waitpid()`".<br>
+아래 `p2.c` 예제와 출력은 '''[[OSTEP]] Chapter 5 (Process API)'''의 것이다.
+{/def}
+
+{analogy}
+🧾 '''장례 절차'''다. 자식이 `exit()`을 해도 프로세스는 완전히 사라지지 않는다 — 종료 코드와 [[PCB]] 껍데기가 `ZOMBIE` 상태로 남는다. 부모가 `wait()`를 불러 "얘 갔구나, 사인은 이거구나"를 확인해 줘야 비로소 시스템에서 지워진다. 부모가 끝까지 안 부르면? 시체가 프로세스 테이블에 계속 쌓인다. 그게 '''좀비 프로세스'''다.
+{/analogy}
+
+== 예제 (OSTEP p2.c) ==
+
+<pre class="c">
+int main(int argc, char *argv[]) {
+    printf("hello world (pid:%d)\n", (int) getpid());
+    int rc = fork();
+    if (rc &lt; 0) {
+        fprintf(stderr, "fork failed\n");
+        exit(1);
+    } else if (rc == 0) {                  // child
+        printf("hello, I am child (pid:%d)\n", (int) getpid());
+    } else {                               // parent
+        int rc_wait = wait(NULL);          // 자식이 끝날 때까지 블록
+        printf("hello, I am parent of %d (rc_wait:%d) (pid:%d)\n",
+               rc, rc_wait, (int) getpid());
+    }
+    return 0;
+}
+</pre>
+
+'''출력''':
+
+<pre class="sh">
+prompt> ./p2
+hello world (pid:29266)
+hello, I am child (pid:29267)
+hello, I am parent of 29267 (rc_wait:29267) (pid:29266)
+prompt>
+</pre>
+
+[[sim:fork_exec]]
+
+{warn}
+'''`p1.c`와 `p2.c`의 결정적 차이''': `p1.c`는 부모가 먼저 찍힐 수도, 자식이 먼저 찍힐 수도 있었다. `p2.c`는 `wait()` 덕분에 '''자식이 반드시 먼저''' 출력된다. 즉 `wait()`는 비결정적이던 실행 순서를 '''결정적으로''' 만든다. 시험에서 "출력 순서가 항상 같은가?"를 묻는다면 `wait()`의 유무를 보면 된다.
+{/warn}
+
+{warn}
+`wait()`의 '''반환값은 끝난 자식의 PID'''다. 위 출력에서 `rc`(= [[fork]]의 반환값)와 `rc_wait`(= `wait()`의 반환값)가 둘 다 `29267`로 같은 이유가 그것이다. 이 두 값이 같다는 걸 확인하는 문제가 자주 나온다.
+{/warn}
+
+== 동작 ==
+
+<pre class="ascii">
+   부모                                     자식
+   ────────────────────────────────────    ───────────────────────────
+   rc = fork()  ──────────────────────►    (rc == 0 으로 시작)
+       │                                        │
+   wait(NULL)                                   │  일한다
+       │  Running → '''Blocked'''                    │
+       │  (CPU 를 놓아 준다)                      │
+       │                                    exit(0)
+       │                                        │  상태: '''ZOMBIE'''
+       │  ◄─────── 커널이 깨움 ──────────────────┘
+       │  Blocked → '''Ready''' → Running
+   rc_wait = 29267                          (PCB 해제, 완전히 소멸)
+</pre>
+
+# 부모가 `wait()` 호출 → [[프로세스 상태|Blocked]]로 내려간다 (CPU를 다른 프로세스에 양보)
+# 자식이 `exit()` → 자식은 '''`ZOMBIE`''' 상태가 된다. 종료 코드(`xstate`)만 남긴 껍데기
+# 커널이 부모를 '''Ready'''로 올린다
+# 부모가 다시 Running이 되면 `wait()`가 자식의 PID를 반환하고, '''자식의 [[PCB]]가 완전히 해제'''된다
+
+{| class="table"
+! 시스템 콜 || 무엇을 기다리나
+|-
+| `wait(&amp;status)` || '''아무''' 자식 하나가 끝날 때까지
+|-
+| `waitpid(pid, &amp;status, options)` || '''특정''' 자식을, 또는 `WNOHANG`으로 논블로킹 확인
+|}
+
+`wait(NULL)`처럼 인자를 `NULL`로 주면 종료 상태에 관심이 없다는 뜻이다.
+
+== ZOMBIE와 고아 ==
+
+{| class="table"
+! 상황 || 이름 || 결과
+|-
+| 자식이 끝났는데 부모가 `wait()`를 안 함 || '''좀비(zombie)''' || [[struct proc]] 슬롯이 계속 점유됨 → 프로세스 테이블 고갈
+|-
+| 부모가 자식보다 먼저 끝남 || '''고아(orphan)''' || `init`(pid 1)이 입양해서 대신 `wait()` 해 준다
+|}
+
+{tip}
+[[xv6]]의 `enum procstate`에 '''`ZOMBIE`'''가 실재한다는 점이 3강 p.38과 이 문서를 잇는 고리다. 3-상태 모델(Running/Ready/Blocked)에는 없는 상태이며, 순전히 '''부모-자식 관계''' 때문에 필요하다. → [[프로세스 상태]]
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(출력 예측)''' `p1.c`(wait 없음)와 `p2.c`(wait 있음)의 출력 순서 중, '''항상 동일하게 보장되는''' 쪽은 어느 것이며 그 이유는?
+{/quiz}
+{answer}
+'''`p2.c`'''. 부모가 `wait()`에서 [[프로세스 상태|Blocked]]되어 자식의 `exit()` 전까지 진행할 수 없으므로, 자식의 출력이 '''반드시''' 부모의 출력보다 앞선다. `p1.c`는 두 프로세스 모두 Ready 상태로 [[스케줄러]]의 선택에 맡겨지므로 순서가 비결정적이다.
+{/answer}
+
+{quiz}
+'''(빈칸)''' `wait()`의 반환값은 __________ 이다. 그래서 `p2.c`에서 `rc`와 `rc_wait`는 __________.
+{/quiz}
+{answer}
+'''끝난 자식의 PID''' / '''같은 값'''이 된다 (자식이 하나뿐이므로).
+{/answer}
+
+{quiz}
+'''(정의 → 용어)''' "`exit()`은 했지만 부모가 아직 회수하지 않아 [[PCB]]만 남아 있는 프로세스 상태"를 [[xv6]]의 `enum procstate` 용어로 쓰시오.
+{/quiz}
+{answer}
+'''`ZOMBIE`'''. 부모가 `wait()`를 호출하는 순간 [[struct proc]] 슬롯이 해제되며 완전히 사라진다.
+{/answer}
+
+== 관련 문서 ==
+* [[fork]] / [[exec]] / [[프로세스 API]]
+* [[프로세스 상태]] — `ZOMBIE`, Blocked
+* [[struct proc]] — `parent`, `xstate`, `chan`
+* [[스케줄러]] / [[동시성]]
+* [[OSTEP]] — Chapter 5

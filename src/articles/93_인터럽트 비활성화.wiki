@@ -1,0 +1,65 @@
+key: 인터럽트 비활성화
+title: 인터럽트 비활성화 (Controlling Interrupts)
+category: 9강 Lock, 용어
+---
+락을 만드는 '''가장 오래된''' 방법. 9강 p.15 "Controlling Interrupts".
+
+[[img:L9-15.png|Controlling Interrupts — lock은 DisableInterrupts, unlock은 EnableInterrupts|medium]]
+
+<pre class="c">
+1   void lock() {
+2       DisableInterrupts();
+3   }
+4   void unlock() {
+5       EnableInterrupts();
+6   }
+</pre>
+
+{def}"Disable Interrupts for critical sections.
+* One of the '''earliest''' solutions used to provide mutual exclusion
+* '''Invented for single-processor systems'''"{/def}
+
+== 왜 이게 락이 되나 ==
+
+[[race condition]]의 원인은 [[타이머 인터럽트]]에 의한 [[컨텍스트 스위치]]다. 그러니 [[critical section]] 동안 인터럽트를 꺼 버리면 '''끊기지 않는다''' → 그 구간이 통째로 [[atomic|원자적]]으로 실행된다.
+
+단순하고, 싱글 CPU에서는 실제로 동작한다. 그런데도 유저 프로그램용 락으로는 쓰이지 않는다.
+
+== 문제 세 가지 (슬라이드, 전부 중요) ==
+
+{warn}🔥 '''1. Require too much trust in applications'''
+"'''Greedy (or malicious) program could monopolize the processor'''" — 유저가 인터럽트를 끌 수 있다면, 악의적인(혹은 그냥 버그 있는) 프로그램이 인터럽트를 끄고 CPU를 영영 독점한다. 4강에서 배운 '''"OS가 통제권을 잃는"''' 바로 그 상황이다.
+→ 그래서 인터럽트 제어는 '''[[특권 명령]]'''이고, [[타이머 인터럽트]]는 부팅 때 OS가 켠다.
+
+🔥 '''2. Interrupts become lost'''
+"Turning off interrupts for extended periods of time can lead to '''interrupts becoming lost (e.g., disk I/Os)'''" — 오래 꺼 두면 디스크 I/O 완료 신호 같은 인터럽트를 놓친다. 장치가 "다 했어요"라고 말하는데 아무도 안 듣는 셈.
+
+🔥 '''3. Do not work on multiprocessors''' ← '''결정타'''
+인터럽트를 끄는 것은 '''그 CPU 하나'''에만 적용된다. 다른 CPU에서 도는 스레드는 인터럽트와 무관하게 [[critical section]]에 '''그냥 들어온다'''. 멀티코어 시대에는 락으로 쓸 수 없다.{/warn}
+
+{exam}⭐⭐ '''"인터럽트를 끄는 방식의 문제점 세 가지를 쓰시오"'''는 전형적인 서술형이다. ① '''신뢰''' ② '''인터럽트 유실''' ③ '''멀티프로세서에서 무효''' — 세 개를 다 쓸 것. 특히 ③이 '''결정적인 이유'''라는 점을 덧붙이면 좋다.{/exam}
+
+== 그럼에도 여전히 쓰이는 곳 ==
+
+{info}'''커널 내부'''에서는 지금도 쓴다. 조건이 다르기 때문이다:
+* 유저를 신뢰할 필요가 없다 (코드를 커널이 직접 씀)
+* 구간이 아주 짧다 (몇 명령어)
+* 인터럽트 핸들러와 공유하는 자료구조를 보호할 때는 '''이 방법밖에 없다''' — 핸들러는 락을 기다릴 수 없으니까
+
+[[xv6]]의 `push_off()` / `pop_off()`가 그 예다. 단 xv6도 멀티코어이므로 '''스핀락과 함께''' 쓴다: `acquire()`가 인터럽트를 끄고(같은 CPU의 재진입 방지) + `amoswap`으로 스핀(다른 CPU 차단)한다.{/info}
+
+{analogy}🎭 인터럽트 비활성화 = '''회의 중 휴대폰 전원 끄기'''. 방해는 확실히 막힌다. 하지만
+① 사원이 마음대로 끌 수 있으면 '''퇴근 시간에도 안 꺼져''' 있을 수 있고(신뢰),
+② 끈 동안 온 '''부재중 전화는 기록도 안 남고'''(인터럽트 유실),
+③ 무엇보다 '''내 폰만 껐지 옆 회의실 사람은 멀쩡히 들어온다'''(멀티프로세서).{/analogy}
+
+{quiz}"인터럽트를 끄면 [[mutual exclusion]]이 보장된다"는 명제는 어떤 조건에서만 참인가?{/quiz}
+{answer}'''단일 프로세서(single-processor)'''에서만 참이다. 멀티프로세서에서는 인터럽트 비활성화가 '''그 CPU에만''' 적용되므로, 다른 CPU의 스레드가 [[critical section]]에 그대로 진입한다. 슬라이드도 "Invented for single-processor systems"라고 못 박는다.{/answer}
+
+{quiz}유저 프로그램이 `DisableInterrupts()`를 직접 호출할 수 있게 하면 무슨 일이 생기는가? 이것이 4강의 어떤 문제와 연결되는가?{/quiz}
+{answer}greedy/malicious 프로그램이 인터럽트를 끄고 '''CPU를 독점'''할 수 있다. [[타이머 인터럽트]]가 안 오면 OS가 CPU 제어권을 되찾지 못하므로, 4강 "Problem 2: Switching Between Processes"의 '''통제권 상실''' 문제가 그대로 재현된다. 그래서 인터럽트 제어는 [[특권 명령]]이다.{/answer}
+
+== 관련 문서 ==
+* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[spin lock]]
+* [[타이머 인터럽트]] · [[특권 명령]] · [[인터럽트]] · [[제한적 직접 실행]]
+* [[atomic]] · [[xv6]]

@@ -1,0 +1,339 @@
+key: 스레드
+title: 스레드 (Thread)
+category: 8강 Concurrency, 핵심
+---
+'''스레드'''(thread)는 8강 Concurrency의 주인공이자, 지금까지 배운 [[프로세스]] 개념을 '''둘로 쪼갠''' 결과물이다. 슬라이드의 한 줄 정의는 "'''a sequential execution stream within a process'''" — 프로세스 안의 순차적 실행 흐름이다.
+
+1~7강이 "CPU 하나를 여러 프로세스가 어떻게 나눠 쓰나"([[가상화]])였다면, 8강부터는 "'''한 프로세스 안에 실행 흐름이 여러 개 있고 그들이 메모리를 공유하면 무슨 일이 생기나'''"가 질문이다. 보호가 기본이던 세계에서 '''공유가 기본'''인 세계로 넘어오는 순간이고, 그 대가가 [[race condition]]이다. OSTEP 26장에 해당한다.
+
+{info}이 강의의 앞 20장(p.2~20)은 1~7강 전체 복습이다. 교수님이 '''퀴즈용'''이라고 직접 밝혔으므로, 이 문서 아래쪽의 "교수님이 퀴즈용이라고 한 복습 슬라이드 (p.2~20)" 절을 먼저 훑고 오는 것도 좋다.{/info}
+
+== 왜 Concurrency인가 (p.22) ==
+
+슬라이드가 든 이유 다섯 가지:
+
+{|
+! 용도 || 이유 || 예
+|-
+| 대부분의 현대 앱 || 멀티스레드가 기본 || GUI (그리기 스레드 + 이벤트 스레드)
+|-
+| '''Servers''' || 논리적으로 동시적인 작업을 표현 — 여러 연결을 동시에 처리 || 웹 서버, 연결마다 스레드 하나
+|-
+| '''Parallel programs''' || 더 나은 성능 — 여러 코어를 실제로 활용 || 큰 배열 정렬을 4코어가 분담 ([[Amdahl의 법칙]])
+|-
+| UI 있는 프로그램 || 계산 중에도 '''사용자 반응성''' 유지 || 인코딩 중에도 취소 버튼이 눌림
+|-
+| Network/disk-bound || 네트워크·디스크 '''지연을 숨김(hide latency)''' || 한 스레드가 blocked인 동안 다른 스레드가 계산
+|}
+
+{warn}'''성능(parallelism)은 이유 중 하나일 뿐이다.''' 서버·UI·I/O 숨기기는 '''CPU가 하나여도''' 이득이다. 7강의 "concurrency ≠ parallelism"이 여기서 의미를 갖는다.{/warn}
+
+== 프로세스를 쪼개기 (p.23) ==
+
+{def}'''Threads''' — ''unit of concurrency''. "a sequential execution stream within a process" (프로세스 안의 순차적 실행 흐름).
+
+'''Address space''' — ''unit of protection''. "All the addresses that the program can touch" (프로그램이 건드릴 수 있는 모든 주소), 프로그램 실행에 필요한 모든 상태.{/def}
+
+암기 문장: '''thread = 동시성의 단위, [[주소 공간|address space]] = 보호의 단위.''' "unit of ___" 빈칸 문제로 나오기 딱 좋다.
+
+왜 분리하나?
+# 협력하는 실행 흐름이 '''대량으로''' 필요한 경우가 많다 (서버의 수천 개 연결).
+# '''한 주소 공간에 스레드 여러 개'''를 두고 싶은 상황이 많다 (같은 데이터를 함께 다루는 작업들).
+# 분리하지 않으면 협력 작업마다 프로세스를 따로 만들어야 하고, 데이터 교환에 비싼 IPC가 필요하다.
+
+옛날의 "프로세스"란 사실 '''스레드 1개짜리 주소 공간'''이었다. [[xv6]]가 정확히 그런 구조다 — [[struct proc]] 하나에 실행 흐름 하나.
+
+자세한 비교는 [[스레드와 프로세스 비교]] 참고.
+
+== 스레드의 실체 (p.26~27) ==
+
+{def}'''Thread''' — a new abstraction for a single running process. A '''multi-threaded program''' has more than one point of execution, i.e. '''multiple PCs''' (Program Counters), and they '''share the same address space'''.{/def}
+
+한 줄로: '''스레드 = 자기 [[프로그램 카운터|PC]] + [[레지스터]] + [[스레드 스택|스택]]을 가지고, 주소 공간은 공유하는 실행 흐름.'''
+
+각 스레드의 상태는 [[TCB]](Thread Control Block)에 저장된다. [[프로세스]]의 [[PCB]]와 같은 역할이다. 스레드 간 전환은 [[스레드 컨텍스트 스위치]] 문서에서 자세히 다룬다 — 핵심은 '''레지스터만 저장/복원하고 주소 공간은 그대로'''라는 것.
+
+{|
+! 스레드마다 따로 ([[TCB]] + 자기 스택) || 모든 스레드가 공유 (프로세스 단위)
+|-
+| [[프로그램 카운터|PC]] || 코드(text)
+|-
+| [[레지스터]] 세트 ([[스택 포인터|sp]] 포함) || 전역 변수, `static` 변수
+|-
+| '''[[스레드 스택|스택]]''' (지역 변수, 인자, 리턴 주소) || '''[[힙]]''' (`malloc`한 메모리)
+|-
+| [[TLS]] || 열린 파일 디스크립터
+|-
+| 스레드 상태, 스케줄링 정보 || [[주소 공간]], PID, 작업 디렉터리
+|}
+
+{warn}스택이 "따로"라는 건 '''각자 다른 영역을 쓴다'''는 뜻이지 '''보호된다'''는 뜻이 아니다. 같은 주소 공간이므로 포인터만 넘기면 다른 스레드의 스택도 읽고 쓸 수 있다.{/warn}
+
+== 주소 공간 그림 (p.28) ==
+
+'''There will be one stack per thread''' — 스레드마다 스택이 하나씩.
+
+[[img:L8-28.png|단일 스레드 주소 공간 vs 두 스레드 주소 공간. Stack (2)가 중간에 끼어든다|large]]
+
+[[sim:thread_stack]]
+
+{warn}'''방향 주의.''' 그림은 0KB가 위쪽이라서, heap이 "아래로(downward)" 자란다 = '''높은 주소 쪽으로''', stack이 "위로(upward)" 자란다 = '''낮은 주소 쪽으로'''다. 헷갈리면 "'''heap은 주소 증가, stack은 주소 감소'''"로 외워라.{/warn}
+
+* 단일 스레드일 땐 [[힙]]과 [[스택]]이 양 끝에서 마주 보며 자라 빈 공간을 최대한 활용한다.
+* 스레드가 여러 개면 스택이 주소 공간 '''중간 곳곳에''' 흩어져 이 배치가 깨진다 → 각 스택 크기가 '''고정'''되고, 넘치면 다른 영역을 덮을 수 있다 (그래서 스택 사이에 guard page를 둔다).
+* ⭐ '''각 스레드의 지역 변수는 자기 스택에 있어 안 섞인다 → 공유되는 건 전역·힙.''' [[counter 예제]]의 `counter`가 전역이고 루프 변수 `i`는 문제가 안 되는 이유다.
+
+자세한 것은 [[스레드 스택]] 문서.
+
+== 스레드 만들기 (p.29, p.32) ==
+
+[[img:L8-29.png|pthread_create의 네 인자|medium]]
+
+<pre class="c">
+#include &lt;pthread.h&gt;
+
+int pthread_create(pthread_t            *thread,
+                   const pthread_attr_t *attr,
+                   void *               (*start_routine)(void *),
+                   void *               arg);
+</pre>
+
+* `thread` — 이 스레드와 상호작용하는 데 쓰는 핸들. `pthread_t` 변수의 '''주소'''를 넘긴다.
+* `attr` — 스레드 '''속성''': 스택 크기, 스케줄링 우선순위 등. 보통 `NULL`.
+* `start_routine` — 스레드가 실행을 시작할 함수. `void *`를 받고 `void *`를 반환.
+* `arg` — 그 함수에 넘길 인자. '''`void *`라서 어떤 타입이든''' 넘길 수 있다.
+
+인자가 여러 개면 '''구조체로 묶어서''' 주소를 넘긴다:
+
+<pre class="c">
+typedef struct { int a; int b; } myarg_t;
+
+void *mythread(void *arg) {
+    myarg_t *args = (myarg_t *) arg;   // 받는 쪽에서 원래 타입으로 캐스팅
+    printf("%d %d\n", args->a, args->b);
+    return NULL;
+}
+
+myarg_t args = { 10, 20 };
+pthread_create(&p, NULL, mythread, &args);
+</pre>
+
+자세한 건 [[pthread_create]], 짝이 되는 대기 함수는 [[pthread_join]].
+
+슬라이드 p.32의 전체 예제:
+
+[[img:L8-32.png|Multi-threaded Program Example — main + 스레드 2개|medium]]
+
+<pre class="c">
+ 7 void *mythread(void *arg) {
+ 8     printf("%s\n", (char *) arg);   // 받은 문자열("A" 또는 "B") 출력
+ 9     return NULL;
+10 }
+11
+12 int
+13 main(int argc, char *argv[]) {
+14     pthread_t p1, p2;
+15     int rc;
+16     printf("main: begin\n");
+17     pthread_create(&p1, NULL, mythread, "A");
+18     pthread_create(&p2, NULL, mythread, "B");
+19     // join waits for the threads to finish
+20     pthread_join(p1, NULL);
+21     pthread_join(p2, NULL);
+22     printf("main: end\n");
+23     return 0;
+24 }
+</pre>
+
+{info}이 프로그램의 '''스레드는 총 3개'''다: main + p1 + p2. main도 스레드다.{/info}
+
+=== 실행 순서는 아무도 모른다 (p.33~35) ===
+
+[[img:L8-33.png|Possible Outputs ① — main이 sleep(→Blocked)하고 T1, T2가 차례로 도는 경우|large]]
+
+슬라이드는 같은 프로그램의 '''세 가지 다른 실행 순서'''를 보여준다.
+
+{|
+! 슬라이드 || 시나리오 || 출력
+|-
+| p.33 || ① main이 `join`에서 '''goes to sleep'''(→ Blocked) → T1 → main → T2 || `begin / A / B / end`
+|-
+| p.34 || ① main이 '''preempted'''(→ Ready, 타이머로 강제 선점) → T1 → main → T2 || `begin / A / B / end`
+|-
+| p.35 || ① main preempted → '''OS가 T2를 먼저 선택''' → main → T1 || `begin / '''B''' / '''A''' / end`
+|}
+
+> "'''What runs next is determined by the OS Scheduler; It is hard to know what will run at any given moment in time!'''"
+
+{exam}⭐ 출제 포인트 (p.33~35)
+* `join` 순서(p1 → p2)는 main이 '''기다리는''' 순서일 뿐, 스레드가 '''실행되는''' 순서를 정하지 않는다.
+* "가능한 출력을 모두 고르라" 유형의 답은 '''2가지'''. `main: begin`은 스레드 생성 전이라 항상 처음, `main: end`는 두 `join` 뒤라 항상 마지막, '''A와 B 순서만 자유'''.
+* `A`가 `main: begin`보다 먼저? '''불가능'''. `main: end`가 `B`보다 먼저? '''불가능'''.
+* '''preempted(→ Ready)와 goes to sleep(→ Blocked)을 구분'''할 것. [[프로세스 상태]] 전이 문제로 엮이기 좋다.{/exam}
+
+{analogy}🎭 스레드 = '''한 집(주소 공간)에 사는 룸메이트들'''이다. 각자 자기 책상(스택)과 자기 일정표(PC·레지스터)를 갖지만, 냉장고(전역 변수)와 창고([[힙]])는 공유한다. 룸메이트가 늘수록 살림은 편해지지만(데이터 공유가 쉬움), '''냉장고 안의 마지막 푸딩을 두 명이 동시에 꺼내려는''' 사건이 생긴다. 그게 [[race condition]]이다.{/analogy}
+
+== 공유 데이터가 끼어들면 (p.36~40) ==
+
+여기부터 8강의 클라이맥스다. 전역 `counter`를 두 스레드가 1천만 번씩 올리면 2천만이 나와야 하는데, 실제로는 '''매번 다르고 항상 모자란다'''.
+
+[[img:L8-38.png|기대 20000000 vs 실제 19345221 / 19221041 — 매번 다르다|large]]
+
+원인은 C 한 줄이 기계어 세 줄이라는 것:
+
+[[img:L8-39.png|counter = counter + 1의 어셈블리 — mov / add / mov|medium]]
+
+<pre class="asm">
+100  mov 0x8049a1c, %eax   ; ① LOAD : 메모리의 counter를 eax로
+105  add $0x1, %eax        ; ② ADD  : eax에 1 더하기 (아직 메모리엔 반영 X)
+108  mov %eax, 0x8049a1c   ; ③ STORE: eax 값을 counter에 다시 씀
+</pre>
+
+> "'''The context switch can happen at any point of time by the OS scheduler'''"
+
+[[img:L8-40.png|counter=50에서 두 스레드가 한 번씩 증가 — 기대 52, 결과 51|large]]
+
+[[sim:counter_race]]
+
+{exam}⭐⭐⭐ '''p.40 표는 시험 단골'''이다. PC / eax / counter 세 열을 손으로 재현할 수 있어야 한다. 전체 추적과 변형 문제는 [[counter 예제]] 문서에 정리해 두었다.{/exam}
+
+핵심 통찰:
+* '''CPU가 보장하는 원자성의 단위는 "명령어 하나"'''다. C 한 줄은 명령어 여러 개이므로 [[atomic|원자적]]이지 않다.
+* 증가의 중간 결과(1을 더했지만 아직 안 쓴 값)가 '''[[레지스터]]'''에 있는 동안 전환되면, 그 값은 [[TCB]]에 저장되고 다른 스레드는 '''메모리의 옛 값'''을 본다.
+* load-modify-store('''read-modify-write''') 패턴은 전부 같은 위험: `x++`, `x += 5`, `list->head = new`, `balance -= amount`…
+
+== Race condition, Critical section, Mutual exclusion (p.42~44) ==
+
+[[img:L8-42.png|Race Condition과 Critical Section의 슬라이드 정의 — 18번 줄이 critical section|large]]
+
+{def}'''Race condition''' — "An undesirable situation that occurs when a device or system attempts to perform '''two or more operations at the same time'''." Race condition occurs when there exists a critical section(s) in the code.
+
+'''Critical section''' — "A piece of code that '''accesses a shared variable''' (or a shared resource) and '''must not be concurrently executed by more than one thread'''."{/def}
+
+{exam}🎯 이 두 정의는 '''2025F 중간고사 Problem 2-e)에 슬라이드 문장 그대로''' 출제되었다: "What is the name of an undesirable situation that occurs when a device or system attempts to perform two or more operations at the same time?" → '''Race Condition'''. 영어 정의 문장을 통째로 외울 것. 자세한 건 [[2025F 중간고사 족보]].{/exam}
+
+인과 사슬:
+
+<pre class="ascii">
+공유 자원 존재 → 그것에 접근하는 코드 = critical section
+  → 보호 없이 여러 스레드가 동시 실행 → race condition → indeterminate한 결과
+  → 해법: critical section에 mutual exclusion
+</pre>
+
+해법이 [[mutual exclusion]]이고, 그 도구가 [[락|lock]]이다. p.44의 고친 코드:
+
+<pre class="c">
+13 lock_t mutex;
+14 void *mythread(void *arg) {
+15     printf("%s: begin\n", (char *) arg);
+16     int i;
+17     for (i = 0; i &lt; 1e7; i++) {
+18         lock(&mutex);            // 진입: 다른 스레드가 쥐고 있으면 대기
+19         counter = counter + 1;   // critical section
+20         unlock(&mutex);          // 퇴장
+21     }
+22     printf("%s: done\n", (char *) arg);
+23     return NULL;
+24 }
+</pre>
+
+{warn}'''락은 인터럽트(선점)를 막는 게 아니다.''' 락을 쥔 스레드도 여전히 선점된다. 락은 선점돼도 '''다른 스레드가 critical section에 못 들어오게''' 할 뿐이다. 그리고 `lock()` 자체를 어떻게 원자적으로 만드느냐가 바로 9강 [[락]]의 주제다.{/warn}
+
+== 교수님이 퀴즈용이라고 한 복습 슬라이드 (p.2~20) ==
+
+{exam}🎯 8강 PDF의 앞 20장은 1~7강 복습이다. 교수님이 '''"이 부분은 퀴즈용"'''이라고 직접 밝혔으므로(사용자 전달, 2026-09-21, [[시험 정보]] 기록), '''슬라이드 1장 = 문제 1개'''로 보고 아래 표를 체크리스트처럼 쓰면 된다.{/exam}
+
+{|
+! p. || 슬라이드 제목 || 반드시 말할 수 있어야 하는 한 줄 || 문서
+|-
+| 2 || Process || 프로세스 = an instance of a running program. program(디스크의 정적 파일)도 processor(하드웨어)도 아니다. 두 추상화 = '''control flow (a.k.a thread)''' + '''memory address space''' || [[프로세스]]
+|-
+| 3 || Virtualization || Logical control flow(CPU를 혼자 쓰는 '''것처럼''') + Private virtual address space(메모리를 혼자 쓰는 '''것처럼''') || [[가상화]]
+|-
+| 4 || How to Efficiently Virtualize CPU? || time sharing의 두 문제 = '''Control'''(통제권 유지) + '''Performance'''(오버헤드) || [[제한적 직접 실행]]
+|-
+| 5 || Problem 1: Restricted Operation || 해법 = '''protected control transfer''' → user mode / kernel mode || [[유저 모드와 커널 모드]]
+|-
+| 6 || Problem 2: Switching Between Processes || "프로세스가 돌고 있다 = OS는 안 돌고 있다". '''Cooperative = just wait for system calls''' / Non-cooperative = OS가 빼앗음 || [[협력적 방식]] · [[비협력적 방식]]
+|-
+| 7 || A Non-Cooperative Approach || '''During the boot sequence, the OS starts the timer.''' 타이머 인터럽트가 OS에게 다시 돌 능력을 준다 || [[타이머 인터럽트]]
+|-
+| 8 || Scheduling Policies || mechanism(context switch)은 끝, 이제 policy || [[스케줄링]]
+|-
+| 9 || Scheduling Metrics || $T_{turnaround} = T_{completion} - T_{arrival}$. 성능과 공정성은 종종 상충 || [[turnaround time]] · [[fairness]]
+|-
+| 10 || New Scheduling Metric: Response Time || $T_{response} = T_{firstrun} - T_{arrival}$. '''STCF는 time-shared machine에 부적합''', batch용 || [[response time]] · [[STCF]]
+|-
+| 11 || Fairness Metric || F = 먼저 끝난 작업 완료 시각 / 나중 끝난 작업 완료 시각. 1에 가까울수록 공정 || [[fairness]]
+|-
+| 12 || Recall: STCF and RR || '''STCF → turnaround 최적, response 나쁨 / RR → response 최적, turnaround terrible''' || [[STCF]] · [[Round Robin]]
+|-
+| 13 || MLFQ: Summary || 규칙 5개 통째로 암기 || [[MLFQ]]
+|-
+| 14 || Stride vs. Lottery || Lottery = 확률적, Stride = 주기 끝에 정확. 그래도 Lottery를 쓰는 이유 = '''전역 상태(pass)가 없다''' || [[Stride 스케줄링]] · [[Lottery 스케줄링]]
+|-
+| 15 || Linux CFS || '''고정 time slice에 기반하지 않음'''. vruntime 최소인 프로세스를 다음에 실행 || [[CFS]] · [[vruntime]]
+|-
+| 16 || Summary: EEVDF || '''lag > 0'''이면서 '''가장 이른 VD'''를 가진 프로세스 선택 || [[EEVDF]] · [[lag]]
+|-
+| 17 || Multiprocessor Scheduling || '''CPU를 더 붙인다고 앱이 빨라지지 않는다 → 스레드로 병렬화해야 한다''' (← 오늘 주제로 연결) || [[멀티프로세서 스케줄링]]
+|-
+| 18 || Cache Affinity || 가능하면 같은 CPU에. 옮기면 cache miss || [[cache affinity]]
+|-
+| 19 || MQMS || 큐 여러 개, 작업은 '''exactly one''' 큐에. SQMS의 확장성·친화도 문제 회피, 대가는 부하 불균형 || [[MQMS]]
+|-
+| 20 || Work Stealing || source가 target을 '''peek''' → 더 차 있으면 '''steal'''. 임계값 찾기는 '''black art''' || [[work stealing]]
+|}
+
+{exam}🎯 p.10·p.12는 모의 퀴즈에서 '''짝으로 틀린''' 항목이다(A7, A8). '''STCF = batch/turnaround, RR = response/interactive''' — R끼리 묶어 외워라. p.7은 A5에서 틀렸다: '''타이머는 부팅 때 OS가 켠다, 유저 프로그램이 아니다.''' → [[자주 틀리는 함정 모음]]{/exam}
+
+== 예상 문제 ==
+
+{quiz}'''Q1.''' Thread와 address space는 각각 무엇의 '''단위(unit)'''인가? (영어로){/quiz}
+{answer}Thread = '''unit of concurrency''', address space = '''unit of protection'''. (p.23){/answer}
+
+{quiz}'''Q2.''' 같은 프로세스 안의 스레드끼리 '''공유하는 것'''과 '''따로 갖는 것'''을 각각 두 개씩 쓰시오.{/quiz}
+{answer}공유: 코드(text), 전역/static 변수, [[힙]], 열린 파일 디스크립터, 주소 공간 중 2개.
+따로: [[프로그램 카운터|PC]], [[레지스터]] 세트, [[스레드 스택|스택]], [[TLS]] 중 2개. (p.27~28){/answer}
+
+{quiz}'''Q3.''' 아래 프로그램의 가능한 출력은 몇 가지인가? 이유와 함께 쓰시오.
+<pre class="c">
+printf("main: begin\n");
+pthread_create(&p1, NULL, mythread, "A");
+pthread_create(&p2, NULL, mythread, "B");
+pthread_join(p1, NULL);
+pthread_join(p2, NULL);
+printf("main: end\n");
+</pre>{/quiz}
+{answer}'''2가지''' (`begin/A/B/end`, `begin/B/A/end`). `main: begin`은 스레드 생성 전에 출력되므로 항상 처음이고, `main: end`는 두 `join` 뒤이므로 항상 마지막이다. A와 B의 순서만 [[스케줄러]]에 따라 바뀐다. (p.33~35){/answer}
+
+{quiz}'''Q4.''' 두 스레드가 `counter = counter + 1`을 각각 $10^7$번 실행했더니 결과가 20,000,000보다 작았다. 기계어 수준에서 원인을 설명하시오.{/quiz}
+{answer}C 한 줄이 '''load / add / store''' 세 명령어이고, [[타이머 인터럽트]]가 그 사이에 들어올 수 있다. T1이 load·add 후 store 전에 선점되면 T2가 '''옛 값'''을 읽어 증가·저장하고, 복귀한 T1이 자기 [[레지스터]]의 옛 결과를 store해서 T2의 증가를 '''덮어쓴다'''(lost update). (p.39~40){/answer}
+
+{quiz}'''Q5.''' `volatile`을 붙였는데도 왜 결과가 틀리는가?{/quiz}
+{answer}`volatile`은 '''매번 메모리에서 읽고 쓰게''' 강제할 뿐, read-modify-write의 '''[[atomic|원자성]]을 보장하지 않는다'''. 읽기와 쓰기 사이에 끼어드는 것은 전혀 막지 못한다. (p.36){/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# 프로세스 = '''control flow (a.k.a thread)''' + '''address space'''. 8강은 이 둘을 분리: '''thread = unit of concurrency, address space = unit of protection'''
+# Concurrency가 필요한 이유: 서버(여러 연결), 병렬 성능, '''UI 반응성''', '''I/O 지연 숨기기''' — 뒤의 둘은 CPU 1개여도 이득
+# 멀티스레드 = '''PC가 여러 개''', 같은 주소 공간. 스레드 상태는 '''[[TCB]]'''에 저장
+# [[스레드 컨텍스트 스위치]]는 '''레지스터만 저장/복원, 주소 공간은 그대로''' → TLB 유지 → 가볍다
+# '''스레드마다 스택 하나.''' 지역 변수는 스레드별, '''전역·static·[[힙]]은 공유'''. 그림에서 heap은 주소 증가, stack은 주소 감소
+# `pthread_create(thread, attr, start_routine, arg)` — attr = 스택 크기·우선순위, arg는 `void *`(여러 개면 구조체). [[pthread_join]] = 끝날 때까지 대기(프로세스의 [[wait]]에 대응)
+# '''[[TLS]]''': scope가 '''스레드'''(지역 변수는 function frame). static처럼 오래 살지만 스레드마다 고유 (예: `errno`)
+# 스택/TLS는 '''pthread 라이브러리(유저 레벨)'''가 `mmap`으로 할당해 `clone`에 넘긴다. 스레드 = "address-space-shared process"
+# 실행 순서는 '''[[스케줄러]]가 결정''' → 생성 순서 ≠ 실행 순서, join 순서 ≠ 실행 순서. preempted(→ Ready) vs goes to sleep(→ Blocked) 구분
+# `counter = counter + 1` = '''load / add / store''' → 사이에서 인터럽트 → '''lost update'''. 50에서 두 번 증가 → 기대 52, 결과 51
+# 결과는 항상 모자라고 실행마다 다르다('''indeterminate'''). `volatile`은 원자성을 보장하지 '''않는다'''. CPU 1개여도 생긴다
+# '''[[critical section]]''' = 공유 자원에 접근해 동시에 실행되면 안 되는 코드. '''[[race condition]]''' = 그것이 보호 없이 동시 실행돼 결과가 타이밍에 좌우되는 상황
+# 해법 = '''[[mutual exclusion]]''' = critical section에 [[atomic|원자성]] 제공: mutex/lock, semaphore, condition variable(Pthreads), monitor(Java)
+# 락은 '''선점을 막지 않는다'''. `lock()` 자체의 원자성은 하드웨어 원자 명령([[test-and-set]] 등)으로 → 9강 [[락]]
+
+== 관련 문서 ==
+* [[TCB]] · [[스레드 스택]] · [[TLS]]
+* [[pthread_create]] · [[pthread_join]]
+* [[스레드와 프로세스 비교]] · [[스레드 컨텍스트 스위치]]
+* [[counter 예제]] · [[race condition]] · [[critical section]] · [[mutual exclusion]] · [[atomic]]
+* [[락]] (9강 — lock을 실제로 만드는 법)
+* [[자주 틀리는 함정 모음]] · [[2025F 중간고사 족보]] · [[시험 정보]]

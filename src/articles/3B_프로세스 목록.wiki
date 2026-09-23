@@ -1,0 +1,149 @@
+key: 프로세스 목록
+title: 프로세스 목록 (Process List)
+category: 3강 From Program to Process, 용어
+---
+'''프로세스 목록'''(Process list)은 OS가 시스템 안의 모든 프로세스를 추적하기 위해 유지하는 자료구조다. [[PCB]]가 "프로세스 한 명의 차트"라면 프로세스 목록은 "그 차트들을 꽂아 둔 진료 대기 명부"다.
+
+{def}
+'''Data Structures''' (3강 p.36)<br>
+"The OS has some key data structures that track various relevant pieces of information for processes"<br>
+· '''Process list''' for all processes<br>
+&nbsp;&nbsp;- '''Ready''' processes<br>
+&nbsp;&nbsp;- '''Blocked''' processes<br>
+&nbsp;&nbsp;- '''Current running''' process<br>
+· '''Register context''' — Data &amp; stack registers, Program counter, …<br>
+· '''Process Control Block (PCB)'''
+{/def}
+
+{exam}
+이 "Data Structures" 슬라이드는 2025F 중간고사 '''Problem 2''' 해설에 그대로 실려 있다. process list의 '''세 갈래'''(ready / blocked / current running)를 나열하는 문제로 나오기 쉽다. → [[2025F 중간고사 족보]]
+{/exam}
+
+{analogy}
+🏥 병원 접수대의 '''세 개의 바구니'''다. ① '''대기 명부'''(Ready) — 이름 부르면 바로 들어올 수 있는 환자들. 의사는 여기서만 고른다. ② '''검사 나간 명부'''(Blocked) — 엑스레이실에 간 환자들. 검사 끝났다는 연락이 오면 여기서 꺼내 대기 명부로 옮긴다. ③ '''지금 진료 중'''(Running) — 딱 한 장(코어당). 다음 환자를 부르려면 이 사람을 어디로 보낼지부터 정해야 한다.
+{/analogy}
+
+== 세 갈래와 그 용도 ==
+
+{| class="table"
+! 목록 || 담긴 것 || 누가 꺼내 가나 || 언제 들어오나
+|-
+| '''Ready''' || 돌 준비가 된 프로세스 || '''[[스케줄러]]''' — 다음 실행 대상을 여기서 고른다 || Descheduled, 또는 I/O done
+|-
+| '''Blocked''' || I/O 등을 기다리는 프로세스 || 디바이스 [[인터럽트]] 핸들러 — 완료된 것을 찾아 Ready로 옮긴다 || I/O initiate
+|-
+| '''Current running''' || 지금 CPU 위의 프로세스 (코어당 1개) || [[컨텍스트 스위치]] — 누구를 저장해야 하는지 || Scheduled
+|}
+
+<pre class="ascii">
+                    ┌──────────────────────────────┐
+                    │  Current running  (코어당 1)  │
+                    └──────────────────────────────┘
+                        ▲                    │
+         Scheduled      │                    │   Descheduled
+         (스케줄러가 선택) │                    │   (time slice 만료 등)
+                        │                    ▼
+   ┌────────────────────┴──────────────────────────┐
+   │  Ready list     [P3] [P7] [P9] ...            │ ← 스케줄러가 고르는 곳
+   └───────────────────────────────────────────────┘
+                        ▲                    │
+          I/O done      │                    │   I/O initiate
+   (디바이스 인터럽트)     │                    ▼
+   ┌────────────────────┴──────────────────────────┐
+   │  Blocked list   [P1 chan=disk] [P4 chan=...]  │
+   └───────────────────────────────────────────────┘
+</pre>
+
+{tip}
+0831 녹음본에서 교수님이 세 목록의 '''용도'''를 하나씩 설명한 부분:<br>
+"they need to maintain the list of the '''ready''' process to find out '''which process can be scheduled''' by the scheduling policy. And also the list of '''blocked''' process to find out '''which process's I/O request is finished'''. And also the '''current running''' process to find out '''which process should be descheduled'''."<br>
+→ 세 목록이 각각 어떤 질문에 답하는지를 묶어서 외우면 나열 문제에서 절대 빠뜨리지 않는다.
+{/tip}
+
+== xv6에서는 어떻게 생겼나 ==
+
+[[xv6]]는 세 개의 연결 리스트를 따로 두지 않고, '''고정 크기 배열 하나'''에 [[struct proc]]을 쭉 늘어놓고 `state` 필드로 구분한다.
+
+<pre class="c">
+// kernel/proc.c
+struct proc proc[NPROC];      // NPROC = 64, 프로세스 테이블 전체
+
+// 스케줄러는 매번 배열을 훑으며 RUNNABLE 을 찾는다
+void
+scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  for(;;){
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {      // ← 여기가 "Ready list"
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+      }
+      release(&p->lock);
+    }
+  }
+}
+</pre>
+
+{| class="table"
+! 개념상의 목록 || xv6의 실제 표현
+|-
+| Ready list || `p->state == RUNNABLE` 인 배열 원소들
+|-
+| Blocked list || `p->state == SLEEPING` 인 원소들 (`p->chan`으로 무엇을 기다리는지 구분)
+|-
+| Current running || `mycpu()->proc`, 그리고 `p->state == RUNNING`
+|-
+| 빈 슬롯 || `p->state == UNUSED`
+|}
+
+{warn}
+'''"목록이 세 개 있다"는 개념 모델이고, 구현은 배열 하나 + 상태 필드일 수 있다.''' 교육용 OS인 xv6는 단순함을 택했고(그래서 스케줄링이 O(NPROC) 선형 탐색이다), 리눅스 같은 실제 OS는 우선순위별 런큐·[[레드블랙 트리]] 등을 쓴다. 시험에서 "OS가 유지하는 process list의 종류"를 물으면 '''개념 모델(ready/blocked/running)'''로 답하면 된다.
+{/warn}
+
+{tip}
+현재 CPU에서 도는 프로세스의 `struct proc *`를 얻는 함수가 '''[[myproc]]()'''이다. `sys_sigalarm()` 같은 시스템 콜 구현이 맨 처음 하는 일이 `struct proc *p = myproc();`인 이유가 여기 있다 — "current running" 항목을 읽는 것이다.
+{/tip}
+
+== 왜 목록을 나눠야 하나 ==
+
+Blocked 프로세스를 Ready 목록에 섞어 두면 [[스케줄러]]가 매번 "얘는 돌 수 있나?"를 확인해야 한다. 분리해 두면 스케줄러는 '''Ready 목록만''' 보면 되므로, [[프로세스 상태|Blocked 프로세스에게 CPU를 주는 낭비]]가 구조적으로 불가능해진다.
+
+이 아이디어가 5강에서 [[MLFQ]]의 다중 큐, 7강에서 [[SQMS]]/[[MQMS]]로 확장된다 — "누구를 고를지"를 빠르게 하려면 "어디서 고를지"를 자료구조로 미리 정리해 두는 것이다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(나열)''' 3강 p.36에서 OS가 유지한다고 말한 '''process list'''의 세 갈래를 쓰고, 각각이 어떤 질문에 답하기 위한 것인지 한 줄씩 쓰시오.
+{/quiz}
+{answer}
+① '''Ready processes''' — "다음에 스케줄할 수 있는 프로세스는 누구인가"<br>
+② '''Blocked processes''' — "어느 프로세스의 I/O 요청이 끝났는가"<br>
+③ '''Current running process''' — "누구를 descheduled 해야 하는가"
+{/answer}
+
+{quiz}
+'''(정의 → 용어)''' OS가 프로세스 관리를 위해 유지하는 핵심 자료구조 세 가지를 3강 p.36의 용어로 쓰시오.
+{/quiz}
+{answer}
+'''Process list''', '''Register context''', '''Process Control Block (PCB)'''. register context는 별개가 아니라 PCB '''안에''' 포함된다.
+{/answer}
+
+{quiz}
+'''(개념)''' [[xv6]]에는 ready list라는 별도의 연결 리스트가 없다. 그렇다면 `scheduler()`는 다음에 돌릴 프로세스를 어떻게 찾는가?
+{/quiz}
+{answer}
+`struct proc proc[NPROC]` 배열 전체를 순회하며 '''`p->state == RUNNABLE`'''인 원소를 찾는다. 즉 "Ready list"가 자료구조로 존재하는 대신 '''상태 필드로 표현'''되며, 탐색 비용은 O(NPROC)다.
+{/answer}
+
+== 관련 문서 ==
+* [[PCB]] / [[struct proc]] / [[프로세스]]
+* [[프로세스 상태]] — 목록 간 이동이 곧 상태 전이
+* [[스케줄러]] / [[스케줄링]] / [[컨텍스트 스위치]]
+* [[myproc]] — current running을 읽는 함수
+* [[MLFQ]] / [[SQMS]] / [[MQMS]] — 목록을 더 잘게 나누는 발전형
+* [[2025F 중간고사 족보]]

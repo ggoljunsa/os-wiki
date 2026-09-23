@@ -1,0 +1,87 @@
+key: yield 락
+title: yield 락 (A Simple Approach: Just Yield)
+category: 9강 Lock, 용어
+---
+'''"spin할 것 같으면 CPU를 양보하라."''' 9강 p.31~32. [[spin lock]]의 performance 문제에 OS가 처음으로 손을 대는 단계다.
+
+[[img:L9-31.png|A Simple Approach: Just Yield — Lock with Test-and-set and Yield|large]]
+
+<pre class="c">
+ 1   void init() {
+ 2       flag = 0;
+ 3   }
+ 4
+ 5   void lock() {
+ 6       while (TestAndSet(&flag, 1) == 1)
+ 7           yield();  // give up the CPU
+ 8   }
+ 9
+10   void unlock() {
+11       flag = 0;
+12   }
+</pre>
+
+[[spin lock]]과 딱 '''한 줄'''만 다르다 — 7번 줄이 `;`(제자리 돌기)에서 `yield();`(양보)로 바뀌었다.
+
+{def}"When you are going to spin, '''give up the CPU''' to another thread.
+'''OS system call''' moves the caller from the '''running state to the ready state'''."{/def}
+
+{|
+! || [[spin lock]] || yield 락
+|-
+| 대기 중 하는 일 || 제자리에서 값 확인 반복 || '''스케줄러에게 CPU 반납'''
+|-
+| 상태 전이 || Running 유지 || '''Running → Ready'''
+|-
+| 남은 [[time slice]] || 통째로 낭비 || '''남에게 넘어감'''
+|}
+
+{warn}⭐ `yield()`는 '''Running → Ready'''다. '''Blocked가 아니다.''' 자원을 기다리며 잠드는 게 아니라 "지금은 내 차례를 양보하겠다"일 뿐이라, [[스케줄러]]는 곧 다시 이 스레드를 고른다. 이 점이 아래 문제 1의 원인이다.{/warn}
+
+== 무엇이 남았나 (p.32) ==
+
+{warn}🔥 '''문제 1 — Context switch 비용'''
+"The cost of a context switch can be '''substantial'''.
+* Imagine that there are '''N threads'''
+* If thread 1 holding the lock goes into sleep, the rest '''N−1 threads perform yield(), causing N−1 context switches (run-and-yield)'''
+* If thread 1 holds the lock for a long time, the N−1 threads repeat run-and-yields, making the overhead '''severe'''"
+
+즉 '''낭비의 종류만 바뀌었다''' — [[time slice]]를 통째로 태우는 대신, '''컨텍스트 스위치를 N−1번씩 계속''' 하게 된다.
+
+🔥 '''문제 2 — Starvation 여전'''
+"There is a possibility that the '''thread 1 repeatedly gets the lock'''." 누가 다음에 잡을지는 여전히 운이다. [[ticket lock]]과 달리 순서 정보가 없다.{/warn}
+
+<pre class="ascii">
+CPU 1개, 스레드 5개. T1이 락을 쥔 채 preempt:
+
+ spin lock :  T2[===== time slice 통째 spin =====] T3[===== spin =====] T4[=== spin ===] ...
+ yield 락  :  T2[y] T3[y] T4[y] T5[y] T2[y] T3[y] T4[y] T5[y] ...
+                ^                                    ^
+                |                                    |
+          곧바로 yield하니 slice 낭비는 없다      그러나 컨텍스트 스위치가 폭발한다
+</pre>
+
+{analogy}🎭 [[spin lock]]이 '''화장실 문 앞에 서서 손잡이를 계속 돌리는 것'''이라면, yield 락은 '''문을 한 번 밀어 보고 안 열리면 줄 맨 뒤로 갔다가, 다시 앞으로 와서 또 밀어 보는 것'''이다.
+자리를 지키느라 시간을 낭비하지는 않지만, '''왔다 갔다 하는 데 드는 발품'''(컨텍스트 스위치)이 만만치 않고, '''먼저 온 사람이 먼저 들어간다는 보장도 없다'''.
+
+진짜 해법은 '''대기실 의자에 앉아 이름이 불릴 때까지 자는 것''' — [[park와 unpark]]이다.{/analogy}
+
+== 교훈 ==
+
+"무작정 양보"는 낭비를 '''줄일 뿐 없애지 못하고''', 순서 보장도 없다. 그래서 다음 단계는:
+# '''대기자 명단(queue)'''을 만들어 순서를 기록하고
+# 기다리는 스레드를 '''정말로 재우고''' ([[park와 unpark|park()]])
+# 락이 풀리면 '''정확히 한 명만 깨운다''' ([[park와 unpark|unpark()]])
+
+→ [[queue 락]]
+
+{quiz}스레드가 N개일 때 yield 락의 오버헤드를 설명하시오.{/quiz}
+{answer}락을 쥔 스레드가 잠들거나 preempt되면, 나머지 '''N−1개 스레드가 각각 스케줄됐다가 즉시 `yield()`'''하는 run-and-yield를 반복한다. 즉 락이 풀릴 때까지 '''N−1번의 [[컨텍스트 스위치]]가 계속 발생'''하며, 락을 오래 쥘수록 오버헤드가 심해진다. (p.32){/answer}
+
+{quiz}yield 락은 [[락 평가 기준]] 세 가지 중 무엇을 개선했고 무엇을 개선하지 못했는가?{/quiz}
+{answer}'''Performance를 부분적으로''' 개선했다 — spin으로 [[time slice]]를 통째로 태우지는 않는다. 그러나 '''컨텍스트 스위치 비용'''이 대신 발생하므로 완전한 해결은 아니다. '''Fairness는 전혀 개선되지 않았다''' — 순서 보장이 없어 같은 스레드가 반복해서 락을 잡는 starvation이 여전히 가능하다.{/answer}
+
+== 관련 문서 ==
+* [[락]] · [[spin lock]] · [[test-and-set]] · [[락 평가 기준]]
+* [[queue 락]] · [[park와 unpark]] · [[ticket lock]]
+* [[yield]] · [[프로세스 상태]] · [[컨텍스트 스위치]] · [[time slice]]

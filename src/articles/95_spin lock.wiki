@@ -1,0 +1,110 @@
+key: spin lock
+title: Spin Lock (스핀락)
+category: 9강 Lock, 용어
+---
+'''Spin lock'''은 락을 얻을 때까지 '''제자리에서 계속 돌며 값을 확인하는''' 락이다. 9강 p.20~21, p.24.
+
+[[img:L9-20.png|A Simple Spin Lock using test-and-set|large]]
+
+<pre class="c">
+ 1   typedef struct __lock_t {
+ 2       int flag;
+ 3   } lock_t;
+ 4
+ 5   void init(lock_t *lock) {
+ 6       // 0 indicates that lock is available,
+ 7       // 1 that it is held
+ 8       lock->flag = 0;
+ 9   }
+10
+11   void lock(lock_t *lock) {
+12       while (TestAndSet(&lock->flag, 1) == 1)
+13                ;        // spin-wait
+14   }
+15
+16   void unlock(lock_t *lock) {
+17       lock->flag = 0;
+18   }
+</pre>
+
+'''12번 줄 한 줄이 전부다.''' [[test-and-set]]의 반환값으로 두 경우가 갈린다:
+
+{|
+! 락 상태 || `TestAndSet(&flag, 1)` 반환 || flag || 결과
+|-
+| free (0) || '''0''' || 0 → 1 || while 탈출 → '''획득'''
+|-
+| held (1) || '''1''' || 1 → 1 (무해) || '''계속 spin'''
+|}
+
+[[img:L9-21.png|①②③④ — T1은 획득, T2는 TestAndSet이 1을 반환해 spinning|large]]
+
+* ① Thread1이 `lock()` 호출 → ② ''TestAndSet() returns 0, flag becomes 1 '''(obtain the lock)'''''
+* ③ Thread2가 `lock()` 호출 → ④ ''TestAndSet() returns 1, '''spinning….'''''
+
+p.18([[flag 락]]의 실패 그림)과 나란히 놓고 보면 대비가 선명하다. '''검사와 설정 사이에 끼어들 틈이 없다.'''
+
+[[sim:test_and_set]]
+
+== 평가 (p.24) ==
+
+{def}'''Correctness: Yes''' — The spin lock only allows a single thread to enter the critical section
+'''Fairness: No''' — Spin locks don't provide any fairness guarantees. Indeed, '''a thread spinning may spin forever'''
+'''Performance: No''' — In the single CPU, performance overheads can be quite painful. Imagine the case where '''the thread holding the lock is preempted within a critical section''' — '''every other thread will spin for a given time slice'''{/def}
+
+=== Performance가 No인 이유를 그림으로 ===
+
+<pre class="ascii">
+CPU 1개, 스레드 4개. T1이 락을 쥔 채 preempt되면:
+
+ 시간 -->
+ T1 [lock 획득][critical section 시작]| preempt
+ T2                                   [======= spin (time slice 통째 낭비) =======]
+ T3                                                                                [==== spin ====]
+ T4                                                                                               [== spin ==]
+ T1                                                                                                          [critical section 끝][unlock]
+
+ -> (N-1) x time slice 가 증발했다
+</pre>
+
+{warn}⭐ '''"spin lock은 나쁘다"고 단순 암기하면 틀린다.''' 조건이 붙는다:
+* '''싱글 CPU''' + 락 보유자가 preempt될 수 있는 상황 → 최악
+* '''멀티코어''' + [[critical section]]이 아주 짧음 → '''오히려 최선'''. 몇 사이클 도는 게 [[컨텍스트 스위치]](수천 사이클)보다 싸다
+그래서 [[xv6]]를 비롯한 커널들은 여전히 스핀락을 쓴다. 슬라이드도 "In the '''single CPU'''"라고 조건을 명시한다.{/warn}
+
+{analogy}🎭 spin lock = '''화장실 문 앞에 서서 1초에 백 번씩 손잡이를 돌려 보는 것'''. 문이 열리는 순간 '''바로''' 들어갈 수 있어 반응이 빠르다(멀티코어에서 짧은 대기라면 최적). 하지만 안에 있는 사람이 오래 걸리면 '''그 시간 내내 아무것도 못 하고 손잡이만 돌린다'''. 게다가 줄이 없으니 '''방금 온 사람이 먼저 들어갈 수도''' 있다(fairness No).{/analogy}
+
+== 남은 두 문제와 그 해법 ==
+
+{|
+! 문제 || 해법 || 문서
+|-
+| '''Fairness: No''' (starvation) || 번호표를 뽑아 FIFO로 || [[ticket lock]] ([[fetch-and-add]])
+|-
+| '''Performance: No''' (spin 낭비) || CPU 양보 / 잠들기 || [[yield 락]] → [[queue 락]] → [[futex]]
+|}
+
+== 다른 원자 명령으로 만든 스핀락 ==
+
+같은 구조를 [[compare-and-swap]]이나 [[load-linked store-conditional|LL/SC]]로도 만들 수 있고, '''채점표는 동일'''하다 (Y/N/N).
+
+<pre class="c">
+// compare-and-swap 버전
+void lock(lock_t *lock) {
+    while (CompareAndSwap(&lock->flag, 0, 1) == 1)
+             ; // spin
+}
+</pre>
+
+[[sim:cas_llsc]]
+
+{quiz}[[spin lock]]의 Performance가 "No"인 이유를, CPU 개수와 preemption을 언급해 설명하시오.{/quiz}
+{answer}'''싱글 CPU'''에서 락을 쥔 스레드가 [[critical section]] '''안에서 preempt'''되면, 그 락을 기다리는 다른 모든 스레드가 각자 배정받은 '''[[time slice]] 전체를 값 확인에만 낭비'''한다. 락 보유자는 자기 차례가 다시 올 때까지 락을 놓을 수 없으므로, N개 스레드면 (N−1) × time slice가 증발한다. (p.24){/answer}
+
+{quiz}`unlock()`이 `flag = 0;` 한 줄뿐인데 원자 명령을 쓰지 않아도 되는 이유는?{/quiz}
+{answer}단순 '''store 한 번'''이고, 락을 쥔 스레드는 '''자기 하나뿐'''이므로 read-modify-write가 아니다. 경쟁할 상대가 없으니 원자 명령이 필요 없다. (반면 [[ticket lock]]의 `unlock`은 `turn`을 '''증가'''시켜야 하므로 [[fetch-and-add]]를 쓴다.){/answer}
+
+== 관련 문서 ==
+* [[락]] · [[락 평가 기준]] · [[test-and-set]] · [[compare-and-swap]]
+* [[flag 락]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[guard]]
+* [[time slice]] · [[컨텍스트 스위치]] · [[자주 틀리는 함정 모음]]

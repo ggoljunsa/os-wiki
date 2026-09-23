@@ -1,0 +1,96 @@
+key: MQMS
+title: MQMS (Multi-Queue Multiprocessor Scheduling)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''MQMS'''(Multi-Queue Multiprocessor Scheduling)는 스케줄링 큐를 '''여러 개'''(보통 CPU당 하나) 두는 [[멀티프로세서 스케줄링]] 구조다. [[SQMS]]의 두 약점(확장성, [[cache affinity]])을 한 번에 피한다.
+
+{def}
+'''MQMS''' consists of '''multiple scheduling queues'''
+* Each queue will follow a '''particular scheduling discipline''' (RR, MLFQ 등)
+* When a job enters the system, it is placed on '''exactly one''' scheduling queue
+* Avoid the '''scalability''' and '''CPU affinity''' problems
+{/def}
+
+{analogy}'''창구마다 번호표 기계가 따로 있는 은행'''이다. 손님은 들어올 때 창구 하나를 배정받고 끝까지 거기서 처리된다. 직원들이 같은 통을 만질 일이 없으니 자물쇠가 필요 없고(확장성), 손님이 창구를 바꾸지 않으니 서류가 그대로 남아 있다([[cache affinity]]). 대신 새 문제가 생긴다 — '''1번 창구 줄만 길고 2번 창구는 텅 비는''' 상황이다.{/analogy}
+
+== 동작 ==
+
+<pre class="txt">
+ CPU 2개, job A, B, C, D
+ Q0 = {A, C}  →  CPU0 가 담당
+ Q1 = {B, D}  →  CPU1 가 담당
+ 각 큐 안에서는 [[Round Robin]]
+
+ CPU0: A A C C A A C C ...
+ CPU1: B B D D B B D D ...
+
+ → A와 C는 CPU0에만, B와 D는 CPU1에만 → '''확장성 + 친화도 둘 다 확보'''
+</pre>
+
+큐가 서로 독립적이므로 [[락]] 경합이 없고, job이 한 CPU에 머무르므로 캐시 상태가 살아 있다.
+
+{info}새 job이 들어오면 '''어느 큐에 넣을지'''를 정해야 한다. 임의 선택, 가장 짧은 큐 선택 등의 휴리스틱을 쓴다. 6강 [[Stride 스케줄링]]의 "새 job의 [[pass]] 값을 뭘로 줄까" 문제와 성격이 같은 '''진입 시점 결정 문제'''다.{/info}
+
+== 약점: 부하 불균형 (load imbalance) ==
+
+[[img:L7-38.png|C가 끝나면 A가 B·D보다 CPU를 2배 받고, A까지 끝나면 CPU0이 완전히 논다|large]]
+
+<pre class="txt">
+ ① C가 끝난 뒤:  Q0 = {A},  Q1 = {B, D}
+    CPU0: A A A A A A A A A A A A ...
+    CPU1: B B D D B B D D B B D D ...
+    → '''A가 B, D보다 CPU를 2배''' 받는다 (공정성 붕괴)
+
+ ② A까지 끝난 뒤:  Q0 = { },  Q1 = {B, D}
+    CPU0: (idle)
+    CPU1: B B D D B B D D ...
+    → '''CPU0이 완전히 논다''' — 일은 남았는데 CPU가 놀고 있다
+</pre>
+
+{warn}'''원인은 큐가 독립적이라 서로의 상황을 모른다는 것'''이다. 확장성과 [[cache affinity]]를 얻은 대가다. [[SQMS]]에서는 큐가 하나라서 이 문제 자체가 존재하지 않았다 — 두 구조의 약점이 정확히 반대인 이유다.{/warn}
+
+== 해법: migration ==
+
+답은 job을 '''옮기는 것(migration)'''이다.
+
+<pre class="ascii">
+ 쉬운 경우 — 한쪽이 놀고 있다
+   Q0 = { }        Q1 = {B, D}
+        ◄──────────── D 이동
+   Q0 = {D}        Q1 = {B}
+   → 부하 균등, 모두 만족
+
+ 까다로운 경우 — job 3개를 CPU 2개에
+   Q0 = {A}        Q1 = {B, D}
+   한 개만 옮기면 이번엔 반대쪽이 2:1로 불균형
+   → '''계속 번갈아 옮기는''' 패턴이 필요
+
+   CPU0: A A A A B A B A B B B B ...
+   CPU1: B D B D D D D D A D A D ...
+          ↑ B를 CPU0으로     ↑ A를 CPU1로
+</pre>
+
+마이그레이션은 [[cache affinity]]를 잃는 비용이 있으므로 '''얼마나 자주, 누구를''' 옮길지가 정책 문제가 된다. 구현 기법이 [[work stealing]]이고, 전체 주제는 [[로드 밸런싱]]이다.
+
+== 대비 표 ==
+
+{|
+! || [[SQMS]] || '''MQMS'''
+|-
+| 큐 || 전역 1개 || '''CPU당 1개'''
+|-
+| 확장성 || 나쁨 (락 경합) || '''좋음'''
+|-
+| [[cache affinity]] || 나쁨 || '''좋음'''
+|-
+| 부하 균형 || 쉬움 (자동) || '''어려움''' (load imbalance)
+|-
+| 보완책 || 친화도 메커니즘 || '''migration''', [[work stealing]]
+|}
+
+{exam}서술형으로 "SQMS와 MQMS를 비교하라"가 나오면 축은 셋이다 — '''확장성(락) / cache affinity / 부하 균형'''. 앞 둘은 MQMS 승, 마지막은 SQMS 승이고, 각각의 보완책(친화도 메커니즘 / work stealing)까지 붙이면 만점이다.{/exam}
+
+== 관련 문서 ==
+* [[SQMS]] · [[로드 밸런싱]] · [[work stealing]] · [[cache affinity]]
+* [[멀티프로세서 스케줄링]] · [[멀티코어]]
+* [[Round Robin]] · [[MLFQ]] — 각 큐 안에서 쓰이는 정책

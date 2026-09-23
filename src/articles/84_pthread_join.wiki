@@ -1,0 +1,76 @@
+key: pthread_join
+title: pthread_join
+category: 8강 Concurrency, 용어
+---
+'''`pthread_join`'''은 지정한 [[스레드]]가 끝날 때까지 기다리는 함수다. 프로세스의 [[wait]]에 정확히 대응한다.
+
+<pre class="c">
+int pthread_join(pthread_t thread, void **value_ptr);
+</pre>
+
+* `thread` — 기다릴 스레드 ([[pthread_create]]가 채워 준 핸들)
+* `value_ptr` — 그 스레드가 `return`한 `void *`를 받을 곳. 필요 없으면 `NULL`
+
+슬라이드 p.32의 주석이 정의 그 자체다: `// join waits for the threads to finish`
+
+[[img:L8-32.png|main이 두 스레드를 만들고 둘 다 join한 뒤 "main: end"를 출력한다|medium]]
+
+== 무엇을 보장하고 무엇을 보장하지 않나 ==
+
+{|
+! 보장한다 || 보장하지 '''않는다'''
+|-
+| `pthread_join(p1, ...)`가 리턴했으면 '''p1은 확실히 끝났다''' || p1이 p2보다 '''먼저 실행'''된다
+|-
+| 두 join 뒤에는 두 스레드의 모든 쓰기가 끝나 있다 || join한 '''순서대로''' 스레드가 끝난다
+|-
+| 이미 끝난 스레드를 join하면 '''즉시 리턴'''한다 || 어느 스레드가 먼저 스케줄될지
+|}
+
+{exam}⭐ 8강 p.33~35의 핵심. '''`join` 순서는 main이 기다리는 순서일 뿐, 스레드의 실행 순서와 무관하다.''' p.35에서는 [[스케줄러]]가 T2를 먼저 골라서 출력이 `B / A`가 된다. 그래도 `main: end`는 항상 마지막이다.{/exam}
+
+== 상태 전이 (p.33 vs p.34) ==
+
+슬라이드가 두 표현을 구분해서 쓴다. [[프로세스 상태]] 문제로 엮이기 쉬우니 반드시 구분할 것.
+
+{|
+! 표현 || 무슨 일 || 상태 전이
+|-
+| "main '''goes to sleep'''" (p.33) || `join`에서 스스로 대기 || Running → '''Blocked'''
+|-
+| "main is '''preempted'''" (p.34, p.35) || [[타이머 인터럽트]]로 강제로 빼앗김 || Running → '''Ready'''
+|}
+
+{analogy}🎭 `pthread_join` = '''약속 장소에서 기다리기'''. 친구(스레드)가 이미 도착해 있으면 기다리지 않고 바로 간다(즉시 리턴). 아직이면 앉아서 잔다(Blocked). 다만 '''내가 A를 먼저 기다린다고 해서 A가 먼저 오는 건 아니다''' — 순서는 [[스케줄러]] 마음이다.{/analogy}
+
+== wait()와의 비교 ==
+
+{|
+! || [[wait]] (프로세스) || `pthread_join` (스레드)
+|-
+| 누구를 기다리나 || 자식 프로세스 || 같은 프로세스 안의 스레드
+|-
+| 대상 지정 || `wait()`는 아무 자식, `waitpid()`로 특정 || '''항상 특정 스레드'''
+|-
+| 받는 값 || exit status (정수) || `void *` (아무 포인터)
+|-
+| 부모만 가능? || 부모만 || '''아무 스레드나''' join 가능
+|}
+
+{warn}스레드 함수가 '''자기 [[스레드 스택|스택]]의 지역 변수 주소를 리턴'''하면, `value_ptr`로 받은 포인터는 이미 사라진 스택을 가리킨다. 리턴값은 [[힙]]이나 전역을 가리켜야 한다.{/warn}
+
+{quiz}아래 프로그램이 출력할 수 있는 결과를 모두 쓰시오.
+<pre class="c">
+printf("main: begin\n");
+pthread_create(&p1, NULL, mythread, "A");   // mythread는 arg를 출력
+pthread_create(&p2, NULL, mythread, "B");
+pthread_join(p1, NULL);
+pthread_join(p2, NULL);
+printf("main: end\n");
+</pre>{/quiz}
+{answer}'''2가지''' — `begin/A/B/end`와 `begin/B/A/end`.
+`main: begin`은 스레드 생성 전이라 항상 처음, `main: end`는 `join(p2)`가 B의 종료를 기다리므로 항상 마지막이다. A와 B의 순서만 자유롭다.{/answer}
+
+== 관련 문서 ==
+* [[pthread_create]] · [[스레드]] · [[프로세스 상태]]
+* [[wait]] · [[스케줄러]] · [[타이머 인터럽트]]

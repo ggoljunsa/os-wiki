@@ -1,0 +1,114 @@
+key: compare-and-swap
+title: Compare-And-Swap (CAS)
+category: 9강 Lock, 용어
+---
+'''Compare-And-Swap'''(CAS)은 [[test-and-set]]보다 '''강력한''' 하드웨어 [[atomic|원자]] 명령이다. 차이는 한 단어 — '''조건부'''다. 9강 p.22~23.
+
+[[img:L9-22.png|Compare-And-Swap (CAS)와 이를 이용한 spin lock|large]]
+
+<pre class="c">
+1   int CompareAndSwap(int *ptr, int expected, int new) {
+2       int actual = *ptr;
+3       if (actual == expected)   // 기대값과 같을 때만
+4                *ptr = new;      // 갱신
+5       return actual;            // 어느 쪽이든 '실제' 값을 반환
+6   }
+</pre>
+
+{def}"Test whether the value at the address (`ptr`) is equal to `expected`
+* If so, '''update''' the memory location pointed to by `ptr` with the `new` value
+* '''In either case, return the actual value''' at that memory location"{/def}
+
+{warn}⭐ 반환값은 '''성공/실패가 아니라 "그 자리에 실제로 있던 값"'''이다. [[test-and-set]]이 "옛 값"을 돌려주는 것과 같은 철학. 호출자가 반환값을 `expected`와 비교해서 성공 여부를 판단한다.{/warn}
+
+== 이걸로 만든 스핀락 ==
+
+<pre class="c">
+1   void lock(lock_t *lock) {
+2       while (CompareAndSwap(&lock->flag, 0, 1) == 1)
+3                ; // spin
+4   }
+</pre>
+
+읽는 법: "'''flag가 0이길 기대하고, 맞으면 1로 바꿔라.'''"
+
+{|
+! 락 상태 || 반환값 || 갱신되나 || 결과
+|-
+| free (flag=0) || '''0''' (= expected) || '''O''' — 0 → 1 || while 탈출 → '''획득'''
+|-
+| held (flag=1) || '''1''' || X — 기대값과 다르므로 '''건드리지 않음''' || 계속 spin
+|}
+
+{info}[[test-and-set]]과의 미묘한 차이: TAS는 held일 때도 '''1을 1로 덮어쓴다'''(무해하지만 쓰기는 한다). CAS는 '''아예 쓰지 않는다'''. 멀티코어에서 캐시 라인을 더럽히지 않는다는 실질적 이점이 있다.{/info}
+
+[[sim:cas_llsc]]
+
+== x86 실제 구현 (p.23) ==
+
+<pre class="c">
+ 1   char CompareAndSwap(int *ptr, int old, int new) {
+ 2       unsigned char ret;
+ 3
+ 4       // Note that sete sets a 'byte' not the word
+ 5       __asm__ __volatile__ (
+ 6                " lock\n"
+ 7                " cmpxchgl %2,%1\n"
+ 8                " sete %0\n"
+ 9                : "=q" (ret), "=m" (*ptr)
+10                : "r" (new), "m" (*ptr), "a" (old)
+11                : "memory");
+12       return ret;
+13   }
+</pre>
+
+어셈블리 자체를 외울 필요는 없다. 포인트는 두 개:
+* '''`lock` prefix'''가 원자성을 보장한다 (버스/캐시 라인 잠금)
+* 슬라이드가 강조한 두 줄:
+** "Compare-and-swap is '''identical to a simple spin lock''' (test-and-swap)" — 락을 만드는 용도로는 [[test-and-set]]과 똑같다
+** "A '''more powerful''' instruction than test-and-swap in that it can be used for implementing a '''lock-free synchronization'''"
+
+== 왜 "더 강력한가" — lock-free ==
+
+[[test-and-set]]은 "무조건 새 값으로 바꾼다"라서 '''플래그 세우기'''밖에 못 한다. CAS는 "'''내가 읽은 값이 아직 그대로면''' 바꿔라"라고 말할 수 있어서, 락 없이 자료구조를 갱신하는 데 쓸 수 있다.
+
+<pre class="c">
+// lock-free 스택 push — 락이 전혀 없다
+void push(node_t *n) {
+    node_t *old;
+    do {
+        old = head;            // 현재 head를 읽고
+        n->next = old;         // 내 노드를 그 앞에 붙일 준비
+    } while (CompareAndSwap((int *)&head, (int)old, (int)n) != (int)old);
+    // head가 그동안 안 바뀌었을 때만 성공. 바뀌었으면 처음부터 다시.
+}
+</pre>
+
+{analogy}🎭 [[test-and-set]]이 '''"무조건 팻말을 사용중으로 뒤집고, 원래 뭐였는지 알려줘"'''라면, CAS는 '''"팻말이 아직 '비어 있음'이면 그때만 뒤집어"'''다.
+이 조건부 성격 덕분에 위키 편집에 비유할 수 있다 — "내가 읽은 판본이 아직 최신이면 저장, 그사이 누가 고쳤으면 저장 취소하고 다시 읽기". 이게 lock-free 알고리즘의 기본 패턴이다.{/analogy}
+
+{warn}CAS의 알려진 약점은 '''ABA 문제'''다 — 내가 읽은 뒤 값이 A→B→A로 돌아오면 CAS는 "안 바뀌었다"고 착각한다. 값이 아니라 '''변경 여부'''를 보는 [[load-linked store-conditional|LL/SC]]는 이 문제가 없다.{/warn}
+
+== 평가 ==
+
+CAS로 만든 스핀락의 채점표는 [[test-and-set]] 스핀락과 '''완전히 동일'''하다:
+
+{|
+! Correctness || Fairness || Performance
+|-
+| Yes || '''No''' (starvation) || '''No''' (spin 낭비)
+|}
+
+CAS의 추가 가치는 '''락 바깥'''(lock-free 자료구조)에 있지, 락 자체를 개선하지는 않는다.
+
+{exam}🎯 "test-and-set과 compare-and-swap의 차이를 쓰시오"는 서술형 단골 후보다. 답의 두 축: ① '''조건부 갱신'''(expected와 같을 때만) ② '''lock-free synchronization에 쓸 수 있다'''. 락으로 쓰는 한에서는 동작이 같다는 점도 함께 적을 것.{/exam}
+
+{quiz}`CompareAndSwap(&flag, 0, 1)`이 '''1'''을 반환했다. `flag`의 현재 값과, 내가 락을 얻었는지 답하시오.{/quiz}
+{answer}반환값은 '''그 자리에 실제로 있던 값'''이므로 `flag`는 '''1'''(held)이었고, 기대값 0과 다르므로 '''갱신되지 않았다'''. 따라서 나는 '''락을 얻지 못했고''' 계속 spin해야 한다.{/answer}
+
+{quiz}CAS가 [[test-and-set]]보다 "more powerful"하다고 말하는 근거는 무엇인가?{/quiz}
+{answer}'''lock-free synchronization'''을 구현할 수 있기 때문이다. "내가 읽은 값이 그대로일 때만 갱신"이라는 조건부 의미 덕분에, 락 없이 공유 자료구조(스택·큐 등)를 안전하게 갱신하는 retry 루프를 만들 수 있다. (p.23){/answer}
+
+== 관련 문서 ==
+* [[test-and-set]] · [[fetch-and-add]] · [[load-linked store-conditional]] · [[atomic]]
+* [[spin lock]] · [[락]] · [[락 평가 기준]]

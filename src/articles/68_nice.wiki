@@ -1,0 +1,66 @@
+key: nice
+title: nice value
+category: 6강 Proportional Share, 용어
+---
+'''nice''' 값은 유닉스/리눅스에서 [[프로세스]]의 우선순위를 표현하는 정수다. [[CFS]]는 이 값을 [[weight]]로 매핑해 [[vruntime]] 누적 속도를 조절한다. 다른 [[비례 지분 스케줄링]] 알고리즘의 [[tickets|티켓 수]]에 해당한다.
+
+{def}
+* CFS controls a process priority by a '''nice value''' of a process — similar to the number of tokens in other fair-share scheduling algorithms
+* The nice value ranges from '''−20 to +19'''; a default nice value is '''0'''
+* '''Positive nice values imply lower priority'''
+* '''Negative values imply higher priority'''
+* CFS maps the nice value of each process to a '''weight'''
+{/def}
+
+{analogy}이름 그대로 '''"착한 정도"'''다. nice 값이 크면(양수) '''남에게 친절하게 양보'''하는 프로세스이므로 CPU를 덜 받는다. nice 값이 작으면(음수) '''이기적'''이라 CPU를 더 많이 가져간다. 부호가 헷갈릴 때는 "nice할수록 양보한다"만 떠올리면 된다.{/analogy}
+
+<pre class="ascii">
+  −20 ←──────────── 0 ────────────→ +19
+ 높은 우선순위     기본값        낮은 우선순위
+ weight 88761    weight 1024    weight 15
+ "이기적"                        "착함(nice)"
+</pre>
+
+{warn}'''부호 방향이 직관과 반대'''라 시험 함정으로 쓰기 좋다. "nice 값이 높으면 우선순위가 높다" → '''거짓'''. 값이 클수록 '''낮은''' 우선순위다.
+
+참고로 [[weight]]는 반대로 '''클수록 높은 우선순위'''다. nice −20의 weight가 88761로 가장 크다. nice와 weight는 '''부호 방향이 반대'''라는 점을 세트로 기억할 것.{/warn}
+
+== nice → weight 테이블 ==
+
+[[img:L6-35.png|prio_to_weight[40] 테이블. nice 0 = 1024, 한 단계마다 약 1.25배|medium]]
+
+<pre class="c">
+static const int prio_to_weight[40] = {
+ /* -20 */ 88761, 71755, 56483, 46273, 36291,
+ /* -15 */ 29154, 23254, 18705, 14949, 11916,
+ /* -10 */  9548,  7620,  6100,  4904,  3906,
+ /*  -5 */  3121,  2501,  1991,  1586,  1277,
+ /*   0 */  1024,   820,   655,   526,   423,
+ /*   5 */   335,   272,   215,   172,   137,
+ /*  10 */   110,    87,    70,    56,    45,
+ /*  15 */    36,    29,    23,    18,    15,
+};
+</pre>
+
+* 배열 크기가 '''40''' = nice −20 ~ +19의 개수.
+* nice 0 = '''1024''' = $weight_0$. 공식의 기준값이다.
+* 한 단계마다 약 '''1.25배''' 차이 — nice를 1 낮추면 CPU 몫이 약 25% 늘어난다.
+* 시험에 자주 나오는 값: '''nice 0 → 1024''', '''nice −5 → 3121'''.
+
+== CPU 몫 계산 ==
+
+nice가 다른 프로세스들이 섞여 있으면 CPU 몫은 weight 비율로 정해진다.
+
+$$\text{CPU share}_i = \frac{weight_i}{\sum_j weight_j}, \qquad slice_i = \frac{weight_i}{\sum_j weight_j} \times sched\_latency$$
+
+<pre class="txt">
+ 예: nice 0 (1024) 프로세스 하나 + nice 5 (335) 프로세스 하나
+   총 weight = 1024 + 335 = 1359
+   nice 0: 1024/1359 = 75.3%   → sched_latency 48ms 중 '''36ms'''
+   nice 5:  335/1359 = 24.7%   → '''12ms'''
+</pre>
+
+== 관련 문서 ==
+* [[weight]] · [[vruntime]] · [[CFS]] · [[sched_latency]]
+* [[tickets]] — 다른 fair-share 알고리즘에서의 대응물
+* [[EEVDF]] — nice(CPU 양)와 별개로 latency_nice(반응 속도)를 도입했다

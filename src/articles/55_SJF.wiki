@@ -1,0 +1,59 @@
+key: SJF
+title: SJF (Shortest Job First)
+category: 5강 Process Scheduling, 정책
+---
+'''SJF'''(Shortest Job First)는 '''가장 짧은 job부터''' 실행하고, 그다음 짧은 것, 하는 식으로 진행하는 [[스케줄링]] 정책이다. [[FIFO]]의 [[convoy effect]]를 순서 하나로 해결한다.
+
+{def}
+'''SJF''': Run the shortest job first, then the next shortest, and so on.
+{/def}
+
+{analogy}'''마트의 "10개 이하 전용 계산대"'''다. 우유 한 팩 사러 온 사람을 카트 세 대 뒤에 세우지 말고 먼저 보내면, 전체 대기 시간의 합이 확 줄어든다. 우유 손님이 잃는 시간은 30초인데 카트 손님이 절약해 주는 시간은 수십 분이기 때문이다.{/analogy}
+
+== 얼마나 좋아지나 ==
+
+[[img:L5-13.png|SJF: B(10) C(10) A(100). 평균 turnaround = (10+20+120)/3 = 50초|medium]]
+
+<pre class="txt">
+ 같은 워크로드 A=100, B=C=10
+ [[FIFO]] 평균 [[turnaround time]] = 110초
+ SJF  평균 turnaround time = (10 + 20 + 120) / 3 = 50초
+</pre>
+
+{info}'''모든 job이 동시에 도착한다면 SJF는 평균 turnaround time의 최적(optimal) 정책'''이다. 증명 아이디어: 인접한 두 job의 순서를 바꿔 보면, 짧은 쪽을 앞에 둘 때 항상 합이 작아진다(exchange argument).{/info}
+
+== 가정 2를 풀면 무너진다 ==
+
+[[img:L5-14.png|A는 t=0 도착(100초), B·C는 t=10 도착(각 10초). SJF는 비선점이라 A를 멈추지 못한다|medium]]
+
+SJF는 '''비선점(non-preemptive)'''이다. 일단 A를 시작했으면 끝까지 돌린다.
+
+<pre class="txt">
+ A: 0 ──────────────── 100        turnaround = 100 − 0  = 100
+ B:                100 ── 110      turnaround = 110 − 10 = 100
+ C:                     110 ── 120 turnaround = 120 − 10 = 110
+ 평균 = (100 + 100 + 110) / 3 = 103.33초
+</pre>
+
+50초였던 게 103.33초로 되돌아갔다. [[convoy effect]]가 부활한 것이다. 해법은 [[선점]]을 붙이는 것 → [[STCF]].
+
+{warn}'''SJF의 또 다른 치명적 문제: 실행 시간을 미리 알아야 한다.''' 워크로드 가정 4가 그것인데, 현실의 OS는 프로그램이 얼마나 돌지 '''전혀 모른다'''. 이 가정을 푸는 게 [[MLFQ]]의 출발점이다.{/warn}
+
+{|
+! 항목 || SJF
+|-
+| 최적화 || '''[[turnaround time]]''' (단, 동시 도착일 때만 최적)
+|-
+| 나쁜 지표 || [[response time]] (긴 job은 한참 뒤에야 첫 실행)
+|-
+| [[선점]]? || '''✗ 비선점'''
+|-
+| 무너지는 지점 || 가정 2 해제(늦은 도착) / 가정 4(실행 시간을 알아야 함)
+|}
+
+[[sim:sched_gantt]]
+
+== 관련 문서 ==
+* [[STCF]] — SJF에 선점을 더한 것
+* [[FIFO]] · [[convoy effect]] · [[선점]]
+* [[스케줄링]] · [[turnaround time]]

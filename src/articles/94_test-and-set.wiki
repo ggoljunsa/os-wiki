@@ -1,0 +1,97 @@
+key: test-and-set
+title: Test-And-Set (Atomic Exchange)
+category: 9강 Lock, 용어
+---
+'''Test-And-Set'''(= '''atomic exchange''')은 [[flag 락]]의 실패를 하드웨어로 고친 명령이다. 9강 p.19. '''코드를 통째로 외워야 하는''' 슬라이드 세 개 중 하나다.
+
+[[img:L9-19.png|Test And Set (Atomic Exchange) — CPU가 하드웨어로 구현한다|large]]
+
+<pre class="c">
+1   /* implemented in CPU as hardware */
+2   int TestAndSet(int *ptr, int new) {
+3       int old = *ptr;       // fetch old value at ptr    = TEST
+4       *ptr = new;           // store 'new' into ptr      = SET
+5       return old;           // return the OLD value
+6   }
+</pre>
+
+{def}* Return ('''testing''') old value pointed to by the `ptr`
+* Simultaneously update ('''setting''') said value to `new`
+* "This sequence of operations is performed '''atomically''' — '''All or nothing and no context switch'''"{/def}
+
+{warn}⭐⭐ '''반환값은 "옛 값"이다.''' 새 값도, 성공/실패도 아니다. 시험에서 가장 흔하게 뒤집히는 지점이다.
+* 0을 반환 = '''원래 free였다''' = '''내가 락을 얻었다'''
+* 1을 반환 = 원래 held였다 = 계속 기다려야 한다{/warn}
+
+== 이 한 줄이 왜 결정적인가 ==
+
+[[flag 락]]에서는 TEST(9번 줄)와 SET(11번 줄)이 '''두 개의 명령'''이라 그 사이에서 끊겼다. `TestAndSet`은 그 둘을 '''하나의 명령'''으로 묶는다. 끊길 틈이 물리적으로 없다.
+
+<pre class="ascii">
+[flag 락]           load flag  ...틈...  store flag=1     <- 여기서 사고
+[TestAndSet]        <====== 한 덩어리, 끊기지 않음 ======>
+</pre>
+
+'''이 보장이 소프트웨어 방식과의 유일하고 결정적인 차이'''다.
+
+{analogy}🎭 [[flag 락]]이 "'''팻말을 확인하고 → 팻말을 뒤집는'''" 두 동작이었다면, test-and-set은 "'''팻말을 뒤집으면서 뒤집기 전에 뭐라고 쓰여 있었는지 알려 주는'''" 한 동작이다. 뒤집어 보니 '비어 있음'이었다면 내가 먼저 온 것이고, '사용 중'이었다면 남이 이미 들어간 것이다. 어느 쪽이든 '''팻말은 이미 "사용 중"으로 뒤집혀 있으므로''' 세 번째 사람이 끼어들 수 없다.{/analogy}
+
+== 이걸로 만든 락 ==
+
+<pre class="c">
+void lock(lock_t *lock) {
+    while (TestAndSet(&lock->flag, 1) == 1)
+             ;   // spin-wait
+}
+void unlock(lock_t *lock) { lock->flag = 0; }
+</pre>
+
+{|
+! 락 상태 || 반환값 || flag에 일어나는 일 || 결과
+|-
+| '''free''' (flag=0) || '''0''' || 0 → 1 || 탈출 → '''획득'''
+|-
+| '''held''' (flag=1) || '''1''' || 1 → 1 (무해하게 덮어씀) || 계속 '''spin'''
+|}
+
+held일 때 1을 1로 다시 쓰는 것이 '''아무 해가 없다'''는 점이 이 코드의 우아함이다. 자세한 것은 [[spin lock]].
+
+== 실제 하드웨어 ==
+
+{|
+! 아키텍처 || 명령
+|-
+| x86 || `xchg` (메모리 피연산자에는 `lock` prefix가 암묵적으로 붙는다)
+|-
+| [[RISC-V]] || `amoswap.w` — [[xv6]]의 `acquire()`가 `__sync_lock_test_and_set` → `amoswap.w.aq`를 쓴다
+|-
+| ARM || `SWP` (구형) / `LDREX`+`STREX` ([[load-linked store-conditional|LL/SC]] 방식)
+|}
+
+== 평가 (p.24) ==
+
+{|
+! 기준 || 결과 || 이유
+|-
+| '''Correctness''' || '''Yes''' || 한 스레드만 [[critical section]]에 진입한다
+|-
+| '''Fairness''' || '''No''' || "a thread spinning may '''spin forever'''" — 순서 보장 없음 → starvation
+|-
+| '''Performance''' || '''No''' || 싱글 CPU에서 락 보유자가 preempt되면 나머지가 [[time slice]] 전체를 spin에 낭비
+|}
+
+[[sim:test_and_set]]
+
+{exam}🎯 '''코드 빈칸 채우기'''로 나오기 가장 좋은 형태다 (2025F Problem 7이 [[fetch-and-add]]로 같은 형식이었다). 3~5번 줄의 `int old = *ptr;` / `*ptr = new;` / `return old;`를 순서까지 정확히 쓸 수 있어야 한다.{/exam}
+
+{quiz}`TestAndSet(&flag, 1)`이 '''0'''을 반환했다. 이는 무엇을 뜻하며, 호출 직후 `flag`의 값은?{/quiz}
+{answer}'''원래 락이 free였다는 뜻'''이며, 따라서 '''내가 락을 획득'''했다. 호출 직후 `flag`는 '''1'''이다 (반환은 옛 값 0, 저장은 새 값 1이 동시에 일어났다).{/answer}
+
+{quiz}`TestAndSet`이 "atomic exchange"라고도 불리는 이유는?{/quiz}
+{answer}하는 일이 정확히 '''교환(swap)'''이기 때문이다 — 메모리의 값과 인자로 준 값을 '''원자적으로 맞바꾸고''' 옛 값을 돌려준다. x86의 `xchg`, [[RISC-V]]의 `amoswap`이 이 이름을 그대로 쓴다.{/answer}
+
+== 관련 문서 ==
+* [[락]] · [[spin lock]] · [[flag 락]] · [[atomic]]
+* [[compare-and-swap]] · [[fetch-and-add]] · [[load-linked store-conditional]]
+* [[queue 락]] ([[guard]] 획득에 그대로 쓰인다) · [[yield 락]]
+* [[자주 틀리는 함정 모음]]

@@ -1,0 +1,88 @@
+key: EEVDF
+title: EEVDF (Earliest Eligible Virtual Deadline First)
+category: 6강 Proportional Share, 정책
+---
+'''EEVDF'''(Earliest Eligible Virtual Deadline First)는 리눅스 '''6.6(2023년 10월)'''부터 [[CFS]]의 코어를 대체한 [[비례 지분 스케줄링]] 알고리즘이다. 원 논문은 1995년(Stoica & Abdel-Wahab)이라 CFS와 달리 '''수학적으로 증명된''' 공정성 한계를 갖는다.
+
+{def}
+'''Rules''': Schedule a process with '''lag > 0''' and '''earliest VD'''.
+{/def}
+
+이름 자체가 규칙이다 — '''E'''arliest '''E'''ligible '''V'''irtual '''D'''eadline '''F'''irst: '''자격 있는(eligible)''' 것들 중에서 '''가상 마감(virtual deadline)이 가장 이른''' 것을 먼저.
+
+{analogy}'''병원 예약 시스템'''이다. [[lag]]은 "이 환자가 아직 못 받은 진료 시간"이다. 이미 제 몫 이상 진료받은 사람(lag ≤ 0)은 '''대기 명단에서 아예 빠진다'''(not eligible). 남은 사람들 중에서는 '''예약 마감 시각([[virtual deadline]])이 가장 이른''' 사람을 부른다. [[CFS]]가 "제일 적게 진료받은 사람"만 봤다면, EEVDF는 '''자격(누가 받을 권리가 있나) + 순서(누가 급한가)'''를 분리해서 본다.{/analogy}
+
+== CFS를 왜 갈아엎었나 ==
+
+{def}
+'''Limitation of CFS'''
+* '''Cannot reflect the latency requirements (latency-nice)'''
+* Long evolution introduced a lot of '''heuristics''' — e.g.) interactive bonus, wakeup replacement
+** '''No theoretical foundation'''
+** More complex, Less predictable
+{/def}
+
+[[nice]]는 CPU의 '''양'''만 정한다. "이 프로세스는 CPU를 조금만 쓰되 '''아주 빨리''' 반응해야 한다"(오디오 스트림, 게임 입력 처리 등)를 표현할 방법이 없었다. EEVDF는 '''latency_nice'''를 도입해 '''양(weight)'''과 '''반응 속도(slice)'''를 분리했다.
+
+== 두 축: lag와 virtual deadline ==
+
+=== lag — 자격(eligibility) ===
+
+{def}
+'''Lag''': Difference between '''allocated''' vs. '''received''' CPU time
+* '''lag > 0''' : owes service → the process is '''"eligible"'''
+* '''lag < 0''' : already got more service
+* '''Negative lag is decayed during sleep but not increased above 0'''
+{/def}
+
+=== virtual deadline — 순서 ===
+
+$$VD = t_{now} + \frac{slice_i}{weight_i}$$
+
+* $t_{now}$ = 그 프로세스의 '''eligible 시각''' (lag = 0이 되는 시점)
+* $slice_i$ = [[sched_latency]] / n 으로 계산한 뒤 '''latency_nice'''로 조정. 예: 48ms, n=4 → 12ms, latency_nice −10 → '''6ms'''
+* slice가 짧거나 [[weight]]가 크면 VD가 '''이르다''' → 먼저 선택
+
+<pre class="ascii">
+ EEVDF 선택 과정
+ ┌──────────────────────────────────────────────┐
+ │ 전체 runnable 프로세스                        │
+ │   ├─ P1  lag = +3   VD = 25   ✔ eligible     │
+ │   ├─ P2  lag = −1   VD = 18   ✗ 자격 없음    │ ← lag ≤ 0 이면 탈락
+ │   ├─ P3  lag = +7   VD = 21   ✔ eligible     │
+ │   └─ P4  lag =  0   VD = 12   ✗ 자격 없음    │ ← lag > 0 이어야 한다
+ └──────────────────────────────────────────────┘
+   eligible = {P1(VD 25), P3(VD 21)}  →  '''VD 최소인 P3 실행'''
+</pre>
+
+{exam}'''모의 퀴즈 A13에서 틀린 문장.''' "EEVDF schedules a process whose lag is greater than 0 and whose virtual deadline is the earliest." → '''참'''이다.
+
+[[CFS]]와 나란히 놓고 외울 것.
+
+{|
+! || 선택 조건 || 개수
+|-
+| '''[[CFS]]''' || [[vruntime]] 최소 || 조건 '''1개'''
+|-
+| '''EEVDF''' || ① [[lag]] > 0 (자격) ② [[virtual deadline]] 최소 (순서) || 조건 '''2개'''
+|}
+
+VD가 아무리 일러도 lag ≤ 0이면 '''후보에서 빠진다'''는 게 핵심이다. 순서가 반대가 아니다.{/exam}
+
+== CFS 대비 개선점 ==
+
+{def}
+'''Improvement over CFS'''
+* '''Explicit Latency Control''' (latency_nice)
+* '''Predictable Fairness''' — Tight lag bound is '''mathematically proven'''
+* '''Better tail latency'''
+{/def}
+
+{info}[[CFS]]가 "오래 자다 깬 프로세스가 CPU를 독점한다"는 문제를 min_vruntime 재설정이라는 '''휴리스틱'''으로 막았다면, EEVDF는 '''"negative lag is decayed during sleep but not increased above 0"'''이라는 규칙으로 '''원천 차단'''한다. 자고 일어났다고 밀린 몫을 몰아 받을 수가 없다. 휴리스틱 대신 이론이라는 게 이 교체의 요점이다.{/info}
+
+[[sim:cfs_eevdf]]
+
+== 관련 문서 ==
+* [[lag]] · [[virtual deadline]] · [[weight]] · [[sched_latency]]
+* [[CFS]] · [[vruntime]] · [[nice]]
+* [[비례 지분 스케줄링]] · [[자주 틀리는 함정 모음]]

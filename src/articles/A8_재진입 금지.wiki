@@ -1,0 +1,85 @@
+key: 재진입 금지
+title: 재진입 금지 (Re-entrancy Prevention)
+category: 과제1, 핵심
+---
+'''재진입 금지'''는 알람 핸들러가 '''아직 끝나지 않았는데 또 호출되는 것'''을 막는 규칙이다. [[alarm_active]] 플래그로 구현하며, `alarmtest`의 '''test2'''가 정확히 이것을 검사한다.
+
+{def}
+"'''Prevent re-entrant calls to the handler''' — if a handler hasn't returned yet, the kernel shouldn't call it again. '''test2 tests this.'''" (과제 1 PDF)
+{/def}
+
+{analogy}
+재진입 금지는 '''"통화 중에는 새 전화를 받지 않는다"'''는 규칙이다. 그런데 이유가 예의 문제가 아니라 '''물리적 제약'''이다 — 이 전화기에는 '''통화 대기 메모지가 딱 한 장'''밖에 없다([[alarm_saved]]). 새 전화를 받으면 그 한 장에 새 내용이 덮여, '''원래 통화 상대가 누구였는지 영영 알 수 없게 된다.'''
+{/analogy}
+
+== 왜 금지해야 하는가 ⭐⭐ ==
+
+<pre class="ascii">
+   슬롯(alarm_saved)이 하나뿐인 게 핵심이다.
+
+   정상 (alarm_active 가드 있음):            재진입을 허용하면:
+   ─────────────────────────────            ─────────────────────────────
+   alarm_saved ← [유저코드 문맥 0x1234]      alarm_saved ← [유저코드 문맥 0x1234]
+   periodic() 실행 중 …                      periodic() 실행 중 … 또 tick!
+                                             alarm_saved ← [periodic 중간 문맥]
+                                                    ↑ 0x1234 문맥이 덮여 영영 사라짐
+   sigreturn → 0x1234 복귀   ✓                periodic() 다시 실행 (중첩)
+                                             sigreturn → periodic 중간으로 복귀
+                                             sigreturn → ??? 원래 코드로 갈 길이 없음  ✗
+
+   방어: alarm_active == 1 이면 usertrap 에서 tick 자체를 세지 않는다.
+</pre>
+
+즉 재진입의 진짜 피해는 "핸들러가 여러 번 도는 것"이 아니라 '''[[alarm_saved]]가 덮여 원래 유저 문맥이 소실되는 것'''이다. 한 번 잃으면 복구할 방법이 없다.
+
+== 구현 ==
+
+<pre class="c">
+// usertrap()
+if (p->alarm_interval > 0 && !p->alarm_active) {   // ★ 가드가 ++ 보다 앞
+    p->alarm_elapsed++;
+    if (p->alarm_elapsed >= p->alarm_interval) {
+        p->alarm_saved  = *p->trapframe;
+        p->alarm_active = 1;                       // ★ 잠금
+        p->alarm_elapsed = 0;
+        p->trapframe->epc = (uint64)p->alarm_handler;
+    }
+}
+
+// sys_sigreturn()
+p->alarm_active = 0;                               // ★ 해제
+</pre>
+
+{warn}
+'''가드를 어디에 두느냐로 의미가 달라진다.'''
+* `!alarm_active`를 '''`alarm_elapsed++`보다 앞'''에 두면 → 핸들러가 쓴 tick은 '''주기에 아예 포함되지 않는다'''. (퀴즈 1의 5번이 전제하는 동작)
+* `++`는 계속 하고 '''발사만''' 막으면 → 핸들러가 오래 돌 경우 [[sigreturn]] 직후 '''곧바로''' 다시 발사된다.
+표준 답안과 퀴즈 2번 ①의 위치는 '''전자'''다.
+{/warn}
+
+== 퀴즈에서의 등장 ==
+
+{exam}
+'''모의 A20에서 틀린 문항''' — "If the alarm handler has not yet returned when the interval expires again, the kernel should call the handler '''a second time'''." → '''거짓'''.
+
+'''실제 퀴즈 1에서는 두 번 나왔다:'''
+# '''2번 ① (5점)''' — 빈칸에 `!p->alarm_active`를 채우는 문제.
+# '''5번 (a) (20점)''' — `periodic()` 안의 `burn()`이 5 tick 이상을 태우는데도 알람이 재발사되지 않는 이유. 이걸 모르면 `count`가 3보다 커진다는 오답이 나온다.
+
+'''한 줄 답안:''' "핸들러 실행 중엔 다시 안 부른다 — '''저장 슬롯이 하나뿐이라''' 원래 문맥이 덮이기 때문."
+{/exam}
+
+{tip}
+유닉스의 진짜 시그널도 같은 문제를 겪는다. `SIGALRM` 핸들러 실행 중에는 기본적으로 같은 시그널이 '''block'''되며(`sa_mask`), 여러 겹으로 쌓으려면 '''시그널 스택을 따로''' 둬야 한다. 슬롯이 하나면 재진입 금지, 슬롯이 여러 개면 중첩 허용 — 설계 선택은 결국 '''저장 공간 개수'''의 문제다.
+{/tip}
+
+{quiz}
+[[sigreturn]]에서 `alarm_active = 0`을 빠뜨리면 `alarmtest`는 어떻게 되는가?
+{/quiz}
+{answer}
+'''test0은 통과하고 test1부터 실패한다.''' 첫 알람은 정상적으로 터져 "alarm!"이 찍히지만, `alarm_active`가 1로 남아 [[usertrap]]의 가드가 영원히 거짓이 된다 → [[alarm_elapsed]]가 다시는 증가하지 않고 '''알람이 두 번 다시 울리지 않는다'''. test1은 여러 번 울려야 통과하므로 실패.
+{/answer}
+
+== 관련 문서 ==
+* [[alarm_active]] · [[alarm_saved]] · [[alarm_elapsed]] · [[alarm_interval]]
+* [[usertrap]] · [[sigreturn]] · [[alarmtest]] · [[과제1 xv6 alarm]] · [[퀴즈1 복기]]

@@ -1,0 +1,68 @@
+key: vruntime
+title: vruntime (virtual runtime)
+category: 6강 Proportional Share, 용어
+---
+'''vruntime'''(virtual runtime, 가상 실행 시간)은 [[CFS]]가 각 [[프로세스]]에 대해 누적하는 '''가중치가 적용된 실행 시간'''이다. CFS는 언제나 '''vruntime이 가장 작은''' 프로세스를 다음에 실행한다.
+
+$$vruntime_i = vruntime_i + \frac{weight_0}{weight_i} \cdot runtime_i$$
+
+{def}
+* $runtime_i$ = the '''actual run time''' that $process_i$ has accrued
+* $weight_0$ (= '''1024''') = a weight of a default [[nice]] value 0
+* As each process runs, it accumulates vruntime. CFS picks the process with the '''lowest vruntime''' to run next.
+{/def}
+
+{analogy}'''각자 손목에 찬 시계'''다. CPU를 쓰는 동안만 돌아가고, 스케줄러는 '''시계가 제일 적게 간 사람'''을 부른다. 그런데 우선순위가 높은 사람의 시계는 '''느리게 가도록 조작'''되어 있다 — nice −5인 사람이 10초를 써도 시계에는 3.2초만 찍힌다. 그래서 계속 "제일 덜 쓴 사람"으로 뽑힌다. 자고 있으면 시계가 멈추니, 깨어나면 당연히 1순위다.{/analogy}
+
+[[img:L6-36.png|vruntime 공식과 nice −5 예제. weight 3121 → 0.328배로만 누적|medium]]
+
+== 계산 예 ==
+
+<pre class="txt">
+ Δvruntime = (weight₀ / weightᵢ) × runtimeᵢ,   weight₀ = 1024
+
+ nice   0 (weight 1024): (1024/1024) × 10초 = 10초    ← 실제와 동일
+ nice  −5 (weight 3121): (1024/3121) × 10초 = '''3.2초'''  ← 실제보다 적게 쌓임 → 자주 선택
+ nice  +5 (weight  335): (1024/ 335) × 10초 = 30.6초  ← 실제보다 많이 쌓임 → 드물게 선택
+</pre>
+
+{warn}슬라이드 p.36 첫 줄의 "a high priority (i.e., a '''low''' weight)"는 '''오타에 가깝다'''. 공식과 예제 숫자가 기준이다.
+* 우선순위가 높다 → [[nice]]가 음수 → [[weight]]가 '''크다''' (nice −5 = 3121 > nice 0 = 1024)
+* weight가 크다 → 분수 $weight_0/weight_i$가 '''작다''' → vruntime이 '''천천히''' 쌓인다 → 더 자주 뽑힌다{/warn}
+
+== 자는 프로세스 ==
+
+* 프로세스가 I/O로 잠들면 vruntime은 '''그대로 멈춘다'''. 자는 동안은 CPU를 안 쓰니까.
+* 깨어나면 남들보다 vruntime이 '''작다''' → CFS가 먼저 고른다.
+* 이것만으로 '''대화형 job 우대'''가 공짜로 된다. [[MLFQ]]가 규칙 5개로 만들던 효과다.
+
+{exam}'''부작용은 starvation.''' A는 계속 실행, B는 10초 동안 잠 → B가 깨면 vruntime이 A보다 10초 뒤져 있어 '''다음 10초를 독점'''한다.
+
+해법: 깬 job의 vruntime을 '''red-black tree의 최솟값(min_vruntime)'''으로 맞춘다. 밀린 몫을 다 돌려주지 않고 "지금 제일 앞 사람과 동급"으로만 취급하는 것.
+
+이건 [[Stride 스케줄링]]의 "새 job의 [[pass]]를 0으로 두면 독점" 문제와 '''정확히 같은 문제, 같은 해법'''이다. 세트로 외울 것.{/exam}
+
+== 자료구조에서의 역할 ==
+
+[[레드블랙 트리]]의 '''키'''가 vruntime이다. 가장 왼쪽 노드 = vruntime 최소 = 다음에 실행할 프로세스. 그래서 선택이 '''O(1)''', 삽입이 '''O(log n)'''이다.
+
+[[sim:cfs_eevdf]]
+
+== 대응 관계 ==
+
+{|
+! [[Stride 스케줄링]] || [[CFS]]
+|-
+| [[pass]] || '''vruntime'''
+|-
+| [[stride]] (= 큰 수 / [[tickets]]) || $weight_0 / weight_i$
+|-
+| 매 실행마다 stride 더함 || 실제 실행 시간에 '''비례'''해서 더함
+|-
+| pass 최소 선택 || vruntime 최소 선택
+|}
+
+== 관련 문서 ==
+* [[CFS]] · [[weight]] · [[nice]] · [[레드블랙 트리]]
+* [[pass]] · [[stride]] · [[Stride 스케줄링]]
+* [[EEVDF]] · [[lag]]

@@ -1,0 +1,99 @@
+key: mutual exclusion
+title: Mutual Exclusion (상호 배제)
+category: 8강 Concurrency, 용어
+---
+'''Mutual exclusion'''(상호 배제)은 [[race condition]]의 '''해법'''이다. 8강 p.43 "Enforcing Mutual Exclusion"이 정의한다.
+
+{def}"We must '''synchronize''' the execution of the threads so that '''only one thread enters a critical section''' and performs all the operations '''atomically'''."
+* Guarantee '''mutually exclusive access''' to critical regions
+* In other words, '''support atomicity''' for critical sections{/def}
+
+즉 mutual exclusion = "[[critical section]]에 [[atomic|원자성]]을 부여하는 것"이다. 두 표현은 같은 말이다.
+
+== 대표적 해법 네 가지 (슬라이드 목록) ==
+
+{|
+! 도구 || 설명 || 어디서
+|-
+| '''Mutex (lock)''' || 한 번에 하나만 들어가는 자물쇠. `lock()` / `unlock()` || `pthread_mutex_t` → 9강 [[락]]
+|-
+| '''Semaphore''' || 정수 카운터 + wait/post. 값 1이면 lock처럼, N이면 N개까지 허용 || POSIX `sem_t`
+|-
+| '''Condition variables''' || "어떤 조건이 참이 될 때까지 '''기다리기'''" || '''Pthreads''' `pthread_cond_wait/signal`
+|-
+| '''Monitors''' || 락 + 조건 변수를 '''언어 차원'''에서 묶은 것 || '''Java''' `synchronized`
+|}
+
+{exam}🎯 이 목록은 "(Pthreads)", "(Java)"라는 괄호까지 슬라이드에 적혀 있다. '''"Monitor는 어느 언어?" → Java''', '''"Condition variable은 어디?" → Pthreads''' 같은 단답이 나오기 좋다.{/exam}
+
+{info}동시성 문제는 두 종류다 (OSTEP 26장).
+① 공유 데이터에 대한 '''원자성''' 문제 → '''lock'''
+② 한 스레드가 다른 스레드의 '''어떤 일이 끝나길 기다리는''' 문제(예: [[pthread_join]], I/O 완료 대기) → '''condition variable'''
+목록에 조건 변수가 들어 있는 이유가 ②다. 2025F 중간고사에는 조건 변수 관련 '''spurious wakeup'''도 출제되었다.{/info}
+
+== 락을 끼운 코드 (p.44) ==
+
+> "'''Ensure that any such critical section executes as if it were a single atomic instruction'''"
+
+<pre class="c">
+13 lock_t mutex;
+14 void *mythread(void *arg) {
+15     printf("%s: begin\n", (char *) arg);
+16     int i;
+17     for (i = 0; i &lt; 1e7; i++) {
+18         lock(&mutex);            // 진입: 다른 스레드가 쥐고 있으면 여기서 대기
+19         counter = counter + 1;   // critical section
+20         unlock(&mutex);          // 퇴장: 기다리던 스레드 하나가 들어올 수 있음
+21     }
+22     printf("%s: done\n", (char *) arg);
+23     return NULL;
+24 }
+</pre>
+
+같은 시나리오를 락과 함께 다시 돌리면:
+
+{|
+! 순서 || Thread 1 || Thread 2 || counter
+|-
+| 1 || `lock` 성공 → load(50), add(51) || || 50
+|-
+| 2 || '''interrupt → T2로 전환''' (T1은 '''락을 쥔 채''' 선점됨) || || 50
+|-
+| 3 || || `lock` 시도 → '''이미 잠김 → 대기''' || 50
+|-
+| 4 || 다시 T1 → store(51) → `unlock` || || 51
+|-
+| 5 || || `lock` 성공 → load(51), add, store(52) → `unlock` || '''52''' ✅
+|}
+
+{warn}⭐ '''오해 방지 3종'''
+① 락은 '''인터럽트(선점)를 막는 게 아니다'''. 2번 행처럼 T1은 여전히 선점된다. 락은 선점돼도 '''다른 스레드가 critical section에 못 들어오게''' 할 뿐이다.
+② 모든 스레드가 '''같은 락 변수'''를 써야 의미가 있다. 스레드마다 다른 락이면 보호 효과 0.
+③ 공유 데이터에 접근하는 '''모든''' 곳을 감싸야 한다. 한 군데라도 빠지면 race.{/warn}
+
+실제 pthread 버전:
+<pre class="c">
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_lock(&mutex);
+counter = counter + 1;
+pthread_mutex_unlock(&mutex);
+</pre>
+
+{analogy}🎭 mutual exclusion = '''화장실 문 잠그기'''. 안에 있는 사람이 잠깐 졸아도(선점돼도) 문은 잠겨 있으므로 남이 못 들어온다. 결과적으로 안에서 한 일은 '''통째로 한 번에 일어난 것처럼''' 보인다 — 그게 [[atomic|원자성]]이다.{/analogy}
+
+== 그런데 lock() 자체는? ==
+
+`lock()` 안에서도 "잠겼나 확인 → 잠금 표시"가 read-modify-write라 '''똑같은 race가 생긴다'''. 그래서 '''하드웨어 원자 명령'''([[test-and-set]], [[compare-and-swap]], [[RISC-V]] `amoswap`)이 필요하다. 이것이 9강 [[락]]의 출발점이다.
+
+[[xv6]]의 `acquire()`도 내부적으로 `__sync_lock_test_and_set` → RISC-V `amoswap.w.aq`를 쓴다.
+
+{quiz}락을 걸면 critical section 실행 중 [[타이머 인터럽트]]가 걸리지 않는가?{/quiz}
+{answer}'''아니다.''' 선점은 여전히 일어난다. 다만 락을 쥔 스레드가 선점된 동안 다른 스레드는 `lock()`에서 막혀 critical section에 들어오지 못하므로, '''결과적으로 원자적으로 실행된 것과 같아진다'''. (p.44){/answer}
+
+{quiz}Mutual exclusion을 "atomicity"라는 단어로 다시 정의하면?{/quiz}
+{answer}"[[critical section]]이 '''하나의 원자 명령처럼(as if it were a single atomic instruction)''' 실행되도록 보장하는 것." 슬라이드 p.43·p.44의 표현 그대로다.{/answer}
+
+== 관련 문서 ==
+* [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]
+* [[락]] · [[락 평가 기준]] · [[test-and-set]]
+* [[2025F 중간고사 족보]]

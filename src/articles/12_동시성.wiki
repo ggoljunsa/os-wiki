@@ -1,0 +1,130 @@
+key: 동시성
+title: 동시성 (Concurrency)
+category: 2강 What is OS, 용어
+---
+'''동시성'''(Concurrency)은 OS가 여러 일을 '''겹쳐서''' 처리하는 성질, 그리고 그렇게 겹쳤을 때 공유 데이터가 깨지는 문제를 함께 가리킨다. three easy pieces의 두 번째이며, 8·9강([[스레드]], [[락]]) 전체가 이 문제의 해결편이다.
+
+{def}
+'''Concurrency''' (2강 p.27)<br>
+"The OS is '''juggling many things concurrently''', first running one process, then another, and so forth. Modern '''multi-threaded''' programs sharing the same virtual memory space exhibit the concurrency problem."
+{/def}
+
+{analogy}
+🍦 손님 #1이 민트초코 '''100개'''를 주문했다(12:19). 1분 뒤 손님 #2가 초코 '''1개'''를 주문한다. 100개를 다 만들 때까지 #2가 기다려야 한다면 그 손님은 다음 날 아이스크림을 받고 두 번 다시 안 온다. 그래서 가게는 작업을 잘게 잘라 '''번갈아''' 처리한다 — 그게 동시성이다.<br>
+문제는 여기서 생긴다. 직원이 민트초코용 '''그릇'''을 쓰다가 중간에 초코 주문으로 넘어가면서 같은 그릇을 재활용하면, 초코가 민트초코가 되어 나온다. 공유 자원이 중간에 끼어든 작업 때문에 오염되는 것 — 그게 [[race condition]]이다.
+{/analogy}
+
+[[img:L2-12.png|2강 p.12. 밀린 주문을 시간 단위로 잘라 번갈아 처리하는 모습.|medium]]
+
+== 동시 실행 vs 순차 실행 ==
+
+{def}
+"Two (and more) processes run '''concurrently''' if their flows '''overlap in time'''. Otherwise, they are '''sequential'''." (3강 p.29)
+{/def}
+
+[[img:L3-29.png|3강 p.29. A&B는 concurrent, A&C도 concurrent, B&C는 sequential.|large]]
+
+{warn}
+'''최다 함정.''' "물리적으로 정확히 같은 순간에 돌아야 concurrent"가 '''아니다'''. 싱글 코어라 언제나 한 순간에는 한 프로세스만 돌더라도, 두 프로세스의 실행 '''구간'''이 겹치면 concurrent다.<br>
+그림에서 B는 앞쪽 구간에서 시작해 끝나고, C는 그 뒤에서 시작한다 — '''명확한 경계(clear boundary)'''가 있으므로 sequential. 반면 A는 앞뒤 양쪽에 걸쳐 있어 B와도 C와도 겹친다.
+{/warn}
+
+{tip}
+0831 녹음본에서 교수님의 판정 기준: "if you can find there is a '''clear boundary''' between process execution, we will call it sequential … '''if there is overlap''' between their execution, it is concurrent." 그리고 그 판정이 의미를 갖는 이유는 "the execution of process B '''cannot affect''' the execution of process C" — 겹치지 않으면 서로 간섭할 수 없기 때문이다.
+{/tip}
+
+== 동시성 문제: 슬라이드의 thread.c ==
+
+2강 p.28~31은 동시성이 왜 '''문제'''인지를 실행 결과로 보여 준다.
+
+<pre class="c">
+volatile int counter = 0;
+int loops;
+
+void *worker(void *arg) {
+    int i;
+    for (i = 0; i < loops; i++) {
+        counter++;
+    }
+    return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+    loops = atoi(argv[1]);
+    pthread_t p1, p2;
+    printf("Initial value : %d\n", counter);
+
+    Pthread_create(&p1, NULL, worker, NULL);
+    Pthread_create(&p2, NULL, worker, NULL);
+    Pthread_join(p1, NULL);
+    Pthread_join(p2, NULL);
+    printf("Final value : %d\n", counter);
+    return 0;
+}
+</pre>
+
+'''[[스레드]]'''는 "같은 메모리 공간 안에서 도는 함수"다. 두 스레드가 각자 `loops`번씩 `counter++`를 하므로 결과는 `2 × loops`여야 한다.
+
+<pre class="sh">
+prompt> ./thread 1000
+Initial value : 0
+Final value : 2000            ← 맞다
+
+prompt> ./thread 100000
+Initial value : 0
+Final value : 143012          // huh??
+prompt> ./thread 100000
+Initial value : 0
+Final value : 137298          // what the??
+</pre>
+
+=== 왜 이런 일이 ===
+
+{def}
+"Increment a shared counter → take '''three instructions''': ① Load the value of the counter from memory into register, ② Increment it, ③ Store it back into memory. These three instructions '''do not execute atomically''' → Concurrency problem happens." (2강 p.31)
+{/def}
+
+<pre class="ascii">
+  counter++ 는 사실 이 세 줄이다
+
+     mov  counter, %eax      ← ① load
+     add  $1, %eax           ← ② increment
+     mov  %eax, counter      ← ③ store
+
+  T1: ── load(50) ── add(51) ──┐               ┌── store(51) ──
+                               │ (여기서 전환) │
+  T2:                          └── load(50) ── add(51) ── store(51)
+
+  두 번 증가시켰는데 counter 는 51.  하나가 통째로 사라졌다.
+</pre>
+
+세 명령어가 '''[[atomic]]하지 않다'''는 것, 즉 중간에 끊길 수 있다는 것이 모든 동시성 버그의 뿌리다. 이 세 줄 사이에 다른 스레드가 끼어드는 구간이 [[critical section]]이고, 거기에 [[mutual exclusion]]을 걸어 주는 도구가 [[락]]이다.
+
+{exam}
+2025F 중간고사 '''Problem 2'''의 해설에 "Race Condition and Critical Section" 슬라이드가 그대로 실려 있고, `for (i = 0; i < 1e7; i++) counter = counter + 1;` 부분에 Critical Section 표시가 되어 있다. → [[2025F 중간고사 족보]]
+{/exam}
+
+== 예상 문제 ==
+
+{quiz}
+'''(개념 판정)''' 싱글 코어 시스템에서 프로세스 A와 B가 번갈아 실행되었다. A와 B는 concurrent한가, sequential한가?
+{/quiz}
+{answer}
+'''Concurrent.''' 싱글 코어라도 두 프로세스의 실행 '''구간이 시간상 겹치면''' concurrent다. "동시에 물리적으로 실행"은 concurrency의 조건이 아니다.
+{/answer}
+
+{quiz}
+'''(서술)''' `./thread 1000` 은 항상 2000을 출력하는데 `./thread 100000` 은 매번 다른 값을 출력하는 이유를 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+`counter++`가 load–increment–store '''세 명령어로 쪼개지고 atomic하지 않아''' 두 스레드가 겹칠 때 갱신이 유실되는데, loop 수가 적으면 전환이 거의 일어나지 않아 우연히 정답이 나올 뿐이다.
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] / [[가상화]] / [[영속성]]
+* [[스레드]] — 동시성의 실행 단위
+* [[race condition]] / [[critical section]] / [[mutual exclusion]] / [[atomic]]
+* [[counter 예제]] — 이 문서의 `thread.c`를 8강에서 명령어 단위로 해부한다
+* [[락]] — 해결책
+* [[컨텍스트 스위치]]

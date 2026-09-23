@@ -1,0 +1,255 @@
+key: 멀티프로세서 스케줄링
+title: 멀티프로세서 스케줄링 (Multiprocessor Scheduling)
+category: 7강 Multi-CPU Scheduling, 핵심
+---
+'''멀티프로세서 스케줄링'''은 CPU(코어)가 여러 개일 때 "'''작업들을 어느 CPU에 배치할 것인가'''"를 정하는 문제다. 5·6강의 모든 [[스케줄링]] 정책은 CPU가 하나라는 전제 위에 있었고, 7강은 그 전제를 깬다.
+
+{def}
+* The rise of the '''multicore processor''' is the motivation of multiprocessor-scheduling
+* '''Adding more CPUs does not make that an application runs faster''' → You have to '''rewrite an application to run in parallel using threads'''
+* Once an application is optimized with multiple jobs that run in parallel, the next issue is '''assigning the jobs on multi-core CPUs''' → Multiprocessor scheduling
+{/def}
+
+{warn}이 강의의 '''앞 14쪽은 6강 복습'''이다([[비례 지분 스케줄링]], [[CFS]], [[EEVDF]]). 본론은 p.15부터다. 대신 p.3에서 [[fairness|공정성 지표]]의 기호가 '''F → U (unfairness metric)'''로 바뀌어 있으니 주의할 것. 정의는 동일하다.{/warn}
+
+{analogy}'''식당에 주방을 하나 더 짓는 것'''과 같다. 주방이 둘이 됐다고 손님이 저절로 두 배 빨리 먹는 게 아니다. 요리를 나눌 수 있게 레시피를 다시 짜야 하고(병렬 프로그래밍), 어느 주문을 어느 주방에 보낼지 정해야 하며(스케줄링), 두 주방이 같은 냉장고를 쓰면 재료가 엇갈린다([[캐시 일관성]], 동기화). 게다가 한 요리사가 계속 쓰던 조리대에 재료가 준비돼 있으니 자꾸 주방을 바꾸면 손해다([[cache affinity]]).{/analogy}
+
+== 하드웨어 배경 ==
+
+=== 멀티코어와 하드웨어 스레드 ===
+
+{def}
+* Recent trend to place '''multiple processor cores on same physical chip''' — Faster and consumes less power
+* The number of '''threads per core''' is also growing — Takes advantage of '''memory stall''' to make progress on another thread while memory retrieve happens. e.g., Intel's '''Hyper Threading'''
+* (* CPU threads differ from SW threads)
+{/def}
+
+자세한 용어 구분은 [[멀티코어]] 문서를 보라. 한 줄로: '''Socket ⊃ Core ⊃ Hardware thread'''이고, OS가 스케줄링 대상으로 보는 "CPU"는 '''하드웨어 스레드(논리 프로세서)'''다.
+
+=== Concurrency vs. Parallelism ===
+
+{|
+! || 정의 || CPU 개수
+|-
+| '''Concurrency''' (동시성) || 여러 task가 '''진행 중(making progress)''' || CPU '''1개로도 가능''' — 스케줄러가 번갈아 돌림
+|-
+| '''Parallelism''' (병렬성) || 시스템이 여러 task를 '''실제로 동시에(simultaneously)''' 수행 || CPU '''2개 이상 필요'''
+|}
+
+{exam}단골 개념 문제다. '''"병렬이면 동시적이지만, 동시적이라고 병렬은 아니다."''' 동시성은 스케줄러가 만들어 내는 '''구조/착각'''이고, 병렬성은 '''물리적 사실'''이다. → [[동시성]]{/exam}
+
+병렬성의 종류도 함께 나온다.
+* '''Data parallelism''': 데이터를 쪼개 코어마다 나눠 주고 '''같은 연산'''. 예: 배열을 N등분해 부분합.
+* '''Task parallelism''': 작업을 쪼개 코어마다 '''다른 연산'''. 예: 같은 배열에 코어1은 평균, 코어2는 분산.
+* '''Hybrid parallelism''': 둘의 혼합.
+* 구분 팁: '''"뭘 나눴나?"''' — 데이터면 data, 하는 일이면 task.
+
+=== Amdahl의 법칙 ===
+
+[[img:L7-21.png|Amdahl의 법칙. S는 직렬 부분, N은 코어 수|medium]]
+
+$$speedup \le \frac{1}{S + \frac{1-S}{N}}$$
+
+75% 병렬 / 25% 직렬인 프로그램을 코어 1 → 2로 늘리면 '''1.6배'''(2배가 아니다). $N \to \infty$이면 speedup은 '''1/S'''에 수렴한다. 자세한 계산은 [[Amdahl의 법칙]] 문서.
+
+== 캐시 ==
+
+=== 단일 CPU의 캐시 복습 ===
+
+멀티프로세서의 어려움은 전부 '''캐시'''에서 나온다.
+
+* '''Cache''': 작고 빠른 메모리. 메인 메모리의 '''인기 있는 데이터 복사본'''을 보관. '''temporal locality'''(방금 쓴 건 또 쓴다) + '''spatial locality'''(근처 주소도 곧 쓴다)를 활용.
+* '''Main Memory''': 모든 데이터를 갖지만 느리다.
+* 캐시 덕에 '''느린 메모리가 빠른 것처럼 보인다'''.
+
+=== 캐시 일관성 ===
+
+[[img:L7-27.png|CPU0이 캐시에서 D를 D′으로 바꿨는데, CPU1은 메모리의 옛 값 D를 읽는다|large]]
+
+CPU가 둘이고 각자 캐시를 가지면 같은 주소의 복사본이 여러 곳에 생긴다. CPU0이 자기 캐시에서 $D \to D'$으로 고쳤는데 메모리에는 아직 $D$가 있고, 그 상태에서 프로세스가 CPU1로 옮겨 가 같은 주소를 읽으면 '''옛 값 $D$를 읽는다'''. 해법은 '''bus snooping'''. 자세한 것은 [[캐시 일관성]].
+
+=== 동기화는 별개 문제 ===
+
+하드웨어가 [[캐시 일관성]]을 지켜 줘도, 여러 CPU가 공유 데이터에 동시에 접근하면 '''[[mutual exclusion]]'''이 필요하다.
+
+<pre class="c">
+1   typedef struct __Node_t {
+2       int value;
+3       struct __Node_t *next;
+4   } Node_t;
+5
+6   int List_Pop() {
+7       Node_t *tmp = head;          // remember old head ...
+8       int value = head->value;     // ... and its value
+9       head = head->next;           // advance head to next pointer
+10      free(tmp);                   // free old head
+11      return value;                // return value at head
+12  }
+</pre>
+
+두 CPU가 이 코드를 '''동시에''' 실행하면 둘 다 같은 `head`를 `tmp`에 담고 둘 다 `free(tmp)`를 호출해 '''double free'''가 난다. 해법은 [[락]]이다.
+
+<pre class="c">
+1   pthread_mutex_t m;
+...
+7   int List_Pop() {
+8       lock(&m)
+9       Node_t *tmp = head;
+10      int value = head->value;
+11      head = head->next;
+12      free(tmp);
+13      unlock(&m)
+14      return value;
+15  }
+</pre>
+
+{warn}'''캐시 일관성은 "값이 최신인가"만 보장한다.''' 명령어들이 CPU 사이에서 섞이는 것([[race condition]])은 막아 주지 못한다. 그건 [[락]]으로 [[critical section]]을 감싸야 해결된다. 그리고 락은 '''CPU가 많을수록 경합이 심해져 느려진다''' — 이게 바로 다음 절 [[SQMS]]의 약점으로 이어진다.{/warn}
+
+=== cache affinity ===
+
+[[img:L7-31.png|① A가 CPU0에서 D 접근(Hit) → ② context switch로 CPU1로 이동 → ③ CPU1 캐시엔 D가 없어 Miss|large]]
+
+{def}
+'''Cache Affinity''': '''Keep a process on the same CPU if possible'''
+* A process '''builds up a fair bit of state''' in the cache of a CPU
+* The next time the process runs, it will run '''faster''' if some of its state is '''already present''' in the cache on that CPU
+{/def}
+
+프로세스를 다른 CPU로 옮기면 쌓아 둔 캐시(그리고 TLB) 상태를 전부 잃는다. 그래서 멀티프로세서 스케줄러는 반드시 '''친화도를 고려'''해야 한다. → [[cache affinity]]
+
+== 두 가지 구조: SQMS vs MQMS ==
+
+큐를 '''하나'''만 둘지 '''CPU마다''' 둘지가 갈림길이다.
+
+=== SQMS (Single Queue Multiprocessor Scheduling) ===
+
+[[img:L7-34.png|작업 A~E 5개, CPU 4개. 각 job이 매 슬라이스마다 다른 CPU로 튕겨 다닌다|large]]
+
+모든 job을 '''하나의 큐'''에 넣고 각 CPU가 전역 공유 큐에서 다음 job을 꺼내 간다.
+
+* '''장점''': 단순하고 구현이 쉽다 (단일 CPU 스케줄러를 거의 그대로 재사용).
+* '''약점 1 — 확장성''': 큐 하나를 여러 CPU가 건드리니 '''락이 필요'''하고, CPU 수가 늘수록 락 경합이 시간을 잡아먹는다.
+* '''약점 2 — [[cache affinity]] 상실''': 위 그림처럼 '''모든 job이 매 슬라이스마다 다른 CPU로 튕겨 다닌다'''.
+* '''보완''': 친화도 메커니즘을 추가해 '''대부분은 고정하고 일부(E)만 CPU를 돌아다니게''' 한다.
+
+자세한 것은 [[SQMS]].
+
+=== MQMS (Multi-Queue Multiprocessor Scheduling) ===
+
+[[img:L7-38.png|C가 끝나면 A가 B·D보다 CPU를 2배 받고, A까지 끝나면 CPU0이 아예 논다|large]]
+
+'''큐를 여러 개''' (보통 CPU당 하나) 두고, job이 들어오면 '''정확히 하나의 큐'''에 배치한다.
+
+* '''장점''': 큐마다 독립이라 '''락 경합 없음(확장성)''' + job이 한 CPU에 머무니 '''[[cache affinity]] 자연 보존'''.
+* '''약점 — [[로드 밸런싱|부하 불균형]]''': 위 그림처럼 한 CPU가 2배를 받거나 아예 논다.
+* '''해법''': '''migration(마이그레이션)''', 구현 기법은 '''[[work stealing]]'''.
+
+자세한 것은 [[MQMS]].
+
+=== 한 줄 대비 ===
+
+{|
+! || [[SQMS]] || [[MQMS]]
+|-
+| 큐 || 전역 1개 || CPU당 1개
+|-
+| 확장성 || '''나쁨''' (락 경합) || '''좋음'''
+|-
+| [[cache affinity]] || '''나쁨''' (튕겨 다님) || '''좋음''' (한 CPU에 머묾)
+|-
+| 공정성/부하 균형 || '''쉬움''' (큐가 하나니 자동) || '''어려움''' ([[로드 밸런싱]] 필요)
+|-
+| 보완책 || 친화도 메커니즘 || migration, [[work stealing]]
+|}
+
+{exam}'''이 표가 7강의 결론이다.''' 서술형으로 "SQMS와 MQMS의 trade-off를 설명하라"가 나오면 '''"SQMS는 공정성이 쉽고 확장성·친화도가 나쁘다 / MQMS는 확장성·친화도가 좋고 균형 맞추기가 어렵다"'''를 축으로 쓰고, 각각의 보완책(친화도 메커니즘 / work stealing)까지 붙이면 만점이다.{/exam}
+
+== 예상 문제 ==
+
+{quiz}
+'''(2025F 중간고사 Problem 2 형식)''' 다음 정의에 해당하는 용어를 영어로 쓰라.
+'''(a)''' 멀티프로세서에서 프로세스를 가능하면 같은 CPU에 계속 두려는 이유가 되는 성질. (Hint: C___ A___)
+'''(b)''' 같은 데이터의 복사본이 여러 캐시에 존재할 때 그것들이 일관되게 유지되어야 한다는 요구.
+'''(c)''' (b)를 해결하기 위해 각 캐시가 버스를 감시해 자기 복사본을 무효화하거나 갱신하는 기법.
+'''(d)''' 작업이 적은 큐가 다른 큐를 엿보고 작업을 가져오는 기법.
+{/quiz}
+
+{answer}
+'''(a)''' '''Cache affinity''' — 2025F 중간고사 Problem 2 d)에 힌트까지 그대로 출제됐다. 슬라이드 정의: "A process builds up a fair bit of state in the cache of a CPU; the next time the process runs, it will run faster if some of its state is already present in the cache on that CPU."
+
+'''(b)''' '''Cache coherence''' — "Consistency of shared resource data stored in multiple caches."
+
+'''(c)''' '''Bus snooping''' — "Each cache pays attention to memory updates by observing the bus. When a CPU sees an update for a data item it holds in its cache, it will notice the change and either '''invalidate''' its copy or '''update''' it."
+
+'''(d)''' '''Work stealing''' — "A source queue that is low on jobs occasionally peeks at another target queue; if the target queue is fuller, the source will steal one or more jobs."
+
+{tip}Problem 2는 '''슬라이드의 영어 정의 문장을 거의 그대로''' 주고 용어를 쓰게 한다. 단어 수 힌트가 붙는 경우가 많다. 각 용어의 영어 정의 한 문장을 통째로 외워 두면 역방향도 대비된다. → [[2025F 중간고사 족보]]{/tip}
+{/answer}
+
+{quiz}
+어떤 애플리케이션의 '''95%가 병렬화 가능'''하다. (a) 코어 4개일 때 speedup은? (b) 코어를 무한히 늘리면 speedup의 상한은? (c) 이 결과가 멀티프로세서 프로그래밍에 주는 교훈은?
+{/quiz}
+
+{answer}
+$S = 0.05$ (직렬 부분), $1 - S = 0.95$.
+
+'''(a)'''
+$$speedup \le \frac{1}{0.05 + \frac{0.95}{4}} = \frac{1}{0.05 + 0.2375} = \frac{1}{0.2875} \approx '''3.48배'''$$
+코어를 4배로 늘렸는데 3.48배밖에 못 얻는다.
+
+'''(b)''' $N \to \infty$이면 $(1-S)/N \to 0$이므로
+$$speedup \to \frac{1}{S} = \frac{1}{0.05} = '''20배'''$$
+슬라이드 그래프의 빨간 동그라미가 이 지점이다 — 95% 병렬 프로그램에 코어 '''2,048개'''를 넣어야 20배에 도달하고, 그 이상은 아무 소용이 없다.
+
+'''(c)''' '''직렬 부분이 성능에 불균형하게 큰 영향을 미친다.''' 코어를 더 붙이는 것만으로는 한계가 명확하므로 '''처음부터 병렬성을 염두에 두고 소프트웨어를 작성해야''' 한다. 슬라이드 결론 문장: "Writing software with parallelism in mind!" → [[Amdahl의 법칙]]
+{/answer}
+
+{quiz}
+[[MQMS]]에서 CPU 2개, Q0 = {A, C}, Q1 = {B, D}로 시작한다. C가 종료한 뒤 일어나는 일을 설명하고, 이어서 A까지 종료하면 어떻게 되는지 쓰라. 그리고 해결책은?
+{/quiz}
+
+{answer}
+'''C 종료 후''': Q0 = {A}, Q1 = {B, D}.
+<pre class="txt">
+ CPU0: A A A A A A A A A A A A ...
+ CPU1: B B D D B B D D B B D D ...
+ → A가 CPU0을 독차지하므로 '''A가 B, D보다 CPU를 2배''' 받는다. 공정성이 깨진다.
+</pre>
+
+'''A 종료 후''': Q0 = { } (비어 있음), Q1 = {B, D}.
+<pre class="txt">
+ CPU0: (idle)
+ CPU1: B B D D B B D D ...
+ → '''CPU0이 완전히 논다.''' 일은 남아 있는데 CPU 하나가 놀고 있다.
+</pre>
+
+'''원인''': 큐가 독립적이라 서로의 상황을 모른다. 이게 확장성([[cache affinity]] 보존)의 대가다. 이 현상의 이름이 '''load imbalance'''(부하 불균형)다.
+
+'''해결책''': job을 옮긴다 = '''migration(마이그레이션)'''. CPU0이 놀고 있으면 OS가 B나 D 중 하나를 Q0으로 옮긴다.
+
+단, 더 까다로운 경우도 있다. Q0 = {A}, Q1 = {B, D}처럼 job 3개를 CPU 2개에 공평하게 주려면 한 job을 '''계속 왔다 갔다''' 옮겨야 한다. 마이그레이션은 [[cache affinity]]를 잃는 비용이 있으므로 '''얼마나 자주, 누구를''' 옮길지가 정책 문제가 된다.
+
+구현 기법이 '''[[work stealing]]''' — 작업이 적은 큐가 다른 큐를 엿보고 훔쳐 온다. 임계값 정하기는 슬라이드 표현으로 '''"black art"'''다. → [[로드 밸런싱]]
+{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# '''Socket ⊃ Core ⊃ Hardware thread'''. OS가 스케줄링하는 단위는 논리 프로세서(= 하드웨어 스레드). Hyper-Threading은 '''memory stall''' 동안 다른 스레드를 돌려 코어 활용률을 올린다.
+# '''Concurrency''' = 여러 task가 진행 중 (CPU 1개도 가능) / '''Parallelism''' = 실제로 동시 수행 (CPU 2개 이상 필요).
+# '''Data parallelism'''(데이터를 쪼개 같은 연산) vs '''Task parallelism'''(연산을 쪼개 다른 일) vs Hybrid.
+# '''[[Amdahl의 법칙]]''': $speedup \le 1/(S + (1-S)/N)$, $N \to \infty$이면 '''1/S'''. 75% 병렬 + 코어 2개 → '''1.6배'''.
+# '''[[캐시 일관성]]''' 문제: CPU0이 캐시에서 $D \to D'$로 바꿨는데 CPU1은 메모리의 옛 $D$를 읽음 → 해법 '''bus snooping'''(하드웨어).
+# 일관성이 보장돼도 '''동기화는 별개''': 두 CPU가 동시에 `List_Pop` → double free → '''[[락]]''' 필요. 락은 CPU가 많을수록 느려진다.
+# '''[[cache affinity]]''': 같은 CPU에 두면 캐시(+TLB)에 쌓인 상태 덕에 빠르다. 옮기면 cache miss.
+# '''[[SQMS]]''': 단순. 약점 = '''락 때문에 확장성 없음''' + '''job이 CPU를 튕겨 다녀 친화도 상실'''. 보완 = 친화도 메커니즘(대부분 고정, 일부만 이동).
+# '''[[MQMS]]''': 확장성·친화도 좋음. 약점 = '''[[로드 밸런싱|부하 불균형]]'''(한 CPU가 2배를 받거나 아예 놂).
+# 불균형 해법 = '''migration'''. 구현 = '''[[work stealing]]'''(한가한 큐가 바쁜 큐를 엿보고 훔침). 임계값은 '''black art'''.
+# 한 줄 대비: SQMS는 '''공정성 쉬움 / 확장성·친화도 나쁨''', MQMS는 '''확장성·친화도 좋음 / 균형 어려움'''.
+
+== 관련 문서 ==
+* [[멀티코어]] · [[캐시 일관성]] · [[cache affinity]] · [[Amdahl의 법칙]]
+* [[SQMS]] · [[MQMS]] · [[로드 밸런싱]] · [[work stealing]]
+* [[락]] · [[mutual exclusion]] · [[race condition]] · [[critical section]] — 동기화가 필요한 이유
+* [[스케줄링]] · [[비례 지분 스케줄링]] — 단일 CPU 정책들
+* [[동시성]] · [[스레드]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

@@ -1,0 +1,95 @@
+key: yield
+title: yield()
+category: 4강 LDE, 과제1, 용어
+---
+'''`yield()`'''는 프로세스가 '''CPU를 자발적으로 놓는''' 함수다. 4강 [[협력적 방식]]에서는 "이것만 하는 시스템 콜"로 등장하고, [[xv6]]에서는 [[타이머 인터럽트]] 처리의 마지막 단계로 [[usertrap]]이 '''강제로''' 부른다.
+
+{def}
+"`yield()` does '''nothing except to transfer control to the OS'''." (4강 p.26)
+[[xv6]]에서는 시스템 콜이 아니라 커널 내부 함수이며, `usertrap()`이 `which_dev == 2`(타이머)일 때 호출한다.
+{/def}
+
+{analogy}
+`yield()`는 '''"저 먼저 안 가도 돼요"라고 말하며 줄에서 물러나는 것'''이다. 4강의 [[협력적 방식]]에서는 이게 '''예의'''에 기대는 시스템이었고(안 물러나면 방법이 없다), [[비협력적 방식]]에서는 '''경비원이 팔을 잡아 끌어내며''' 대신 말해 준다 — [[타이머 인터럽트]]가 그 경비원이다.
+{/analogy}
+
+== 두 가지 얼굴 ==
+
+{| class="table"
+! || 4강 [[협력적 방식]]의 `yield()` || [[xv6]]의 `yield()`
+|-
+| 누가 부르나 || '''유저 프로그램'''이 자발적으로 || '''커널의 [[usertrap]]'''이 타이머 인터럽트 때
+|-
+| 정체 || 시스템 콜 || 커널 내부 함수
+|-
+| 안 부르면 || OS가 통제권을 못 찾음 → 재부팅 || 상관없음 (타이머가 강제)
+|}
+
+== xv6 구현 ==
+
+<pre class="c">
+// kernel/proc.c
+void
+yield(void)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->state = RUNNABLE;    // 1  Running → Ready
+  sched();                // 2  → swtch(&p->context, &mycpu()->context)
+  release(&p->lock);      // 3  ← 다시 스케줄될 때 여기로 "돌아온다"
+}
+</pre>
+
+* 1행 — [[프로세스 상태]] 전이. "나는 이제 실행 중이 아니라 준비됨".
+* 2행 — `sched()`가 [[컨텍스트 스위치]]를 일으켜 '''[[스케줄러]] 스레드'''로 넘어간다. 스케줄러가 다음 RUNNABLE 프로세스를 골라 또 `swtch`한다.
+* 3행 — '''이 줄은 지금 실행되지 않는다.''' 한참 뒤 이 프로세스가 다시 선택되면 `swtch`가 "리턴한 것처럼" 여기서 재개된다.
+
+<pre class="ascii">
+   Process A (user)
+        │ timer interrupt
+        ▼
+   usertrap()  →  if (which_dev == 2) { [알람 코드] ; yield(); }
+                                                        │
+                                                        ▼
+                                  p->state = RUNNABLE ; sched()
+                                                        │ swtch
+                                                        ▼
+                                          scheduler()  (CPU 전용 스레드)
+                                                        │ 다음 RUNNABLE 선택
+                                                        ▼ swtch
+                                          Process C 의 커널 흐름 재개
+                                                        │
+                                                        ▼ usertrapret → sret
+                                          Process C (user)
+</pre>
+
+== 과제 1에서의 순서 ⭐ ==
+
+{warn}
+'''알람 코드는 반드시 `yield()` '''앞'''에 와야 한다.'''
+<pre class="c">
+if (which_dev == 2) {
+    /* ★ 알람 코드 — 여기 */
+    yield();          /* ← 이 뒤에 쓰면 안 됨 */
+}
+</pre>
+`yield()`는 [[컨텍스트 스위치]]를 일으켜 '''한참 뒤에야 돌아오거나, 프로세스가 죽으면 아예 안 돌아온다'''. 그 뒤에서 [[epc]]를 바꾸면 이미 다른 프로세스가 여러 번 돌고 온 뒤이고, [[trapframe]]의 상태에 대한 가정이 깨진다.
+{/warn}
+
+{tip}
+그래도 `yield()`가 '''알람 코드 뒤에''' 남아 있어야 한다는 점도 중요하다 — 알람을 위해 `yield()`를 '''지워 버리면''' 타이머 인터럽트가 와도 [[컨텍스트 스위치]]가 일어나지 않아 [[비협력적 방식]]이 무너지고, `usertests`가 대량으로 실패한다.
+{/tip}
+
+{quiz}
+`yield()`를 부른 프로세스는 어떤 [[프로세스 상태|상태]]가 되는가? 그리고 `sleep()`과 무엇이 다른가?
+{/quiz}
+{answer}
+'''`RUNNABLE`(= Ready)''' — 즉시 다시 스케줄될 자격이 있다. `sleep()`은 '''`SLEEPING`(= Blocked)'''이 되어 누군가 `wakeup()`을 해 줄 때까지 스케줄 대상에서 '''제외'''된다. [[타이머 인터럽트]]의 `yield()`는 "차례를 양보"할 뿐 "기다릴 일이 있다"는 뜻이 아니므로 RUNNABLE이 맞다.
+{/answer}
+
+[[sim:context_switch]]
+
+== 관련 문서 ==
+* [[협력적 방식]] · [[비협력적 방식]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[스케줄러]]
+* [[usertrap]] · [[which_dev]] · [[myproc]] · [[프로세스 상태]] · [[선점]]
+* [[과제1 xv6 alarm]] · [[제한적 직접 실행]]

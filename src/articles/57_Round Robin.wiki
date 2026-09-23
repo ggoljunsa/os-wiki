@@ -1,0 +1,65 @@
+key: Round Robin
+title: Round Robin (RR) 스케줄링
+category: 5강 Process Scheduling, 정책
+---
+'''Round Robin'''(RR)은 job을 [[time slice]]만큼만 실행하고 run queue의 '''다음 job으로 넘기는''' 것을 반복하는 [[스케줄링]] 정책이다. '''time slicing scheduling'''이라고도 한다.
+
+{def}
+'''Round Robin''': Run a job for a '''time slice''' (or a scheduling quantum) and then switch to the next job in the run queue, until the jobs are finished. It repeatedly does so until the jobs are finished.
+The length of a time slice must be a '''multiple of the timer-interrupt period'''.
+→ '''RR is fair, but performs poorly on metrics such as turnaround time.'''
+{/def}
+
+{analogy}'''돌림 노래''' 또는 '''회전 초밥'''이다. 모두가 조금씩 차례로 받는다. 누구도 굶지 않고(공정), 누구나 금방 첫 입을 먹는다([[response time]] 최고). 대신 '''배부르게 먹고 자리를 뜨는 시점은 모두 늦어진다'''([[turnaround time]] 최악). 한 사람이 한 접시를 통째로 먹고 가는 편이 그 사람에겐 빨랐을 것이다.{/analogy}
+
+== 계산 예 ==
+
+[[img:L5-20.png|A·B·C 각 5초. 위는 SJF(평균 response 5초), 아래는 RR 슬라이스 1초(평균 response 1초)|large]]
+
+<pre class="txt">
+ A, B, C 동시 도착, 각 5초. RR 슬라이스 = 1초
+ A B C A B C A B C A B C A B C
+
+ [[response time]] : A=0, B=1, C=2      → 평균 (0+1+2)/3 = '''1초'''
+ [[turnaround time]]: A=13, B=14, C=15   → 평균 '''14초'''
+
+ 같은 워크로드를 [[SJF]]로 돌리면
+ [[response time]] : 0, 5, 10           → 평균 '''5초'''
+ [[turnaround time]]: 5, 10, 15          → 평균 '''10초'''
+</pre>
+
+response는 5배 좋아졌고 turnaround는 1.4배 나빠졌다. 이게 RR의 전부다.
+
+{exam}'''모의 퀴즈 A8: "Round Robin optimizes turnaround time" → 거짓.''' RR이 최적화하는 건 [[response time]]이다. 슬라이드 요약 원문: "RR alternates between all jobs and thus '''optimizes response time''' — '''Terrible''' for turnaround time."
+
+기억법: '''R'''ound '''R'''obin → '''R'''esponse.{/exam}
+
+== time slice 길이 ==
+
+[[time slice]]가 짧을수록 response는 좋아지지만 [[컨텍스트 스위치]] 횟수가 늘어난다. 자세한 것은 [[time slice]] 문서.
+
+{warn}'''슬라이스는 timer-interrupt period의 배수여야 한다.''' 타이머가 10ms마다 울린다면 슬라이스는 10·20·30ms만 가능하다. CPU만 쓰는 job에서 OS가 CPU를 되찾을 유일한 수단이 [[타이머 인터럽트]]이기 때문이다. 녹음본에서도 교수님이 "one second should be the multiple of the timer period"라고 명시했다.{/warn}
+
+== 왜 turnaround가 구조적으로 나쁜가 ==
+
+RR은 '''모든 job을 최대한 늘여서 다 같이 늦게 끝내는''' 정책이다. 짧은 job도 다른 job들과 번갈아 도느라 자기 실행 시간의 $n$배 가까운 시간이 지나야 끝난다. 반대로 말하면 이건 [[fairness]]가 극대화된 상태이기도 하다 — 2025F 중간고사 Problem 3(b)에서 "total fairness를 최대화하라"의 출발점이 RR인 이유다. → [[2025F 중간고사 족보]]
+
+[[sim:sched_gantt]]
+
+{|
+! 항목 || Round Robin
+|-
+| 최적화 || '''[[response time]]''', [[fairness]]
+|-
+| 나쁜 지표 || '''[[turnaround time]] (Terrible)'''
+|-
+| [[선점]]? || '''✓ 선점''' (타이머로 슬라이스 종료)
+|-
+| 핵심 파라미터 || [[time slice]] (타이머 주기의 배수)
+|}
+
+== 관련 문서 ==
+* [[time slice]] · [[response time]] · [[fairness]]
+* [[STCF]] — 정반대 성격의 정책
+* [[MLFQ]] — 같은 큐 안에서는 RR을 쓴다 (Rule 2)
+* [[타이머 인터럽트]] · [[컨텍스트 스위치]]

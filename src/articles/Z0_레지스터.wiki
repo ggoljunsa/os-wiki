@@ -1,0 +1,80 @@
+key: 레지스터
+title: 레지스터 (Register)
+category: 용어
+---
+'''레지스터'''(Register)는 CPU 안에 있는 극소수의 초고속 저장소다. 3강 p.9~10의 "Assembly Programmer's View"에서 '''register file'''이라는 이름으로 등장하며, 프로세스를 멈췄다 재개할 때 저장·복원해야 하는 '''문맥(context)'''의 본체다.
+
+{def}
+'''Register file''' (3강 p.10, Programmer-Visible State)<br>
+"'''Heavily used program data'''" — 프로그램이 자주 쓰는 데이터를 담는 CPU 내부 저장소.<br>
+함께 나오는 programmer-visible state: '''PC'''([[프로그램 카운터]]), '''Register file''', '''Condition codes''', 그리고 '''Memory'''.
+{/def}
+
+{analogy}
+🍳 '''조리대 위'''다. 냉장고(디스크)나 창고(메모리)에서 재료를 꺼내 와야 요리할 수 있는데, 조리대는 아주 좁아서 몇 개밖에 못 올린다. 대신 손만 뻗으면 닿는다. CPU가 연산하려면 값을 반드시 레지스터로 '''load'''해 와야 하고, 다 쓰면 다시 메모리로 '''store'''해야 한다 — 이 왕복이 `counter++`가 세 명령어로 쪼개지는 이유다.
+{/analogy}
+
+[[img:L3-10.png|3강 p.10. CPU 박스 안에 PC / Registers / Condition Codes. 메모리와는 Addresses·Data·Instructions를 주고받는다.|large]]
+
+== 어디에 나오나 ==
+
+{| class="table"
+! 맥락 || 레지스터가 하는 역할
+|-
+| [[프로세스]] || control flow의 일부 — "각 프로세스는 exclusive control flow '''(+ registers)'''를 갖는다"
+|-
+| [[컨텍스트 스위치]] || 저장·복원 대상. 이 저장 비용이 곧 전환 오버헤드
+|-
+| [[struct proc]] || `struct context` (커널 전환용, callee-saved만) / [[trapframe]] (트랩용, 전부)
+|-
+| [[시스템 콜]] || [[RISC-V]]에서 번호는 `a7`, 인자는 `a0`~`a5`, 반환값은 '''[[a0]]'''
+|-
+| [[동시성]] || `counter++`이 load → add → store로 쪼개지는 이유
+|}
+
+{exam}
+2025F 중간고사 '''Problem 1''' 해설에 "Assembly Programmer's View (Cont.)" 슬라이드가 그대로 실렸다. '''PC + register file + condition codes'''라는 세 가지 programmer-visible state를 묻는 문제가 실제로 출제되었다. → [[2025F 중간고사 족보]]
+{/exam}
+
+== 슬라이드에 등장하는 레지스터들 ==
+
+<pre class="c">
+// x86 xv6 (3강 p.38) — 커널 컨텍스트 스위치용 5개
+struct context {
+    int eip;   // Index pointer register   ← 사실상 PC
+    int ebx;   // base register
+    int esi;   // Source index register
+    int edi;   // Destination index register
+    int ebp;   // Stack base pointer register
+};
+</pre>
+
+<pre class="c">
+// RISC-V xv6 (과제 1) — 14개
+struct context {
+  uint64 ra;    // return address
+  uint64 sp;    // stack pointer
+  uint64 s0; uint64 s1; uint64 s2;  uint64 s3;
+  uint64 s4; uint64 s5; uint64 s6;  uint64 s7;
+  uint64 s8; uint64 s9; uint64 s10; uint64 s11;
+};
+</pre>
+
+{warn}
+`struct context`에는 `a0`~`a7`, `t0`~`t6`이 '''없다'''. 함수 호출 규약상 caller가 알아서 챙기는 caller-saved 레지스터이기 때문이다.<br>
+반면 [[trapframe]]에는 '''35개 전부'''가 들어 있다 — 유저 코드는 언제 [[타이머 인터럽트|인터럽트]]당할지 모르므로 하나도 빠뜨릴 수 없다. 이 비대칭이 과제 1에서 "왜 [[trapframe]]을 통째로 복사해야 하나"의 답이다.
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(나열)''' 3강 p.10의 '''programmer-visible state''' 세 가지를 쓰시오.
+{/quiz}
+{answer}
+'''PC (Program counter)''', '''Register file''', '''Condition codes'''. (+ CPU 밖의 '''Memory''')
+{/answer}
+
+== 관련 문서 ==
+* [[프로그램 카운터]] / [[스택 포인터]] / [[a0]]
+* [[컨텍스트 스위치]] / [[trapframe]] / [[struct proc]]
+* [[프로세스]] / [[RISC-V]]

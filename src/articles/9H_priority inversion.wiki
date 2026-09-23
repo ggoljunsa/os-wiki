@@ -1,0 +1,74 @@
+key: priority inversion
+title: Priority Inversion (우선순위 역전)
+category: 9강 Lock, 보충
+---
+{warn}⚠️ '''이 문서는 보충이다.''' 9강 슬라이드에 독립된 절로는 없고, p.41 "Park/unpark vs Futex"에 '''"Fair wakeup ('''priority inheritance''')"'''이라는 괄호 한 줄로만 등장한다. 그 한 줄을 이해하기 위한 배경 정리다. 시험 우선순위는 낮지만, "왜 커널이 대기 큐를 관리하나"의 답으로 쓰이므로 알아 두면 좋다.{/warn}
+
+== 무엇인가 ==
+
+{def}'''Priority inversion''' — 우선순위가 '''높은''' 스레드가, 우선순위가 '''낮은''' 스레드 때문에 기다리게 되는 현상. 낮은 우선순위 스레드가 [[락]]을 쥐고 있고 높은 우선순위 스레드가 그 락을 기다릴 때 생긴다.{/def}
+
+<pre class="ascii">
+ 우선순위:  H (높음) > M (중간) > L (낮음)
+
+ 1. L 이 락을 획득하고 critical section 실행 중
+ 2. H 가 깨어나 L 을 선점 -> 같은 락을 요청 -> L 이 놓을 때까지 대기
+ 3. M 이 깨어나 L 을 선점 (M 은 락과 무관!)
+       -> L 은 CPU를 못 받아 락을 놓지 못하고
+       -> H 는 M 보다 우선순위가 높은데도 M 이 끝날 때까지 기다린다
+
+    결과: H 가 M 에게 밀렸다 = 우선순위가 "역전"되었다
+</pre>
+
+{analogy}🎭 '''병원 응급실'''이다. 중환자(H)가 왔는데, 경상 환자(L)가 유일한 CT실(락)을 쓰고 있다. 여기까지는 어쩔 수 없다. 그런데 그 사이 '''감기 환자(M)'''가 와서 "경상 환자보다는 내가 급하다"며 순서를 가져가 버리면, 경상 환자는 CT실에서 나오지도 못하고 '''중환자는 감기 환자 뒤로 밀린다'''. 시스템 전체의 우선순위 개념이 무너진 것이다.{/analogy}
+
+{info}'''실제 사고 사례''': 1997년 화성 탐사선 '''Mars Pathfinder'''가 착륙 후 반복적으로 리셋된 원인이 priority inversion이었다. 지구에서 원격으로 priority inheritance를 켜서 해결했다.{/info}
+
+== 해결: priority inheritance ==
+
+{def}'''Priority inheritance''' — 높은 우선순위 스레드가 어떤 락을 기다리게 되면, 그 락을 '''쥐고 있는 스레드의 우선순위를 일시적으로 끌어올린다'''. 락을 놓으면 원래대로 되돌린다.{/def}
+
+위 시나리오에서 L의 우선순위가 H만큼 올라가면 M이 L을 선점할 수 없고, L이 빨리 락을 놓아 H가 진행한다.
+
+== 왜 커널이 대기 큐를 알아야 하나 (p.41) ==
+
+{|
+! || '''[[park와 unpark|park/unpark]]''' (Solaris) || '''[[futex]]''' (Linux)
+|-
+| 커널이 유지하는 것 || minimal state || '''대기 queue를 커널이 직접 관리'''
+|-
+| 그래서 가능한 것 || || '''Fair wakeup (priority inheritance)''' · '''Robust mutexes (owner-death detection)'''
+|}
+
+{warn}⭐ '''논리 사슬''': priority inheritance를 하려면 커널이 "'''누가 이 락을 기다리고 있고, 누가 쥐고 있는가'''"를 알아야 한다. 대기 큐가 유저 공간에만 있으면 커널은 아무것도 모르니 우선순위를 올려 줄 수 없다. 그래서 [[futex]]는 '''락 상태는 유저가 소유하되 대기 큐는 커널이 관리'''하는 분업을 택했다.
+같은 이유로 '''robust mutex'''(락을 쥔 스레드가 죽었을 때 감지)도 커널이 소유자를 알아야 가능하다.{/warn}
+
+리눅스에는 이를 위한 '''PI-futex'''(priority-inheritance futex)가 따로 있고, `pthread_mutexattr_setprotocol(..., PTHREAD_PRIO_INHERIT)`로 활성화한다.
+
+== 이 강의의 다른 개념과 구분 ==
+
+{|
+! 현상 || 무엇 || 어디서
+|-
+| '''Starvation''' || 특정 스레드가 '''영영 락을 못 얻음''' || [[spin lock]], [[yield 락]] (fairness No)
+|-
+| '''Priority inversion''' || 높은 우선순위가 '''낮은 쪽에 밀림''' || 우선순위 스케줄러 + 락
+|-
+| '''Deadlock''' || 서로가 서로를 기다려 '''아무도 진행 못 함''' || 락 여러 개를 엇갈려 잡을 때
+|-
+| '''Livelock''' || 계속 시도하는데 '''아무도 진행 못 함''' (CPU는 쓴다) || trylock 재시도 루프
+|}
+
+{exam}🎯 2025F 중간고사는 '''deadlock 4조건'''(Problem 1-c: mutual exclusion / hold and wait / no preemption / circular wait — 답은 "Busy wait이 아닌 것")과 '''livelock'''(Problem 2-g)을 물었다. priority inversion은 안 나왔지만, 같은 "락 관련 병리 현상" 묶음이므로 함께 정리해 두면 안전하다. → [[2025F 중간고사 족보]]{/exam}
+
+{quiz}Priority inversion이 무엇이고, priority inheritance가 어떻게 해결하는지 쓰시오.{/quiz}
+{answer}'''Priority inversion''' = 낮은 우선순위 스레드 L이 [[락]]을 쥔 상태에서, 높은 우선순위 H가 그 락을 기다리는 동안 '''중간 우선순위 M이 L을 선점'''해 버려, 결과적으로 H가 M보다 뒤로 밀리는 현상이다.
+'''Priority inheritance''' = H가 기다리게 되면 락을 쥔 L의 우선순위를 '''일시적으로 H 수준까지 올려''' M이 L을 선점하지 못하게 하고, L이 락을 놓으면 원래 우선순위로 되돌린다.{/answer}
+
+{quiz}[[futex]]에서 커널이 대기 큐를 직접 관리하는 이유 두 가지를 슬라이드 용어로 쓰시오.{/quiz}
+{answer}'''① Fair wakeup (priority inheritance)''' — 누가 기다리는지 커널이 알아야 우선순위를 상속시킬 수 있다. '''② Robust mutexes (owner-death detection)''' — 락 소유자가 죽은 것을 커널이 감지해 정리할 수 있다. (p.41){/answer}
+
+== 관련 문서 ==
+* [[futex]] · [[park와 unpark]] · [[락]] · [[락 평가 기준]]
+* [[스케줄링]] · [[선점]] · [[fairness]]
+* [[2025F 중간고사 족보]]

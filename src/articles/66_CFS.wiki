@@ -1,0 +1,82 @@
+key: CFS
+title: CFS (Completely Fair Scheduler)
+category: 6강 Proportional Share, 정책
+---
+'''CFS'''(Completely Fair Scheduler)는 리눅스가 '''2007년 커널 2.6.23부터 2023년 6.6까지''' 사용한 실제 [[비례 지분 스케줄링]] 구현이다. [[Stride 스케줄링]]의 아이디어를 '''효율과 확장성'''을 갖춘 형태로 다듬었다.
+
+{def}
+The Linux CFS implements fair-share scheduling in a '''highly efficient and scalable''' manner.
+* '''Not based on the concept of a fixed time slice''' (e.g., 10 ms)
+* CFS uses a counting-based technique, '''virtual runtime (vruntime)'''
+** As each process runs, it '''accumulates vruntime'''
+** (In the most basic case) each process's vruntime increases at the '''same rate''' (= in proportion with physical time)
+** CFS picks the process with the '''lowest vruntime''' to run next
+{/def}
+
+{analogy}[[vruntime]]은 '''각자 손목에 찬 시계'''다. CPU를 쓰는 동안만 시계가 돌고, 스케줄러는 '''시계가 가장 적게 간 사람'''에게 다음 차례를 준다. 우선순위가 높은 사람의 시계는 '''천천히 가도록 조작'''되어 있어서([[weight]]가 크다) 실제로 10초를 써도 3.2초만 찍힌다. 그래서 계속 "제일 덜 쓴 사람"으로 뽑힌다. 자고 있는 사람은 시계가 멈춰 있으니, 깨어나면 당연히 1순위가 된다.{/analogy}
+
+== 왜 만들었나 — 오버헤드 ==
+
+{def}
+'''Scheduling Overhead''': Scheduler efficiency is surprisingly important. Even after aggressive optimization, '''scheduling uses about 5% of overall datacenter CPU time!'''
+{/def}
+
+[[Lottery 스케줄링]]의 리스트 순회가 '''O(n)'''이다. 프로세스가 수천 개인 서버에서는 이 자체가 비용이다. CFS는 [[레드블랙 트리]]로 '''O(log n)'''을 달성한다.
+
+== 고정 슬라이스가 없다 ==
+
+[[img:L6-33.png|sched_latency 48ms. n=4면 슬라이스 12ms, C·D가 끝나 n=2가 되면 24ms로 자동 확대|large]]
+
+$$\text{time slice} = \frac{sched\_latency}{n}, \quad \text{단 } \ge min\_granularity$$
+
+* [[sched_latency]] (기본 48ms): 이 기간 안에서는 CFS가 '''완전히 공정'''하다. 모든 프로세스가 정확히 제 몫을 한 번씩 돈다.
+* n = 4 → 12ms. C와 D가 끝나 n = 2가 되면 → '''24ms'''. 프로세스가 줄면 슬라이스가 늘어난다.
+* n = 10 → 4.8ms → [[컨텍스트 스위치]] 폭증. 그래서 [[min_granularity]](6ms)가 하한을 둔다.
+
+== 우선순위: nice → weight → vruntime ==
+
+[[img:L6-36.png|vruntime 공식. weight₀ = 1024는 nice 0의 weight|medium]]
+
+$$vruntime_i = vruntime_i + \frac{weight_0}{weight_i} \cdot runtime_i$$
+
+* [[nice]] (−20 ~ +19, 기본 0) → [[weight]]로 매핑. nice 0 = weight '''1024'''.
+* nice −5 → weight 3121 → 10초를 돌아도 vruntime은 $\frac{1024}{3121}\times 10 = $ '''3.2초'''만 증가 → 더 자주 선택된다.
+
+== red-black tree ==
+
+[[img:L6-38.png|vruntime을 키로 하는 레드블랙 트리. 가장 왼쪽 노드가 다음에 실행될 프로세스|medium]]
+
+* '''runnable 프로세스만''' 트리에 둔다. I/O·네트워크를 기다리며 '''자는 프로세스는 제외'''.
+* 키 = [[vruntime]].
+* 다음 job 찾기 = '''가장 왼쪽 노드 제거 → O(1)''' (leftmost를 캐시해 둔다). 되돌려 넣기 = '''O(log n)'''.
+
+== I/O와 자는 프로세스 ==
+
+{|
+! 상황 || CFS의 동작
+|-
+| I/O로 잠듦 || [[vruntime]]이 '''그대로 멈춘다'''
+|-
+| 깨어남 || vruntime이 남들보다 작음 → '''우선 선택''' (특별한 메커니즘 없이 대화형 우대)
+|-
+| 오래 자다 깨어남 || vruntime이 너무 작아 '''CPU 독점 → 다른 job starvation'''
+|-
+| 해법 || 깬 job의 vruntime을 '''트리의 최솟값(min_vruntime)'''으로 재설정
+|}
+
+{exam}'''starvation 예제를 숫자로 외울 것.''' A는 계속 실행, B는 10초 동안 잠. B가 깨면 vruntime이 A보다 '''10초 뒤져''' 있으므로 B가 다음 '''10초를 독점'''하고 A가 굶는다. 해법은 "밀린 몫을 다 돌려주지 않고 '''지금 제일 앞 사람과 동급'''으로만 취급"하는 것. [[Stride 스케줄링]]의 "새 job의 [[pass]]" 문제와 정확히 같은 문제, 같은 해법이다.{/exam}
+
+[[sim:cfs_eevdf]]
+
+== CFS의 한계 (→ EEVDF) ==
+
+* '''지연 요구(latency-nice)를 반영할 수 없다''' — nice는 CPU의 '''양'''만 정하고, "얼마나 빨리 반응해야 하는지"는 표현할 방법이 없다.
+* 15년간의 진화로 '''휴리스틱이 누적'''됐다 (interactive bonus, wakeup replacement …). 이론적 기반이 없고, 복잡하며, 예측이 어렵다.
+
+그래서 리눅스 6.6(2023.10)에서 코어가 [[EEVDF]]로 교체됐다.
+
+== 관련 문서 ==
+* [[vruntime]] · [[nice]] · [[weight]] · [[sched_latency]] · [[min_granularity]] · [[레드블랙 트리]]
+* [[EEVDF]] · [[lag]] · [[virtual deadline]]
+* [[Stride 스케줄링]] — 같은 알고리즘의 원형
+* [[비례 지분 스케줄링]] · [[MLFQ]]

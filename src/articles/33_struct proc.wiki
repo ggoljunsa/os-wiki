@@ -1,0 +1,246 @@
+key: struct proc
+title: struct proc (xv6의 PCB)
+category: 3강 From Program to Process, 과제1, 용어
+---
+'''`struct proc`'''는 [[xv6]]가 프로세스 하나에 대해 기억하는 모든 것을 담은 구조체다. 즉 [[PCB]]의 실물이다. 3강 p.37~38에 x86 시절 버전이 실려 있고, 과제 1에서 만지는 것은 [[RISC-V]] 버전이다. '''두 버전이 다르다'''는 점이 이 문서의 존재 이유다.
+
+{analogy}
+🏥 '''환자 차트'''다. 이름표(`pid`), 지금 상태(`state`, 진료중/대기중/검사중), 보호자(`parent`), 병실 위치(`pagetable`), 수술 중 잠시 빼놓은 소지품 보관함([[trapframe]]), 진료 중단 시 어디까지 했는지 메모(`context`). 의사(= [[스케줄러]])는 환자 본인이 아니라 '''차트만 보고''' 다음에 누구를 부를지 정한다.
+{/analogy}
+
+== 슬라이드 버전 (x86 xv6, 3강 p.37~38) ==
+
+[[img:L3-37.png|3강 p.37. 시험에서 "PCB에는 무엇이 들어가는가?"를 물으면 이 필드 목록이 답이다.|large]]
+
+<pre class="c">
+// the information xv6 tracks about each process
+// including its register context and state
+struct proc {
+    char *mem;                  // Start of process memory
+    uint sz;                    // Size of process memory
+    char *kstack;               // Bottom of kernel stack for this process
+    enum proc_state state;      // Process state
+    int pid;                    // Process ID
+    struct proc *parent;        // Parent process
+    void *chan;                 // If non-zero, sleeping on chan
+    int killed;                 // If non-zero, have been killed
+    struct file *ofile[NOFILE]; // Open files
+    struct inode *cwd;          // Current directory
+    struct context context;     // Switch here to run process
+    struct trapframe *tf;       // Trap frame for the current interrupt
+};
+</pre>
+
+{| class="table"
+! 필드 || 무엇 || 어느 개념과 연결되나
+|-
+| `mem`, `sz` || 프로세스 메모리의 시작 주소와 크기 || [[주소 공간]]
+|-
+| `kstack` || 이 프로세스의 [[커널 스택]] 바닥 || [[제한적 직접 실행]]
+|-
+| `state` || `enum proc_state` 값 || [[프로세스 상태]]
+|-
+| `pid` || 프로세스 ID || `getpid()`
+|-
+| `parent` || 부모 프로세스 포인터 || [[fork]], [[wait]], 프로세스 트리
+|-
+| `chan` || 0이 아니면 이 채널에서 자는 중 || `SLEEPING`(= Blocked)
+|-
+| `killed` || 0이 아니면 죽으라는 표시가 붙음 || `kill()`
+|-
+| `ofile[]`, `cwd` || 열린 파일들, 현재 디렉토리 || stdin/stdout/stderr, [[영속성]]
+|-
+| `context` || 멈췄다 재개할 때 저장·복원할 레지스터 || '''[[컨텍스트 스위치]]'''
+|-
+| `tf` || 현재 인터럽트의 trap frame || '''[[trapframe]]''', [[트랩]]
+|}
+
+[[img:L3-38.png|3강 p.38. struct context(저장할 레지스터 5개)와 enum proc_state(상태 6개).|large]]
+
+<pre class="c">
+// the registers xv6 will save and restore
+// to stop and subsequently restart a process
+struct context {
+    int eip;   // Index pointer register  ← 사실상 PC
+    int ebx;   // Called the base register
+    int esi;   // Source index register
+    int edi;   // Destination index register
+    int ebp;   // Stack base pointer register
+};
+
+// the different states a process can be in
+enum proc_state { UNUSED, EMBRYO, SLEEPING,
+                  RUNNABLE, RUNNING, ZOMBIE };
+</pre>
+
+{tip}
+3강 p.10의 "programmer-visible state"(PC + register file + condition codes)가 여기서 '''실제로 저장되는 모습'''으로 되돌아온다. `eip`가 곧 [[프로그램 카운터|PC]]이고, `ebp`가 스택 프레임 베이스다. 이론 → 구현의 연결고리라 시험에서 엮어 물어보기 좋다.
+{/tip}
+
+{warn}
+'''`context`와 `trapframe`은 다른 물건이다.'''<br>
+· '''`context`''' = 커널 안에서 프로세스 A → B로 '''[[컨텍스트 스위치]]'''할 때 저장하는 '''callee-saved 레지스터''' 몇 개. `swtch()`가 쓴다.<br>
+· '''`trapframe`''' = user → kernel로 '''[[트랩]]'''이 일어날 때 저장하는 '''유저 레지스터 전부'''(RISC-V에서 35개). `uservec`가 쓴다.<br>
+과제 1에서 백업해야 하는 건 '''[[trapframe]]''' 쪽이다.
+{/warn}
+
+== 실제 과제 버전 (RISC-V xv6) ==
+
+과제 1의 `coruslab-src/xv6-lab` (traps 브랜치)에서 `kernel/proc.h`의 실물은 이렇다.
+
+<pre class="c">
+enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+
+// Per-process state
+struct proc {
+  struct spinlock lock;
+
+  // p->lock must be held when using these:
+  enum procstate state;        // Process state
+  void *chan;                  // If non-zero, sleeping on chan
+  int killed;                  // If non-zero, have been killed
+  int xstate;                  // Exit status to be returned to parent's wait
+  int pid;                     // Process ID
+
+  // wait_lock must be held when using this:
+  struct proc *parent;         // Parent process
+
+  // these are private to the process, so p->lock need not be held.
+  uint64 kstack;               // Virtual address of kernel stack
+  uint64 sz;                   // Size of process memory (bytes)
+  pagetable_t pagetable;       // User page table
+  struct trapframe *trapframe; // data page for trampoline.S
+  struct context context;      // swtch() here to run process
+  struct file *ofile[NOFILE];  // Open files
+  struct inode *cwd;           // Current directory
+  char name[16];               // Process name (debugging)
+};
+</pre>
+
+=== 슬라이드 ↔ 과제 대조표 ===
+
+{| class="table"
+! 슬라이드 (x86) || 과제 (RISC-V) || 비고
+|-
+| `char *mem; uint sz;` || `pagetable_t pagetable; uint64 sz;` || 세그먼트 → '''페이지 테이블'''로 바뀜
+|-
+| `char *kstack;` || `uint64 kstack;` || 타입만 다름
+|-
+| `enum proc_state state;` || `enum procstate state;` || 이름의 `_` 차이 + '''`EMBRYO` → `USED`'''
+|-
+| `struct trapframe *tf;` || `struct trapframe *trapframe;` || '''이름이 다르다''' — 과제 코드에선 `p->trapframe`
+|-
+| (없음) || `int xstate;` || [[wait]]에 넘길 exit status
+|-
+| (없음) || `struct spinlock lock;` || 멀티코어 대응 ([[락]])
+|-
+| (없음) || `char name[16];` || 디버깅용
+|}
+
+<pre class="c">
+// RISC-V 버전의 struct context — 저장 레지스터가 14개로 늘었다
+struct context {
+  uint64 ra;      // return address  ← swtch 가 돌아갈 곳
+  uint64 sp;      // stack pointer
+  // callee-saved
+  uint64 s0;  uint64 s1;  uint64 s2;  uint64 s3;
+  uint64 s4;  uint64 s5;  uint64 s6;  uint64 s7;
+  uint64 s8;  uint64 s9;  uint64 s10; uint64 s11;
+};
+</pre>
+
+{warn}
+`struct context`에 '''`a0`~`a7`, `t0`~`t6`이 없다'''. caller-saved 레지스터라 `swtch()` 호출 규약상 저장할 필요가 없기 때문이다. 반면 [[trapframe]]에는 '''전부''' 들어 있다 — 유저 코드는 언제 끊길지 모르므로 하나도 빠뜨릴 수 없다. 이 비대칭이 과제 1에서 "왜 trapframe을 통째로 복사해야 하나"의 답이다.
+{/warn}
+
+== 과제 1이 추가하는 alarm 필드 ==
+
+[[sigalarm]]/[[sigreturn]]을 구현하려면 `struct proc`에 상태 네 개를 더 달아야 한다. 아래는 2026-09-23 퀴즈에 쓰인 '''정식 이름'''이다.
+
+<pre class="c">
+  // --- Assignment 1: alarm ---
+  int alarm_interval;            // sigalarm(n, fn) 의 n. 0 이면 알람 해제
+  uint64 alarm_handler;          // sigalarm(n, fn) 의 fn (유저 함수 주소)
+  int alarm_elapsed;             // 마지막 알람 이후 흐른 tick 수
+  int alarm_active;              // 핸들러 실행 중이면 1 (재진입 금지용)
+  struct trapframe alarm_saved;  // 인터럽트당한 유저 문맥의 사본 (포인터 아님!)
+</pre>
+
+{| class="table"
+! 필드 || 역할 || 문서
+|-
+| `alarm_interval` || 몇 tick마다 알람을 울릴지. `sigalarm(0,0)`이면 0 || [[alarm_interval]]
+|-
+| `alarm_handler` || 호출할 유저 함수 주소. 0일 수도 있다(주의) || [[alarm_handler]]
+|-
+| `alarm_elapsed` || 카운터. `>= alarm_interval`이 되면 발화하고 0으로 리셋 || [[alarm_elapsed]]
+|-
+| `alarm_active` || 핸들러가 아직 [[sigreturn]]을 안 불렀으면 1 || [[alarm_active]], [[재진입 금지]]
+|-
+| `alarm_saved` || 발화 직전의 `*p->trapframe` '''값 복사본''' || [[alarm_saved]]
+|}
+
+{warn}
+`alarm_saved`를 '''포인터(`struct trapframe *`)로 잡으면 틀린다.''' 퀴즈 문제 지문도 "`alarm_saved` is a separate `struct trapframe` '''value'''"라고 못 박는다. 포인터로 잡고 `p->alarm_saved = p->trapframe;` 하면 같은 메모리를 가리키게 되어, 핸들러가 도는 동안 덮어써진다. 값으로 통째 복사(`p->alarm_saved = *p->trapframe;`)해야 한다.
+{/warn}
+
+{exam}
+2026-09-23 퀴즈 '''2번(20점)'''이 바로 이 필드들로 [[usertrap]]의 빈칸을 채우는 문제였다.<br>
+`if (p->alarm_interval > 0 && ______)` → '''`p->alarm_active == 0`''' ([[재진입 금지]])<br>
+`p->alarm_saved = ______;` → '''`*p->trapframe`'''<br>
+`p->trapframe->epc = ______;` → '''`p->alarm_handler`'''<br>
+→ [[퀴즈1 복기]], [[과제1 xv6 alarm]]
+{/exam}
+
+{info}
+참고로 2025년 다른 학생의 제출물은 이름을 다르게 썼다 — `alarm_interval` / `alarm_handler` / `ticks_until_alarm` / `saved_trapframe`(포인터). 동작은 하지만 '''이 수업 퀴즈의 표기는 위 표'''이므로, 시험 대비로는 `alarm_elapsed` · `alarm_active` · `alarm_saved`로 외울 것.
+{/info}
+
+== 초기화는 어디서 ==
+
+새 필드는 `kernel/proc.c`의 '''`allocproc()`'''에서 0으로 초기화하고, `freeproc()`에서 정리한다. 과제 안내문이 직접 지시한다: "You can initialize proc fields in '''`allocproc()`''' in `proc.c`."
+
+<pre class="c">
+// kernel/proc.c : allocproc() 안, found: 레이블 뒤
+  p->alarm_interval = 0;
+  p->alarm_handler  = 0;
+  p->alarm_elapsed  = 0;
+  p->alarm_active   = 0;
+  memset(&p->alarm_saved, 0, sizeof(p->alarm_saved));
+</pre>
+
+현재 프로세스의 `struct proc *`를 얻는 함수는 '''[[myproc]]()'''이다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "프로세스 각각에 대한 정보를 담고 있는 OS의 자료구조"를 가리키는 일반 용어와, [[xv6]]에서 그것에 해당하는 구조체 이름을 쓰시오.
+{/quiz}
+{answer}
+일반 용어는 '''PCB (Process Control Block)''', xv6에서는 '''`struct proc`'''이다.
+{/answer}
+
+{quiz}
+'''(구분)''' `struct context`와 `struct trapframe`의 차이를 "언제 저장되는가"와 "무엇을 저장하는가"로 나누어 한 문장씩 쓰시오.
+{/quiz}
+{answer}
+· '''`context`''': 커널 안에서 프로세스를 갈아 끼울 때([[컨텍스트 스위치]], `swtch()`) 저장하며, '''callee-saved 레지스터'''(`ra`, `sp`, `s0`~`s11`)만 담는다.<br>
+· '''`trapframe`''': user → kernel [[트랩]]이 일어날 때 저장하며, '''유저 레지스터 전부'''(+ [[epc]], 커널 진입 정보)를 담는다.
+{/answer}
+
+{quiz}
+'''(코드 빈칸)''' 과제 1에서 알람 발화 직전에 유저 문맥을 백업하는 문장은?<br>
+`p->alarm_saved = ____________;`
+{/quiz}
+{answer}
+'''`*p->trapframe`''' — 포인터가 아니라 '''역참조한 값'''이다. `p->trapframe`을 그대로 대입하면 같은 메모리를 공유해 핸들러 실행 중 덮어써진다.
+{/answer}
+
+== 관련 문서 ==
+* [[PCB]] / [[프로세스]] / [[프로세스 상태]] / [[프로세스 목록]]
+* [[trapframe]] / [[epc]] / [[컨텍스트 스위치]] / [[커널 스택]]
+* [[과제1 xv6 alarm]] / [[sigalarm]] / [[sigreturn]]
+* [[alarm_interval]] / [[alarm_handler]] / [[alarm_elapsed]] / [[alarm_active]] / [[alarm_saved]]
+* [[재진입 금지]] / [[myproc]] / [[usertrap]]
+* [[시스템 콜 추가 절차]]
+* [[xv6]] / [[RISC-V]]

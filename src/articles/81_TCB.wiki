@@ -1,0 +1,53 @@
+key: TCB
+title: TCB (Thread Control Block)
+category: 8강 Concurrency, 용어
+---
+'''TCB'''(Thread Control Block)는 [[스레드]] 하나의 상태를 담아 두는 커널(혹은 스레드 라이브러리)의 자료구조다. [[프로세스]]에 [[PCB]]가 있듯, 스레드에는 TCB가 있다.
+
+{def}슬라이드 p.27 원문: "Each thread has its own program counter and set of registers. '''One or more thread control blocks (TCBs) are needed to store the state of each thread.'''"{/def}
+
+== 무엇이 들어가나 ==
+
+{|
+! 저장하는 것 || 왜
+|-
+| [[프로그램 카운터|PC]] || 스레드마다 실행 지점이 다르다 (멀티스레드 = multiple PCs)
+|-
+| [[레지스터]] 세트 ([[스택 포인터|sp]], [[a0]] 등 전부) || 전환 시 통째로 저장·복원해야 중간 결과가 안 날아간다
+|-
+| 자기 [[스레드 스택|스택]]의 위치 || 스레드마다 스택이 따로다
+|-
+| 스레드 상태 (running/ready/blocked), 스케줄링 정보 || [[스케줄러]]가 쓴다
+|-
+| [[TLS]] 포인터 || 스레드 고유 저장소를 가리킨다 (x86-64 `%fs`, [[RISC-V]] `tp`)
+|}
+
+'''들어가지 않는 것''': [[주소 공간]](페이지 테이블), 열린 파일 테이블, PID — 이들은 프로세스 단위라 [[PCB]]에 있다. 이게 [[스레드 컨텍스트 스위치]]가 가벼운 이유다.
+
+== PCB와의 대응 ==
+
+{|
+! || [[PCB]] || TCB
+|-
+| 단위 || 프로세스 || 스레드
+|-
+| 레지스터 문맥 || O || O
+|-
+| 주소 공간 정보 || '''O''' || '''X''' (프로세스 것을 공유)
+|-
+| [[xv6]]에서 || [[struct proc]] || 없음 — xv6는 프로세스당 스레드 1개
+|}
+
+{info}[[xv6]]에는 TCB가 따로 없다. [[struct proc]] 하나가 PCB이자 TCB 역할을 겸한다. 그 안의 `trapframe`(유저 [[레지스터]])과 `context`(커널 `swtch`용 callee-saved 레지스터)가 사실상 스레드 문맥 저장소다. → [[trapframe]]{/info}
+
+{analogy}🎭 TCB = '''사물함'''이다. 룸메이트([[스레드]])가 외출할 때 자기 물건(레지스터)을 자기 사물함에 넣어 두고, 돌아오면 그대로 꺼낸다. 집 주소(주소 공간)는 사물함에 넣지 않는다 — 어차피 같은 집이니까.{/analogy}
+
+{exam}🎯 2025F 중간고사 Problem 1-b)에 등장: "Which one is not a '''programmer-visible state of the CPU'''?" ① Register File ② Program Counter ③ Condition Codes ④ Stack Pointer ⑤ '''Thread Control Block''' → 정답 ⑤. TCB는 '''CPU의 상태가 아니라 OS의 자료구조'''다. 헷갈리지 말 것. → [[2025F 중간고사 족보]]{/exam}
+
+{quiz}TCB에는 저장되고 PCB에만 있는 것은 무엇인가? 그것이 [[스레드 컨텍스트 스위치]] 비용에 미치는 영향은?{/quiz}
+{answer}[[주소 공간]] 정보(페이지 테이블 레지스터: x86 `CR3`, [[RISC-V]] `satp`)는 PCB 쪽에만 있다. 스레드 전환은 이걸 바꾸지 않으므로 TLB flush와 캐시 오염이 없어 훨씬 싸다.{/answer}
+
+== 관련 문서 ==
+* [[스레드]] · [[스레드 컨텍스트 스위치]] · [[스레드 스택]]
+* [[PCB]] · [[struct proc]] · [[trapframe]]
+* [[2025F 중간고사 족보]]

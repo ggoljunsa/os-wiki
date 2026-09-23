@@ -1,0 +1,85 @@
+key: PCB
+title: PCB (Process Control Block)
+category: 3강 From Program to Process, 용어
+---
+'''PCB'''(Process Control Block)는 OS가 프로세스 하나에 대한 정보를 모아 두는 자료구조다. 용어 자체가 시험에 그대로 나오는 단골이다.
+
+{def}
+'''Process Control Block (PCB)''' (3강 p.36)<br>
+"OS's data structure that contains information about '''each process'''."<br>
+함께 나오는 자료구조:<br>
+· '''Process list''' for all processes — Ready processes / Blocked processes / Current running process<br>
+· '''Register context''' — Data &amp; stack registers, Program counter, …
+{/def}
+
+{exam}
+2025F 중간고사 '''Problem 2'''의 해설 슬라이드가 정확히 이 "Data Structures" 장이다. PCB의 정의 한 줄과 process list의 세 갈래를 영어 그대로 쓸 수 있어야 한다. → [[2025F 중간고사 족보]]
+{/exam}
+
+{analogy}
+🏥 병원의 '''환자 차트'''. 환자(프로세스) 한 명당 한 장이고, 의사(OS)는 환자를 직접 기억하는 게 아니라 차트를 보고 판단한다. 진료실에서 잠시 나가야 할 때도 "어디까지 진행했는지"를 차트에 적어 두면(= register context) 나중에 이어서 볼 수 있다. 차트가 없으면 [[컨텍스트 스위치]]는 불가능하다.
+{/analogy}
+
+== PCB에는 무엇이 들어가나 ==
+
+{| class="table"
+! 분류 || 내용 || xv6 필드 ([[struct proc]])
+|-
+| '''식별''' || 프로세스 ID, 부모 || `pid`, `parent`
+|-
+| '''상태''' || [[프로세스 상태|Running/Ready/Blocked]] || `state`, `chan`, `killed`
+|-
+| '''Register context''' || [[레지스터]], [[프로그램 카운터|PC]], 스택 레지스터 || `context`, `trapframe`
+|-
+| '''메모리''' || [[주소 공간]] 위치·크기 || `sz`, `pagetable`(또는 `mem`)
+|-
+| '''I/O''' || 열린 파일, 현재 디렉토리 || `ofile[]`, `cwd`
+|-
+| '''커널''' || 이 프로세스 전용 [[커널 스택]] || `kstack`
+|}
+
+{tip}
+0831 녹음본에서 교수님이 정리한 문장: "processor needs to maintain the '''register context''' that is some kind of the logical control flow, and this register context is actually '''included in the process control block'''."<br>
+→ register context는 PCB와 '''별개'''가 아니라 PCB '''안에''' 들어 있다.
+{/tip}
+
+== PCB가 없으면 무슨 일이 ==
+
+<pre class="ascii">
+   PCB 가 하는 일 = "중단된 프로세스를 되살릴 수 있게 한다"
+
+   Running  ──── 타이머 인터럽트 ────►  레지스터·PC 를 PCB 에 저장
+      A                                         │
+                                                ▼
+                                           스케줄러가 B 선택
+                                                │
+   Running  ◄──── B 의 PCB 에서 복원 ────────────┘
+      B
+
+   PCB 에 저장하지 않으면 A 는 "어디까지 했는지"를 영원히 잃는다.
+</pre>
+
+즉 PCB는 [[가상화|CPU 가상화]]의 물리적 토대다. [[컨텍스트 스위치]]라는 메커니즘이 성립하려면 문맥을 "어딘가"에 두어야 하고, 그 어딘가가 PCB다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "각 프로세스에 대한 정보를 담고 있는 OS의 자료구조"를 가리키는 용어를 '''영어 약어와 풀네임'''으로 쓰시오.
+{/quiz}
+{answer}
+'''PCB — Process Control Block.''' 슬라이드 원문: "OS's data structure that contains information about each process."
+{/answer}
+
+{quiz}
+'''(나열)''' 3강 p.36에서 OS가 유지한다고 말한 '''process list'''의 세 갈래를 쓰시오.
+{/quiz}
+{answer}
+① '''Ready processes''' ② '''Blocked processes''' ③ '''Current running process'''. → [[프로세스 목록]]
+{/answer}
+
+== 관련 문서 ==
+* [[struct proc]] — xv6의 실물 PCB
+* [[프로세스]] / [[프로세스 상태]] / [[프로세스 목록]]
+* [[컨텍스트 스위치]] / [[레지스터]] / [[프로그램 카운터]]
+* [[trapframe]] / [[커널 스택]]
+* [[2025F 중간고사 족보]]

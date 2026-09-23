@@ -1,0 +1,50 @@
+key: turnaround time
+title: turnaround time (반환 시간)
+category: 5강 Process Scheduling, 용어
+---
+'''turnaround time'''(반환 시간)은 job이 '''완료된 시각에서 시스템에 도착한 시각을 뺀 값'''이다. [[스케줄링 지표]] 중 '''성능(performance)''' 지표를 대표한다.
+
+{def}
+'''Turnaround time''': The time at which the job completes minus the time at which the job arrived in the system.
+$$T_{turnaround} = T_{completion} - T_{arrival}$$
+{/def}
+
+{analogy}'''택배 주문'''이다. turnaround time은 "주문 버튼을 누른 순간부터 물건이 내 손에 들어올 때까지"의 전체 시간이다. 중간에 창고에서 얼마나 기다렸는지, 실제 배송이 몇 분 걸렸는지는 상관없다 — 내가 체감하는 건 총 소요 시간뿐이다. 반대로 [[response time]]은 "주문 확인 문자가 몇 초 만에 왔나"에 해당한다.{/analogy}
+
+== 계산 예 ==
+
+<pre class="txt">
+ [[FIFO]], A(100) B(10) C(10), 전부 t≈0 도착
+ A: 0 ──────────── 100    turnaround = 100 − 0 = 100
+ B:            100 ─ 110   turnaround = 110 − 0 = 110
+ C:                110 ─ 120  turnaround = 120 − 0 = 120
+ 평균 = 330 / 3 = 110초
+
+ [[SJF]]로 순서만 바꾸면
+ B: 0 ─ 10                 turnaround =  10
+ C:    10 ─ 20             turnaround =  20
+ A:       20 ──────── 120  turnaround = 120
+ 평균 = 150 / 3 = 50초
+</pre>
+
+'''실행 시간의 총합은 120초로 똑같은데 평균이 110 → 50초로 바뀌었다.''' 스케줄링 순서만으로 얻는 이득이 이만큼 크다는 게 이 지표의 교훈이다.
+
+[[img:L5-13.png|SJF로 순서를 바꾸면 같은 워크로드에서 평균 turnaround가 110초에서 50초로|medium]]
+
+{warn}'''도착 시각을 반드시 뺀다.''' 5강 p.14 예제에서 B·C가 t=10에 도착하므로 turnaround는 $110-10 = 100$, $120-10=110$이다. 완료 시각을 그대로 더하면 오답이다.
+
+단, 2025F 중간고사 Problem 3처럼 '''문제가 "turnaround = 끝나는 시각"이라고 새로 정의해 주는 경우'''도 있다. 그럴 땐 문제의 정의를 따른다. → [[2025F 중간고사 족보]]{/warn}
+
+== 어떤 정책이 최적화하나 ==
+
+* 모든 job이 '''동시에 도착'''하면 [[SJF]]가 평균 turnaround의 '''최적''' 정책이다 (짧은 것부터 돌리면 뒤에서 기다리는 총 시간이 최소).
+* 도착 시각이 다르면 [[STCF]](SJF + [[선점]])가 최적.
+* [[Round Robin]]은 '''최악'''이다. 모든 job을 조금씩 늘여서 다 같이 늦게 끝내기 때문.
+
+{exam}모의 퀴즈 A8에서 "Round Robin optimizes turnaround time"을 '''참'''이라고 답해 틀렸다. RR이 최적화하는 건 [[response time]]이다. 기억법: '''R'''ound '''R'''obin → '''R'''esponse.{/exam}
+
+== 관련 문서 ==
+* [[스케줄링 지표]] · [[response time]] · [[fairness]]
+* [[SJF]] · [[STCF]] — turnaround 최적화
+* [[Round Robin]] — turnaround 최악
+* [[스케줄링]]

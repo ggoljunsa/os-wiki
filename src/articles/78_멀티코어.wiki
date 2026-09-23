@@ -1,0 +1,88 @@
+key: 멀티코어
+title: 멀티코어 (Multicore Processor)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''멀티코어'''(multicore processor)는 '''하나의 물리 칩에 여러 프로세서 코어를 올린''' 구조다. [[멀티프로세서 스케줄링]]이라는 주제가 생긴 이유 그 자체다.
+
+{def}
+* Recent trend to place '''multiple processor cores on same physical chip''' — '''Faster and consumes less power'''
+* The number of '''threads per core''' is also growing
+** Takes advantage of '''memory stall''' to make progress on another thread while memory retrieve happens
+** e.g., Intel's '''Hyper Threading'''
+* (* '''CPU threads differ from SW threads''')
+{/def}
+
+{analogy}'''주방 확장'''이다. 요리사 한 명을 더 빨리 움직이게 하는 데는 한계가 있으니(클럭을 올리면 발열·전력이 폭발), '''요리사를 여러 명 두는''' 쪽으로 방향을 틀었다. 그런데 요리사가 재료 창고에서 물건이 오기를 기다리며 서 있는 시간(memory stall)이 꽤 길다. 그 틈에 '''다른 주문을 처리하게''' 만든 게 Hyper-Threading이다 — 요리사를 늘린 게 아니라 '''노는 시간을 메운 것'''이다.{/analogy}
+
+== 용어 네 개 구분 ==
+
+{|
+! 용어 || 정의 || OS가 보는 것
+|-
+| '''Socket''' || 메인보드에 물리적으로 꽂히는 프로세서 패키지 자리. 안에 코어 여러 개 || —
+|-
+| '''Core''' || 프로그램 실행에 필요한 '''완전한 레지스터 세트 + 실행 유닛 + retirement queue'''. 진짜 독립 실행 단위 || —
+|-
+| '''Thread (hardware thread)''' || 한 코어 안의 '''하드웨어 문맥'''. 각각 코어의 속성을 갖고, OS에는 '''논리 프로세서 하나'''로 보임 || '''✔ 이것이 "CPU"'''
+|-
+| '''SW thread''' || 프로세스 안의 실행 흐름 (pthread 등). 하드웨어 스레드와 '''다른 것''' || 스케줄링 대상 job
+|}
+
+<pre class="ascii">
+ ┌─────────────── Socket ───────────────┐
+ │  ┌──── Core 0 ────┐ ┌──── Core 1 ────┐│
+ │  │ HW thr 0  thr 1│ │ HW thr 2  thr 3││
+ │  │  └─ 공유 ─┘    │ │  └─ 공유 ─┘    ││
+ │  │   실행유닛/캐시 │ │   실행유닛/캐시 ││
+ │  └────────────────┘ └────────────────┘│
+ └──────────────────────────────────────┘
+   OS에게는 '''CPU 0, 1, 2, 3 — 네 개의 논리 프로세서'''로 보인다
+</pre>
+
+{warn}'''슬라이드 각주를 놓치지 말 것''': "CPU threads differ from SW threads". 하드웨어 스레드는 '''"OS가 볼 때 CPU 한 개"'''이고, 소프트웨어 스레드(8강 [[스레드]])는 '''"프로세스 안의 실행 흐름"'''이다. 이 강의에서 "CPU"라고 하면 OS가 스케줄링 대상으로 보는 '''논리 프로세서 = 하드웨어 스레드'''를 뜻한다.{/warn}
+
+== Concurrency vs Parallelism ==
+
+{|
+! || 정의 || 필요한 CPU
+|-
+| '''Concurrency''' (동시성) || 여러 task가 '''진행 중(making progress)'''. 스케줄러가 번갈아 돌리면 성립 || '''1개로도 가능'''
+|-
+| '''Parallelism''' (병렬성) || 시스템이 여러 task를 '''실제로 동시에(simultaneously)''' 수행 || '''2개 이상 필요'''
+|}
+
+{exam}단골 개념 문제다. 한 줄 암기: '''동시성은 "구조/착각", 병렬성은 "물리적 사실".''' 그리고 '''"병렬이면 동시적이지만, 동시적이라고 병렬은 아니다."''' → [[동시성]]{/exam}
+
+== 병렬성의 종류 ==
+
+{|
+! 종류 || 무엇을 나누나 || 예
+|-
+| '''Data parallelism''' || '''데이터'''를 쪼개 코어마다 나눠 주고 '''같은 연산''' || 배열을 N등분해 각 코어가 부분합 → 합치기
+|-
+| '''Task parallelism''' || '''작업(연산)'''을 쪼개 코어마다 '''다른 연산''' || 같은 배열에 코어1은 평균, 코어2는 분산
+|-
+| '''Hybrid parallelism''' || 둘의 혼합 || 현실 프로그램 대부분
+|}
+
+구분 팁: '''"뭘 나눴나?"''' — 데이터면 data, 하는 일이면 task.
+
+== 프로그래머에게 떠넘겨지는 부담 ==
+
+슬라이드는 멀티프로세서가 '''프로그래머에게 압력을 준다'''고 말한다: dividing activities(작업 나누기), '''load balancing'''([[로드 밸런싱]]), data splitting, data dependency, testing and debugging …
+
+'''"Adding more CPUs does not make that an application runs faster."''' 코어를 준다고 프로그램이 저절로 빨라지지 않고, '''스레드를 써서 병렬로 돌게 다시 짜야''' 한다. 그리고 그렇게 짜도 [[Amdahl의 법칙]]이 상한을 정한다.
+
+== 멀티코어가 만들어 낸 문제들 ==
+
+코어가 여러 개가 되면서 새로 생긴 문제들이 7강의 나머지 전부다.
+
+* '''[[캐시 일관성]]''' — 같은 데이터의 복사본이 여러 캐시에 생긴다 → bus snooping
+* '''동기화''' — 여러 CPU가 공유 데이터에 동시 접근 → [[락]], [[mutual exclusion]]
+* '''[[cache affinity]]''' — 프로세스를 옮기면 캐시 상태를 잃는다
+* '''큐 구조''' — [[SQMS]] vs [[MQMS]], 그리고 [[로드 밸런싱]]과 [[work stealing]]
+
+== 관련 문서 ==
+* [[멀티프로세서 스케줄링]] · [[캐시 일관성]] · [[cache affinity]] · [[Amdahl의 법칙]]
+* [[SQMS]] · [[MQMS]] · [[로드 밸런싱]] · [[work stealing]]
+* [[동시성]] · [[스레드]] · [[락]]

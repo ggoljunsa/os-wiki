@@ -1,0 +1,89 @@
+key: TLS
+title: TLS (Thread-Local Storage)
+category: 8강 Concurrency, 용어
+---
+'''TLS'''(Thread-Local Storage)는 "'''static처럼 오래 살고 어디서나 보이지만, [[스레드]]마다 따로 있는 변수'''"다. 8강 p.30이 다룬다.
+
+{warn}📌 2026-09-23 퀴즈 범위는 '''8강 p.30(TLS)까지'''였다 ([[시험 정보]]). 즉 TLS는 '''범위의 마지막 슬라이드'''로, 출제 가능성이 높게 잡혔던 항목이다.{/warn}
+
+== 슬라이드의 정의 ==
+
+{def}'''Different from local variables'''
+* Local variables are visible only during a '''single function invocation'''
+* TLS visible '''across function invocations'''
+
+'''Similar to static data'''
+* TLS is '''unique to each thread'''
+
+'''Local variables vs Thread-local storage''' — Scope: '''Function frame vs Thread'''{/def}
+
+== 세 가지 비교 ==
+
+{|
+! || 지역 변수 || '''TLS''' || static / 전역
+|-
+| Scope (수명) || '''Function frame''' — 함수 리턴하면 사라짐 || '''Thread''' — 스레드가 사는 동안 || 프로세스 전체
+|-
+| 스레드마다 사본? || O (각자 [[스레드 스택|스택]]) || '''O''' || '''X — 하나를 공유'''
+|-
+| 함수 호출을 넘어 유지 || X || '''O''' || O
+|-
+| [[race condition]] 위험 || 없음 || '''없음''' || '''있음'''
+|}
+
+→ TLS는 static의 '''수명'''과 지역 변수의 '''안전성'''을 합친 것이다.
+
+{analogy}🎭 전역 변수 = '''사무실 공용 화이트보드'''(아무나 덮어씀), 지역 변수 = '''손에 든 포스트잇'''(회의 끝나면 버림), TLS = '''개인 다이어리'''다. 내 것은 나만 보고, 회의가 끝나도 남아 있으며, 옆자리 사람 것과 섞이지 않는다.{/analogy}
+
+== 대표 예: `errno` ==
+
+시스템 콜 실패 원인을 담는 `errno`가 진짜 전역이라면, 스레드 A의 `open` 실패 코드를 스레드 B의 `read` 실패가 덮어쓴다. 그래서 멀티스레드 C 라이브러리에서 '''`errno`는 TLS'''다.
+
+선언 문법:
+<pre class="c">
+_Thread_local int x;   // C11 표준
+__thread int x;        // GCC 확장
+thread_local int x;    // C++11
+</pre>
+
+<pre class="c">
+__thread int count = 0;      // 스레드마다 자기 count
+
+void *worker(void *arg) {
+    for (int i = 0; i &lt; 5; i++)
+        count++;             // 락 없어도 안전 — 공유가 아니다
+    printf("%d\n", count);   // 모든 스레드가 5를 출력
+    return NULL;
+}
+</pre>
+
+{warn}같은 코드에서 `__thread`를 떼면 `count`는 전역이 되고, 즉시 [[counter 예제]]와 같은 [[race condition]]이 생긴다. '''TLS인지 아닌지가 락이 필요한지를 가른다.'''{/warn}
+
+== "Where should it be allocated?" ==
+
+슬라이드가 던진 질문이다. 조건을 보면 답이 나온다 — 스레드마다 하나 + 스레드 수명 동안 유지 → '''스레드를 만들 때 스레드별 메모리 영역에''' 잡아야 한다.
+
+실제로는 p.31처럼 '''pthread 라이브러리가 유저 공간에''' 할당한다. glibc는 보통 [[스레드 스택]]으로 잡은 영역 끝에 TLS 블록과 스레드 디스크립터를 함께 둔다. 그리고 '''전용 [[레지스터]]'''가 현재 스레드의 TLS를 가리킨다:
+
+{|
+! 아키텍처 || TLS 포인터 레지스터
+|-
+| x86-64 || `%fs`
+|-
+| [[RISC-V]] || `tp` (thread pointer)
+|}
+
+[[스레드 컨텍스트 스위치]] 때 이 레지스터만 바꾸면 TLS도 자동으로 따라 바뀐다. [[xv6]]에서도 `tp`는 [[trapframe]]에 저장되는 레지스터 중 하나다 (xv6 커널은 `tp`에 hart id를 넣어 쓴다).
+
+`clone`의 `CLONE_SETTLS` 플래그가 이 영역의 주소를 커널에 알려 주는 역할을 한다. → [[pthread_create]]
+
+{quiz}TLS, 지역 변수, 전역 변수의 차이를 '''scope''' 기준으로 한 줄씩 쓰시오. TLS의 실제 사용 예도 하나 들라.{/quiz}
+{answer}지역 변수 scope = '''function frame'''(호출이 끝나면 사라짐), 전역 = '''프로세스 전체에서 하나를 공유''', TLS = '''스레드''' — 여러 함수에서 보이고 스레드가 사는 동안 유지되지만 '''스레드마다 따로'''다. 예: `errno`. (p.30){/answer}
+
+{quiz}TLS 변수는 왜 [[락]] 없이 증가시켜도 안전한가?{/quiz}
+{answer}스레드마다 '''별도의 사본'''이 존재해 '''공유 데이터가 아니기''' 때문이다. [[critical section]]의 정의("공유 변수에 접근하는 코드") 자체를 만족하지 않으므로 [[race condition]]이 성립하지 않는다.{/answer}
+
+== 관련 문서 ==
+* [[스레드]] · [[스레드 스택]] · [[TCB]]
+* [[pthread_create]] · [[race condition]] · [[counter 예제]]
+* [[시험 정보]]

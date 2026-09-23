@@ -1,0 +1,79 @@
+key: cache affinity
+title: cache affinity (캐시 친화도)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''cache affinity'''(캐시 친화도)는 '''[[프로세스]]를 가능하면 같은 CPU에서 계속 실행하려는 성질'''이다. 프로세스가 그 CPU의 캐시에 쌓아 둔 상태를 재활용하기 위해서다. 7강에서 가장 중요한 단어이며, '''2025F 중간고사에 용어 단답형으로 실제 출제'''됐다.
+
+{def}
+'''Cache Affinity''': Keep a process '''on the same CPU if possible'''
+* A process '''builds up a fair bit of state''' in the cache of a CPU
+* The next time the process runs, it will run '''faster''' if some of its state is '''already present in the cache''' on that CPU
+{/def}
+
+{analogy}'''자기 자리에 공구를 늘어놓은 정비공'''이다. 3번 정비대에서 한참 작업한 사람은 필요한 렌치와 부품이 이미 손 닿는 곳에 있다(cache hit). 그런데 관리자가 "이번엔 7번 정비대로 가라"고 하면, 새 정비대에는 아무것도 준비돼 있지 않아 창고(메인 메모리)까지 갔다 와야 한다(cache miss). '''일 자체는 같은데 자리를 옮겼다는 이유만으로 느려진다.'''{/analogy}
+
+== 그림으로 ==
+
+[[img:L7-31.png|① A가 CPU0에서 D 접근(Hit) → ② context switch로 CPU1로 이동 → ③ CPU1 캐시엔 D가 없어 Miss|large]]
+
+<pre class="ascii">
+ ① 프로세스 A가 CPU0에서 실행, 데이터 D 접근
+    ┌─A─────────┐   ┌───────────┐
+    │  CPU 0    │   │  CPU 1    │
+    │ Cache: D  │   │ Cache:    │
+    └───────────┘   └───────────┘
+       ✔ '''Hit!'''
+
+ ② [[컨텍스트 스위치]] 후 A가 CPU1로 이동
+
+ ③ CPU1 캐시에는 D가 없다
+    ┌───────────┐   ┌─A─────────┐
+    │  CPU 0    │   │  CPU 1    │
+    │ Cache: D  │   │ Cache:    │
+    └───────────┘   └───────────┘
+                       ❌ '''Miss!''' → 메모리까지 갔다 와야 함 (느림)
+</pre>
+
+{info}잃는 것은 데이터 캐시만이 아니다. '''TLB에 쌓인 주소 변환 정보'''도 같은 이유로 무효가 된다. 그래서 CPU를 옮기는 비용은 단순한 [[컨텍스트 스위치]]보다 훨씬 크다.{/info}
+
+== 스케줄링 구조에 미치는 영향 ==
+
+{|
+! 구조 || cache affinity || 이유
+|-
+| '''[[SQMS]]''' || '''나쁨''' || 각 CPU가 전역 큐에서 아무 job이나 꺼내 가므로 job이 매 슬라이스마다 '''CPU를 튕겨 다닌다'''
+|-
+| '''[[SQMS]] + 친화도 메커니즘''' || 보통 || 대부분의 job은 고정하고 '''일부(예: E)만 이동'''시켜 부하를 맞춘다
+|-
+| '''[[MQMS]]''' || '''좋음''' || job이 하나의 큐(= 하나의 CPU)에 머무르므로 '''자연스럽게 보존'''된다
+|}
+
+[[img:L7-34.png|SQMS: job A~E 5개가 CPU 4개 사이를 매 슬라이스마다 튕겨 다닌다|large]]
+
+<pre class="txt">
+ ❌ SQMS (친화도 없음)              ✅ SQMS + 친화도 메커니즘
+ CPU0: A E D C B ...               CPU0: A E A A A ...
+ CPU1: B A E D C ...               CPU1: B B E B B ...
+ CPU2: C B A E D ...               CPU2: C C C E C ...
+ CPU3: D C B A E ...               CPU3: D D D D E ...
+ → 전부 튕겨 다님                   → A,B,C,D는 고정, '''E만 이동'''
+</pre>
+
+{warn}'''[[로드 밸런싱]]과는 정반대 방향의 요구'''라는 점이 핵심이다.
+* cache affinity: "job을 '''옮기지 마라'''"
+* load balancing: "노는 CPU가 있으면 job을 '''옮겨라'''"
+
+[[MQMS]]의 migration과 [[work stealing]]은 이 둘 사이의 타협이다. 너무 자주 옮기면 친화도를 잃고, 너무 안 옮기면 CPU가 논다. 슬라이드가 임계값 정하기를 '''"black art"'''라고 부르는 이유다.{/warn}
+
+== 시험에서 ==
+
+{exam}'''2025F 중간고사 Problem 2 d)에 힌트까지 그대로 출제됐다.'''
+> 멀티프로세서에서 프로세스를 같은 CPU에 두는 이유 '''(Hint: C___ A___)''' → '''Cache affinity''' (7강 p.31)
+
+Problem 2는 슬라이드의 영어 정의 문장을 거의 그대로 주고 용어를 쓰게 하는 형식이다. 정의 문장 "A process builds up a fair bit of state in the cache of a CPU"를 영어로 외워 둘 것. → [[2025F 중간고사 족보]]{/exam}
+
+== 관련 문서 ==
+* [[멀티프로세서 스케줄링]] · [[캐시 일관성]] · [[멀티코어]]
+* [[SQMS]] · [[MQMS]] · [[로드 밸런싱]] · [[work stealing]]
+* [[컨텍스트 스위치]]
+* [[2025F 중간고사 족보]]

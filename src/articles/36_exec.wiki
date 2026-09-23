@@ -1,0 +1,140 @@
+key: exec
+title: exec()
+category: 3강 From Program to Process, 용어
+---
+'''`exec()`''' 계열([[exec|execv]], `execvp`, `execl`, …)은 '''지금 이 프로세스가 실행 중인 프로그램을 통째로 갈아 끼우는''' [[시스템 콜]]이다. [[fork]]가 "프로세스를 하나 더 만드는" 일이라면, `exec()`는 "프로세스는 그대로 두고 내용물만 바꾸는" 일이다.
+
+{def}
+3강 p.31 — "'''Create''': Create a new process to run a program — e.g., `fork()` and '''`execv()`'''".<br>
+아래 `p3.c` 예제와 출력은 '''[[OSTEP]] Chapter 5 (Process API)'''의 것이다.
+{/def}
+
+{analogy}
+🎭 '''빙의'''다. [[fork]]가 세포 분열(몸이 하나 더 생김)이라면 `exec()`는 '''같은 몸에 다른 영혼이 들어오는 것'''이다. PID는 그대로, 프로세스 테이블의 슬롯도 그대로, 부모 자식 관계도 그대로인데 — 코드·데이터·[[힙]]·[[스택]]이 전부 새 프로그램의 것으로 교체되고, 실행은 새 프로그램의 `main()`부터 다시 시작한다. 그래서 `exec()`는 '''성공하면 절대 리턴하지 않는다'''.
+{/analogy}
+
+== 예제 (OSTEP p3.c) ==
+
+<pre class="c">
+int main(int argc, char *argv[]) {
+    printf("hello world (pid:%d)\n", (int) getpid());
+    int rc = fork();
+    if (rc &lt; 0) {
+        fprintf(stderr, "fork failed\n");
+        exit(1);
+    } else if (rc == 0) {                      // child
+        printf("hello, I am child (pid:%d)\n", (int) getpid());
+        char *myargs[3];
+        myargs[0] = strdup("wc");              // 실행할 프로그램: "wc"
+        myargs[1] = strdup("p3.c");            // 인자: 파일 이름
+        myargs[2] = NULL;                      // 배열의 끝 표시
+        execvp(myargs[0], myargs);             // "wc" 를 실행
+        printf("this shouldn't print out");    // ← 여기는 도달하지 않는다
+    } else {                                   // parent
+        int rc_wait = wait(NULL);
+        printf("hello, I am parent of %d (rc_wait:%d) (pid:%d)\n",
+               rc, rc_wait, (int) getpid());
+    }
+    return 0;
+}
+</pre>
+
+'''출력''':
+
+<pre class="sh">
+prompt> ./p3
+hello world (pid:29383)
+hello, I am child (pid:29384)
+     29     107     1030 p3.c
+hello, I am parent of 29384 (rc_wait:29384) (pid:29383)
+prompt>
+</pre>
+
+[[sim:fork_exec]]
+
+{warn}
+'''`"this shouldn't print out"`이 출력되지 않는 이유'''가 `exec()` 문제의 핵심이다. `execvp()`가 성공하면 그 프로세스의 코드 영역 자체가 `wc`의 것으로 덮어써지므로, '''돌아올 코드가 존재하지 않는다'''. 만약 이 줄이 출력됐다면 `exec()`가 '''실패'''했다는 뜻이다 (파일 없음, 권한 없음 등).
+{/warn}
+
+== fork와 exec의 분업 ==
+
+<pre class="ascii">
+   fork()                                exec()
+   ─────────────────────────             ─────────────────────────
+   프로세스 개수:  1 → 2                  프로세스 개수:  1 → 1
+   PID:           새로 발급               PID:           그대로
+   실행 프로그램:  같음                    실행 프로그램:  '''교체'''
+   리턴:          부모=자식pid, 자식=0     리턴:          '''성공하면 리턴 안 함'''
+   재개 지점:     fork() 다음 줄          재개 지점:     새 프로그램의 main()
+</pre>
+
+{| class="table"
+! 프로세스 구성 요소 || `fork()` 후 자식 || `exec()` 후
+|-
+| PID || 새 값 || '''유지'''
+|-
+| 부모 (`parent`) || 호출자 || '''유지'''
+|-
+| 코드 `.text` || 부모와 동일 || '''새 프로그램의 것으로 교체'''
+|-
+| [[주소 공간]] (data/heap/stack) || 복사본 || '''전부 폐기 후 재구성'''
+|-
+| 열린 파일 디스크립터 || 복사 || '''유지''' (close-on-exec 표시가 없다면)
+|-
+| [[프로그램 카운터|PC]] || `fork()` 다음 줄 || 새 프로그램의 엔트리 포인트
+|}
+
+{warn}
+'''"열린 파일 디스크립터가 `exec()` 후에도 유지된다"'''는 성질이 유닉스 셸의 리다이렉션을 가능하게 한다.<br>
+`ls > out.txt`의 구현: [[fork]] → 자식에서 stdout(1)을 `out.txt`로 바꿔치기 → `exec("ls")`. `ls`는 자기가 파일로 쓰는 줄 모르고 그냥 stdout에 쓴다. 이것이 [[프로세스 API|fork와 exec를 분리한 이유]]다.
+{/warn}
+
+{tip}
+0831 녹음본: "the fork system call … '''only copies the process data and then generates a separate logical control flow'''. And then you can use the '''execv''' system call to '''load another program'''. So if you want to run a program, you first need to fork the process and then call the execv system call to '''change the executing program'''."
+{/tip}
+
+== exec가 내부에서 하는 일 ==
+
+사실상 [[프로세스|프로세스 생성 5단계]]를 기존 프로세스 위에서 다시 하는 것이다.
+
+# 실행 파일(ELF)을 찾아 열고 헤더를 읽는다 → [[프로그램 로딩]]
+# 기존 [[주소 공간]]을 버리고 새 것을 만든다 (code / data / [[힙]] / [[스택]])
+# 새 [[스택]]에 `argc`, `argv`를 세팅한다 (`myargs[]`가 여기로 들어간다)
+# [[trapframe]]의 [[epc]]를 새 프로그램의 엔트리 포인트로 설정
+# [[return-from-trap|유저 모드로 복귀]] → 새 `main()`이 돈다
+
+{warn}
+`myargs[2] = NULL;`을 빼먹으면 안 된다. `execvp`는 인자 배열의 끝을 '''`NULL` 포인터'''로 판단하기 때문에, 없으면 쓰레기 값을 인자로 읽다가 터진다.
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(출력 예측)''' `execvp()` 호출 바로 다음 줄의 `printf("this shouldn't print out");`이 실행되는 경우는 언제인가? 한 문장으로 답하시오.
+{/quiz}
+{answer}
+'''`execvp()`가 실패했을 때만''' 실행된다. 성공하면 프로세스의 코드·데이터가 새 프로그램으로 교체되어 돌아올 자리가 사라지므로 리턴하지 않는다.
+{/answer}
+
+{quiz}
+'''(구분)''' `fork()`와 `exec()`가 각각 "프로세스 개수"와 "PID"에 어떤 영향을 주는지 표로 정리하시오.
+{/quiz}
+{answer}
+· '''`fork()`''': 프로세스 개수 1 → '''2''', 자식에게 '''새 PID''' 발급<br>
+· '''`exec()`''': 프로세스 개수 1 → '''1'''(변화 없음), PID는 '''그대로 유지'''<br>
+한 줄 요약: `fork`는 몸을 늘리고, `exec`는 내용물을 바꾼다.
+{/answer}
+
+{quiz}
+'''(서술)''' 셸이 `ls > out.txt`를 구현하는 과정을 [[fork]]·`exec`·파일 디스크립터를 써서 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+셸이 [[fork]]로 자식을 만들고, '''자식이 `exec` 하기 전에''' stdout(fd 1)을 `out.txt`로 바꿔치기한 뒤 `exec("ls")`를 호출하면, 파일 디스크립터는 `exec`를 넘어 유지되므로 `ls`는 모르는 채로 파일에 쓰게 된다.
+{/answer}
+
+== 관련 문서 ==
+* [[fork]] / [[wait]] / [[프로세스 API]]
+* [[프로세스]] — 생성 5단계
+* [[프로그램 로딩]] / [[주소 공간]]
+* [[trapframe]] / [[epc]] / [[return-from-trap]]
+* [[OSTEP]] — Chapter 5

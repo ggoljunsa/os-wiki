@@ -1,0 +1,72 @@
+key: sepc
+title: sepc (Supervisor Exception PC)
+category: 4강 LDE, 과제1, 용어
+---
+'''`sepc`'''(Supervisor Exception Program Counter)는 [[RISC-V]]의 '''CSR 레지스터'''로, [[트랩]]이 나는 순간 '''하드웨어가 끊긴 PC를 써 넣는 곳'''이다. 그리고 [[sret]] 명령어는 '''무조건 `sepc`가 가리키는 주소로 점프'''한다. [[과제1 xv6 alarm|과제 1]]이 성립하는 이유가 바로 이 "무조건"이다.
+
+{def}
+'''sepc''' — CSR written by hardware on a trap with the interrupted PC; `sret` jumps to it.
+CPU(hart)마다 '''하나'''뿐이며 supervisor 모드 전용이라 유저 모드에서는 읽을 수도 없다. ("spec" 아님 — '''S'''upervisor '''E'''xception '''PC''')
+{/def}
+
+{analogy}
+`sepc`는 '''자동조종 장치에 입력된 목적지'''다. 비행기([[sret]])는 '''거기에 뭐가 적혀 있든 그리로 간다''' — 옳은지 따지지 않는다. 그래서 커널이 [[epc]](조종석 노트)를 고쳐 쓰고 착륙 전에 그 값을 자동조종에 입력하면, 비행기는 '''핸들러 공항'''에 내린다. 알람의 마법은 전부 이 무조건성에 기대고 있다.
+{/analogy}
+
+== 3단계 체인 ⭐⭐⭐ ==
+
+<pre class="ascii">
+  ① 트랩 진입 — usertrap():
+        p->trapframe->epc = r_sepc();      // 하드웨어가 적어 둔 끊긴 PC 를 trapframe 에 대피
+
+  ② 커널 작업 — (과제 1은 여기서 epc 를 handler 로 바꿔치기)
+
+  ③ 트랩 복귀 — usertrapret():
+        w_sepc(p->trapframe->epc);         // trapframe 의 epc 를 sepc 에 되돌려 씀
+                 │
+                 ▼
+        userret: 레지스터 31개 복원 → sret → PC ← sepc, mode ← user
+</pre>
+
+{exam}
+'''한 문장으로 외울 것:''' "'''`sret`은 `sepc`로 간다. `sepc`는 `trapframe->epc`에서 온다. 그래서 우리는 `epc`를 바꾼다.'''"
+과제 PDF p.4의 힌트 문장 "When a trap on the RISC-V returns to user space, '''what determines the instruction address at which user-space code resumes execution?'''"의 답이 이것이다. 모의고사 A18에서 틀렸고, 실제 퀴즈 1의 2번 ③·3번 (b)로 나왔다.
+{/exam}
+
+== sepc vs epc — 표로 정리 ==
+
+{| class="table"
+! || '''`sepc`''' || '''`p->trapframe->[[epc]]`'''
+|-
+| 정체 || CSR '''레지스터''' || [[trapframe]] 구조체의 '''메모리 필드'''
+|-
+| 개수 || '''CPU(hart)마다 1개''' || '''프로세스마다 1개'''
+|-
+| 누가 쓰나 || '''하드웨어'''가 트랩 순간 || '''[[usertrap]]'''이 C 코드로
+|-
+| 덮어써지나 || '''쉽게''' (yield, 커널 중 트랩) || 이 프로세스가 다시 트랩할 때까지 안전
+|-
+| 읽고 쓰는 법 || `r_sepc()` / `w_sepc()` (인라인 `csrr`/`csrw`) || 그냥 `p->trapframe->epc`
+|-
+| 과제에서 || 직접 건드리지 '''않음''' || '''여기를 바꾼다'''
+|}
+
+<pre class="c">
+// kernel/riscv.h — r_ = read, w_ = write
+static inline uint64 r_sepc() {
+  uint64 x;
+  asm volatile("csrr %0, sepc" : "=r" (x));   // csrr = CSR 읽기
+  return x;
+}
+</pre>
+
+{quiz}
+`usertrap()`에서 `w_sepc(handler)`로 [[sepc]]를 직접 바꾸면 안 되는가?
+{/quiz}
+{answer}
+'''위험하다.''' `sepc`는 CPU마다 하나뿐이라, 그 뒤에 오는 `yield()`에서 다른 프로세스로 [[컨텍스트 스위치|context switch]]가 일어나면 그쪽 트랩이 `sepc`를 덮어쓴다. 이 프로세스가 다시 스케줄되어 [[usertrapret]]에 도달할 때는 이미 값이 사라진 뒤다. 그래서 '''프로세스별 메모리인 `p->trapframe->epc`'''를 바꾸고, 나가기 직전에 [[usertrapret]]이 `sepc`로 옮기게 하는 것이 올바른 방법이다.
+{/answer}
+
+== 관련 문서 ==
+* [[epc]] · [[sret]] · [[trapframe]] · [[usertrap]] · [[usertrapret]] · [[return-from-trap]]
+* [[RISC-V]] · [[레지스터]] · [[프로그램 카운터]] · [[과제1 xv6 alarm]] · [[퀴즈1 복기]]

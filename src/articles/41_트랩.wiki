@@ -1,0 +1,59 @@
+key: 트랩
+title: 트랩 (Trap)
+category: 4강 LDE, 용어
+---
+'''트랩'''(Trap)은 유저 프로그램이 '''의도적으로''' 커널로 넘어가기 위해 일으키는 '''synchronous exception'''이다. 4강에서는 두 가지 뜻으로 쓰인다 — ① 예외 분류상의 "의도적 동기 예외"(= [[시스템 콜]], breakpoint), ② `user → kernel` 방향 전환을 일으키는 '''명령어'''(x86 `int $0x80`, [[RISC-V]] `ecall`).
+
+{def}
+'''Trap''' — Intentional. Examples: system calls, breakpoint traps, special instructions. Returns control to the '''"next"''' instruction.
+'''Trap instruction (user → kernel)''': Jump into the kernel / Raise the privilege level to '''kernel mode''' / Supported by CPU.
+{/def}
+
+{analogy}
+트랩은 '''"교무실 문을 두드리는 행위"'''다. 학생(유저 프로그램)은 교무실 안 물건에 손댈 수 없지만, 문을 두드리고 "성적증명서 주세요"(시스템 콜 번호)라고 말할 수는 있다. 문을 열어 주는 것은 선생님(커널)이고, 학생은 '''문 앞까지만''' 간다. [[인터럽트]]가 "밖에서 갑자기 화재경보가 울린 것"이라면, 트랩은 '''내가 직접 두드린 것'''이다.
+{/analogy}
+
+[[img:L4-17.png|p.17 Trap Example (x86) — open()이 int 명령으로 trap하고, OS가 파일을 연 뒤 returns로 돌아온다|medium]]
+
+== 예외 4분류에서의 위치 ==
+
+{| class="table"
+! 분류 || 동기/비동기 || 의도적? || 복귀 지점
+|-
+| [[인터럽트]] || '''비동기''' || — || 다음 명령어
+|-
+| '''트랩''' || 동기 || '''O''' || '''다음''' 명령어
+|-
+| Fault || 동기 || X (복구 가능성 있음) || '''현재''' 명령어 재실행 또는 abort
+|-
+| Abort || 동기 || X (복구 불가) || 없음 (프로그램 종료)
+|}
+
+{exam}
+'''2025F 중간고사 Problem 1'''이 이 표를 그대로 물었다 — "Which one is not a synchronous exception?" → '''Interrupt'''. 트랩/폴트/어보트는 전부 '''명령어 실행의 결과'''로 생기는 동기 예외다.
+{/exam}
+
+== 트랩이 하는 일 세 가지 ==
+
+<pre class="ascii">
+  유저 코드:   ... ; ecall ; (다음 명령어)
+                     │
+                     ▼  하드웨어가 한 번에:
+        ① sepc   ← ecall 명령어의 주소      (어디서 끊겼나)
+        ② scause ← 8 (U-mode ecall)        (왜 끊겼나)
+        ③ mode   ← supervisor(kernel)      (권한 상승)
+           PC    ← stvec (= 트랩 테이블 엔트리)
+</pre>
+
+주의: 하드웨어는 '''이것만''' 한다. 레지스터 31개를 저장하는 것은 소프트웨어([[xv6]]의 `uservec`)의 몫이고, 그 저장 장소가 [[trapframe]]이다.
+
+{tip}
+"Returns control to the '''next''' instruction"이 [[xv6]]에서 `p->trapframe->[[epc]] += 4`로 구현된다 — `ecall`은 4바이트라 4를 더해야 `ecall` 다음 명령어로 돌아간다. 반면 '''[[타이머 인터럽트]]는 +4를 하지 않는다''' — 끊긴 명령어를 아직 실행하지 않았으므로 그것부터 다시 해야 한다.
+{/tip}
+
+[[sim:syscall_trap]]
+
+== 관련 문서 ==
+* [[트랩 테이블]] · [[return-from-trap]] · [[sret]] · [[인터럽트]]
+* [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[특권 명령]]
+* [[usertrap]] · [[trapframe]] · [[제한적 직접 실행]]

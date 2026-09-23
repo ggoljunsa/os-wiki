@@ -1,0 +1,121 @@
+key: OS 역사
+title: OS 역사와 하드웨어 계보
+category: 1강 Intro, 3강 From Program to Process, 용어
+---
+{info}
+'''먼저 밝혀 둘 것''': 이 수업 슬라이드에는 "History of Operating Systems" 같은 독립된 연대기 장이 '''없다'''. 대신 3강 앞부분(p.4~7)이 "프로세서란 무엇인가"를 설명하면서 하드웨어 계보를 훑고, 1강이 교재·[[xv6]]의 출신을 언급한다. 이 문서는 그 흩어진 조각을 모은 것이고, 슬라이드에 근거가 있는 부분과 배경 지식을 구분해 표시했다.
+{/info}
+
+== ① Stored Program Computer (슬라이드 3강 p.4) ==
+
+{def}
+'''Stored Program Computer''' (3강 p.4)<br>
+· Instantiation of '''Universal Turing Machine'''<br>
+· '''Von Neumann architecture (1945)'''<br>
+&nbsp;&nbsp;- Charles Babbage's Analytical Engine (1837)<br>
+&nbsp;&nbsp;- Manchester Baby (1948) and EDSAC (1949)
+{/def}
+
+[[img:L3-04.png|3강 p.4. 왼쪽은 초기 전자계산기 사진, 오른쪽은 Input → CPU(Control Unit + Logic Unit) ↔ Memory → Output 구조.|medium]]
+
+핵심 아이디어는 '''프로그램을 데이터와 똑같이 메모리에 저장한다'''는 것이다. 이 한 줄이 없으면 [[프로그램 로딩]]도 [[프로세스]]도 성립하지 않는다 — "디스크의 실행 파일을 메모리에 올린다"는 말 자체가 stored program 모델의 산물이기 때문이다.
+
+{tip}
+0831 녹음본에서 교수님의 배경 설명: "in older computers there is '''no concept like the program'''. … the calculator is one kind of computer and it only can process the given formula. … the primitive computer like '''Colossus''' which used to break some encryption. At that time the computer cannot process some general purpose program but they only have some '''program circuit''' that is specialized for the given task."<br>
+→ 옛날 컴퓨터는 "용도별 회로"였고, 범용 컴퓨터가 되려면 프로그램이 '''데이터로''' 저장돼야 했다.
+{/tip}
+
+{analogy}
+🍦 가게에 비유하면 이렇다. 옛날 방식은 '''바닐라 전용 기계''' 한 대를 사는 것이다 — 초코를 팔려면 기계를 새로 사야 한다. Stored program 방식은 '''레시피 종이를 바꿔 끼우는 것''' — 직원(CPU)은 그대로 두고 레시피(프로그램)만 갈아 끼우면 뭐든 만든다. 냉장고에 레시피와 재료가 '''같은 방식으로''' 들어가 있다는 게 von Neumann의 핵심이다.
+{/analogy}
+
+== ② x86의 진화 (슬라이드 3강 p.5~6) ==
+
+{| class="table"
+! 프로세서 || 연도 || 트랜지스터
+|-
+| 386 || 1985 || 0.3M
+|-
+| Pentium || 1993 || 3.1M
+|-
+| Pentium/MMX || 1997 || 4.5M
+|-
+| PentiumPro || 1995 || 6.5M
+|-
+| Pentium III || 1999 || 8.2M
+|-
+| Pentium 4 || 2001 || 42M
+|-
+| Core 2 Duo || 2006 || 291M
+|-
+| Core i7 || 2008 || 731M
+|}
+
+[[img:L3-06.png|3강 p.6. 오른쪽 다이 사진에 Core 0~3과 Shared L3 Cache가 보인다 — 트랜지스터가 남아돌기 시작하자 코어를 늘리는 쪽으로 갔다는 증거.|medium]]
+
+슬라이드가 강조하는 건 숫자가 아니라 '''왜 x86이 이겼는가'''다.
+
+* '''Evolutionary design''': 1978년 8086부터 '''backward compatible'''을 유지하며 기능만 계속 추가
+* '''CISC''' (Complex Instruction Set Computer): 명령어 종류·형식이 많고 복잡. "Hard to match performance of '''RISC'''"라고 슬라이드가 직접 인정한다
+
+{tip}
+0831 녹음본: "it is quite important, especially in the '''server market''', because inside the server we usually just use the '''legacy program''' without upgrading it. So … '''that is the reason X86 processor wins the server market'''. … They are slowly transitioning into the RISC computers."<br>
+→ 성능이 아니라 '''하위 호환'''이 시장을 결정했고, 지금은 ARM/[[RISC-V]] 쪽으로 서서히 넘어가는 중이라는 것.
+{/tip}
+
+=== Architecture vs Microarchitecture (3강 p.7) ===
+
+{def}
+· '''Architecture''' (= ISA, Instruction Set Architecture): "The parts of a processor design that one needs to understand to write '''assembly''' code." 예: `mov`/`add` 같은 명령어 명세, `eip` 같은 [[레지스터]] 명세<br>
+· '''Microarchitecture''': "'''Implementation''' of the architecture." 예: cache size, core frequency<br>
+· Example ISAs (Intel): x86, IA32
+{/def}
+
+ISA는 '''약속(인터페이스)''', 마이크로아키텍처는 '''구현'''이다. 같은 x86 ISA를 인텔과 AMD가 전혀 다른 마이크로아키텍처로 구현한다. 이 구분은 [[레지스터]]·[[프로그램 카운터]]가 "ISA가 정한 것"이라는 점을 이해하는 데 필요하다.
+
+== ③ UNIX → xv6 → 이 수업 ==
+
+슬라이드에 연대는 없지만 1강 p.8·p.10~11이 계보를 밝힌다.
+
+<pre class="ascii">
+  UNIX (Bell Labs, 1970s)
+      │  "simple, Unix-like"
+      ▼
+  xv6  — MIT 6.828 교육용 OS, x86 → RISC-V 로 포팅
+      │  이 수업의 4개 프로젝트가 돌아가는 무대
+      ▼
+  coruslab-src/xv6-lab  (traps 브랜치)  ← 과제 1
+</pre>
+
+* '''[[xv6]]''': "a simple but POSIX-compliant operating system designed for multiprocessor x86 and '''RISC-V'''", MIT 운영체제 수업용. (1강 p.8)
+* 교재 3종: '''[[OSTEP]]''' (Arpaci-Dusseau, 2015, 무료 공개) / Silberschatz "Operating System Concept" 9th / Bryant "CSAPP" 2nd
+* 이 수업의 슬라이드는 "based on the '''authors' slides'''" — 즉 OSTEP 저자 슬라이드가 원본이다 (1강 p.10)
+
+{warn}
+과제 1의 [[xv6]]는 '''[[RISC-V]]''' 버전인데, 3강 슬라이드 p.37~38의 [[struct proc]]은 '''x86''' 시절 코드(`eip`, `ebx`, `esi`, `edi`, `ebp`)다. 슬라이드와 실제 과제 코드가 다르다는 걸 모르고 외우면 [[struct proc]] 문제에서 헷갈린다. → [[struct proc]]
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "프로그램을 데이터와 마찬가지로 메모리에 저장해 두고 CPU가 하나씩 꺼내 실행하는 컴퓨터 구조"를 가리키는 말과, 그것을 1945년에 정식화한 구조의 이름을 쓰시오.
+{/quiz}
+{answer}
+'''Stored Program Computer''' / '''Von Neumann architecture (1945)'''. 이론적 뿌리는 '''Universal Turing Machine'''이고, 슬라이드는 선구 사례로 Babbage's Analytical Engine(1837), Manchester Baby(1948), EDSAC(1949)를 든다.
+{/answer}
+
+{quiz}
+'''(구분)''' 다음 중 '''Microarchitecture'''에 속하는 것을 모두 고르시오.<br>
+① `mov`, `add` 명령어 명세 ② cache size ③ `eip` 레지스터의 존재 ④ core frequency
+{/quiz}
+{answer}
+'''② cache size, ④ core frequency.''' ①③은 '''Architecture(ISA)''' — 어셈블리를 쓰기 위해 알아야 하는 명세다.
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] — 1·2강 본문
+* [[프로세스]] — stored program 모델의 직접적 귀결
+* [[프로그램 로딩]] / [[주소 공간]]
+* [[레지스터]] / [[프로그램 카운터]] / [[RISC-V]]
+* [[xv6]] / [[OSTEP]]
+* [[struct proc]] — 슬라이드(x86)와 과제(RISC-V)의 차이

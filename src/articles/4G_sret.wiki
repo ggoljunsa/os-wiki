@@ -1,0 +1,72 @@
+key: sret
+title: sret (Supervisor Return)
+category: 4강 LDE, 과제1, 용어
+---
+'''`sret`'''(Supervisor RETurn)은 [[RISC-V]]에서 [[트랩]]을 빠져나가는 명령어다. 4강의 '''[[return-from-trap]]'''을 실제 ISA에서 구현한 것이며, [[xv6]]에서는 `userret`(trampoline.S)의 '''마지막 한 줄'''이다.
+
+{def}
+`sret` — 명령어 '''하나'''가 세 가지를 '''원자적으로''' 한다:
+① `PC ← sepc` — 끊겼던 곳(또는 커널이 바꿔 둔 곳)으로 점프
+② `mode ← sstatus.SPP` — 트랩 전 모드로 복귀 (SPP = 0 → user)
+③ `SIE ← SPIE` — 트랩 전 인터럽트 허용 상태 복원
+{/def}
+
+{analogy}
+`sret`은 '''"짐 찾고, 신분증 돌려받고, 문 열고 나가기"를 동시에 하는 단 하나의 동작'''이다. 왜 원자적이어야 하냐면 — 만약 "모드를 유저로 내린 뒤" 한 명령어라도 쉬었다가 점프한다면, 그 사이에 '''유저 권한으로 커널 주소를 실행하는 순간'''이 생긴다. 보안 구멍이다. 그래서 하드웨어가 셋을 한 번에 한다.
+{/analogy}
+
+== ecall ↔ sret 대응표 ==
+
+{| class="table"
+! 들어갈 때 || 나올 때
+|-
+| `ecall` / 인터럽트 → 하드웨어가 '''[[sepc]]에 저장''' || '''`sret`''' → 하드웨어가 '''[[sepc]]에서 꺼내''' 점프
+|-
+| user → '''supervisor(kernel)''' || supervisor → '''user'''
+|-
+| 4강의 '''[[트랩]]''' || 4강의 '''[[return-from-trap]]'''
+|-
+| `scause`에 이유 기록 || `sstatus.SPP`로 모드 결정
+|}
+
+== 왜 알람이 되는가 ⭐ ==
+
+<pre class="ascii">
+   usertrapret() 이 sret 전에 미리 준비하는 것:
+
+      w_sepc(p->trapframe->epc);     ← ①용.  ★ 과제 1이 노리는 지점
+      sstatus.SPP  = 0 (user)        ← ②용
+      sstatus.SPIE = 1               ← ③용
+            │
+            ▼  userret: trapframe 에서 레지스터 31개 복원
+            ▼  sret
+      PC ← sepc   (epc 를 handler 로 바꿔 뒀으면 handler 로 "복귀")
+</pre>
+
+{exam}
+'''`sret`은 `sepc`에 뭐가 들어 있든 거기로 간다 — 옳은 주소인지 따지지 않는다.''' 이 '''무조건성'''이 [[과제1 xv6 alarm|과제 1]]이 성립하는 이유 전체다. 3단계 체인으로 외울 것:
+'''"`sret`은 [[sepc]]로 간다 → `sepc`는 [[trapframe]]->[[epc]]에서 온다 → 그래서 `epc`를 바꾼다."''' (모의 A18, 실제 퀴즈 2번 ③·3번 (b))
+{/exam}
+
+== 아키텍처별 ==
+
+{| class="table"
+! 아키텍처 || 트랩 || return-from-trap
+|-
+| x86 (32-bit) || `int $0x80` || `iret`
+|-
+| x86-64 || `syscall` || `sysret`
+|-
+| '''[[RISC-V]]''' || '''`ecall`''' || '''`sret`'''
+|}
+
+{quiz}
+핸들러 안에서 C `return`을 쓰면 `sret`과 같은 효과가 나는가?
+{/quiz}
+{answer}
+'''전혀 다르다.''' C `return`은 [[RISC-V]]에서 `ret` = `jalr x0, 0(ra)`, 즉 '''`ra` 레지스터로 점프'''하는 평범한 유저 명령어다. 모드도 안 바뀌고 [[sepc]]도 안 본다. 게다가 알람 핸들러는 `call` 된 적이 없어서 '''`ra`에는 끊긴 코드의 리턴 주소'''가 남아 있다 → 엉뚱한 곳으로 튄다. `sret`을 일으키려면 반드시 '''커널을 거쳐야''' 하고, 그 수단이 [[sigreturn]] 시스템 콜이다. (퀴즈 1의 3번 (c))
+{/answer}
+
+== 관련 문서 ==
+* [[return-from-trap]] · [[sepc]] · [[epc]] · [[트랩]] · [[usertrapret]] · [[trapframe]]
+* [[유저 모드와 커널 모드]] · [[RISC-V]] · [[과제1 xv6 alarm]] · [[sigreturn]] · [[퀴즈1 복기]]

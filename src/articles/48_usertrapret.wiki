@@ -1,0 +1,79 @@
+key: usertrapret
+title: usertrapret()
+category: 4강 LDE, 과제1, 용어
+---
+'''`usertrapret()`'''(`kernel/trap.c`)은 [[xv6]]에서 커널이 유저 모드로 '''돌아 나가기 직전에 준비를 마치는''' C 함수다. [[usertrap]]이 '''들어오는 문'''이라면 이쪽은 '''나가는 문'''이고, 4강의 [[return-from-trap]]을 실제로 수행하는 코드다.
+
+{analogy}
+`usertrapret()`은 '''출국 수속 카운터'''다. 여권([[sepc]])에 목적지를 찍고, 다음에 다시 입국할 때 쓸 서류(커널 정보)를 미리 [[trapframe]]에 끼워 두고, 게이트(`userret` → [[sret]])로 보낸다. 재미있는 건 '''다음 입국 때 필요한 물건을 지금 미리 챙겨 둔다'''는 것 — 트랩 직후에는 커널 정보를 읽을 방법이 마땅치 않기 때문이다.
+{/analogy}
+
+== 하는 일 ==
+
+<pre class="c">
+void
+usertrapret(void)
+{
+  struct proc *p = myproc();
+
+  intr_off();                                       // 1
+  w_stvec(TRAMPOLINE + (uservec - trampoline));     // 2  다음 트랩은 uservec 으로
+
+  // 다음에 uservec 이 읽을 커널 정보를 미리 채워 둔다
+  p->trapframe->kernel_satp   = r_satp();           // 3  커널 페이지 테이블
+  p->trapframe->kernel_sp     = p->kstack + PGSIZE; // 4  이 프로세스의 커널 스택
+  p->trapframe->kernel_trap   = (uint64)usertrap;   // 5
+  p->trapframe->kernel_hartid = r_tp();             // 6
+
+  unsigned long x = r_sstatus();
+  x &= ~SSTATUS_SPP;      // 7  SPP = 0  → sret 이 user mode 로 내려가게
+  x |=  SSTATUS_SPIE;     // 8  SPIE = 1 → 유저에서 인터럽트 허용
+  w_sstatus(x);
+
+  w_sepc(p->trapframe->epc);                        // 9  ★★ trapframe 의 epc → sepc
+
+  uint64 satp = MAKE_SATP(p->pagetable);
+  userret(TRAMPOLINE + (userret - trampoline))(satp);  // 10 → 레지스터 복원 → sret
+}
+</pre>
+
+{| class="table"
+! 행 || 왜 필요한가
+|-
+| 2 || 유저에서 트랩이 나면 `uservec`으로 가야 한다. [[usertrap]]이 1행에서 `kernelvec`으로 바꿔 뒀던 것을 되돌리는 것
+|-
+| 3–6 || 트랩 직후에는 '''모드는 커널인데 페이지 테이블은 유저'''라 커널 정보를 못 읽는다. 그래서 '''미리''' [[trapframe]]에 적어 둔다
+|-
+| 7 || `SPP = 0`. [[sret]]은 '''`sstatus.SPP`를 보고 돌아갈 모드를 정한다''' — 이게 0이라 user mode로 내려간다
+|-
+| '''9''' || '''`w_sepc(p->trapframe->epc)`''' — 과제 1의 epc 바꿔치기가 '''여기서 효력을 발휘'''한다
+|-
+| 10 || `userret`(trampoline.S)이 [[trapframe]]에서 레지스터 31개를 복원하고 [[sret]] 실행
+|}
+
+{exam}
+'''9행이 퀴즈 1의 핵심이다.''' [[usertrap]]에서 `p->trapframe->epc`를 [[alarm_handler]]로 바꿔 놓았으면, 9행이 그 값을 [[sepc]]에 쓰고 [[sret]]이 거기로 점프한다 → 유저는 '''핸들러부터''' 실행한다. 커널은 `sepc`를 직접 건드리지 않고 '''`trapframe->epc`만''' 고친다는 점이 핵심.
+{/exam}
+
+<pre class="ascii">
+   usertrap()                 [커널 작업]              usertrapret()
+   ─────────────────────────────────────────────────────────────────────
+   epc ← r_sepc()      →   (과제1: epc ← handler)  →   w_sepc(epc)
+                                                           │
+                                                           ▼
+                                             userret: 레지스터 31개 복원
+                                                       satp ← 유저 PT
+                                                       sret  → PC ← sepc
+                                                              mode ← user (SPP=0)
+</pre>
+
+{quiz}
+`usertrapret()`이 `kernel_sp`, `kernel_satp` 같은 '''커널''' 정보를 [[trapframe]]에 적어 두는 이유는?
+{/quiz}
+{answer}
+'''다음에 트랩으로 들어올 때 쓰려고.''' 트랩 직후에는 모드만 커널로 바뀌고 페이지 테이블은 아직 유저 것이라, 커널 스택 주소나 커널 페이지 테이블 주소를 알아낼 방법이 없다. 유저 주소 공간에서 읽을 수 있는 유일한 커널 데이터가 '''trapframe 페이지'''이므로, 나가기 전에 미리 적어 두는 것이다.
+{/answer}
+
+== 관련 문서 ==
+* [[usertrap]] · [[trapframe]] · [[epc]] · [[sepc]] · [[sret]] · [[return-from-trap]]
+* [[과제1 xv6 alarm]] · [[alarm_handler]] · [[제한적 직접 실행]]

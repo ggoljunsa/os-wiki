@@ -1,0 +1,73 @@
+key: 인터럽트 핸들러
+title: 인터럽트 핸들러 (Interrupt Handler)
+category: 용어, 4강 LDE
+---
+'''인터럽트 핸들러'''는 [[인터럽트]]나 [[트랩]]이 발생했을 때 실행되는 '''커널 코드 조각'''이다. [[트랩 테이블]]의 각 칸이 가리키는 대상이며, 4강에서는 "'''a pre-configured interrupt handler in the OS'''"라는 표현으로 등장한다.
+
+{def}
+"When the interrupt is raised: … '''a pre-configured interrupt handler in the OS runs''' … The OS regains control of the CPU." (4강 p.27)
+'''Handler k''' is called each time '''syscall k''' occurs — [[트랩 테이블]]의 k번 칸이 가리키는 코드. (p.19)
+{/def}
+
+{analogy}
+인터럽트 핸들러는 '''119 접수 매뉴얼'''이다. 신고(인터럽트)가 들어오면 접수원은 즉흥적으로 대응하는 게 아니라 '''미리 작성된 매뉴얼'''대로 움직인다. 중요한 건 이 매뉴얼을 '''소방서(OS)가 평시에 미리 써 둔 것'''이고, 신고자(유저 프로그램)가 그 자리에서 내용을 고칠 수 없다는 점이다 — 고칠 수 있다면 "내 신고가 오면 금고를 열어라"라고 써 넣을 것이다.
+{/analogy}
+
+== "pre-configured"가 핵심 ⭐ ==
+
+<pre class="ascii">
+   OS @ boot (kernel mode)          Hardware
+   ─────────────────────────────────────────────────────
+   initialize trap table  ───────►  remember address of …
+                                       syscall handler
+                                       timer handler
+   start interrupt timer  ───────►  start timer
+
+   ⇒ 핸들러 주소를 등록하는 것은 "부팅 때, OS가, 커널 모드에서".
+     유저는 관여할 수 없다 (특권 명령).
+</pre>
+
+{warn}
+유저가 핸들러 주소를 등록할 수 있다면 그것은 곧 '''[[커널 모드]]에서 임의 코드를 실행할 권한'''이다. 그래서 [[트랩 테이블]] 설정은 [[특권 명령]]이고, "핸들러는 미리(pre-) 설정되어 있다"는 표현이 들어간 것.
+{/warn}
+
+== 핸들러가 하는 일 (일반 형태) ==
+
+# '''문맥 저장''' — 끊긴 프로그램의 [[레지스터]]를 [[커널 스택]]([[xv6]]에서는 [[trapframe]])에 저장
+# '''원인 판별''' — 왜 들어왔는가 ([[xv6]]: `scause`, [[which_dev]])
+# '''실제 처리''' — [[시스템 콜]] 수행, 장치 응답, 타이머 tick 처리
+# '''복귀''' — [[return-from-trap]] / [[sret]]으로 유저 모드로
+
+[[xv6]]에서는 이 네 단계가 `uservec`(1) → [[usertrap]](2·3) → [[usertrapret]] → `userret`(4)으로 나뉘어 있다.
+
+== 유저 레벨 핸들러 — 과제 1의 정체 ==
+
+{tip}
+[[과제1 xv6 alarm|과제 1]]의 [[alarm_handler]]는 '''유저 공간에서 도는 핸들러'''라는 점에서 위와 다르다. 과제 PDF의 표현: "you'll be implementing a primitive form of '''user-level interrupt/fault handlers'''". 커널 핸들러가 받은 인터럽트를 '''유저에게 다시 전달'''하는 구조이고, 유닉스의 `signal()`/`SIGALRM`이 같은 일을 한다.
+
+그래서 '''두 겹'''이 된다:
+<pre class="ascii">
+   타이머 인터럽트
+        │
+        ▼  커널 핸들러 (usertrap)  ← "pre-configured", 유저가 못 바꿈
+        │      which_dev == 2 → 알람 조건 검사 → epc 바꿔치기
+        ▼  sret
+   유저 핸들러 (periodic)          ← sigalarm 으로 유저가 등록, user mode 에서 실행
+        │
+        ▼  sigreturn()
+   끊긴 유저 코드
+</pre>
+{/tip}
+
+{quiz}
+"인터럽트 핸들러는 유저 프로그램이 등록한다"는 서술은 옳은가?
+{/quiz}
+{answer}
+'''일반적으로는 틀렸다.''' 4강의 인터럽트 핸들러는 '''OS가 부팅 때 [[트랩 테이블]]에 등록'''하고, 유저는 [[특권 명령]] 제약 때문에 관여할 수 없다.
+다만 [[과제1 xv6 alarm|과제 1]]의 '''유저 레벨''' 핸들러는 [[sigalarm]]이라는 '''시스템 콜을 통해''' 유저가 등록한다 — 즉 "유저가 커널에 부탁해서" 등록하는 것이지 트랩 테이블을 직접 건드리는 것이 아니다. 이 구분을 정확히 쓰는 것이 서술형의 득점 포인트.
+{/answer}
+
+== 관련 문서 ==
+* [[인터럽트]] · [[트랩]] · [[트랩 테이블]] · [[타이머 인터럽트]] · [[특권 명령]] · [[커널 모드]]
+* [[usertrap]] · [[usertrapret]] · [[return-from-trap]] · [[sret]] · [[커널 스택]]
+* [[alarm_handler]] · [[과제1 xv6 alarm]] · [[제한적 직접 실행]] · [[비협력적 방식]]

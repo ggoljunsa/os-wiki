@@ -1,0 +1,93 @@
+key: 영속성
+title: 영속성 (Persistence)
+category: 2강 What is OS, 용어
+---
+'''영속성'''(Persistence)은 전원이 꺼져도 데이터가 살아남게 하는 것, 그리고 그걸 담당하는 '''file system'''과 저장 장치 이야기다. three easy pieces의 세 번째이며, 이번 학기 중간고사 범위에서는 '''개념만''' 다루고 본격적인 내용은 기말 범위로 넘어간다.
+
+{def}
+'''Persistence''' (2강 p.34)<br>
+"Devices such as DRAM store values in a '''volatile''' manner. Hardware and software are needed to store data persistently."<br>
+· '''Hardware''': I/O device such as a hard drive (HDD) and solid-state drives (SSDs)<br>
+· '''Software''': '''File system''' manages the disk — responsible for storing any files the user creates
+{/def}
+
+{analogy}
+🍦 픽업 주문이 들어와 아이스크림을 다 만들어 놨는데 손님이 안 온다. 카운터(=DRAM) 위에 그냥 두면 '''녹아 없어진다'''(= volatile). 해법은 '''냉장고'''(= persistent storage)에 넣는 것. 어느 칸에 넣을지, 어떤 이름표를 붙일지 정하고 기억하는 사람이 '''file system'''이다.
+{/analogy}
+
+[[img:L2-33.png|2강 p.33. 완성된 Ice cream #3를 Refrigerator에 넣는 그림. Refrigerator 안에는 Recipe와 Ingredients가 이미 들어 있다 — 디스크가 프로그램과 데이터의 원본 보관소라는 뜻.|medium]]
+
+== 슬라이드의 데모 ==
+
+`/tmp/file`에 `"hello world"`를 쓰는 프로그램(2강 p.35).
+
+<pre class="c">
+int main(int argc, char *argv[])
+{
+    int fd = open("/tmp/file", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+    assert(fd > -1);
+    int rc = write(fd, "hello world\n", 13);
+    assert(rc == 13);
+    close(fd);
+    return 0;
+}
+</pre>
+
+* `open()` / `write()` / `close()` 세 개는 전부 '''[[시스템 콜]]'''이다 (라이브러리 함수 `fopen`/`fwrite`가 아니다)
+* 이 호출들은 OS 안의 '''file system''' 부분으로 라우팅되어 처리된다
+* `fd`(file descriptor)는 OS가 돌려주는 정수 핸들. 모든 프로세스는 기본으로 stdin(0)·stdout(1)·stderr(2)를 이미 열어 놓은 상태로 시작한다 ([[프로세스|프로세스 생성 4단계]])
+
+== OS가 디스크에 쓸 때 하는 일 ==
+
+{def}
+"What OS does in order to write to disk?" (2강 p.36)<br>
+· Figure out '''where on disk''' this new data will reside<br>
+· Issue '''I/O requests''' to the underlying storage device<br>
+· File system handles '''system crashes''' during write — journaling or copy-on-write, carefully '''ordering writes''' to disk
+{/def}
+
+마지막 항목이 영속성의 진짜 난제다. "쓰는 중에 전원이 꺼지면?"을 견디기 위해 '''journaling'''이나 '''copy-on-write''' 같은 기법을 쓰고, 디스크 쓰기 순서를 신중하게 정한다.
+
+{warn}
+`write()`가 리턴했다고 해서 데이터가 디스크 플래터에 도달한 것은 '''아니다'''. 보통은 OS 버퍼에만 들어간다. 그래서 진짜 영속성이 필요하면 `fsync()`가 따로 있다. (중간고사 범위 밖이지만 개념 문제로 나올 수 있다.)
+{/warn}
+
+== 영속성이 CPU 가상화와 다른 점 ==
+
+{| class="table"
+! || [[가상화|CPU 가상화]] || 영속성
+|-
+| 목표 || 자원이 '''무한히 많아 보이게''' || 데이터가 '''사라지지 않게'''
+|-
+| 착각을 만드나? || 그렇다 (illusion) || '''아니다''' — 파일은 실제로 존재해야 한다
+|-
+| 실패 모델 || 성능 저하 || '''crash consistency''' (전원 차단 중 일관성)
+|-
+| 담당 || [[스케줄러]], [[컨텍스트 스위치]] || File system, device driver
+|}
+
+{tip}
+2강 슬라이드의 Persistence 섹션 표지는 "How can we ___"에서 문장이 잘려 있다. 앞의 두 섹션이 각각 "How can we '''own the shared resource'''?"([[가상화]]), "How can we '''overlap the task'''?"([[동시성]])이었으니 여기 들어갈 말은 "How can we '''store the data persistently'''?" 정도다. 슬라이드 오타이므로 시험에 나올 일은 없다.
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "디스크를 관리하며 사용자가 만든 파일을 저장하는 책임을 지는, OS의 소프트웨어 구성 요소"는?
+{/quiz}
+{answer}
+'''File system'''(파일 시스템). 하드웨어 쪽 파트너는 HDD/SSD 같은 I/O device다.
+{/answer}
+
+{quiz}
+'''(개념)''' 파일에 쓰는 도중 시스템이 죽을 수 있다. 파일 시스템이 이를 견디기 위해 쓰는 기법 두 가지를 슬라이드 용어로 쓰시오.
+{/quiz}
+{answer}
+'''Journaling'''과 '''copy-on-write'''. 여기에 "carefully '''ordering writes''' to disk"(쓰기 순서를 신중히 정하기)가 더해진다. (2강 p.36)
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] / [[가상화]] / [[동시성]]
+* [[시스템 콜]] — `open`/`write`/`close`가 커널로 들어가는 길
+* [[프로그램 로딩]] — 디스크의 실행 파일이 메모리로 올라오는 반대 방향의 여정
+* [[OSTEP]] — 3부 전체가 persistence

@@ -1,0 +1,370 @@
+key: 프로세스
+title: 프로세스 (Process)
+category: 3강 From Program to Process
+---
+'''프로세스'''(Process)는 '''실행 중인 프로그램의 인스턴스'''다. 3강 전체가 딱 네 개의 질문에 답하기 위해 존재하고, 그 마지막 질문의 답이 바로 이 단어다.
+
+3강 p.2에서 교수님이 던지는 네 질문:
+# What is program execution? (프로그램 실행이란 무엇인가)
+# What happens when we execute the program? (실행하면 무슨 일이 일어나는가)
+# How can we manage the program execution? (그 실행을 어떻게 관리하는가)
+# What should be the name of the thing ("program-in-execution")? (그것의 이름은?)
+
+p.39에서 답이 전부 채워진다: ① 프로그램이 기술한 계산의 수행 ② 메모리에 로드 + CPU의 fetch-decode-execute ③ '''OS가 실행에 필요한 정보를 보관하며''' 관리 ④ '''Process'''.
+
+{def}
+'''Process''' (3강 p.23)<br>
+"A process is an '''instance of a running program'''. One of the most profound ideas in computer science. '''Not the same as "program" or "processor"'''."<br>
+Process includes two key abstractions:<br>
+· '''Control flow''' (a.k.a thread) — a sequence of instructions; each process has '''exclusive''' control flow (+ registers)<br>
+· '''Memory address space''' — set of rights of a process (to access the memory); each process has an '''exclusive''' address space
+{/def}
+
+{analogy}
+🏢 '''아파트 건설'''. 프로그램은 '''설계도'''다 — 종이 한 장, 디스크 위의 바이트 나열, 정적인 청사진. 프로세스는 그 설계도로 실제로 '''짓고 있는 건물'''이다. 같은 설계도로 3개 동을 지으면 건물은 3개 생기고, 각 동의 공사 진척도(= [[프로그램 카운터|PC]]와 [[레지스터]])와 자재 창고(= [[주소 공간]])는 서로 완전히 별개다.<br>
+0831 녹음본에서 교수님이 쓴 비유가 정확히 이것이다: "the apartments have the same blueprint and they have multiple buildings … all of the process have the '''exclusive control flow'''."
+{/analogy}
+
+{warn}
+'''용어 3형제 구분''' (슬라이드가 직접 경고한다)<br>
+· '''Program''' = 디스크 위의 실행 파일 (ELF). 정적, 바이트의 나열<br>
+· '''Process''' = 메모리에 올라가 실행 중인 인스턴스. 동적<br>
+· '''Processor''' = 하드웨어 CPU<br>
+셋을 섞어 쓰면 3강 문제는 거의 다 틀린다.
+{/warn}
+
+----
+
+== 1. 프로그램이 실행된다는 것 ==
+
+=== Fetch – Decode – Execute ===
+
+{def}
+"A running program (task or process) executes instructions" (3강 p.8)<br>
+# '''Fetch''': The processor reads an instruction from memory<br>
+# '''Decode''': Figure out which instruction this is<br>
+# '''Execute''': i.e., add two numbers, access memory, check a condition, jump to function, etc.<br>
+# The processor '''moves on to the next instruction''' and so on
+{/def}
+
+[[img:L3-08.png|3강 p.8. Disk의 Program → Memory의 Task(Code+Data) → CPU가 ①Fetch ②Decode ③Execute를 startup부터 shutdown까지 반복.|large]]
+
+CPU는 이것 말고 아무것도 하지 않는다. 0831 녹음본의 표현: "what CPU do is actually just '''repeatedly doing the fetch-decode-execute loop''' for each cycle, and what CPU does is '''determined by the instructions'''."
+
+=== 프로그래머에게 보이는 상태 ===
+
+[[img:L3-10.png|3강 p.10. CPU 안에 보이는 건 PC / Registers / Condition Codes 셋뿐. 메모리와는 Addresses·Data·Instructions를 주고받는다.|large]]
+
+{| class="table"
+! 상태 || 정체 || 나중에 어디서 쓰이나
+|-
+| '''PC''' ([[프로그램 카운터]]) || 다음에 실행할 명령어의 '''주소'''. IA32에선 `EIP`, x86-64에선 `RIP` || [[epc]], [[sepc]] — 트랩에서 복귀할 지점
+|-
+| '''Register file''' ([[레지스터]]) || 자주 쓰는 프로그램 데이터 || [[trapframe]]에 통째로 저장
+|-
+| '''Condition codes''' || 직전 산술 연산의 상태 (0인가, 음수인가). 조건 분기에 사용 || 역시 저장/복원 대상
+|-
+| '''Memory''' || 바이트 단위 주소가 붙은 배열. Code, user data, (some) OS data, 그리고 [[스택]] ||
+|}
+
+{exam}
+2025F 중간고사 '''Problem 1'''의 해설 슬라이드에 이 "Assembly Programmer's View (Cont.)" 장이 그대로 실려 있다. 즉 '''PC / register file / condition codes'''라는 세 가지 programmer-visible state를 묻는 문제가 실제로 나왔다. → [[2025F 중간고사 족보]]
+{/exam}
+
+{tip}
+이 세 가지가 바로 나중에 말하는 '''"컨텍스트(문맥)"의 정체'''다. 프로세스를 멈췄다 재개하려면 이걸 저장했다 복원해야 한다 → [[컨텍스트 스위치]], [[struct proc]]의 `context` 필드.
+{/tip}
+
+----
+
+== 2. 프로그램 → 프로세스: 빌드와 로딩 ==
+
+자세한 것은 [[프로그램 로딩]]에 있고, 여기서는 흐름만.
+
+[[img:L3-13.png|3강 p.13. C program(text) →Compiler→ Assembly(text) →Assembler→ Object(binary) →Linker→ Executable(binary). 링커에는 정적 라이브러리(.a)도 들어간다.|large]]
+
+<pre class="ascii">
+   main.c  sum.c          .s            .o              p              프로세스
+      │                    │             │              │                 │
+      ├── Compiler ────────┤             │              │                 │
+      │   (gcc -S)         ├─ Assembler ─┤              │                 │
+      │                    │  (gcc -c)   ├─── Linker ───┤                 │
+      │                    │             │   (gcc/ld)   ├──── Loader ─────┤
+      │                    │             │              │                 │
+     text                text         binary         binary            메모리
+                                                    ←── 프로그램 ──→  ←프로세스→
+</pre>
+
+[[img:L3-19.png|3강 p.19. 로더가 디스크의 실행 파일 p를 메모리에 올리는 순간, 빨간 글씨로 "Now, OS takes control of running executable (p)!" — 이 지점부터가 운영체제 이야기다.|large]]
+
+이 그림의 메모리 배치가 곧 [[주소 공간]]이다. 위에서부터 Kernel virtual memory / User stack([[스택 포인터|%esp]]가 가리킴, 아래로 성장) / 빈 공간 / Run-time heap(`brk`, [[힙|malloc]]이 위로 성장) / Read-write segment(`.data`, `.bss`) / Read-only segment(`.init`, `.text`, `.rodata`) / Unused.
+
+----
+
+== 3. 프로세스의 두 얼굴 ==
+
+=== ① Control flow ===
+
+{def}
+"Processors do only one thing: from startup to shutdown, a CPU simply '''reads and executes a sequence of instructions, one at a time'''. This sequence is the CPU's '''control flow'''." (3강 p.24)
+{/def}
+
+=== ② Memory address space ===
+
+[[img:L3-25.png|3강 p.25. 왼쪽 Memory 안에 프로세스의 주소 공간(User stack / Heap / Read-write / Read-only), 오른쪽 CPU가 그 안의 명령어를 Fetch-Decode-Execute하며 Control Flow를 만든다. "프로세스 = 주소 공간 + 제어 흐름" 그림의 완성.|large]]
+
+{tip}
+0831 녹음본에서 교수님이 "꼭 기억하라"고 덧붙인 문장: "please '''remember about the memory address space is actually related to the set of rights of the process''' and it is a key concept in the '''protection'''."<br>
+→ 주소 공간은 "메모리 덩어리"가 아니라 '''접근 권한의 집합'''이다. 이게 protection의 출발점.
+{/tip}
+
+=== 가상화: 두 얼굴을 각각 속이기 ===
+
+{def}
+"OS provides two key virtualization for each process" (3강 p.26)<br>
+· '''Logical control flow''' — Each program '''seems''' to have exclusive use of the CPU (+ stack)<br>
+· '''Private virtual address space''' — Each program '''seems''' to have exclusive use of main memory
+{/def}
+
+핵심 단어는 '''seems'''다. 실제로는 공유하지만 독점처럼 보이게 하는 것 → [[가상화]].
+
+----
+
+== 4. 여러 프로세스를 어떻게 돌리나 ==
+
+[[img:L3-29.png|3강 p.29. A&B concurrent, A&C concurrent, B&C sequential. 겹치면 concurrent, 명확한 경계가 있으면 sequential.|large]]
+
+{warn}
+'''최다 함정.''' 싱글 코어에서도 실행 구간이 '''겹치면 concurrent'''다. "물리적으로 동시에 돌아야 한다"가 아니다. → [[동시성]]
+{/warn}
+
+[[img:L3-30.png|3강 p.30. Mechanism: Context Switch / Policy: Scheduling Policy. 오른쪽에 전환 시점이 화살표로 표시된 타임라인.|large]]
+
+{| class="table"
+! || 질문 || 답 || 배우는 곳
+|-
+| '''Mechanism''' || 어떻게 바꿔 끼우나? || '''[[컨텍스트 스위치]]''' || 4강
+|-
+| '''Policy''' || 다음엔 누구를 돌리나? || '''[[스케줄링]] 정책''' || 5~7강
+|}
+
+{tip}
+0831 녹음본, 교수님이 직접 "quite an important concept in the operating system course"라고 못 박은 부분: "'''the separation of mechanism and the policy''' … for the given mechanism, first pick the '''goal''' of the operating system and then make some proper policy. '''This is the core of the operating system design.'''"
+{/tip}
+
+----
+
+== 5. 프로세스 생성 5단계 ⭐ ==
+
+3강 p.32~33. 시험에 순서 그대로 나올 수 있다.
+
+# '''Load a program into memory''', creating the address space<br>· 프로그램은 처음엔 디스크에 실행 파일로 있다<br>· OS는 로딩을 '''lazily'''(게으르게) 수행 — 실제로 필요해지는 코드·데이터 조각만 그때그때 올린다 (나중의 demand paging 복선)
+# '''The program's run-time stack is allocated'''<br>· 지역 변수, 함수 인자, 리턴 주소용<br>· `main()`의 '''`argc`와 `argv` 배열'''로 초기화
+# '''The program's heap is created'''<br>· `malloc()`으로 요청하고 `free()`로 반납하는 동적 할당 공간
+# '''OS does some other initialization tasks'''<br>· I/O setup<br>· 모든 프로세스는 기본으로 '''3개의 file descriptor'''를 갖는다: '''stdin(0), stdout(1), stderr(2)'''
+# '''Start the program running at the entry point, `main()`'''<br>· OS가 CPU 제어권을 새 프로세스에 넘긴다
+
+{warn}
+4번의 "stdin / stdout / stderr는 '''OS가''' 열어 준다"가 포인트다. 표준 라이브러리(`stdio.h`)가 여는 게 아니다. 녹음본: "this file descriptor is set up by the operating system so '''you don't need to use the standard library''' to set up these default files."
+{/warn}
+
+{tip}
+5번의 "control transfer"가 무슨 뜻인지 녹음본이 풀어 준다: "the process would start from the '''kernel state''' and then transfer the control to the '''user space'''. Inside the user space, the program will run from the main function." → 새 프로세스는 커널 모드에서 태어나 user mode로 내려가며 `main()`에 도달한다. ([[유저 모드와 커널 모드]])
+{/tip}
+
+----
+
+== 6. 프로세스 상태 ⭐⭐ ==
+
+{def}
+"A process can be one of '''three states'''" (3강 p.34)<br>
+· '''Running''' — A process is running on a processor<br>
+· '''Ready''' — A process is ready to run but for some reason the OS has chosen '''not to run it''' at this given moment<br>
+· '''Blocked''' — A process has performed some kind of operation; when a process initiates an '''I/O request''' to a disk, it becomes blocked and thus '''some other process can use the processor'''
+{/def}
+
+[[img:L3-35.png|3강 p.35. Running ↔ Ready (Descheduled / Scheduled), Running → Blocked (I/O: initiate), Blocked → Ready (I/O: done). 시험에 그대로 그리라고 나올 수 있는 그림.|large]]
+
+[[sim:proc_states]]
+
+{warn}
+'''최다 출제 함정''': I/O가 끝나면 '''Blocked → Ready'''로 간다. '''Running으로 바로 가지 않는다.''' CPU는 그 사이 다른 프로세스가 쓰고 있을 수 있으므로, 다시 [[스케줄러]]의 선택을 받아야 한다.<br>
+Ready = "CPU만 주면 바로 뜀" / Blocked = "'''CPU를 줘도 못 뜀'''(I/O가 끝나야 함)".
+{/warn}
+
+자세한 전이 조건과 [[xv6]]의 6-상태 모델은 [[프로세스 상태]] 참고.
+
+----
+
+== 7. 프로세스 API ==
+
+{def}
+"These APIs are available on '''any modern OS'''" (3강 p.31)<br>
+· '''Create''' — e.g., `fork()` and `execv()`<br>
+· '''Destroy''' — e.g., `exit()` and `kill(SIGKILL)`<br>
+· '''Wait''' — e.g., `wait()` and `waitpid()`<br>
+· '''Miscellaneous Control''' (suspend/resume) — e.g., `kill(SIGSTOP)` and `signal()`<br>
+· '''Status''' — e.g., `getpid()`, `getpriority()`
+{/def}
+
+[[sim:fork_exec]]
+
+가장 유명한 짝이 [[fork]] + [[exec]] + [[wait]]다. `fork()`는 '''복제만''' 하고, `exec()`가 '''프로그램을 갈아 끼운다'''.
+
+{tip}
+0831 녹음본에서 교수님이 짚은, 시험에 나오기 좋은 통찰:<br>
+"we only have the '''fork''' system call. So … if we want to generate the process, we need a '''parent''' process. … if we need a process to generate another process, then it is actually related to the '''tree''' concept in the data structure. … it means that inside our computer the multiple processes form a '''tree''' and there is the '''root node'''. … all of the processes are actually originated from a '''single process''' and we give some special role to that root process — it is called '''init''' process in Linux."
+{/tip}
+
+각 API의 코드와 출력은 [[프로세스 API]], [[fork]], [[exec]], [[wait]] 문서에.
+
+----
+
+== 8. OS는 프로세스를 어떻게 기억하나 ==
+
+{def}
+'''Data Structures''' (3강 p.36)<br>
+· '''Process list''' for all processes — Ready processes / Blocked processes / Current running process<br>
+· '''Register context''' — Data & stack registers, Program counter, …<br>
+· '''Process Control Block (PCB)''' — OS's data structure that contains information about each process
+{/def}
+
+{exam}
+이 "Data Structures" 슬라이드는 2025F 중간고사 '''Problem 2''' 해설에 실려 있다. [[PCB]]의 정의("OS's data structure that contains information about each process")와 process list의 세 갈래(ready / blocked / running)를 그대로 쓸 수 있어야 한다. → [[2025F 중간고사 족보]]
+{/exam}
+
+=== xv6의 실물 PCB ===
+
+[[img:L3-37.png|3강 p.37. xv6의 struct proc — "PCB에 뭐가 들어가는가?"의 실물 답안.|large]]
+
+<pre class="c">
+// the information xv6 tracks about each process
+// including its register context and state
+struct proc {
+    char *mem;                  // Start of process memory
+    uint sz;                    // Size of process memory
+    char *kstack;               // Bottom of kernel stack for this process
+    enum proc_state state;      // Process state
+    int pid;                    // Process ID
+    struct proc *parent;        // Parent process
+    void *chan;                 // If non-zero, sleeping on chan
+    int killed;                 // If non-zero, have been killed
+    struct file *ofile[NOFILE]; // Open files
+    struct inode *cwd;          // Current directory
+    struct context context;     // Switch here to run process
+    struct trapframe *tf;       // Trap frame for the current interrupt
+};
+</pre>
+
+<pre class="c">
+// the registers xv6 will save and restore
+// to stop and subsequently restart a process
+struct context {
+    int eip;   // Index pointer register
+    int ebx;   // Called the base register
+    int esi;   // Source index register
+    int edi;   // Destination index register
+    int ebp;   // Stack base pointer register
+};
+
+// the different states a process can be in
+enum proc_state { UNUSED, EMBRYO, SLEEPING,
+                  RUNNABLE, RUNNING, ZOMBIE };
+</pre>
+
+{warn}
+이 코드는 '''x86 시절 xv6'''다 (`eip`, `ebx`, `esi`, `edi`, `ebp`). 과제 1에서 쓰는 xv6는 '''[[RISC-V]]''' 버전이라 `struct proc`의 필드 이름이 꽤 다르고, `struct trapframe *tf` 대신 `struct trapframe *trapframe`이다. 슬라이드 암기용과 과제 구현용을 따로 관리할 것. → [[struct proc]]
+{/warn}
+
+필드별 설명, [[RISC-V]] 버전과의 대조표, 과제 1이 추가하는 alarm 필드는 [[struct proc]]에 정리되어 있다.
+
+----
+
+== 9. 시스템 콜을 하나 추가하려면 (과제 1 연결) ==
+
+{warn}
+과제 1 안내문(Tips 1)은 "First, fix this regarding the '''3-From_Program_to_Process (30p-34p)'''"라고 지시한다. 그런데 현재 배포된 3강 PDF의 p.30~34는 mechanism/policy · [[프로세스 API]] · 프로세스 생성 · 프로세스 상태이고, '''시스템 콜 추가 절차 자체는 슬라이드에 없다'''. TA가 가리킨 것은 [[프로세스 API]] 부분(= "OS는 시스템 콜로 서비스를 노출한다")으로 보이며, 실제 절차는 [[xv6]] 소스를 따라가며 익혀야 한다.
+{/warn}
+
+[[sigalarm]]/[[sigreturn]] 같은 시스템 콜 하나를 추가하려면 '''여섯 개 파일'''을 손대야 한다.
+
+<pre class="ascii">
+  user/user.h      ① 유저가 부를 함수 선언
+       │
+  user/usys.pl     ② 스텁 어셈블리 생성 (a7 ← 번호, ecall)
+       │
+  kernel/syscall.h ③ 시스템 콜 번호 #define
+       │
+  kernel/syscall.c ④ 번호 → 함수 포인터 테이블 등록 + extern 선언
+       │
+  kernel/sysproc.c ⑤ sys_xxx() 본체 (인자 꺼내기, 일 하기)
+       │
+  kernel/proc.h/.c ⑥ 필요한 상태를 struct proc 에 추가 + allocproc 에서 초기화
+</pre>
+
+파일별 실제 코드와 체크리스트는 '''[[시스템 콜 추가 절차]]'''에, 과제 전체 구조는 '''[[과제1 xv6 alarm]]'''에 있다.
+
+----
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "실행 중인 프로그램의 인스턴스이며, control flow와 memory address space라는 두 추상화로 구성되는 것"은?
+{/quiz}
+{answer}
+'''Process'''(프로세스). 슬라이드는 "Not the same as '''program''' or '''processor'''"라고 못 박는다. Program은 디스크의 실행 파일, Processor는 하드웨어 CPU.
+{/answer}
+
+{quiz}
+'''(상태 전이)''' 디스크 I/O를 요청한 프로세스 P가 있다. I/O가 완료되었을 때 P의 상태는 어떻게 바뀌는가? 그리고 그 직후 P는 반드시 CPU를 받는가?
+{/quiz}
+{answer}
+'''Blocked → Ready''' ("I/O: done"). 그리고 '''반드시 받지는 않는다''' — Running으로 가려면 [[스케줄러]]에 의해 다시 '''Scheduled'''되어야 한다. "I/O 끝나면 바로 Running"은 최다 오답.
+{/answer}
+
+{quiz}
+'''(빈칸)''' 프로세스 생성 5단계의 빈칸을 채우시오.<br>
+① 프로그램을 메모리에 __________ (단, __________ 하게)<br>
+② __________ 할당 — `argc`, `argv`로 초기화<br>
+③ __________ 생성 — `malloc()`/`free()`용<br>
+④ I/O setup — 기본 file descriptor __________ 3개<br>
+⑤ 엔트리 포인트 __________ 에서 실행 시작
+{/quiz}
+{answer}
+① '''로드(load)''', '''lazily(게으르게)''' ② '''run-time stack''' ③ '''heap''' ④ '''stdin(0), stdout(1), stderr(2)''' ⑤ '''`main()`'''
+{/answer}
+
+{quiz}
+'''(서술)''' CPU 가상화를 구현하는 데 필요한 두 가지를 "메커니즘"과 "정책"으로 나누어 쓰고, 각각이 무엇인지 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+'''Mechanism = [[컨텍스트 스위치]]''' — 돌던 프로세스의 [[레지스터]]·[[프로그램 카운터|PC]]를 저장하고 다른 프로세스의 것을 복원해 실행 주체를 바꿔 끼우는 기술.<br>
+'''Policy = [[스케줄링]] 정책''' — 다음에 어떤 프로세스를 돌릴지 고르는 규칙.<br>
+(교수님 강조: "the separation of mechanism and the policy is the core of the operating system design.")
+{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# '''Program(디스크의 ELF) ≠ Process(메모리의 실행 인스턴스) ≠ Processor(하드웨어 CPU)'''.
+# 프로세스 = '''control flow + memory address space'''. 각 프로세스는 둘 다 '''exclusive'''하게 갖는다(고 착각한다).
+# CPU는 '''fetch – decode – execute'''만 반복한다.
+# Programmer-visible state = '''PC + register file + condition codes''' (+ memory). ← 2025F Problem 1
+# 빌드 파이프라인: C →(컴파일러)→ `.s` →(어셈블러)→ `.o` →(링커)→ 실행 파일 →(로더)→ 프로세스.
+# OS는 두 가지를 가상화한다: '''logical control flow'''(CPU 독점 착각) + '''private virtual address space'''(메모리 독점 착각). 키워드는 '''seems'''.
+# 실행 구간이 '''겹치면 concurrent''', 경계가 명확하면 sequential. 싱글 코어여도 concurrent 가능.
+# CPU 가상화 = '''mechanism([[컨텍스트 스위치]]) + policy([[스케줄링]])'''. 이 분리가 OS 설계의 핵심.
+# 프로세스 생성 5단계: '''load(lazily) → stack → heap → I/O setup(stdin/stdout/stderr) → main()에서 시작'''.
+# 3상태: '''Running / Ready / Blocked'''. 전이는 Scheduled / Descheduled / I/O initiate / '''I/O done → Ready'''.
+# OS의 자료구조: '''process list'''(ready·blocked·running) + '''register context''' + '''[[PCB]]'''. ← 2025F Problem 2
+# [[xv6]]의 PCB는 `struct proc`, 저장 레지스터는 `struct context`, 상태는 `enum proc_state { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE }`.
+# 프로세스는 [[fork]]로만 생기므로 시스템 전체 프로세스는 '''트리'''를 이루고, 루트는 '''init'''이다.
+
+== 관련 문서 ==
+* [[프로세스 상태]] / [[프로세스 목록]] / [[PCB]] / [[struct proc]]
+* [[프로세스 API]] / [[fork]] / [[exec]] / [[wait]]
+* [[프로그램 로딩]] / [[주소 공간]]
+* [[시스템 콜 추가 절차]] / [[과제1 xv6 alarm]]
+* [[가상화]] / [[동시성]] / [[운영체제란]]
+* [[컨텍스트 스위치]] / [[스케줄링]] / [[제한적 직접 실행]]
+* [[레지스터]] / [[프로그램 카운터]] / [[스택 포인터]] / [[스택]] / [[힙]]
+* [[xv6]] / [[OSTEP]] / [[RISC-V]]

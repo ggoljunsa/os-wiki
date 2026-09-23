@@ -1,0 +1,653 @@
+key: 락
+title: 락 (Lock)
+category: 9강 Lock, 핵심
+---
+8강은 "[[race condition]]을 막으려면 [[critical section]]을 [[atomic|atomic]]하게 만들어야 한다"까지 왔다. 9강의 질문은 하나다:
+
+> "'''But how should we build a lock?'''" (p.13)
+
+이 문서는 '''락을 막 구현했을 때 무엇이 어떻게 고장나는지를 순서대로''' 따라간다. 교수님의 강의 구조 자체가 "'''No를 하나씩 Yes로 바꿔 가는 과정'''"이므로, 각 단계마다 ① 슬라이드 코드 ② '''무엇이 고장나는가 / 무엇이 해결됐고 무엇이 남았나''' ③ 시뮬레이터를 붙여 두었다. OSTEP 28장에 해당한다.
+
+{info}전체 흐름 한 줄: '''[[인터럽트 비활성화|인터럽트 끄기]] → [[flag 락|그냥 flag]](실패) → 하드웨어 [[atomic]] 명령([[test-and-set]], [[compare-and-swap]], [[fetch-and-add]])으로 [[spin lock]] → spin 낭비를 줄이는 OS 지원([[yield 락|yield]], [[queue 락|park/unpark]], [[futex]])'''{/info}
+
+== 락이란 무엇인가 (p.12) ==
+
+<pre class="c">
+lock_t mutex;            // 락 변수 하나 (모든 스레드가 같은 것을 써야 의미가 있다)
+
+lock(&mutex);            // 진입 — 남이 쥐고 있으면 여기서 기다린다
+counter = counter + 1;   // critical section
+unlock(&mutex);          // 퇴장 — 기다리던 스레드 하나가 들어올 수 있다
+</pre>
+
+* '''lock 변수''' (`lock_t`) — 락의 상태를 담는다. 보통 "available(free) / held(acquired)" 두 상태.
+* '''`lock()`''' — 락이 free면 획득하고 진입한다. held면 '''리턴하지 않는다'''(기다린다).
+* '''`unlock()`''' — 락을 놓는다. 기다리던 스레드가 있으면 그중 하나가 획득한다.
+* '''owner''' — 락을 현재 쥐고 있는 스레드. 구현에 따라 명시적으로 저장하기도 한다([[futex]]의 robust mutex).
+
+> "'''Ensure that any such critical section executes as if it were a single atomic instruction.'''" (p.12)
+
+{warn}락은 '''선점을 막지 않는다'''. 락을 쥔 스레드도 [[타이머 인터럽트]]로 선점된다. 락이 하는 일은 "선점돼 있는 동안 '''남이 critical section에 못 들어오게'''" 하는 것뿐이다. → [[mutual exclusion]]{/warn}
+
+== 락을 만들려면 무엇이 필요한가 (p.13) ==
+
+{def}"Efficient locks provide mutual exclusion at '''low cost'''."
+"Building a lock needs some help from the '''hardware (i.e., CPU)''' and the '''OS'''."{/def}
+
+이 한 문장이 강의 후반부의 목차다. '''하드웨어 → [[atomic]] 명령'''(p.19~), '''OS → sleep/wakeup 지원'''(p.31~).
+
+== 평가 기준 세 가지 (p.14) ==
+
+앞으로 모든 구현을 이 세 잣대로 잰다. 자세한 것은 [[락 평가 기준]].
+
+{|
+! 기준 || 질문 (슬라이드 원문)
+|-
+| '''Mutual exclusion (correctness)''' || "Does the lock work, preventing multiple threads from entering a critical section?"
+|-
+| '''Fairness''' || "Does each thread contending for the lock get a fair shot at acquiring it once it is free? ('''Starvation''')"
+|-
+| '''Performance''' || "The '''time overheads''' added by using the lock"
+|}
+
+{exam}⭐⭐⭐ '''이 3기준 × 구현별 Yes/No 표'''가 시험에 내기 딱 좋은 형태다. 슬라이드에도 p.24, p.29, p.42 세 번 반복해서 나온다. 이 문서 맨 아래의 종합표를 외워라.{/exam}
+
+----
+
+== ① flag 락 — 그냥 변수 하나로 해 보기 (p.16~18) ==
+
+가장 소박한 시도. 소프트웨어만으로, `flag` 변수(0=사용 가능, 1=사용 중)를 둔다.
+
+[[img:L9-16.png|Why Hardware Support Needed? — flag만 쓴 lock 코드|medium]]
+
+<pre class="c">
+ 1   typedef struct __lock_t { int flag; } lock_t;
+ 2
+ 3   void init(lock_t *mutex) {
+ 4       // 0 -> lock is available, 1 -> held
+ 5       mutex->flag = 0;
+ 6   }
+ 7
+ 8   void lock(lock_t *mutex) {
+ 9       while (mutex->flag == 1)   // (1) TEST the flag
+10             ;                    //     spin-wait (do nothing)
+11       mutex->flag = 1;           // (2) now SET it !
+12   }
+13
+14   void unlock(lock_t *mutex) {
+15       mutex->flag = 0;
+16   }
+</pre>
+
+'''줄 읽기''': 9번 줄이 '''TEST'''(남이 쥐고 있나 확인), 11번 줄이 '''SET'''(내가 쥔다고 표시). 딱 보면 맞는 것 같다. 그런데 이 둘이 '''별개의 명령'''이라는 게 함정이다.
+
+=== 무엇이 고장나는가 ===
+
+[[img:L9-18.png|Two threads obtain locks! — ①②③④⑤ 순서로 두 스레드가 모두 락을 얻는다|large]]
+
+슬라이드 그림의 ①~⑤ 마커는 이런 뜻이다:
+
+{|
+! 마커 || 무슨 일 || flag 값
+|-
+| ① || Thread1이 `lock()` 진입, 9번 줄 `while (flag == 1)` 검사 통과 (flag는 0) || 0
+|-
+| ② || '''Thread1 & Context Switch''' — 11번 줄 `flag = 1`을 '''실행하기 직전에''' 끊긴다. 슬라이드 주석: ''flag is still 0'' || '''0'''
+|-
+| ③ || Thread2가 `lock()` 진입 → 검사 통과 (flag가 아직 0이므로!) || 0
+|-
+| ④ || Thread2가 `flag = 1` 실행 → '''락 획득'''. 슬라이드 주석: ''flag becomes 1 (obtain the lock)'' || 1
+|-
+| ⑤ || Thread1 복귀 → 자기 차례의 11번 줄 `flag = 1` 실행 → '''자기도 락 획득'''. 주석: ''set flag to 1 too!!'' || 1
+|}
+
+> '''"Two threads obtain locks!"'''
+
+[[sim:flag_lock]]
+
+{warn}🔥 '''무엇이 고장나는가: mutual exclusion 자체가 깨진다.'''
+[[race condition]]을 막으려고 쓴 코드 안에 '''또 race condition이 있다'''. 원인은 9번 줄(TEST)과 11번 줄(SET)이 '''두 개의 분리된 명령'''이고, 그 틈에서 [[컨텍스트 스위치]]가 가능하다는 것.
+게다가 문제가 하나 더 있다 — '''Problem 2: Spin-waiting wastes time''' (기다리는 동안 CPU를 태운다).{/warn}
+
+{analogy}🎭 flag 락 = '''화장실 문의 "사용 중" 팻말을 보고 나서 내가 팻말을 뒤집기까지의 틈'''이다. A가 "비어 있음"을 확인하고 손을 뻗는 순간 전화를 받으러 갔다. B가 와서 역시 "비어 있음"을 보고 팻말을 뒤집고 들어간다. A가 돌아와 '''자기가 본 것만 믿고''' 팻말을 뒤집고 들어간다. 둘이 같이 들어갔다.
+해결책은? '''"확인하고 뒤집기"를 한 동작으로''' 만드는 것 — 그게 [[test-and-set]]이다.{/analogy}
+
+> "'''An atomic instruction supported by hardware is needed!'''" (p.17)
+
+자세한 것은 [[flag 락]].
+
+----
+
+== ② 인터럽트 비활성화 (p.15) ==
+
+시간 순서로는 이쪽이 더 오래된 해법이다. race의 원인이 인터럽트에 의한 [[컨텍스트 스위치]]니까, '''critical section 동안 인터럽트를 꺼 버리자'''.
+
+[[img:L9-15.png|Controlling Interrupts — DisableInterrupts / EnableInterrupts|medium]]
+
+<pre class="c">
+1   void lock() {
+2       DisableInterrupts();
+3   }
+4   void unlock() {
+5       EnableInterrupts();
+6   }
+</pre>
+
+{def}"One of the earliest solutions used to provide mutual exclusion. '''Invented for single-processor systems'''."{/def}
+
+=== 무엇이 고장나는가 ===
+
+{warn}🔥 슬라이드가 든 문제 '''세 가지 — 셋 다 중요하다'''.
+# '''Require too much trust in applications''' — 유저가 인터럽트를 끌 수 있으면, greedy/malicious 프로그램이 인터럽트를 끄고 '''CPU를 독점'''한다. 4강에서 배운 "OS가 통제권을 잃는" 바로 그 상황이다 → [[타이머 인터럽트]]는 [[특권 명령]]이어야 한다.
+# '''Interrupts become lost''' — 오래 꺼 두면 디스크 I/O 완료 신호 같은 인터럽트를 '''놓친다'''.
+# '''Do not work on multiprocessors''' ← '''결정타'''. 인터럽트를 끄는 건 '''그 CPU 하나'''에만 적용된다. 다른 CPU에서 도는 스레드는 인터럽트와 무관하게 critical section에 들어온다.{/warn}
+
+{info}그래도 '''커널 내부에서는 여전히 쓴다'''. 유저를 신뢰할 필요가 없고 아주 짧은 구간이면 유효하다. [[xv6]]의 `push_off()`/`pop_off()`가 그 예다 — 단, xv6도 멀티코어이므로 '''스핀락과 함께''' 쓴다.{/info}
+
+자세한 것은 [[인터럽트 비활성화]].
+
+----
+
+== ③ test-and-set 스핀락 (p.19~21) ==
+
+하드웨어가 '''TEST와 SET을 한 덩어리로''' 해 주면 ①의 문제가 사라진다.
+
+[[img:L9-19.png|Test And Set (Atomic Exchange) — CPU가 하드웨어로 구현|medium]]
+
+<pre class="c">
+1   /* implemented in CPU as hardware */
+2   int TestAndSet(int *ptr, int new) {
+3       int old = *ptr;       // (1) fetch old value at ptr      = TEST
+4       *ptr = new;           // (2) store 'new' into ptr        = SET
+5       return old;           // (3) return the OLD value
+6   }
+</pre>
+
+{def}* Return ('''testing''') old value pointed to by the ptr
+* Simultaneously update ('''setting''') said value to new
+* "This sequence of operations is performed '''atomically''' — '''All or nothing and no context switch'''"{/def}
+
+{warn}⭐ '''반환값은 새 값이 아니라 옛 값(old)이다.''' 시험에서 가장 자주 뒤집히는 지점. → [[자주 틀리는 함정 모음]]{/warn}
+
+이걸로 만든 스핀락:
+
+[[img:L9-20.png|A Simple Spin Lock using test-and-set|medium]]
+
+<pre class="c">
+ 1   typedef struct __lock_t {
+ 2       int flag;
+ 3   } lock_t;
+ 4
+ 5   void init(lock_t *lock) {
+ 6       // 0 indicates that lock is available,
+ 7       // 1 that it is held
+ 8       lock->flag = 0;
+ 9   }
+10
+11   void lock(lock_t *lock) {
+12       while (TestAndSet(&lock->flag, 1) == 1)
+13                ;        // spin-wait
+14   }
+15
+16   void unlock(lock_t *lock) {
+17       lock->flag = 0;
+18   }
+</pre>
+
+'''12번 줄 하나로 두 경우가 갈린다''' (반환값으로 판별):
+
+{|
+! 락 상태 || `TestAndSet(&flag, 1)` || 부수효과 || 결과
+|-
+| '''free''' (flag=0) || '''0을 반환''' || flag를 1로 '''설정''' || `while` 탈출 → '''획득'''
+|-
+| '''held''' (flag=1) || '''1을 반환''' || 1을 1로 덮어씀 (무해) || 계속 '''spin'''
+|}
+
+[[img:L9-21.png|①②③④ — T1이 락을 얻고, T2는 TestAndSet이 1을 반환해 계속 spinning|large]]
+
+슬라이드 ①~④ 마커:
+* ① Thread1이 `lock()` 호출 → ② '''Thread1 & Context Switch''': ''TestAndSet() returns 0, flag becomes 1 (obtain the lock)''
+* ③ Thread2가 `lock()` 호출 → ④ '''Thread2 & Context Switch''': ''TestAndSet() returns 1, spinning….''
+
+p.18과 대비되는 '''"성공" 그림'''이다. 검사와 설정 사이에 끼어들 틈이 없다.
+
+[[sim:test_and_set]]
+
+{warn}✅ '''무엇이 해결됐고 무엇이 남았나 (p.24)'''
+* '''Correctness: Yes''' — 한 스레드만 critical section에 진입한다
+* '''Fairness: No''' — "a thread spinning may '''spin forever'''". 누가 다음에 잡을지 보장이 없다 → '''starvation'''
+* '''Performance: No''' — 특히 '''single CPU'''에서 치명적. "lock을 쥔 스레드가 critical section 안에서 preempt되면, '''나머지 모든 스레드가 각자 [[time slice]]를 통째로 spin으로 낭비'''한다"{/warn}
+
+자세한 것은 [[test-and-set]] · [[spin lock]].
+
+----
+
+== ④ compare-and-swap (p.22~23) ==
+
+또 다른 하드웨어 원자 명령. '''조건부''' 갱신이라는 점이 [[test-and-set]]과 다르다.
+
+[[img:L9-22.png|Compare-And-Swap (CAS)와 이를 이용한 spin lock|medium]]
+
+<pre class="c">
+1   int CompareAndSwap(int *ptr, int expected, int new) {
+2       int actual = *ptr;
+3       if (actual == expected)   // 기대값과 같을 때만
+4                *ptr = new;      // 갱신
+5       return actual;            // 어느 쪽이든 '실제' 값을 반환
+6   }
+</pre>
+
+<pre class="c">
+1   void lock(lock_t *lock) {
+2       while (CompareAndSwap(&lock->flag, 0, 1) == 1)
+3                ; // spin
+4   }
+</pre>
+
+읽는 법: "flag가 '''0이길 기대'''하고, 맞으면 '''1로 바꿔라'''". 반환값이 1이면 남이 쥐고 있었다는 뜻이니 계속 spin.
+
+x86 실제 구현 (p.23)은 `lock; cmpxchgl` 인라인 어셈블리다. 어셈블리 자체는 외울 필요 없고 다음 두 줄이 포인트:
+* spin lock을 만드는 용도로는 [[test-and-set]]과 '''동일'''하게 동작한다
+* 하지만 CAS는 '''더 강력한''' 명령 — '''lock-free synchronization''' 구현에도 쓸 수 있다
+
+{warn}✅ '''무엇이 해결됐고 무엇이 남았나''': 성적표는 [[test-and-set]] 스핀락과 '''똑같다''' (Y / N / N). CAS의 추가 가치는 락 밖, 즉 lock-free 자료구조에 있다.{/warn}
+
+[[sim:cas_llsc]]
+
+자세한 것은 [[compare-and-swap]].
+
+----
+
+== ⑤ load-linked / store-conditional (보충) ==
+
+{info}⚠️ '''이 절은 교수님 슬라이드에 없다.''' OSTEP 28.9의 내용이고, [[RISC-V]]가 실제로 쓰는 방식이라 [[과제1 xv6 alarm|xv6]] 이해에 도움이 되므로 보충한다. 시험 우선순위는 낮다.{/info}
+
+<pre class="c">
+int LoadLinked(int *ptr) {
+    return *ptr;                    // 값을 읽고 '이 주소를 지켜보겠다'고 표시
+}
+
+int StoreConditional(int *ptr, int value) {
+    if (LoadLinked 이후 그 주소에 아무도 쓰지 않았다면) {
+        *ptr = value;
+        return 1;                   // 성공
+    } else {
+        return 0;                   // 실패 — 다시 시도해야 한다
+    }
+}
+
+void lock(lock_t *lock) {
+    while (1) {
+        while (LoadLinked(&lock->flag) == 1)
+            ;                               // 누가 쥐고 있으면 spin
+        if (StoreConditional(&lock->flag, 1) == 1)
+            return;                         // 내가 먼저 썼다 -> 획득
+        // 실패했으면 처음부터 다시
+    }
+}
+</pre>
+
+'''[[compare-and-swap|CAS]]와의 차이''': CAS는 "값이 기대와 같으면 써라", LL/SC는 "'''내가 읽은 뒤로 아무도 안 건드렸으면''' 써라". 후자는 ABA 문제에 강하다. [[RISC-V]]의 `lr.w` / `sc.w`가 이것이다.
+
+[[sim:cas_llsc]]
+
+자세한 것은 [[load-linked store-conditional]].
+
+----
+
+== ⑥ fetch-and-add 티켓 락 (p.25~29) ==
+
+드디어 '''fairness'''가 해결된다.
+
+[[img:L9-25.png|Fetch-And-Add — 옛 값을 반환하면서 원자적으로 1 증가|medium]]
+
+<pre class="c">
+1      int FetchAndAdd(int *ptr) {
+2          int old = *ptr;
+3          *ptr = old + 1;
+4          return old;              // 여기서도 반환은 '옛 값'
+5      }
+</pre>
+
+{exam}🎯 '''2025F 중간고사 Problem 7이 FetchAdd 기반 락의 빈칸 채우기였다.''' 이 명령과 다음의 ticket lock은 '''반드시 손으로 시뮬레이션'''해 볼 것. 문제와 교수님의 의도 답은 [[2025F 중간고사 족보]]에 그대로 옮겨 두었다.{/exam}
+
+[[img:L9-26.png|Ticket Lock — ticket과 turn 두 필드|medium]]
+
+<pre class="c">
+ 1   typedef struct __lock_t {
+ 2       int ticket;                                  // 다음에 발급될 번호표
+ 3       int turn;                                    // 지금 서비스 중인 번호
+ 4   } lock_t;
+ 5
+ 6   void lock_init(lock_t *lock) {
+ 7       lock->ticket = 0;
+ 8       lock->turn = 0;
+ 9   }
+10
+11   void lock(lock_t *lock) {
+12       int myturn = FetchAndAdd(&lock->ticket);     // (1) 번호표 뽑기 (원자적)
+13       while (lock->turn != myturn)                 // (2) 내 차례 기다리기
+14                ; // spin
+15   }
+16   void unlock(lock_t *lock) {
+17       FetchAndAdd(&lock->turn);                    // (3) "다음 손님!"
+18   }
+</pre>
+
+{analogy}🎭 '''은행 번호표 시스템'''이다. `ticket` = 번호표 발급기, `turn` = 전광판. 들어오면서 번호표를 뽑고(12번 줄), 전광판에 내 번호가 뜰 때까지 기다리고(13번 줄), 볼일이 끝나면 전광판을 1 올린다(17번 줄). '''번호표를 뽑는 동작이 원자적'''이므로 두 사람이 같은 번호를 받을 수 없다.{/analogy}
+
+=== 슬라이드 그림 추적 (p.27~28) ===
+
+[[img:L9-27.png|Ticket Lock (Cont.) ①~⑤ — T1은 즉시 획득, T2는 myturn=1로 spinning|large]]
+
+{|
+! 마커 || 무슨 일 || myturn || ticket || turn
+|-
+| ① || 초기화 (`lock_init`) || — || 0 || 0
+|-
+| ② || '''T1 & Context Switch''' — T1이 `FetchAndAdd(&ticket)` → myturn=0, ticket은 1로 || T1: '''0''' || '''1''' || 0
+|-
+| ③ || Thread2 진입 || || ||
+|-
+| ④ || '''T2 & Spinning''' — T2가 번호표를 뽑아 myturn=1, ticket은 2로. `turn(0) != 1` → '''spin''' || T2: '''1''' || '''2''' || 0
+|-
+| ⑤ || T1 복귀: `turn(0) == myturn(0)` → '''obtain the lock!''' || || 2 || 0
+|-
+| ⑥ (p.28) || T1이 `unlock()` → `FetchAndAdd(&turn)` → turn=1 || || 2 || '''1'''
+|-
+| ⑦ (p.28) || spin 중이던 T2: `turn(1) == myturn(1)` → '''obtain the lock!''' || || 2 || 1
+|}
+
+[[img:L9-28.png|Ticket Lock (Cont.) ⑥⑦ — unlock이 turn을 올리자 T2가 정확히 다음 차례로 들어간다|large]]
+
+[[sim:ticket_lock]]
+
+{warn}✅ '''무엇이 해결됐고 무엇이 남았나 (p.29)'''
+* '''Correctness: Yes'''
+* '''Fairness: Yes''' ← '''달라진 부분'''. "Fetch-and-Add enable multiple threads to '''equally share''' the critical section". 각 스레드가 '''고유한''' myturn을 받으므로 '''FIFO 순서'''가 보장되고 '''starvation이 불가능'''하다. 슬라이드 표현으로는 "ensure '''progress for all threads'''".
+* '''Performance: 여전히 No''' — spin 자체는 그대로다. 락을 쥔 스레드가 preempt되면 나머지가 [[time slice]]를 낭비하는 문제는 남는다.{/warn}
+
+자세한 것은 [[fetch-and-add]] · [[ticket lock]].
+
+----
+
+== spinning 문제 — 왜 이렇게 낭비인가 (p.30) ==
+
+{def}"Hardware-based spin locks are '''simple, and they work'''. In some cases, these solutions can be quite '''inefficient''' — '''Any time a thread gets caught spinning, it wastes an entire time slice doing nothing but checking a value'''."{/def}
+
+슬라이드의 노란 박스: "'''How to avoid spinning? We'll need OS support too!'''" — p.13에서 예고한 "하드웨어 + OS" 중 이제 OS 차례다.
+
+구체적 시나리오 (p.24가 든 예):
+* CPU가 '''하나'''이고 스레드가 '''N개'''
+* 락을 쥔 T1이 critical section 안에서 preempt된다
+* T2~TN이 차례로 스케줄되어 각자 '''[[time slice]]를 통째로 spin에 태운다'''
+* T1이 다시 돌아와 락을 놓을 때까지 '''(N−1) × time slice'''가 증발
+
+{warn}⭐ '''CPU가 여러 개면 얘기가 다르다.''' critical section이 아주 짧고 코어가 남아돈다면, [[컨텍스트 스위치]]하는 것보다 몇 사이클 spin하는 게 더 싸다. 그래서 [[xv6]]를 포함한 커널들은 여전히 스핀락을 쓴다. '''spin이 나쁜 것은 "싱글 CPU"이거나 "critical section이 길 때"'''라는 조건을 붙여 기억할 것.{/warn}
+
+----
+
+== ⑦ yield 락 (p.31~32) ==
+
+"spin할 것 같으면 '''CPU를 양보'''하라."
+
+[[img:L9-31.png|A Simple Approach: Just Yield|medium]]
+
+<pre class="c">
+ 1   void init() {
+ 2       flag = 0;
+ 3   }
+ 4
+ 5   void lock() {
+ 6       while (TestAndSet(&flag, 1) == 1)
+ 7           yield();  // give up the CPU
+ 8   }
+ 9
+10   void unlock() {
+11       flag = 0;
+12   }
+</pre>
+
+`yield()`는 호출한 스레드를 '''running → ready'''로 옮기는 시스템 콜이다 (5강의 [[프로세스 상태]] 전이). spin으로 태울 [[time slice]]를 남에게 넘긴다.
+
+{warn}🔥 '''무엇이 남았나 (p.32) — 둘 다 심각하다'''
+# '''Context switch 비용''': 스레드가 N개일 때 락 보유자가 잠들면 '''나머지 N−1개가 전부 run-and-yield'''를 반복한다 → '''N−1번의 컨텍스트 스위치'''가 계속 발생. 락을 오래 쥐면 오버헤드가 극심하다.
+# '''Starvation 여전''': "There is a possibility that the thread 1 '''repeatedly gets the lock'''." 누가 다음에 잡을지는 여전히 운이다.{/warn}
+
+교훈: "무작정 양보"는 낭비를 '''줄일 뿐 없애지 못하고''', 순서 보장도 없다 → '''잠재우고 정확히 깨우자'''.
+
+자세한 것은 [[yield 락]].
+
+----
+
+== ⑧ queue 락 — park / unpark (p.33~38) ==
+
+{def}'''`park()`''' — Put a calling thread to '''sleep'''.
+'''`unpark(threadID)`''' — '''Wake''' a particular thread as designated by threadID.{/def}
+
+"기다림"을 CPU 낭비(spin)가 아니라 '''명단에 이름 적고 자기'''로 바꾸는 발상이다. 큐(queue)가 대기자 명단이다.
+
+[[img:L9-34.png|Lock With Queues, Test-and-set, Yield, And Wakeup — lock() 부분|large]]
+
+<pre class="c">
+ 1   typedef struct __lock_t { int flag; int guard; queue_t *q; } lock_t;
+ 2
+ 3   void lock_init(lock_t *m) {
+ 4       m->flag  = 0;
+ 5       m->guard = 0;
+ 6       queue_init(m->q);
+ 7   }
+ 8
+ 9   void lock(lock_t *m) {
+10       while (TestAndSet(&m->guard, 1) == 1)
+11           ;                            // (1) guard 락을 spin으로 획득
+12       if (m->flag == 0) {
+13           m->flag = 1;                 // (2) 진짜 락 획득
+14           m->guard = 0;                //     guard 해제 — 다른 스레드가 올 수 있다
+15       } else {
+16           queue_add(m->q, gettid());   // (3) 대기열에 내 TID 등록
+17           m->guard = 0;                //     guard 해제
+18           park();                      // (4) 잠들기
+19       }
+20   }
+</pre>
+
+'''슬라이드 주석''': ''m->guard prevents the function lock from being executed by multiple threads simultaneously''
+
+{|
+! 변수 || 정체
+|-
+| '''`flag`''' || '''진짜 락''' — critical section을 보호한다
+|-
+| '''`guard`''' || '''락 내부 자료구조(flag와 queue)를 보호하는 보조 [[spin lock]]'''. "락을 만들기 위한 락"
+|-
+| '''`q`''' || 대기 중인 스레드 ID들의 큐
+|}
+
+[[img:L9-35.png|unlock()과 Limitations|large]]
+
+<pre class="c">
+22   void unlock(lock_t *m) {
+23       while (TestAndSet(&m->guard, 1) == 1)
+24            ;                                   // guard 획득
+25       if (queue_empty(m->q))
+26            m->flag = 0;                        // 기다리는 사람 없음 -> 락 해제
+27       else
+28            unpark(queue_remove(m->q));         // 다음 스레드를 깨움 (flag는 1 유지!)
+29       m->guard = 0;
+30   }
+</pre>
+
+{warn}⭐ '''미묘하지만 중요한 디테일''': 대기자가 있으면 '''`flag`를 0으로 내리지 않고''' 다음 스레드를 깨운다 — 락을 '''손에서 손으로 직접 전달(hand-off)'''하는 것이다. 슬라이드 주석도 ''hold lock (for next thread!)''. 깨어난 스레드는 flag를 다시 검사/설정할 필요가 없다.{/warn}
+
+=== Limitations (p.35) ===
+
+{warn}🔥 '''무엇이 해결됐고 무엇이 남았나'''
+✅ 해결: spin으로 [[time slice]]를 통째로 태우는 문제가 사라졌다. 대기자는 '''잠든다'''.
+🔥 남은 문제 1: '''"Don't avoid spin-waiting entirely"''' — `guard`를 잡을 때는 여전히 spin한다. 다만 "the time spent spinning is '''quite limited (just a few instructions)'''".
+🔥 남은 문제 2: '''"Sleep forever" — Wakeup/waiting race condition.'''{/warn}
+
+=== 🔥 Wakeup/Waiting Race (p.36) ===
+
+[[img:L9-36.png|Wakeup/Waiting Race — ①②③④, Thread B가 영원히 잠든다|large]]
+
+{def}"In case of releasing the lock (thread A) '''just before the call to `park()`''' (thread B) → '''Thread B would sleep forever''' (potentially)"{/def}
+
+{|
+! 마커 || 무슨 일
+|-
+| ① || '''Thread A & Context Switch''' — A가 `queue_add` + `guard=0`까지 했는데 '''`park()` 호출 직전에''' 끊긴다
+|-
+| ② || Thread B가 `unlock()` 진입
+|-
+| ③ || Thread B가 큐에서 A를 꺼내 '''`unpark(A)`''' 호출 — 그런데 '''A는 아직 잠들지 않았다''' → 깨우기 신호가 허공에 사라진다 ('''lost wakeup''')
+|-
+| ④ || A가 다시 스케줄되어 `park()` 실행 → '''영원히 잠듦'''. 슬라이드 주석: ''Thread A wakes up but starts to sleep immediately''
+|}
+
+{warn}⭐ '''p.18의 flag race와 구조가 완전히 같다''': "등록"과 "잠들기" 사이의 틈. '''[[atomic|원자적]]이어야 할 두 동작이 분리되어 있으면 늘 race가 생긴다''' — 9강 전체를 관통하는 패턴이다.{/warn}
+
+=== ⑨ setpark() — Solaris의 해결책 (p.37~38) ===
+
+[[img:L9-38.png|setpark() (Cont.) — ①②③, unpark가 먼저 와도 park가 무시된다|large]]
+
+<pre class="c">
+1   queue_add(m->q, gettid());
+2   setpark();       // new code — "나 곧 park할 거야" 예고
+3   m->guard = 0;
+4   park();
+</pre>
+
+{def}"By calling this routine, a thread can indicate it is '''about to park'''. If it happens to be interrupted and another thread calls `unpark` before `park` is actually called, the '''subsequent park returns immediately instead of sleeping'''."{/def}
+
+슬라이드 ①②③:
+* ① A가 `setpark()` 후 context switch
+* ② ''Thread B cannot progress until m->guard = 0'' — guard 때문에 B가 잠시 대기
+* ③ ''Thread B now invokes unpark(), '''subsequent park() is ignored'''''
+
+[[sim:queue_lock]]
+
+자세한 것은 [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[guard]].
+
+----
+
+== ⑩ futex — 리눅스의 two-phase lock (p.39~41) ==
+
+{def}'''futex''' = '''fast userspace mutex'''. park()의 "'''Checked'''" and "'''Queued'''" version.
+* '''`futex_wait(address, value)`''' — Put a calling thread to sleep queue '''only if `*address == value`'''
+* '''`futex_wake(address)`''' — Wake a waiting thread that waits for address{/def}
+
+{warn}⭐ '''`futex_wait`의 조건 검사가 [[setpark]]를 대신한다.''' "잠들기 전에 값을 한 번 더 확인"하는 일을 '''커널이 [[atomic|원자적]]으로''' 해 주므로 lost wakeup이 생기지 않는다. 주소(address) 하나가 대기열의 key가 된다.{/warn}
+
+[[img:L9-40.png|Futex-based lock implementation — glibc mutex의 골격|large]]
+
+<pre class="c">
+ 1   void lock(int *mutex) {
+ 2       if (atomic_bit_test_set(mutex, 31) == 0) return;   // (1) 빠른 경로: 경쟁 없으면 끝
+ 3       atomic_increment(mutex);                           // (2) 대기자 수 +1
+ 4       while (1) {
+ 5           if (atomic_bit_test_set(mutex, 31) == 0) {     // (3) 다시 시도
+ 6               atomic_decrement(mutex);                   //     성공 -> 대기자 수 -1
+ 7               return;
+ 8           }
+ 9           v = *mutex;                                    // (4) 현재 상태를 읽어 두고
+10           if (v >= 0) continue;                          //     bit31이 0이면(=풀림) 재시도
+11           futex_wait(mutex, v);                          // (5) 값이 v 그대로일 때만 잠든다
+12       }
+13   }
+14
+22   void unlock(int *mutex) {
+23       if (atomic_add_zero(mutex, 0x80000000))            // 대기자 0이면 커널 진입 없이 끝
+24           return;
+25       futex_wake(mutex);                                 // 대기자가 있을 때만 커널
+26   }
+</pre>
+
+'''정수 하나에 상태를 패킹'''하는 것이 핵심이다:
+
+{|
+! 비트 || 의미
+|-
+| '''bit 31''' (최상위) || 락이 잡혀 있는가 (1 = held). 그래서 값이 '''음수면 held'''
+|-
+| 나머지 비트 || '''대기자 수'''
+|}
+
+10번 줄 `if (v >= 0) continue;`가 "bit31이 0 = 락이 풀렸다 = 잠들 필요 없다"를 뜻하는 이유다.
+
+{warn}✅ '''무엇이 해결됐나 — 코드를 외울 필요는 없고 설계 철학이 포인트'''
+"'''경쟁이 없으면 유저 공간에서 [[atomic]] 연산만으로 끝나고(커널 진입 0회), 경쟁이 있을 때만 커널로 들어간다.'''" 이것이 "'''fast userspace''' mutex"라는 이름의 뜻이고, [[two-phase lock]]의 정의이기도 하다.{/warn}
+
+=== park/unpark vs futex (p.41) ===
+
+{|
+! || '''park/unpark''' (Solaris) || '''futex''' (Linux)
+|-
+| 성격 || '''Purely scheduling primitive''' || 락 지원에 특화된 시스템 콜
+|-
+| 커널이 유지하는 것 || '''minimal state''' || '''대기 queue를 커널이 직접 관리''' (락 상태는 '''유저가 소유''')
+|-
+| 왜? || || '''Fair wakeup''' (priority inheritance) · '''Robust mutexes''' (owner-death detection)
+|}
+
+"Why?"에 대한 답 두 가지가 슬라이드에 적혀 있다 — 커널이 대기 큐를 알고 있어야 '''우선순위 상속'''([[priority inversion]] 대응)과 '''락 소유자가 죽은 것을 감지'''하는 일이 가능하다.
+
+자세한 것은 [[futex]] · [[two-phase lock]] · [[priority inversion]].
+
+----
+
+== 최종 평가 (p.42) ==
+
+{def}'''Correctness: Yes''' — The spin lock only allows a single thread to enter the critical section
+'''Fairness: Yes''' — Fetch-and-Add enable multiple threads to equally share the critical section
+'''Performance: Yes''' — Spinning problem can be mitigated with '''yield and sleeping'''{/def}
+
+p.14의 3기준이 드디어 모두 Yes가 된다. 강의 전체가 "'''No를 하나씩 Yes로 바꿔 온 과정'''"이었음을 확인하는 마무리 슬라이드다.
+
+== ⭐ 종합표 — 이걸 외워라 ==
+
+{|
+! # || 구현 || Correctness || Fairness || Performance || 필요한 하드웨어/OS || 결정적 약점
+|-
+| ① || '''[[flag 락]]''' (그냥 flag) || '''No''' || — || No || 없음 (load/store만) || TEST와 SET이 분리 → 둘 다 락 획득
+|-
+| ② || '''[[인터럽트 비활성화]]''' || 단일 CPU만 Yes || No || 보통 || [[특권 명령]] || '''멀티프로세서에서 무효''', 신뢰 문제, 인터럽트 유실
+|-
+| ③ || '''[[test-and-set]] [[spin lock]]''' || '''Yes''' || '''No''' (starvation) || '''No''' (spin 낭비) || atomic exchange || 공정성 없음 + time slice 낭비
+|-
+| ④ || '''[[compare-and-swap]] 스핀락''' || Yes || No || No || CAS || ③과 동일 (단, lock-free에 응용 가능)
+|-
+| ⑤ || '''[[load-linked store-conditional|LL/SC]] 스핀락''' (슬라이드 밖) || Yes || No || No || LR/SC ([[RISC-V]]) || ③과 동일
+|-
+| ⑥ || '''[[ticket lock]]''' ([[fetch-and-add]]) || Yes || '''Yes''' (FIFO) || '''No''' || fetch-and-add || spin은 그대로
+|-
+| ⑦ || '''[[yield 락]]''' || Yes || No (starvation) || 중간 || TAS + `yield()` 시스템 콜 || N−1번의 컨텍스트 스위치, starvation
+|-
+| ⑧ || '''[[queue 락]]''' (park/unpark) || Yes || Yes (큐 FIFO) || '''Yes''' || TAS + `park`/`unpark` || guard 구간의 짧은 spin, '''wakeup/waiting race'''
+|-
+| ⑧′ || '''+ [[setpark]]''' || Yes || Yes || Yes || + `setpark` || race 해결 (Solaris 전용)
+|-
+| ⑨ || '''[[futex]] [[two-phase lock]]''' || Yes || Yes || '''Yes''' (무경쟁 시 커널 진입 0) || `futex_wait`/`futex_wake` || 리눅스 전용, 구현 복잡
+|}
+
+== 시험 대비 핵심 요약 ==
+
+# '''락 평가 3기준''': mutual exclusion(correctness) / fairness(starvation) / performance. 구현별 Yes/No 표 — [[spin lock]](Y/N/N) → [[ticket lock]](Y/Y/N) → sleeping lock(Y/Y/Y)
+# '''[[인터럽트 비활성화]]''' 문제 3가지: ① 애플리케이션을 너무 신뢰 ② 인터럽트 유실 ③ '''멀티프로세서에서 무효'''
+# '''[[flag 락]]이 실패하는 이유''': TEST와 SET이 분리되어 그 틈에 switch → '''두 스레드가 모두 락 획득'''. p.18 타임라인(①~⑤)을 서술할 수 있어야 한다
+# '''하드웨어 atomic 명령 3종 코드 암기''': `TestAndSet`(옛 값 반환 + 새 값 저장), `CompareAndSwap`(기대값과 같을 때만 갱신, lock-free에도 사용), `FetchAndAdd`(옛 값 반환 + 1 증가). '''셋 다 반환값이 "옛 값" 또는 "실제 값"'''
+# '''[[ticket lock]]''' (⭐ 2025F 기출): `myturn = FetchAndAdd(&ticket)` → `while (turn != myturn) spin` → `unlock`은 `FetchAndAdd(&turn)`. FIFO라 '''fairness 보장'''. (myturn, ticket, turn) 값 추적 연습 필수
+# '''spin의 대가''': 락 보유자가 preempt되면 나머지가 '''각자 [[time slice]] 전체를 낭비'''. 싱글 CPU에서 특히 치명적
+# '''[[yield 락]]''': 낭비를 줄이지만 N−1번의 컨텍스트 스위치 + starvation 잔존
+# '''[[queue 락]]''': [[guard]]는 짧은 spin으로 '''락 내부 구조만''' 보호, `flag`는 대기자에게 '''hand-off'''(0으로 내리지 않음)
+# '''Wakeup/waiting race''': `park()` 직전 switch → `unpark`가 먼저 → 영원히 잠듦. 해결 = '''[[setpark]]'''(예고제) 또는 '''`futex_wait(addr, value)`'''(잠들기 전 값 검사를 커널이 원자적으로)
+# '''[[futex]] 철학''': 경쟁 없으면 유저 공간에서 끝, 경쟁 시에만 커널. 커널이 '''대기 큐를 관리'''하는 이유 = fair wakeup(priority inheritance) + robust mutex(owner-death detection)
+
+== 관련 문서 ==
+* [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]]
+* [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]]
+* [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[guard]]
+* [[futex]] · [[two-phase lock]] · [[priority inversion]]
+* [[스레드]] · [[race condition]] · [[critical section]] · [[mutual exclusion]] · [[atomic]] · [[counter 예제]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

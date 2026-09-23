@@ -1,0 +1,85 @@
+key: setpark
+title: setpark()
+category: 9강 Lock, 용어
+---
+'''`setpark()`'''는 [[queue 락]]의 '''wakeup/waiting race'''를 해결하기 위해 Solaris가 추가한 '''세 번째 시스템 콜'''이다. 9강 p.37~38.
+
+{def}"Solaris solves this problem by adding a '''third system call: `setpark()`'''
+* By calling this routine, a thread can indicate it is '''about to park'''
+* If it happens to be interrupted and another thread calls `unpark` before `park` is actually called, the '''subsequent `park` returns immediately instead of sleeping'''"{/def}
+
+== 코드 수정 (p.37) ==
+
+<pre class="c">
+1   queue_add(m->q, gettid());
+2   setpark();       // new code  -- "나 곧 park할 거야" 예고
+3   m->guard = 0;
+4   park();
+</pre>
+
+원래 코드와 비교하면 '''2번 줄 한 줄'''이 추가됐을 뿐이다. 위치도 중요하다 — '''`m->guard = 0` 이전'''에 놓아야 한다. guard를 놓는 순간부터 다른 스레드가 `unlock()`에 들어올 수 있으므로, '''그 전에''' 예약을 걸어 둬야 한다.
+
+== 어떻게 race가 사라지나 (p.38) ==
+
+[[img:L9-38.png|setpark() (Cont.) — ①②③. unpark이 먼저 와도 park()가 무시된다|large]]
+
+{|
+! 마커 || 무슨 일
+|-
+| ① || '''Thread A & Context Switch''' — A가 `queue_add` + '''`setpark()`'''까지 하고 끊긴다
+|-
+| ② || ''Thread B '''cannot progress until `m->guard = 0`''''' — B는 guard를 못 잡아 잠시 대기
+|-
+| ③ || ''Thread B now invokes `unpark()`, '''subsequent `park()` is ignored'''''  → A가 나중에 `park()`를 불러도 '''무시되고 즉시 진행'''
+|}
+
+{warn}⭐ '''핵심은 "예약을 소모한다"는 것.''' `setpark()`가 "나 곧 잘 거야" 표시를 세워 두고, `unpark()`이 그 표시를 '''소모'''한다. 표시가 이미 소모된 상태에서 `park()`가 호출되면 잠들지 않고 그냥 리턴한다. lost wakeup이 '''기록으로 남아''' 사라지지 않는 셈이다.{/warn}
+
+== 비교: race가 있는 버전 vs setpark 버전 ==
+
+{|
+! || [[queue 락|setpark 없음]] (p.36) || setpark 있음 (p.38)
+|-
+| A: 큐 등록 || O || O
+|-
+| A: 예약 || — || '''`setpark()`'''
+|-
+| A: guard 해제 || O || O
+|-
+| ''(여기서 A가 선점)'' || ||
+|-
+| B: `unpark(A)` || '''신호가 허공에 사라짐''' || '''예약을 소모함'''
+|-
+| A: `park()` || '''영원히 잠듦''' 🔥 || '''즉시 리턴''' ✅
+|}
+
+[[sim:queue_lock]]
+
+{analogy}🎭 '''택배 부재중 표'''다.
+setpark 없는 버전 = 내가 자리를 비운 사이 택배기사가 왔다 가면 '''그걸로 끝'''이다(lost wakeup). 나중에 집에 들어가 기다려도 택배는 영영 안 온다.
+setpark 있는 버전 = 문에 "'''나 곧 들어옵니다'''"라고 붙여 둔다. 기사가 와서 그 쪽지를 보고 '''문 앞에 놓고 간다'''. 내가 나중에 들어와 "기다려야지" 하면 '''이미 와 있으니 기다릴 필요가 없다'''.{/analogy}
+
+== futex와의 관계 ==
+
+같은 문제를 Linux는 다른 방식으로 푼다 — '''[[futex|`futex_wait(address, value)`]]'''는 "`*address == value`'''일 때만''' 잠들라"고 커널에 요청한다. 잠들기 직전의 값 재확인을 '''커널이 원자적으로''' 해 주므로, 예고제 없이도 lost wakeup이 생기지 않는다.
+
+{|
+! || '''setpark''' (Solaris) || '''[[futex|futex_wait]]''' (Linux)
+|-
+| 방식 || '''예고제''' — "곧 잘 거야" 표시를 세우고, unpark이 소모 || '''조건부 대기''' — 잠들기 직전 값 검사를 커널이 원자적으로
+|-
+| 추가된 것 || 시스템 콜 하나 || `futex_wait`의 `value` 인자
+|}
+
+{exam}🎯 "wakeup/waiting race를 해결하는 방법 두 가지를 쓰시오" → '''setpark()'''(예고제)와 '''futex_wait(addr, value)'''(잠들기 전 값 검사). 이 짝을 묶어 기억할 것.{/exam}
+
+{quiz}`setpark()`를 `m->guard = 0` '''다음에''' 놓으면 무슨 문제가 생기는가?{/quiz}
+{answer}guard를 놓는 순간부터 다른 스레드가 `unlock()`에 진입해 '''`unpark`을 호출할 수 있다'''. 그 시점에 아직 `setpark()`를 안 했다면 소모할 예약이 없으므로 신호가 사라지고, 뒤이은 `park()`가 '''영원히 잠든다''' — 원래의 wakeup/waiting race가 그대로 재현된다. 그래서 `setpark()`는 반드시 '''guard 해제 이전'''에 와야 한다.{/answer}
+
+{quiz}`setpark()` 호출 후 `unpark()`이 먼저 실행되면 그 다음 `park()`는 어떻게 동작하는가?{/quiz}
+{answer}'''잠들지 않고 즉시 리턴한다'''(the subsequent park returns immediately instead of sleeping). `unpark()`이 `setpark()`이 세워 둔 "곧 park함" 표시를 소모했기 때문이다. (p.37){/answer}
+
+== 관련 문서 ==
+* [[queue 락]] · [[park와 unpark]] · [[guard]] · [[futex]]
+* [[락]] · [[race condition]] · [[atomic]]
+* [[자주 틀리는 함정 모음]]

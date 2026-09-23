@@ -1,0 +1,79 @@
+key: 힙
+title: 힙 (Heap)
+category: 용어
+---
+'''힙'''(Heap)은 [[주소 공간]]에서 `malloc()`으로 명시적으로 요청해 쓰는 동적 할당 영역이다. [[스택]]과 달리 함수가 끝나도 자동으로 사라지지 않고, `free()`를 불러야 반납된다.
+
+{def}
+'''Process Creation 3단계''' (3강 p.33)<br>
+"The program's '''heap''' is created. Used for '''explicitly requested dynamically allocated data'''. A program requests such space by calling '''`malloc()`''' and frees it by calling '''`free()`'''."<br>
+3강 p.19 — 메모리 그림에서 "Run-time heap ('''created by `malloc`''')"이고 경계는 '''`brk`'''로 표시된다.
+{/def}
+
+{analogy}
+🏬 '''창고 임대'''다. [[스택]]이 "회의실을 잠깐 쓰고 회의 끝나면 자동으로 비워지는 것"이라면, 힙은 "창고를 계약해서 빌리는 것"이다. 내가 계약을 해지(`free`)하기 전에는 계속 내 것이고, 해지를 깜빡하면 아무도 못 쓰는 채로 방치된다 — 그게 메모리 누수다. 계약서 관리를 잘못해서 이미 해지한 창고에 들어가면? use-after-free다.
+{/analogy}
+
+[[img:L3-19.png|3강 p.19. Run-time heap은 read/write segment 바로 위에서 시작해 위로 자라고, 그 경계를 brk가 가리킨다. 위쪽의 User stack은 아래로 자란다.|large]]
+
+== 스택과의 대조 ==
+
+{| class="table"
+! || [[스택]] || 힙
+|-
+| 무엇이 || 지역 변수, 함수 인자, 리턴 주소 || `malloc()`으로 잡은 데이터
+|-
+| 할당·해제 || 함수 진입/리턴 시 '''자동''' || `malloc()`/`free()`로 '''명시적'''
+|-
+| 자라는 방향 || 높은 주소 → 낮은 주소 (아래로) || 낮은 주소 → 높은 주소 ('''위로''')
+|-
+| 경계 레지스터/변수 || [[스택 포인터|`%esp`]] || '''`brk`'''
+|-
+| 실행 파일에 || '''없음''' (런타임 생성) || '''없음''' (런타임 생성)
+|-
+| 수명 || 함수 스코프 || 프로그램이 `free`할 때까지
+|}
+
+<pre class="ascii">
+        │   User stack                │
+        │            ↓                │   아래로
+        ├─────────────────────────────┤
+        │        (빈 공간)             │   둘이 서로를 향해 자란다
+        ├─────────────────────────────┤  ← brk
+        │            ↑                │   위로
+        │   Run-time heap             │
+        ├─────────────────────────────┤
+        │   Read/write segment        │
+</pre>
+
+== malloc은 시스템 콜이 아니다 ==
+
+{warn}
+'''`malloc()`은 라이브러리 함수다.''' 실제로 커널에게 "주소 공간을 늘려 달라"고 요청하는 것은 '''`brk`/`sbrk` [[시스템 콜]]'''이고, `malloc()`은 그렇게 확보한 덩어리를 잘게 쪼개 관리하는 user space 코드다. 1강 p.28의 분류에서도 "brk, '''(malloc, free)'''"처럼 괄호로 구분해 놓았다.
+{/warn}
+
+{tip}
+0831 녹음본: "for the heap section, we can use the '''malloc''' function and the '''free''' function from the program code. And you may have experience about building the malloc function, and inside the malloc function you need to call the '''system call like sbrk and brk'''."<br>
+→ [[시스템 콜]] 문서의 "라이브러리 vs 시스템 콜" 구분 문제에서 `printf`/`write` 짝과 함께 자주 나오는 예다.
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(구분)''' `malloc()`은 시스템 콜인가? 아니라면 내부에서 어떤 시스템 콜을 부르는가?
+{/quiz}
+{answer}
+'''시스템 콜이 아니다''' — 표준 라이브러리 함수다. 주소 공간을 실제로 늘릴 때 '''`brk`/`sbrk`''' 시스템 콜을 호출하고, 그 덩어리를 쪼개 관리하는 부분은 user space에서 돈다.
+{/answer}
+
+{quiz}
+'''(개념)''' 힙과 [[스택]]이 [[주소 공간]] 안에서 서로 반대 방향으로 자라도록 배치된 이유를 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+둘 다 크기를 미리 알 수 없는 동적 영역이므로, 가운데 빈 공간을 '''공유'''하며 서로를 향해 자라게 하면 어느 한쪽이 많이 필요한 프로그램도 고정 분할 없이 수용할 수 있기 때문이다.
+{/answer}
+
+== 관련 문서 ==
+* [[스택]] / [[주소 공간]] / [[스택 포인터]]
+* [[프로그램 로딩]] / [[프로세스]]
+* [[시스템 콜]] — 라이브러리 함수와의 구분

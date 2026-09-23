@@ -1,0 +1,244 @@
+key: 운영체제란
+title: 운영체제란 무엇인가 (What is an OS?)
+category: 1강 Intro, 2강 What is OS
+---
+'''운영체제'''(Operating System, OS)는 CPU·메모리·디스크 같은 물리 자원을 프로그램들이 나눠 쓸 수 있게 관리하고, 그 위에서 프로그램이 쉽게 돌아가도록 편한 추상화를 제공하는 시스템 소프트웨어다. 1강(Intro)과 2강(What is Operating Systems?)이 통째로 이 한 문장을 풀어 쓰는 데 쓰인다.
+
+교수님이 슬라이드 첫 장에서 붙인 정의는 딱 두 단어다 — '''resource manager'''(자원 관리자)와 '''service provider'''(서비스 제공자). 이 두 역할이 각각 [[가상화]]·[[동시성]]·[[영속성]]이라는 **three easy pieces**로 갈라지고, 그걸 사용자에게 열어 주는 창구가 [[시스템 콜]]이다.
+
+{def}
+'''Operating System''' — "A resource manager and service provider for user programs." (1강 p.22)<br>
+The OS is responsible for ① making it easy to run programs in a CPU(s), ② allowing programs to share memory, ③ enabling programs to interact with devices. (2강 p.4)
+{/def}
+
+{analogy}
+🍦 교수님이 2강 내내 끌고 가는 비유는 '''아이스크림 가게'''다. 여러분은 가게 사장이고, 직원(=CPU)은 성실하지만 멍청하다. 레시피를 한 줄씩 읽어야만 만들 수 있고, 재료를 스스로 분류하지도 못한다. 그래서 여러분은 냉장고(=[[영속성|디스크]])에서 레시피와 재료를 꺼내 '''Table'''(=메모리) 위에 한 세트(=Task)로 올려 준다. 이 세팅을 해 주는 사람, 주문이 밀릴 때 순서를 짜는 사람, 진상 손님이 주방에 못 들어오게 키오스크를 세우는 사람 — 그게 '''운영체제'''다.
+{/analogy}
+
+[[img:L2-02.png|2강 p.2. Refrigerator(디스크) → Table(메모리) → Worker(CPU). 이 그림 한 장이 2강 전체의 뼈대다.|medium]]
+
+== 컴퓨터 시스템의 분류 ==
+
+1강은 "OS가 어디쯤 있는 물건인가"부터 자리를 잡아 준다.
+
+[[img:L1-14.png|1강 p.14. Computer System → Hardware System / Software System, Software는 다시 System Programs / Application Programs.|medium]]
+
+* '''Hardware System''': CPU, Memory, I/O Devices
+* '''Software System''': System Programs, Application Programs
+
+여기서 OS는 '''System Program의 한 종류'''다. 즉 "OS = 시스템 프로그램 전부"가 아니라 "OS ⊂ 시스템 프로그램"이라는 포함 관계가 시험 포인트다.
+
+=== 시스템 프로그램의 정의 ===
+
+{def}
+'''System Program''' (1강 p.18)<br>
+# Computer software designed to provide services to '''other software''' (e.g., application programs)<br>
+# Responsible for the '''management of hardware devices''' — strongly related to hardware<br>
+# '''Supporting environments''' for users and application programs (e.g., commands, libraries, shells, and so on)
+{/def}
+
+"다른 소프트웨어에게 서비스를 제공한다"가 1번으로 오는 게 핵심이다. 응용 프로그램은 사람에게 서비스하고, 시스템 프로그램은 '''프로그램에게''' 서비스한다.
+
+{exam}
+2025F 중간고사 '''Problem 1'''의 해설 슬라이드에 이 "Definition of a System Program" 장과 아래 "Three Types of System Programs" 장이 그대로 실려 있다. 1강 앞부분을 "오리엔테이션"이라고 넘기면 안 되는 이유. → [[2025F 중간고사 족보]]
+{/exam}
+
+=== 시스템 프로그램 세 갈래 ===
+
+[[img:L1-19.png|1강 p.19. (1) Compilation System / (2) Runtime System / (3) Operating System — 그리고 그 밑에 Hardware System.|large]]
+
+{| class="table"
+! 분류 || 구성원 || 하는 일
+|-
+| '''(1) Compilation System''' || Compiler, Assembler, Linker, Loader, Editor, Debugger || 사람이 쓴 코드를 기계가 읽는 실행 파일로 번역 ([[프로그램 로딩]])
+|-
+| '''(2) Runtime System''' || Library, Shell, Commands, Utilities, Windows || 실행 중인 프로그램을 도와주는 환경 (`printf()` 같은 표준 라이브러리, `ls`/`ps` 같은 명령어)
+|-
+| '''(3) Operating System''' || Scheduler, IPC, File System, Device Driver, Virtual Memory, Protocol Stack || 하드웨어를 직접 만지며 자원을 관리 ← 이 과목의 주인공
+|}
+
+{warn}
+Loader는 '''Compilation System''' 칸에 있고 Shell은 '''Runtime System''' 칸에 있다. 둘 다 "OS 아니냐?"고 헷갈리기 쉬운데 슬라이드 분류상 OS 박스 안에 있는 건 Scheduler / IPC / File System / Device Driver / Virtual Memory / Protocol Stack 여섯 개다.
+{/warn}
+
+== hello.c 한 줄이 화면에 찍히기까지 ==
+
+1강 p.16은 세상에서 제일 단순한 C 프로그램을 띄워 놓고 네 개의 질문을 던진다.
+
+<pre class="c">
+/* hello.c */
+#include &lt;stdio.h&gt;
+
+int main (void)
+{
+    printf ("hello, world\n");
+    return 0;
+}
+</pre>
+
+# `printf()`와 `stdio.h`는 도대체 뭔가? → '''Runtime System''' (표준 라이브러리, 링커)
+# 이 프로그램이 어떻게 CPU 위에서 돌 수 있나? → '''Compilation System''' (컴파일러, 어셈블러, 로더)
+# 문자열이 어떻게 모니터에 표시되나? → '''Operating System''' (device driver)
+# 이 프로그램이 어떻게 다른 프로그램들과 동시에 실행되나? → '''Operating System''' (scheduler, [[컨텍스트 스위치|context switch]], IPC)
+
+즉 `hello.c` 한 줄을 완전히 설명하려면 시스템 프로그램 세 갈래가 전부 필요하다. 1강 p.31에서 같은 슬라이드에 답이 덮어씌워지며 끝난다.
+
+[[img:L1-27.png|1강 p.27. vi로 짜고 → Compile → Load → Execute. 마지막 화살표에 "hello.out converts from an executable to a task"라는 문장이 붙는다. 프로그램이 프로세스가 되는 지점이 바로 여기다.|large]]
+
+=== printf() vs write() ===
+
+[[img:L1-30.png|1강 p.30. Application Program → Library function printf() → write() wrapper → write() system call. 점선이 user space와 OS의 경계.|medium]]
+
+`printf()`는 '''라이브러리 함수'''라서 아직 user space에 있다. 실제로 화면에 바이트를 뱉는 건 `write()` '''[[시스템 콜]]'''이고, 그 사이에 얇은 wrapper가 한 겹 끼어 있다. 점선을 넘어가는 순간 [[유저 모드와 커널 모드|모드 전환]]이 일어난다.
+
+{tip}
+0831 녹음본에서 교수님이 짚은 포인트: "이 file descriptor는 '''operating system이''' 세팅해 주는 것이라 standard library를 쓰지 않아도 된다. 원칙적으로는 라이브러리 없이 system call만 직접 써서 데이터를 쓸 수 있다." → 라이브러리는 편의, [[시스템 콜]]이 본체.
+{/tip}
+
+== OS가 실제로 관리하는 것들 ==
+
+1강 p.28 "Operating System: Summary"가 이 과목 전체의 목차나 다름없다.
+
+{| class="table"
+! 역할 || 담당 자원 || 개념 || 시스템 콜 예시
+|-
+| '''Task manager''' || CPU || schedule, IPC, signal, [[컨텍스트 스위치|context switch]] || [[fork]], [[exec|execv]], [[wait]], getpid, pthread_create
+|-
+| '''Virtual Memory''' || Main memory || page, segment, address translation, LRU || brk, (malloc, free)
+|-
+| '''File system''' || Storage || file, directory, disk scheduling, FAT || open, read, write, pipe, (fopen, printf)
+|-
+| '''Device driver''' || Device || I/O port, interrupt, DMA || open, read, write, ioctl
+|-
+| '''Network protocol''' || Network || connection, routing, fragmentation || socket, bind, listen, send, receive
+|}
+
+중간고사 범위(3~9강)는 이 표의 '''첫 줄, Task manager''' 하나를 파고드는 것이다.
+
+[[img:L1-22.png|1강 p.22. User Program / OS / Hardware 3층 구조와, 그 경계에 놓인 System call interface.|large]]
+
+== Three Easy Pieces ==
+
+교재 제목이 곧 OS의 3대 주제다. 2강은 이 셋을 순서대로 하나씩 아이스크림 비유 → 개념 → 실제 C 코드 데모로 소개한다.
+
+<pre class="ascii">
+                  ┌──────────────────────────────────┐
+   Task   Task    │        응용 프로그램들            │   Task
+     │      │     └──────────────────────────────────┘     │
+     ▼      ▼                                              ▼
+ ══════════════ System call interface ═══════════════════════   ← 시스템 콜
+ ┌───────────────────────────────────────────────────────────┐
+ │                          OS                               │   ← 커널
+ └───────────────────────────────────────────────────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+   ┌─────────┐          ┌─────────┐         ┌──────────┐
+   │  Disk   │          │   CPU   │         │  Memory  │
+   └─────────┘          └─────────┘         └──────────┘
+   ③ Storage            ① CPU               ② Memory
+     가상화               가상화               가상화
+     = 영속성              = 가상화             = 주소 공간
+</pre>
+
+{| class="table"
+! Piece || 질문 || 해답 || 아이스크림 비유
+|-
+| '''[[가상화]]''' (Virtualization) || How can we own the shared resource? || 물리 자원을 가상 형태로 변환해 각자 독차지한 것처럼 보이게 || 직원은 한 명인데 주문은 10개 → '''time-sharing'''으로 시간대를 쪼개 각 주문마다 전담 직원이 있는 척
+|-
+| '''[[동시성]]''' (Concurrency) || How can we overlap the task? || 작업들을 번갈아 실행해 겹치게 — 대신 공유 데이터가 깨진다 || 100개짜리 대량 주문 뒤에 선 손님이 하루를 기다리면 안 되니, 잘라서 번갈아 처리
+|-
+| '''[[영속성]]''' (Persistence) || 전원이 꺼져도 데이터를 어떻게 살리나? || 파일 시스템 + 디스크 || 손님이 안 오는 픽업 주문을 녹게 두지 말고 '''냉장고'''에 넣기
+|}
+
+[[img:L2-09.png|2강 p.9. 같은 그림에 ① CPU / ② Memory / ③ Storage Virtualization이 빨간 점선으로 표시된 장. "Sometimes, we refer to the OS as a virtual machine."|large]]
+
+=== 왜 자원 관리자인가 ===
+
+{def}
+'''The OS is a Resource Manager''' (2강 p.7)<br>
+The OS manages resources such as CPU, memory and disk: many programs to run → '''sharing the CPU'''; many programs to concurrently access their own instructions and data → '''sharing memory'''; many programs to access devices → '''sharing storage'''.
+{/def}
+
+핵심 단어는 전부 '''sharing'''이다. 자원이 하나뿐인데 요구자가 여럿일 때 생기는 문제 — 그게 OS가 존재하는 이유 전체다.
+
+== 보호와 격리 ==
+
+2강 p.5의 키오스크 비유가 곧 '''protection'''의 정의다.
+
+[[img:L2-05.png|2강 p.5. 진상 손님(malicious user)이 와도 주방에 못 들어오게 벽을 세우고 키오스크만 준다. 단, 메뉴에 있는 건 뭐든 주문할 수 있게.|medium]]
+
+* 손님이 '''조리대를 직접 건드리게'''(= 유저 프로그램이 커널 자료구조를 직접 수정) 두면 안 된다
+* 아무 주문이나 다 받아도(= 아무 명령이나 실행 허용) 안 된다
+* 해법: '''벽을 세우고 키오스크를 준다''' = [[유저 모드와 커널 모드|모드 분리]] + [[시스템 콜]]이라는 정해진 입구
+* 단, '''메뉴에 있는 건 뭐든 주문 가능''' = 정당한 요청은 전부 처리해 준다 (기능을 줄여서 보호하는 게 아니다)
+
+이 아이디어를 하드웨어로 구현한 게 4강의 [[제한적 직접 실행]]이다.
+
+== 설계 목표 ==
+
+2강 마지막 두 장이 [[OS 설계 목표]]를 정리한다. 요약하면 abstraction / performance / protection / reliability, 그리고 energy-efficiency · security · portability.
+
+{warn}
+'''Protection과 Isolation은 같은 항목이다.''' 슬라이드 문장은 "Protection between applications — Isolation: '''Bad behavior of one does not harm other and the OS itself'''". 즉 격리의 보호 대상에 '''OS 자신도 포함'''된다. "다른 앱만 보호한다"로 외우면 틀린다.
+{/warn}
+
+== OS의 계보 ==
+
+1강·2강 슬라이드에는 OS 연대기 장이 따로 없고, 대신 3강 p.4에서 stored program computer(von Neumann, 1945)를, p.5~6에서 x86의 진화를 훑는다. 시험 범위 밖일 가능성이 높지만 맥락용으로 [[OS 역사]]에 정리해 두었다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' 다음 설명에 해당하는 용어를 쓰시오.<br>
+"Computer software designed to provide services to other software, responsible for the management of hardware devices, and supporting environments for users and application programs."
+{/quiz}
+{answer}
+'''System Program'''(시스템 프로그램). 1강 p.18의 정의 3개를 그대로 붙인 문장이다. Operating System이라고 쓰면 오답 — OS는 시스템 프로그램의 '''세 갈래 중 하나'''다.
+{/answer}
+
+{quiz}
+'''(분류)''' 다음 중 슬라이드 p.19의 '''Operating System''' 박스 안에 들어 있지 '''않은''' 것을 모두 고르시오.<br>
+① Scheduler ② Loader ③ Virtual Memory ④ Shell ⑤ Device Driver ⑥ Protocol Stack ⑦ Linker
+{/quiz}
+{answer}
+'''② Loader, ④ Shell, ⑦ Linker.'''<br>
+· Loader와 Linker는 '''(1) Compilation System'''<br>
+· Shell은 '''(2) Runtime System'''<br>
+OS 박스 안: Scheduler, IPC, File System, Device Driver, Virtual Memory, Protocol Stack.
+{/answer}
+
+{quiz}
+'''(개념)''' `printf("hello\n")` 한 줄이 실행될 때, user space와 커널의 경계를 넘는 지점은 정확히 어디인가? 한 문장으로 답하시오.
+{/quiz}
+{answer}
+`printf()`(라이브러리 함수)가 내부에서 `write()` wrapper를 호출하고, 그 wrapper가 '''`write()` [[시스템 콜]]을 호출하는 순간''' 경계를 넘는다. `printf()` 자체는 끝까지 user space 코드다. (1강 p.30)
+{/answer}
+
+{quiz}
+'''(서술)''' OS를 "virtual machine"이라고 부르는 이유를 [[가상화]]의 정의를 써서 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+OS가 물리 자원(CPU·memory·disk)을 받아 더 일반적이고 강력하며 쓰기 쉬운 '''virtual form'''으로 변환해, 각 프로그램에게 자기만의 기계가 있는 듯한 환상을 제공하기 때문이다. (2강 p.9)
+{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# '''OS = resource manager + service provider for user programs.''' 이 한 줄이 1강 p.22의 정의다.
+# 컴퓨터 시스템 = Hardware System + Software System, Software = '''System Programs + Application Programs'''. OS는 System Program의 부분집합.
+# 시스템 프로그램 3분류: '''Compilation System''' (compiler/assembler/linker/loader/editor/debugger) / '''Runtime System''' (library/shell/commands/utilities/windows) / '''Operating System''' (scheduler/IPC/file system/device driver/virtual memory/protocol stack). ← 2025F Problem 1 출제
+# 시스템 프로그램의 정의 3가지: 다른 '''소프트웨어'''에 서비스 / 하드웨어 장치 관리 / 사용자·응용 프로그램 지원 환경.
+# Three easy pieces = '''[[가상화]] · [[동시성]] · [[영속성]]'''. 각각 CPU/Memory, 겹쳐 실행, 디스크 담당.
+# CPU 가상화의 비결은 '''time-sharing''', 메모리 가상화의 비결은 '''private virtual address space'''.
+# 보호는 "기능을 줄이는 것"이 아니라 "'''입구를 하나로 좁히는 것'''" — 키오스크 = [[시스템 콜]].
+# Isolation의 보호 대상에는 다른 응용 프로그램뿐 아니라 '''OS 자신'''도 포함된다.
+# `printf()`는 라이브러리, `write()`가 시스템 콜. stdin/stdout/stderr file descriptor는 '''OS가''' 열어 준다.
+
+== 관련 문서 ==
+* [[가상화]] — three easy pieces 1번
+* [[동시성]] — three easy pieces 2번
+* [[영속성]] — three easy pieces 3번
+* [[커널]] / [[시스템 콜]] / [[유저 모드와 커널 모드]]
+* [[OS 설계 목표]] / [[OS 역사]]
+* [[프로세스]] — 3강, "실행 중인 프로그램"의 정식 이름
+* [[제한적 직접 실행]] — 4강, 보호를 하드웨어로 구현하는 법
+* [[OSTEP]] / [[xv6]]

@@ -1,0 +1,84 @@
+key: Amdahl의 법칙
+title: Amdahl의 법칙 (Amdahl's Law)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''Amdahl의 법칙'''은 시스템 자원을 늘렸을 때 얻을 수 있는 '''이론적 최대 속도 향상(speedup)'''을 계산하는 공식이다. 직렬 부분과 병렬 부분이 섞인 프로그램에 코어를 더 붙일 때 얼마나 이득인지 알려 준다.
+
+$$speedup \le \frac{1}{S + \frac{1-S}{N}}$$
+
+{def}
+* Theoretical '''speedup''' of a task when system resources are improved
+* Useful to identify performance gains from adding additional cores to an application that has '''both serial and parallel components'''
+* '''$S$ is a serial portion''' and '''$N$ is # of processing cores'''
+* If the application is 75% parallel / 25% serial, moving from 1 to 2 cores results in speedup of '''1.6 times (not 2 times)'''
+* As $N$ approaches infinity, speedup approaches '''$1/S$'''
+{/def}
+
+{analogy}'''혼자 해야 하는 설거지가 섞인 요리'''다. 요리사를 아무리 늘려도 "혼자 개수대에서 설거지하는 10분"은 절대 줄지 않는다. 손질·볶기는 열 명이 나눠 하면 1/10이 되지만, 설거지 10분은 그대로다. 그래서 전체 시간이 '''설거지 시간 아래로는 절대 내려가지 않는다''' — 이게 $N \to \infty$일 때 speedup이 $1/S$에 막히는 이유다.{/analogy}
+
+[[img:L7-21.png|Amdahl의 법칙 공식. S는 직렬 부분, N은 코어 수|medium]]
+
+== 계산 절차 ==
+
+{exam}'''시험에 숫자만 바꿔 나오기 좋은 유형이다.''' 순서를 고정해서 외울 것.
+# '''$S$를 확인'''한다 — 문제가 "75% 병렬"이라고 하면 $S = 0.25$다. '''병렬 비율이 아니라 직렬 비율이 $S$'''라는 점에서 실수가 많이 난다.
+# 병렬 부분 $(1-S)$를 $N$으로 '''나눈다'''.
+# 둘을 '''더하고 역수'''를 취한다.{/exam}
+
+<pre class="txt">
+ 예제 1) 75% 병렬 / 25% 직렬, 코어 1 → 2
+   S = 0.25,  N = 2
+   분모 = 0.25 + 0.75/2 = 0.25 + 0.375 = 0.625
+   speedup = 1 / 0.625 = '''1.6배'''    (2배가 '''아니다''')
+
+   N → ∞ :  speedup → 1/S = 1/0.25 = '''4배'''
+   → 코어를 아무리 늘려도 4배가 한계
+
+ 예제 2) 95% 병렬 / 5% 직렬, 코어 4개
+   S = 0.05,  N = 4
+   분모 = 0.05 + 0.95/4 = 0.05 + 0.2375 = 0.2875
+   speedup = 1 / 0.2875 ≈ '''3.48배'''
+   N → ∞ :  1/0.05 = '''20배'''
+
+ 예제 3) 50% 병렬 / 50% 직렬
+   N → ∞ :  1/0.5 = '''2배'''   ← 절반이 직렬이면 아무리 해도 2배
+</pre>
+
+== 그래프가 말하는 것 ==
+
+<pre class="ascii">
+ speedup
+   20 ┤                          ╭──────────  95% 병렬 (상한 20배)
+      │                       ╭──╯
+   10 ┤              ╭────────╯─────────────  90% 병렬 (상한 10배)
+      │        ╭─────╯
+    4 ┤   ╭────╯──────────────────────────── 75% 병렬 (상한 4배)
+    2 ┤ ╭─╯────────────────────────────────  50% 병렬 (상한 2배)
+      └─┬────┬─────┬──────┬───────┬────────
+        1    16   256   2048    65536   코어 수 (로그 스케일)
+</pre>
+
+슬라이드 그래프의 빨간 동그라미: '''95% 병렬 프로그램에 코어 2,048개를 넣어야 20배에 도달'''한다. 그 이상은 아무 소용이 없다.
+
+{def}
+'''Serial portion of an application has disproportionate effect''' on performance gained by adding additional cores
+→ '''Writing software with parallelism in mind!'''
+{/def}
+
+== 왜 이 강의에 있나 ==
+
+7강의 논리 흐름에서 이 법칙의 역할은 분명하다.
+
+# 코어를 늘린다고 애플리케이션이 저절로 빨라지지 '''않는다'''.
+# 스레드를 써서 '''병렬로 돌게 다시 짜야''' 한다.
+# 그렇게 짜도 '''직렬 부분이 상한을 결정'''한다 (Amdahl).
+# 병렬 job들을 만들었으면, 이제 '''그것들을 어느 CPU에 배치할지'''가 문제다 → [[멀티프로세서 스케줄링]].
+
+{info}같은 병렬성 배경에 '''[[동시성]] vs 병렬성'''(concurrency는 CPU 1개로도 가능, parallelism은 2개 이상 필요)과 '''data / task / hybrid parallelism''' 구분이 함께 나온다. 셋 다 개념 문제로 출제되기 좋다. → [[멀티코어]]{/info}
+
+{warn}Amdahl의 법칙은 '''문제 크기가 고정'''되어 있다고 가정한다. 코어가 늘어난 만큼 더 큰 문제를 푼다고 가정하면 다른 결론(Gustafson의 법칙)이 나온다. 다만 이번 시험 범위는 슬라이드에 있는 Amdahl 쪽이다.{/warn}
+
+== 관련 문서 ==
+* [[멀티코어]] · [[멀티프로세서 스케줄링]] · [[동시성]]
+* [[cache affinity]] · [[SQMS]] · [[MQMS]]
+* [[스레드]]

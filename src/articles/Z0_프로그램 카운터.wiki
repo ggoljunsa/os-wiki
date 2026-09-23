@@ -1,0 +1,73 @@
+key: 프로그램 카운터
+title: 프로그램 카운터 (PC, Program Counter)
+category: 용어
+---
+'''프로그램 카운터'''(PC)는 '''다음에 실행할 명령어의 주소'''를 담고 있는 [[레지스터]]다. 이 값 하나가 "프로그램이 지금 어디까지 왔는가"를 통째로 나타내기 때문에, [[프로세스]]를 멈췄다 재개하는 모든 이야기의 중심에 있다.
+
+{def}
+'''PC: Program counter''' (3강 p.10)<br>
+"'''Address of next instruction'''. Called '''"EIP" (IA32)''' or '''"RIP" (x86-64)'''."
+{/def}
+
+{analogy}
+📖 '''책갈피'''다. 두꺼운 책(프로그램)을 읽다가 잠시 덮어야 할 때, 몇 쪽까지 읽었는지만 적어 두면 나중에 정확히 이어 읽을 수 있다. [[컨텍스트 스위치]]가 하는 일이 정확히 이것 — 프로세스 A의 책갈피를 [[PCB]]에 꽂아 두고, B의 책갈피를 꺼내 오는 것이다. 책갈피를 잃어버리면 A는 영원히 처음부터 다시 읽어야 한다.
+{/analogy}
+
+[[img:L3-10.png|3강 p.10. CPU 박스 안 맨 왼쪽의 작은 사각형이 PC.|large]]
+
+== 이름이 여러 개다 ==
+
+{| class="table"
+! 맥락 || 이름 || 비고
+|-
+| 일반 || '''PC''' (Program Counter) ||
+|-
+| IA32 (32비트 x86) || '''`EIP`''' || 3강 p.38의 `struct context`에 있는 `eip`가 이것
+|-
+| x86-64 || '''`RIP`''' ||
+|-
+| [[RISC-V]] 트랩 || '''[[sepc]]''' (Supervisor Exception PC) || 트랩 순간의 PC를 하드웨어가 여기 저장
+|-
+| xv6 [[trapframe]] || '''[[epc]]''' (`p->trapframe->epc`) || [[sepc]] 값을 소프트웨어가 옮겨 담은 것
+|}
+
+{warn}
+"PC는 '''현재''' 실행 중인 명령어의 주소"가 아니라 "'''다음에''' 실행할 명령어의 주소"다. 슬라이드 원문이 "Address of '''next''' instruction". 트랩에서 복귀할 때 [[epc]]에 4를 더하느냐 마느냐가 갈리는 지점이라 정확히 알아야 한다.
+{/warn}
+
+== 과제 1에서 PC가 주인공이 되는 순간 ==
+
+[[sigalarm]] 구현의 핵심 한 줄이 PC를 바꿔치기하는 것이다.
+
+<pre class="c">
+// kernel/trap.c : usertrap() 안, 알람이 발화할 때
+p->alarm_saved = *p->trapframe;          // 원래 문맥 백업 (원래 PC 포함)
+p->alarm_active = 1;
+p->trapframe->epc = p->alarm_handler;    // ← 복귀할 PC 를 핸들러로 바꾼다
+</pre>
+
+{tip}
+과제 안내문이 던지는 힌트가 정확히 이 지점이다: "When a trap on the RISC-V returns to user space, '''what determines the instruction address at which user-space code resumes execution?'''" — 답은 '''[[epc]]'''(= 저장된 PC)다. 커널은 핸들러를 "호출"하는 게 아니라, '''돌아갈 주소를 속여서''' 유저 모드로 내려보낸다. → [[과제1 xv6 alarm]], [[alarm_handler]]
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "다음에 실행할 명령어의 주소를 담는 레지스터이며, IA32에서는 EIP, x86-64에서는 RIP라고 불리는 것"은?
+{/quiz}
+{answer}
+'''PC (Program Counter)'''. [[RISC-V]] 트랩 문맥에서는 [[sepc]] / [[epc]]로 등장한다.
+{/answer}
+
+{quiz}
+'''(개념)''' 트랩에서 유저 공간으로 돌아갈 때, 유저 코드가 재개될 명령어 주소를 결정하는 것은 무엇인가?
+{/quiz}
+{answer}
+'''[[epc]]''' (`p->trapframe->epc`, 하드웨어 레지스터로는 [[sepc]]). [[sret]] 명령이 이 값을 PC로 복원한다. 과제 1은 이 값을 [[alarm_handler]] 주소로 바꿔치기해서 유저 핸들러를 실행시킨다.
+{/answer}
+
+== 관련 문서 ==
+* [[레지스터]] / [[스택 포인터]]
+* [[epc]] / [[sepc]] / [[sret]] / [[return-from-trap]]
+* [[컨텍스트 스위치]] / [[trapframe]] / [[PCB]]
+* [[과제1 xv6 alarm]] / [[alarm_handler]]

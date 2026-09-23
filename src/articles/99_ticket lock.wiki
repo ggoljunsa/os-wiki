@@ -1,0 +1,129 @@
+key: ticket lock
+title: Ticket Lock (티켓 락)
+category: 9강 Lock, 핵심
+---
+'''Ticket lock'''은 [[fetch-and-add]]로 만든, '''fairness를 보장하는''' 최초의 락이다. 9강 p.26~29. 은행 번호표 시스템과 구조가 완전히 같다.
+
+{exam}⭐⭐⭐ '''2025F 중간고사 기출 영역.''' 교수님은 "fetch-and-add 기반 락 코드의 빈칸"을 마지막 문제로 냈다. (myturn, ticket, turn) 세 값을 '''손으로 추적'''하는 연습이 필수다. → [[2025F 중간고사 족보]]{/exam}
+
+[[img:L9-26.png|Ticket Lock — ticket과 turn 두 필드로 구현|large]]
+
+<pre class="c">
+ 1   typedef struct __lock_t {
+ 2       int ticket;                                  // 다음에 발급될 번호표
+ 3       int turn;                                    // 지금 서비스 중인 번호
+ 4   } lock_t;
+ 5
+ 6   void lock_init(lock_t *lock) {
+ 7       lock->ticket = 0;
+ 8       lock->turn = 0;
+ 9   }
+10
+11   void lock(lock_t *lock) {
+12       int myturn = FetchAndAdd(&lock->ticket);     // (1) 번호표 뽑기 (원자적)
+13       while (lock->turn != myturn)                 // (2) 내 차례 기다리기
+14                ; // spin
+15   }
+16   void unlock(lock_t *lock) {
+17       FetchAndAdd(&lock->turn);                    // (3) "다음 손님!"
+18   }
+</pre>
+
+== 변수 세 개 ==
+
+{|
+! 변수 || 정체 || 누가 바꾸나
+|-
+| '''`ticket`''' || 다음에 '''발급될''' 번호표 (번호표 발급기의 현재 숫자) || `lock()`이 [[fetch-and-add]]로 증가
+|-
+| '''`turn`''' || 지금 '''서비스 중인''' 번호 (전광판) || `unlock()`이 [[fetch-and-add]]로 증가
+|-
+| '''`myturn`''' || '''내가 뽑은''' 번호표 — '''스레드마다 다른 [[스레드 스택|스택]]의 지역 변수''' || 자기 자신만
+|}
+
+{warn}⭐ `myturn`이 '''공유 변수가 아니라 지역 변수'''라는 점이 중요하다. 각 스레드가 자기 번호표를 손에 쥐고 있고, 그 번호는 [[fetch-and-add]] 덕에 '''절대 겹치지 않는다'''.{/warn}
+
+== 동작 추적 (p.27~28) ==
+
+[[img:L9-27.png|Ticket Lock (Cont.) 그림 1 — ①~⑤. T1은 즉시 획득, T2는 myturn=1로 spinning|large]]
+
+{|
+! 마커 || 무슨 일 || myturn || ticket || turn
+|-
+| ① || `lock_init` — 초기 상태 || — || '''0''' || '''0'''
+|-
+| ② || '''Thread1 & Context Switch''' — T1이 `FetchAndAdd(&ticket)` 호출 → myturn=0을 받고 ticket은 1이 됨 || T1: '''0''' || '''1''' || 0
+|-
+| ③ || Thread2 진입 || || ||
+|-
+| ④ || '''Thread2 & Spinning''' — T2가 번호표를 뽑아 myturn=1, ticket은 2로. `turn(0) != myturn(1)` → '''spin''' || T2: '''1''' || '''2''' || 0
+|-
+| ⑤ || T1 복귀: `turn(0) == myturn(0)` → '''obtain the lock!''' || || 2 || 0
+|}
+
+[[img:L9-28.png|Ticket Lock (Cont.) 그림 2 — ⑥⑦. unlock이 turn을 1로 올리자 T2가 정확히 다음 차례로 들어간다|large]]
+
+{|
+! 마커 || 무슨 일 || ticket || turn
+|-
+| ⑥ || T1이 `unlock()` → `FetchAndAdd(&turn)` → turn이 1이 됨 || 2 || '''1'''
+|-
+| ⑦ || spin 중이던 T2: `turn(1) == myturn(1)` → '''obtain the lock!''' || 2 || 1
+|}
+
+[[sim:ticket_lock]]
+
+{analogy}🎭 '''은행 번호표.''' `ticket` = 입구의 발급기, `turn` = 벽의 전광판, `myturn` = 내 손의 종이.
+① 들어오면서 번호표를 뽑고(12번 줄) ② 전광판에 내 번호가 뜰 때까지 앉아서 기다리고(13번 줄) ③ 볼일이 끝나면 전광판을 1 올린다(17번 줄).
+'''발급기가 원자적'''이라 두 사람이 같은 번호를 받을 수 없고, 전광판이 '''1씩만''' 올라가므로 '''순서를 건너뛸 수 없다'''. 이게 fairness의 전부다.{/analogy}
+
+== 왜 fairness가 보장되나 (p.29) ==
+
+{def}"'''Ensure progress for all threads''' → '''fairness'''"
+* '''Correctness: Yes'''
+* '''Fairness: Yes''' — "Fetch-and-Add enable multiple threads to '''equally share''' the critical section"
+* '''Performance: No''' — "In the single CPU, performance overheads can be quite painful… every other thread will spin for a given time slice"{/def}
+
+논리 사슬:
+# [[fetch-and-add]]가 각 스레드에게 '''고유한''' `myturn`을 준다
+# `turn`은 `unlock()`마다 '''정확히 1씩''' 올라간다
+# 따라서 번호표를 먼저 뽑은 스레드가 '''반드시 먼저''' 들어간다 = '''FIFO'''
+# FIFO면 '''starvation이 불가능'''하다 — 앞에 있는 사람 수는 유한하고 계속 줄어든다
+
+[[spin lock]](TAS)과의 본질적 차이가 여기다. TAS는 락이 풀릴 때 '''모두가 다시 경쟁'''하지만, ticket lock은 '''순서가 이미 정해져 있다'''.
+
+{warn}⭐ '''남은 문제는 performance뿐이다.''' 자기 차례를 기다리는 스레드는 여전히 `while (turn != myturn)`을 돌며 [[time slice]]를 태운다. 락 보유자가 preempt되면 나머지가 전부 낭비한다. 이 문제는 [[yield 락]] → [[queue 락]]에서 해결된다.{/warn}
+
+== 채점표 변화 ==
+
+{|
+! || Correctness || Fairness || Performance
+|-
+| [[spin lock]] (p.24) || Yes || '''No''' || No
+|-
+| '''ticket lock''' (p.29) || Yes || '''Yes''' ← 바뀐 칸 || No
+|}
+
+{quiz}ticket=0, turn=0인 상태에서 T1, T2, T3가 순서대로 `lock()`을 호출했다. 각자의 `myturn`과 이때의 `ticket`, `turn` 값을 쓰시오. 그리고 T1이 `unlock()`한 뒤 누가 들어가는가?{/quiz}
+{answer}T1: myturn=0, T2: myturn=1, T3: myturn=2. 호출이 모두 끝난 시점에 '''ticket=3, turn=0'''이다.
+`turn(0) == myturn(0)`이므로 '''T1만 진입'''하고 T2·T3는 spin한다.
+T1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1인 '''T2가 진입'''한다. 번호표 순서 그대로다.{/answer}
+
+{quiz}`unlock()`에서 `turn++` 대신 `FetchAndAdd(&turn)`을 쓰는 이유는?{/quiz}
+{answer}형식적 일관성과 안전을 위해서다. 사실 락을 '''쥔 스레드는 하나뿐'''이라 `turn++`로도 대개 문제가 없지만, `turn`은 다른 스레드들이 '''동시에 읽고 있는''' 공유 변수이므로 원자 명령으로 갱신하는 편이 안전하다. 슬라이드는 [[fetch-and-add]]로 통일해 보여 준다.{/answer}
+
+{quiz}ticket lock에서 starvation이 불가능한 이유를 한 문장으로 쓰시오.{/quiz}
+{answer}각 스레드가 [[fetch-and-add]]로 '''고유한 번호'''를 받고 `turn`이 '''1씩 순서대로''' 올라가므로, 어떤 스레드 앞에 있는 대기자 수는 유한하고 계속 줄어들어 '''반드시 자기 차례가 온다'''(FIFO).{/answer}
+
+== 시험 대비 핵심 요약 ==
+# `myturn = FetchAndAdd(&ticket)` — 번호표 뽑기, '''원자적'''이라 고유
+# `while (turn != myturn) ;` — 내 차례까지 spin
+# `unlock`은 `FetchAndAdd(&turn)` — "다음 손님"
+# '''Correctness Yes / Fairness Yes / Performance No'''
+# fairness의 근거 = '''고유한 번호 + 1씩 증가하는 turn = FIFO'''
+# 남은 문제 = spin 낭비 → [[yield 락]], [[queue 락]]으로
+
+== 관련 문서 ==
+* [[fetch-and-add]] · [[락]] · [[락 평가 기준]] · [[spin lock]]
+* [[yield 락]] · [[queue 락]] · [[fairness]] · [[time slice]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

@@ -1,0 +1,53 @@
+key: stride
+title: stride (보폭)
+category: 6강 Proportional Share, 용어
+---
+'''stride'''는 [[Stride 스케줄링]]에서 프로세스가 한 번 실행될 때 [[pass]]에 더해지는 값이다. [[tickets|티켓]] 수에 '''반비례'''한다.
+
+$$stride_i = \frac{\text{(a large number)}}{tickets_i}$$
+
+{def}
+Each process has a '''stride''', which is '''inverse in proportion to tickets''' it has.
+Stride = (a large number) / (the number of tickets of the process)
+{/def}
+
+{analogy}'''보폭'''이다. 티켓이 많은(우대받아야 할) 프로세스에게 '''작은 보폭'''을 준다. 작은 보폭으로는 조금씩밖에 못 가니 항상 꼴찌([[pass]] 최소)로 남아 '''자주 불린다'''. 티켓이 적은 프로세스는 '''큰 보폭'''이라 한 번 걸으면 저만치 앞서 나가서 한참 동안 차례가 안 온다. '''작은 stride = 자주 실행'''이라는 반비례 관계가 핵심이다.{/analogy}
+
+== 계산 ==
+
+"큰 수"는 임의로 정한다. 슬라이드 예제는 '''10,000''', 2025F 중간고사 문제는 '''500'''을 썼다. 비율만 맞으면 되므로 어떤 값을 쓰든 스케줄 순서는 같다.
+
+<pre class="txt">
+ 티켓  A=100, B=50, C=250
+
+ 큰 수 = 10,000                  큰 수 = 500
+   A: 10000/100 = 100              A: 500/100 = 5
+   B: 10000/ 50 = 200              B: 500/ 50 = 10
+   C: 10000/250 =  40              C: 500/250 = 2
+
+ 비율은 둘 다 100:200:40 = 5:10:2 로 '''동일''' → 스케줄 순서도 동일
+</pre>
+
+{warn}'''큰 수를 문제에서 주면 반드시 그 값을 쓸 것.''' 2025F Problem 4는 "The scheduler uses the large number of '''500'''"이라고 명시했다. 습관적으로 10,000을 쓰면 pass 값의 절대치가 전부 틀린다(순서는 맞아도 빈칸 채우기에서 0점).
+
+큰 수가 커야 하는 이유는 '''정수 나눗셈의 오차'''를 줄이기 위해서다. 티켓 3장짜리에 큰 수가 10이면 stride가 3(= 10/3)으로 잘려 비율이 깨진다.{/warn}
+
+[[img:L6-25.png|stride 100/200/40에서 한 사이클 동안 C 5번, A 2번, B 1번 = 티켓 비율 그대로|medium]]
+
+== stride와 다른 스케줄러의 대응 ==
+
+{|
+! 스케줄러 || 누적값 || 증가량
+|-
+| [[Stride 스케줄링]] || [[pass]] || '''stride''' = 큰 수 / 티켓
+|-
+| [[CFS]] || [[vruntime]] || $(weight_0 / weight_i) \times runtime$
+|}
+
+둘은 구조적으로 '''같은 알고리즘'''이다. stride ↔ $weight_0/weight_i$, pass ↔ vruntime. 차이는 CFS가 증가량을 '''실제 실행 시간에 비례'''시켜 고정 슬라이스 없이도 동작한다는 점이다.
+
+[[sim:stride_lottery]]
+
+== 관련 문서 ==
+* [[Stride 스케줄링]] · [[pass]] · [[tickets]]
+* [[CFS]] · [[vruntime]] · [[weight]]

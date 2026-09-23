@@ -1,0 +1,94 @@
+key: xv6
+title: xv6
+category: 용어, 과제1
+---
+'''xv6'''는 MIT가 운영체제 수업(6.828/6.1810)용으로 만든 교육용 유닉스 계열 운영체제다. 이 과목의 네 개 프로젝트가 전부 xv6 위에서 돌아가고, 3강 p.37~38의 [[struct proc]]도 xv6 코드다.
+
+{def}
+'''xv6''' (1강 p.8)<br>
+"a simple, Unix-like '''teaching''' operating system — a simple but '''POSIX-compliant''' operating system designed for '''multiprocessor x86 and RISC-V'''. Developed for '''MIT's''' operating system course."<br>
+3강 p.37 각주 — "Xv6, a simple Unix-like teaching operating system"
+{/def}
+
+{analogy}
+🚗 '''운전 교습용 차량'''이다. 실제 도로를 달릴 수 있는 진짜 차지만, 부품 수를 최소로 줄여서 보닛을 열면 엔진이 한눈에 보인다. 리눅스 커널이 3천만 줄인 데 비해 xv6는 '''1만 줄 남짓''' — 그래서 학부생이 한 학기에 전체를 읽고, 심지어 [[시스템 콜 추가 절차|시스템 콜을 직접 하나 붙여]] 볼 수 있다.
+{/analogy}
+
+== 이 수업에서의 위치 ==
+
+{| class="table"
+! 항목 || 내용
+|-
+| 프로젝트 || 총 '''4개''' ("Four projects will be assigned", 1강 p.8). 평가 비중 '''30%''' (퀴즈 + 보고서)
+|-
+| 과제 1 || [[과제1 xv6 alarm]] — [[sigalarm]]/[[sigreturn]] 추가. 마감 2026-10-10 23:00
+|-
+| 저장소 || `coruslab-src/xv6-lab`의 '''`traps` 브랜치'''
+|-
+| 환경 || Docker (`sinasadeghi83/xv6-env`) + QEMU. `make qemu`로 부팅
+|-
+| 아키텍처 || 과제는 '''[[RISC-V]]''' 버전
+|}
+
+<pre class="sh">
+$ git clone https://github.com/coruslab-src/xv6-lab.git
+$ cd xv6-lab
+$ git checkout traps
+$ docker run --name lab1 -it -v $(pwd):/home/xv6/xv6-riscv \
+      sinasadeghi83/xv6-env:buildx-latest
+$ make qemu          # xv6 부팅 확인
+</pre>
+
+== 슬라이드 버전과 과제 버전이 다르다 ==
+
+{warn}
+'''가장 중요한 주의 사항.''' 3강 p.37~38에 실린 xv6 코드는 '''x86 시절''' 버전이다.<br>
+· 슬라이드: `char *mem;`, `struct trapframe *tf;`, `struct context { int eip, ebx, esi, edi, ebp; }`, `enum proc_state { UNUSED, '''EMBRYO''', ... }`<br>
+· 과제: `pagetable_t pagetable;`, `struct trapframe *'''trapframe''';`, `struct context { uint64 ra, sp, s0~s11; }`, `enum procstate { UNUSED, '''USED''', ... }`<br>
+'''시험은 슬라이드 기준, 과제는 소스 기준'''으로 따로 외울 것. 자세한 대조표는 [[struct proc]]에 있다.
+{/warn}
+
+== 알아 두면 좋은 구조 ==
+
+{| class="table"
+! 디렉토리/파일 || 무엇
+|-
+| `kernel/proc.h`, `proc.c` || [[struct proc]], `allocproc()`, `scheduler()`, [[myproc]]()
+|-
+| `kernel/trap.c` || [[usertrap]](), [[usertrapret]](), [[which_dev]] 판정
+|-
+| `kernel/syscall.h`, `syscall.c` || 시스템 콜 번호와 디스패치 테이블
+|-
+| `kernel/sysproc.c` || `sys_*()` 구현체들
+|-
+| `user/user.h`, `user/usys.pl` || 유저 쪽 선언과 스텁 생성기 ([[usys.pl]])
+|-
+| `user/alarmtest.c` || 과제 1 채점 기준 테스트 ([[alarmtest]])
+|-
+| `Makefile` || `UPROGS`에 유저 프로그램 등록, `make qemu` / `make grade` / `make zipball`
+|}
+
+{tip}
+제출은 `make zipball`로 만든 `lab.zip`을 `{학번}_{이름}.zip`으로 개명해서 낸다. '''`git commit`을 먼저 해야''' zipball이 만들어진다.
+{/tip}
+
+== 교재와의 관계 ==
+
+* 이 수업의 이론은 '''[[OSTEP]]''', 구현은 '''xv6'''라는 조합이다
+* xv6 자체의 교재는 MIT의 "xv6: a simple, Unix-like teaching operating system" (1강 p.8에 링크)
+* [[OS 역사|계보]]: UNIX (Bell Labs) → xv6 (MIT, x86) → xv6-riscv → `coruslab-src/xv6-lab`
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "MIT의 운영체제 수업을 위해 개발된, 단순하지만 POSIX를 따르는 교육용 유닉스 계열 운영체제"의 이름은?
+{/quiz}
+{answer}
+'''xv6'''. 슬라이드는 "designed for multiprocessor '''x86 and RISC-V'''"라고 덧붙인다.
+{/answer}
+
+== 관련 문서 ==
+* [[struct proc]] / [[PCB]] / [[프로세스]]
+* [[과제1 xv6 alarm]] / [[시스템 콜 추가 절차]] / [[alarmtest]]
+* [[usertrap]] / [[trapframe]] / [[myproc]] / [[usys.pl]]
+* [[OSTEP]] / [[RISC-V]] / [[OS 역사]]

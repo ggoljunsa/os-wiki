@@ -1,0 +1,94 @@
+key: 컨텍스트 스위치
+title: 컨텍스트 스위치 (Context Switch)
+category: 4강 LDE, 핵심
+---
+'''컨텍스트 스위치'''(Context Switch)는 CPU를 한 프로세스에서 다른 프로세스로 넘기는 '''메커니즘'''이다. 4강이 "'''mechanism'''"이라고 부르는 것이 정확히 이것이고, "무엇으로 바꿀까"를 정하는 '''policy'''는 5강 [[스케줄링]]의 몫이다.
+
+{def}
+'''Context switch''' — A low-level piece of '''assembly code''' that
+① saves a few register values for the current process onto its kernel stack (general purpose registers, '''program counter''', '''kernel stack pointer'''),
+② restores a few for the soon-to-be-executing process, and
+③ switches to the kernel stack for the soon-to-be-executing process.
+{/def}
+
+{analogy}
+컨텍스트 스위치는 '''한 대의 게임기를 여러 명이 번갈아 쓰는 것'''이다. 내 차례가 끝나면 '''세이브 파일'''(레지스터 + PC)을 내 메모리 카드에 저장하고, 다음 사람의 세이브 파일을 불러온다. 게임기는 자기가 누구의 게임을 하고 있는지 모른다 — 세이브 파일이 전부다. 4강 녹음에서 교수가 한 말 그대로: "'''we can change the context into the other context if we change this register.'''"
+{/analogy}
+
+[[img:L4-31.png|p.31 Context Switch (Cont.) — ①하드웨어가 유저 상태를 커널 스택에, ③커널 레지스터를 proc-struct(A)에, ④proc-struct(C)에서 복원, ⑤C의 유저 모드로|large]]
+
+== 저장은 두 번 일어난다 ⭐⭐⭐ ==
+
+{warn}
+'''4강 최대의 함정.''' "컨텍스트 스위치가 유저 레지스터를 저장한다"는 서술은 '''틀렸다'''.
+{| class="table"
+! 단계 || 누가 || 무엇을 || 어디에
+|-
+| ① || '''하드웨어''' (+ 트랩 진입 코드) || '''유저''' 상태 — PC(`%eip`), SP(`%esp`), flags, 범용 레지스터 || 그 프로세스의 '''[[커널 스택]]''' ([[xv6]]: [[trapframe]])
+|-
+| ③④ || '''OS의 `switch()`''' || '''커널''' 레지스터 — callee-saved, `ra`, 커널 `sp` || '''proc 구조체''' ([[PCB]], [[xv6]]: `p->context`)
+|}
+유저 레지스터는 컨텍스트 스위치가 일어나기 '''전에 이미''' 저장돼 있다. `switch()`는 "커널 안에서 실행 중이던 흐름"을 바꿔 끼울 뿐이다.
+{/warn}
+
+<pre class="ascii">
+   Process A                                        Process C
+   ┌──────────────┐                                 ┌──────────────┐
+   │ User Stack   │                                 │ User Stack   │
+   ├──────────────┤  ① HW: 유저 상태 저장            ├──────────────┤
+   │ User state   │ ◄─────────────────              │ User state   │ ⑤ 유저로 복귀
+   │ (saved by HW)│                                 │ (saved by HW)│
+   │ Kernel Stack │                                 │ Kernel Stack │
+   └──────┬───────┘                                 └──────▲───────┘
+          │ ② Call switch();                               │
+          │ ③ Save kernel registers                ④ Restore kernel regs
+          ▼    to proc-struct(A)                      from proc-struct(C)
+      ┌────────────── Kernel ──────────────┐
+      │  proc-struct(A)      proc-struct(C) │
+      └─────────────────────────────────────┘
+</pre>
+
+[[sim:context_switch]]
+
+== xv6의 swtch ==
+
+`switch`가 C 키워드라 [[xv6]]는 모음을 빼고 '''`swtch`'''(`kernel/swtch.S`)라고 쓴다.
+
+<pre class="c">
+// kernel/proc.c
+void
+yield(void)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->state = RUNNABLE;    // 1  Running → Ready
+  sched();                // 2  → swtch(&p->context, &mycpu()->context)
+  release(&p->lock);      // 3  ← 다시 스케줄될 때 여기로 돌아온다
+}
+</pre>
+
+* 2행 — `swtch`는 '''callee-saved 레지스터 14개 + `ra` + `sp`'''만 저장/복원한다. caller-saved는 C 컴파일러가 이미 스택에 넣어 뒀으므로 건드릴 필요가 없다.
+* 3행 — 이 함수는 '''지금 당장 리턴하지 않는다'''. 한참 뒤 스케줄러가 이 프로세스를 다시 고를 때 `swtch`가 "리턴한 것처럼" 여기서 재개된다.
+
+{exam}
+9월 9일 녹음에서 교수가 '''"the key point here is"'''라며 강조한 문장:
+"we save '''a few register values''' like '''general purpose register and program counter and kernel stack pointer''' and '''all of them is only this'''."
+→ 컨텍스트 스위치가 무엇을 저장하는지 묻는 문제에는 이 '''세 가지'''를 쓰면 된다.
+{/exam}
+
+== 비용 (p.34) ==
+
+{| class="table"
+! 시기 || 시스템 콜 || 컨텍스트 스위치
+|-
+| 1996 (200 MHz P6, Linux 1.3.37) || 약 4 μs || 약 6 μs
+|-
+| 현대 (2–3 GHz) || 더 빠름 || '''sub-microsecond''' (거의 한 자릿수 배 개선)
+|}
+
+숫자보다 '''"공짜는 아니지만 마이크로초 단위로 꽤 싸다 — 그래도 자주 하면 p.8의 Performance 문제"'''라는 감각이 중요하다. 5강의 [[time slice]] 길이 선택이 정확히 이 트레이드오프다.
+
+== 관련 문서 ==
+* [[타이머 인터럽트]] · [[스케줄러]] · [[커널 스택]] · [[trapframe]] · [[PCB]] · [[struct proc]]
+* [[yield]] · [[usertrap]] · [[프로세스 상태]] · [[제한적 직접 실행]]
+* [[스케줄링]] (policy) · [[time slice]] · [[스레드 컨텍스트 스위치]] (8강)

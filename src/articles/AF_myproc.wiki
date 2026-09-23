@@ -1,0 +1,94 @@
+key: myproc
+title: myproc()
+category: 과제1, 용어
+---
+'''`myproc()`'''은 [[xv6]]에서 '''"지금 이 CPU에서 실행 중인 프로세스"의 [[struct proc]] 포인터'''를 돌려주는 함수다. [[usertrap]], `sys_sigalarm`, `sys_sigreturn` 등 [[과제1 xv6 alarm|과제 1]]의 모든 코드가 이 함수로 시작한다.
+
+{def}
+`struct proc *myproc(void);` — returns the `struct proc *` of the process currently running on this CPU (`c->proc`).
+{/def}
+
+{analogy}
+`myproc()`은 '''"지금 이 진료실에 앉아 있는 환자의 차트를 꺼내 오는 것"'''이다. 병원(커널)에는 환자 차트가 64장 꽂혀 있는데(`struct proc proc[NPROC]`), 의사는 '''지금 눈앞의 환자 것'''만 필요하다. 그래서 `p->alarm_interval = n`이라고 쓰면 '''[[sigalarm]]을 부른 바로 그 프로세스의 칸'''에만 기록된다 — 알람 설정이 프로세스마다 독립인 이유.
+{/analogy}
+
+== 구현 ==
+
+<pre class="c">
+// kernel/proc.c
+struct proc*
+myproc(void)
+{
+  push_off();               // 1  인터럽트 끄기
+  struct cpu *c = mycpu();  // 2  tp 레지스터의 hartid 로 CPU 구조체
+  struct proc *p = c->proc; // 3  그 CPU 가 지금 돌리는 프로세스
+  pop_off();                // 4  인터럽트 복원
+  return p;
+}
+</pre>
+
+{warn}
+1·4행의 `push_off()`/`pop_off()`가 핵심이다. 2행과 3행 사이에 [[타이머 인터럽트]]가 들어와 [[컨텍스트 스위치]]가 일어나면, '''다른 CPU로 옮겨 가서 엉뚱한 `c`를 읽게 된다'''. 그래서 그 짧은 구간 동안 인터럽트를 꺼 둔다 — 9강 [[인터럽트 비활성화]]와 같은 기법.
+{/warn}
+
+== 프로세스는 배열의 한 칸이다 ==
+
+<pre class="ascii">
+   kernel/proc.c:   struct proc proc[NPROC];    // NPROC = 64. 부팅 때부터 고정 존재
+
+   커널 메모리 (bss)
+   proc[0]  ┌──────────────────────────────────────────┐
+            │ lock, state, pid, parent, kstack, sz     │  원래 필드
+            │ pagetable                                │
+            │ trapframe ─────────────┐  (포인터 8B)    │
+            │ context, ofile[], cwd, name              │
+            │ ── Assignment 1 추가 ──                   │
+            │ alarm_interval, alarm_handler,           │  ← 이 칸 "안에" 직접
+            │ alarm_elapsed, alarm_active              │
+            │ alarm_saved  [ 288B 구조체 통째 ]         │  ← 포인터가 아니라 내용물
+            └────────────────────────│─────────────────┘
+   proc[1]  ┌──────── 같은 모양 ─────│─────────────────┐
+     …                               │
+   proc[63]                          ▼
+                       trapframe 페이지 (4096B, 프로세스마다 1장)
+                       ┌──────────────────────────┐
+                       │ kernel_satp … epc        │
+                       │ ra sp … a0 … t6          │
+                       └──────────────────────────┘
+
+   myproc() 이 돌려주는 p = 이 배열의 "한 칸을 가리키는 포인터"
+</pre>
+
+== `->` 와 `.` 의 차이가 곧 "어디에 있나" ==
+
+{| class="table"
+! 식 || 뜻 || 데이터 위치
+|-
+| `p->alarm_interval` || p가 가리키는 칸의 필드 || '''proc 칸 안'''
+|-
+| `p->trapframe` || 칸 안의 '''포인터 값''' || 칸 안 (8 B)
+|-
+| `p->trapframe->epc` || 그 포인터를 '''한 번 더 따라간''' 페이지의 [[epc]] || '''별도 [[trapframe]] 페이지'''
+|-
+| `p->alarm_saved.epc` || 칸 안에 박힌 구조체의 epc (포인터 아님 → `.`) || '''proc 칸 안'''
+|}
+
+{tip}
+그래서 백업/복원 코드가 이렇게 생긴 것이다:
+<pre class="c">
+p->alarm_saved = *p->trapframe;   // 페이지 → 칸 안   (백업)
+*p->trapframe = p->alarm_saved;   // 칸 안 → 페이지   (복원)
+</pre>
+{/tip}
+
+{quiz}
+`sys_sigalarm()` 안에서 `myproc()` 대신 전역 변수에 interval을 저장하면 어떤 문제가 생기나?
+{/quiz}
+{answer}
+'''모든 프로세스가 같은 알람 설정을 공유'''하게 된다. A가 `sigalarm(2, fa)`를, B가 `sigalarm(5, fb)`를 부르면 서로 덮어쓰고, [[alarm_saved]] 슬롯도 하나뿐이라 A의 문맥이 B의 문맥으로 덮여 '''둘 다 crash'''한다. 프로세스별 상태는 반드시 [[struct proc]]([[PCB]]) 안에 둬야 한다 — 그것이 PCB의 존재 이유다.
+{/answer}
+
+== 관련 문서 ==
+* [[struct proc]] · [[PCB]] · [[trapframe]] · [[epc]] · [[alarm_saved]] · [[프로세스]]
+* [[sigalarm]] · [[sigreturn]] · [[usertrap]] · [[yield]] · [[인터럽트 비활성화]]
+* [[과제1 xv6 alarm]] · [[xv6]]

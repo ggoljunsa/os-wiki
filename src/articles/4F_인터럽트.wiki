@@ -1,0 +1,64 @@
+key: 인터럽트
+title: 인터럽트 (Interrupt)
+category: 4강 LDE, 용어
+---
+'''인터럽트'''(Interrupt)는 '''프로세서 외부의 사건'''으로 생기는 '''asynchronous exception'''이다. [[트랩]]이 "내가 두드린 문"이라면 인터럽트는 "밖에서 울린 경보"다.
+
+{def}
+'''Asynchronous Exceptions (Interrupts)''' — Caused by events '''external to the processor'''. Indicated by setting the processor's '''interrupt pin'''. Handler returns to the '''"next"''' instruction.
+{/def}
+
+{analogy}
+인터럽트는 '''요리 중에 울리는 초인종'''이다. 내가 뭘 하고 있었든 상관없이 밖에서 울린다. 그래서 ① 언제 울릴지 '''예측할 수 없고''' ② 울렸을 때 '''하던 일을 정확히 기억해 두었다가''' 돌아와야 한다 — 냄비 불 끄는 걸 잊으면 안 되니까. 그 "기억해 두는 노트"가 [[trapframe]]이고, 기억한 위치가 [[epc]]다.
+{/analogy}
+
+== 예 ==
+
+{| class="table"
+! 종류 || 언제 || 왜 중요한가
+|-
+| '''[[타이머 인터럽트]]''' || 몇 ms마다 외부 타이머 칩이 발생 || "Used by the kernel to '''take back control''' from user programs" — 4강의 핵심
+|-
+| I/O 인터럽트 || 키보드 Ctrl-C, 네트워크 패킷 도착, 디스크에서 데이터 도착 || 장치가 준비됐음을 알림 (폴링보다 효율적)
+|}
+
+== 동기 예외와의 구분 ⭐ ==
+
+<pre class="ascii">
+                       Exceptional Control Flow
+                                 │
+            ┌────────────────────┴────────────────────┐
+            ▼                                         ▼
+     Asynchronous                               Synchronous
+     = 인터럽트                                  = 명령어 실행의 결과
+     · 외부 사건                          ┌──────────┼──────────┐
+     · interrupt pin                      ▼          ▼          ▼
+     · 다음 명령어로 복귀               Trap       Fault       Abort
+                                     의도적     비의도적     비의도적
+                                     (syscall)  복구가능      복구불가
+                                     다음 명령어  현재 명령어   종료
+                                                 재실행
+</pre>
+
+{exam}
+'''2025F 중간고사 Problem 1'''이 이 분류를 그대로 냈다 — "Which one is '''not''' a synchronous exception?" → '''Interrupt'''. 2026 시험에서도 "재실행하는 것은?"(→ Fault), "의도적인 것은?"(→ Trap), "복구 불가능한 것은?"(→ Abort) 형태로 변주되기 쉽다.
+{/exam}
+
+{tip}
+[[RISC-V]]에서는 이 구분이 '''`scause`의 최상위 비트 하나'''에 박혀 있다 — bit63 = 1이면 Interrupt, 0이면 Exception. 4강의 개념 분류가 하드웨어 명세에 그대로 있는 셈.
+{/tip}
+
+== 인터럽트를 끄기 ==
+
+[[커널 모드]]에서는 인터럽트를 '''잠시 끌 수 있다'''([[특권 명령]]). 9강 [[인터럽트 비활성화]]가 이것을 [[락]] 구현에 쓰는 이야기다. 유저 모드에서는 당연히 불가능하다 — 가능했다면 [[타이머 인터럽트]]를 꺼 버리면 그만이다.
+
+{quiz}
+"인터럽트는 프로그램이 실행한 명령어 때문에 발생한다"는 서술은 옳은가?
+{/quiz}
+{answer}
+'''틀렸다.''' 그것은 '''synchronous exception'''(trap / fault / abort)의 설명이다. 인터럽트는 '''프로세서 외부'''의 사건(타이머 칩, 디스크, 키보드)으로 생기며, 프로세서의 '''interrupt pin'''을 세워서 알린다. 그래서 '''언제 올지 프로그램과 무관'''하다 — 이것이 "asynchronous"의 뜻.
+{/answer}
+
+== 관련 문서 ==
+* [[트랩]] · [[인터럽트 핸들러]] · [[타이머 인터럽트]] · [[트랩 테이블]] · [[비협력적 방식]]
+* [[usertrap]] · [[which_dev]] · [[인터럽트 비활성화]] (9강) · [[제한적 직접 실행]]

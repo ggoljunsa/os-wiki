@@ -1,0 +1,218 @@
+key: 프로그램 로딩
+title: 프로그램 로딩 (Compiling, Linking, Loading)
+category: 3강 From Program to Process, 용어
+---
+'''프로그램 로딩'''은 사람이 쓴 C 코드가 디스크의 실행 파일(ELF)을 거쳐 메모리 위의 [[프로세스]]가 되기까지의 전 과정이다. 3강 p.11~20이 통째로 이 이야기이고, 마지막 슬라이드의 빨간 문장 "'''Now, OS takes control of running executable (p)!'''"에서 운영체제 이야기가 시작된다.
+
+{def}
+'''Loading Executable''' (3강 p.19)<br>
+"'''Loader''' loads executable (`p`) into the main memory (e.g., DRAM)." 왼쪽은 Executable Object File (in Disk), 오른쪽은 '''Process (= task)''' (in main memory).
+{/def}
+
+{analogy}
+🍳 '''요리책 → 주방 세팅'''. 소스 코드는 손으로 쓴 레시피 초안, 컴파일은 그걸 표준 조리 용어로 옮겨 적는 일, 어셈블은 그 문장을 조리 기계가 읽는 바코드로 바꾸는 일, '''링크'''는 "소스는 3번 서랍 참고"처럼 비어 있던 참조를 실제 서랍 번호로 채우는 일이다. 그리고 '''로드'''는 그 완성된 레시피와 재료를 실제로 조리대(=메모리) 위에 꺼내 놓는 일 — 이 순간부터 요리(=프로세스)가 시작된다.
+{/analogy}
+
+== 전체 파이프라인 ==
+
+[[img:L3-13.png|3강 p.13. C program(text) → Compiler → Assembly(text) → Assembler → Object(binary) → Linker → Executable(binary). 링커에는 정적 라이브러리(.a)도 들어간다.|large]]
+
+<pre class="sh">
+gcc -O1 main.c sum.c -o p
+</pre>
+
+한 줄 뒤에서 벌어지는 일:
+
+{| class="table"
+! 단계 || 도구 || 입력 → 출력 || 형태
+|-
+| ① 컴파일 || Compiler (`gcc -S`) || `main.c` `sum.c` → `main.s` `sum.s` || text → '''text'''
+|-
+| ② 어셈블 || Assembler (`gcc -c` 또는 `as`) || `.s` → `.o` || text → '''binary'''
+|-
+| ③ 링크 || Linker (`gcc` 또는 `ld`) || `.o` + `.a` → `p` || binary → binary
+|-
+| ④ 로드 || '''Loader''' (+ OS) || `p` → 메모리의 [[프로세스]] || 디스크 → '''메모리'''
+|}
+
+{warn}
+"'''text → text → binary → binary'''" 순서를 기억할 것. 어셈블리(`.s`)는 아직 사람이 읽을 수 있는 '''텍스트'''다. 바이너리가 되는 첫 단계는 어셈블러다.<br>
+그리고 ①~③은 [[운영체제란|Compilation System]], ④의 Loader도 슬라이드 분류상 '''Compilation System'''에 속한다 (OS가 아니다!).
+{/warn}
+
+=== ① 컴파일: C → 어셈블리 ===
+
+<pre class="c">
+/* sum.c */
+int sum(int x, int y)
+{
+    int t = x+y;
+    return t;
+}
+</pre>
+
+<pre class="asm">
+sum:
+    pushl %ebp
+    movl %esp,%ebp
+    movl 12(%ebp),%eax
+    addl 8(%ebp),%eax
+    popl %ebp
+    ret
+</pre>
+
+C 한 줄(`x+y`)이 스택 프레임 설정·인자 로드·덧셈·복귀 등 '''여러 개의 기계 명령'''으로 풀린다는 감각만 잡으면 된다. 반환값이 `%eax`에 담긴다는 관례도 보인다.
+
+=== ② 어셈블: 어셈블리 → 오브젝트 ===
+
+어셈블러가 각 명령어를 '''이진 인코딩'''한다 (`pushl %ebp` → `0x55`, …). 결과인 `.o`는 "거의 완성된 실행 이미지"지만 '''다른 파일에 있는 심볼의 주소가 비어 있다''' — `main.o`는 `sum`이 어디 있는지 모른다.
+
+=== ③ 링크: 흩어진 조각 잇기 ===
+
+{def}
+"Linker combines multiple objects (`.o`) and creates executable (`p`)." (3강 p.16)
+{/def}
+
+<pre class="ascii">
+   main.c ──(gcc,as)──► main.o ─┐
+                                ├──► Linker (gcc/ld) ──► p
+   sum.c  ──(gcc,as)──► sum.o  ─┤                         (fully linked
+                                │                          executable)
+   libc.a (printf 등) ──────────┘
+</pre>
+
+링킹의 실체는 '''재배치(relocation)'''다 (3강 p.18): 각 `.o`의 `.text`끼리, `.data`끼리 모아 실행 파일의 한 덩어리로 합치고, 그 과정에서 비어 있던 심볼 주소를 실제 값으로 채운다.
+
+{tip}
+0831 녹음본에서 교수님이 링킹이 왜 필요한지 설명한 대목: "when we call the `sum` function, we need to know about the '''address''' of the buffer data because we need to pass them into the sum function, but we don't have any information about the sum function in the main function. So '''we can't generate the call instruction''' to the sum function. That is the reason we need to '''link'''."
+{/tip}
+
+== ELF: 실행 파일의 내부 구조 ⭐ ==
+
+[[img:L3-17.png|3강 p.17. ELF header / Segment header table / .text / .rodata / .data / .bss / .symtab / .rel.txt / .rel.data / .debug / Section header table.|large]]
+
+{| class="table"
+! 섹션 || 내용 || 예
+|-
+| '''ELF header''' || byte ordering, file type(.o/exec/.so), machine type || IA32인지 [[RISC-V]]인지
+|-
+| '''Segment header table''' || page size, 가상 주소, 세그먼트 크기 (실행 파일에 필수) ||
+|-
+| '''`.text`''' || '''코드''' (기계어) || `main`, `sum`
+|-
+| '''`.rodata`''' || 읽기 전용 데이터 || 문자열 상수, switch 점프 테이블
+|-
+| '''`.data`''' || '''초기화된''' 전역 변수 || `int buf[2]={1,2}`
+|-
+| '''`.bss`''' || '''초기화 안 된''' 전역 변수. "Holds variables that don't have any value yet", '''Occupies no space''' || `static int t`
+|-
+| `.symtab` / `.debug` / `.rel.*` || 심볼 테이블, 디버그 정보, 재배치 정보 ||
+|}
+
+{warn}
+'''`.data` vs `.bss`는 최다 출제 포인트다.'''<br>
+· `.data` = 초기값이 있는 전역 → 그 값을 '''파일에 저장해야 하므로 공간을 차지'''<br>
+· `.bss` = 초기값이 없는 전역 → 저장할 값이 없으니 "크기가 얼마"라는 정보만 두고 '''파일에서 공간을 차지하지 않는다'''(occupies no space). 로드될 때 0으로 채워진다.<br>
+"`.bss`도 실행 파일에서 자리를 차지한다"는 틀린 문장이다.
+{/warn}
+
+== ④ 로딩: 프로그램이 프로세스가 되는 순간 ⭐⭐ ==
+
+[[img:L3-19.png|3강 p.19. 왼쪽 실행 파일이 오른쪽 메모리 배치로 옮겨진다. 맨 아래 빨간 글씨 "Now, OS takes control of running executable (p)!"|large]]
+
+<pre class="ascii">
+   0x100000000 ┌─────────────────────────────┐
+               │   Kernel virtual memory     │   OS 영역
+               ├─────────────────────────────┤
+               │   User stack                │ ← %esp (스택 포인터)
+               │   (created at runtime)      │   아래로 성장 ↓
+               ├─────────────────────────────┤
+               │                             │
+               │      (빈 공간)               │
+               │                             │
+               ├─────────────────────────────┤
+               │   Run-time heap             │ ← brk
+               │   (created by malloc)       │   위로 성장 ↑
+               ├─────────────────────────────┤  ┐
+               │   Read/write segment        │  │
+               │   (.data, .bss)             │  │ Loaded from
+               ├─────────────────────────────┤  │ the executable
+               │   Read-only segment         │  │ file
+    0x08048000 │   (.init, .text, .rodata)   │  ┘
+               ├─────────────────────────────┤
+             0 │   Unused                    │
+               └─────────────────────────────┘
+</pre>
+
+* 실행 파일에서 '''그대로 옮겨오는''' 것: read-only segment(`.init`/`.text`/`.rodata`)와 read/write segment(`.data`/`.bss`)
+* 실행 파일에 '''없고 런타임에 만들어지는''' 것: '''[[스택|User stack]]'''과 '''[[힙|Run-time heap]]'''
+* 주소가 가장 낮은 곳은 Unused — 널 포인터 역참조를 잡기 위해 일부러 비워 둔다
+* [[스택 포인터|%esp]]가 stack의 꼭대기를, `brk`가 heap의 경계를 가리킨다
+
+{warn}
+'''"`.bss`는 파일에서 공간을 차지하지 않는다"와 "메모리에서 공간을 차지하지 않는다"는 다른 말이다.''' 메모리에는 당연히 자리를 잡고 0으로 채워진다. 차지하지 않는 건 '''디스크의 실행 파일''' 쪽이다.
+{/warn}
+
+{tip}
+0831 녹음본, 로더가 배치 순서를 보존한다는 설명: "if you build the code section like this — system code, then main function, then sum function, then other system code — this will be '''copied into this region/segment''' … the '''order will be preserved''' after loading."
+{/tip}
+
+== 한 장으로 보는 요약 ==
+
+[[img:L3-20.png|3강 p.20. Code(HDD) →Compiler&Linker→ Executable=Program(HDD) →Loader→ Process(Memory) → Processor가 Control Flow를 실행. 이 과목 3강의 요약도.|large]]
+
+{| class="table"
+! 어디에 || 무엇이 || 이름
+|-
+| HDD || `main.c`, `sum.c` || 소스 코드
+|-
+| HDD || ELF 파일 `p` || '''Program''' (= Executable)
+|-
+| Memory || 주소 공간 (stack/heap/data/code) || '''Process'''
+|-
+| Processor || `inst1`, `inst2`, … || '''Control flow'''
+|}
+
+{warn}
+'''프로그램과 프로세스를 가르는 선이 바로 Loader다.''' 로더 왼쪽은 디스크 위의 정적인 바이트, 오른쪽은 메모리 위의 살아 있는 실행 주체. 3강 전체가 이 한 칸을 설명하기 위한 것이다. → [[프로세스]]
+{/warn}
+
+== Lazy loading ==
+
+프로세스 생성 1단계의 단서 조항 (3강 p.32): "OS performs the loading process '''lazily''' — loading pieces of code or data '''only as they are needed''' during program execution."
+
+즉 실제로는 실행 파일 전체를 한 번에 올리지 않는다. 필요한 페이지만 그때그때 올린다(demand paging). 이 문장이 중간고사 이후 가상 메모리 단원의 복선이다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(순서)''' `gcc -O1 main.c sum.c -o p` 가 수행하는 단계를 도구 이름과 입출력 파일 형식(text/binary)까지 포함해 순서대로 쓰시오.
+{/quiz}
+{answer}
+① '''Compiler'''(`gcc -S`): `.c`(text) → `.s`(text)<br>
+② '''Assembler'''(`gcc -c`/`as`): `.s`(text) → `.o`('''binary''')<br>
+③ '''Linker'''(`gcc`/`ld`): `.o` + 정적 라이브러리 `.a` → 실행 파일 `p`(binary)<br>
+(그리고 실행 시 ④ '''Loader'''가 `p`를 메모리에 올려 [[프로세스]]로 만든다.)
+{/answer}
+
+{quiz}
+'''(O/X)''' "`.bss` 섹션은 초기화되지 않은 전역 변수를 담으며, 실행 파일에서 그 크기만큼의 공간을 차지한다."
+{/quiz}
+{answer}
+'''X.''' 앞부분은 맞지만 뒷부분이 틀렸다. 슬라이드 원문은 "'''Occupies no space'''" — 저장할 값이 없으므로 '''파일에서는''' 공간을 차지하지 않고, 로드될 때 메모리에 0으로 채워진다.
+{/answer}
+
+{quiz}
+'''(개념)''' 로드된 프로세스의 메모리 이미지 중, 실행 파일에서 그대로 복사되지 '''않고''' 런타임에 새로 만들어지는 영역 두 개를 쓰시오.
+{/quiz}
+{answer}
+'''User stack'''(created at runtime)과 '''Run-time heap'''(created by `malloc`). 실행 파일에서 오는 것은 read-only segment(`.init`/`.text`/`.rodata`)와 read/write segment(`.data`/`.bss`)뿐이다.
+{/answer}
+
+== 관련 문서 ==
+* [[프로세스]] — 로딩의 결과물
+* [[주소 공간]] — 로드된 메모리 배치의 상세
+* [[스택]] / [[힙]] / [[스택 포인터]]
+* [[exec]] — 실행 중에 로딩을 다시 하는 시스템 콜
+* [[운영체제란]] — Compilation System / Runtime System 분류
+* [[OS 역사]] — stored program computer

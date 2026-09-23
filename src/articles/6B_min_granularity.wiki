@@ -1,0 +1,40 @@
+key: min_granularity
+title: min_granularity
+category: 6강 Proportional Share, 용어
+---
+'''min_granularity'''는 [[CFS]]가 [[time slice]]에 두는 '''하한선'''이다. [[sched_latency]]를 프로세스 수로 나눈 값이 이보다 작아지면 min_granularity로 '''올림'''한다. 리눅스 기본값은 '''6ms'''.
+
+{def}
+'''min_granularity''' specifies the '''minimum length of a time slice'''. CFS will '''never set the time slice to less than min_granularity'''.
+* Typically, min_granularity is '''6 ms''' in Linux
+* Example: sched_latency = 48ms, n = 10 → 4.8ms → '''set to 6ms'''
+* CFS won't be perfectly fair over sched_latency of 48 ms, '''but it will be close while still achieving high CPU efficiency'''
+{/def}
+
+{analogy}'''최소 주문 금액'''이다. 배달 앱에서 1,000원짜리 하나만 시킬 수 없는 이유는 배달비(= [[컨텍스트 스위치]] 비용)가 음식값보다 커지기 때문이다. 슬라이스가 4.8ms인데 전환에 1μs씩 든다면 그나마 괜찮지만, 프로세스가 수백 개가 되면 슬라이스가 마이크로초 단위로 떨어져 '''전환하느라 일을 못 하는''' 상태가 된다. min_granularity는 "이 밑으로는 안 받는다"는 선이다.{/analogy}
+
+<pre class="txt">
+ sched_latency = 48ms, min_granularity = 6ms
+
+ n =  4 → 48/4  = 12ms   ≥ 6ms  →  '''12ms''' 그대로
+ n =  6 → 48/6  =  8ms   ≥ 6ms  →  '''8ms''' 그대로
+ n =  8 → 48/8  =  6ms   = 6ms  →  '''6ms'''
+ n = 10 → 48/10 = 4.8ms  < 6ms  →  '''6ms'''로 올림
+ n = 12 → 48/12 =  4ms   < 6ms  →  '''6ms'''로 올림
+</pre>
+
+== 공정성을 조금 포기한다 ==
+
+{exam}n = 10에서 슬라이스가 6ms면 한 바퀴에 '''60ms'''가 걸린다. sched_latency는 48ms인데 말이다. 즉 '''48ms 안에서 완전히 공정하다는 보장이 깨진다'''.
+
+이게 의도된 trade-off다. 슬라이드 원문: "CFS won't be perfectly fair over sched_latency of 48 ms, '''but it will be close while still achieving high CPU efficiency'''."
+
+시험에 "n = 12일 때 time slice는? sched_latency 안에서 완전히 공정한가?"로 나오면 → '''6ms(올림됨) / 아니다(12 × 6 = 72ms > 48ms)'''라고 답해야 만점이다.{/exam}
+
+5강 [[time slice]] 문서의 trade-off를 그대로 이어받은 파라미터다 — 짧은 슬라이스는 [[response time]]에 좋지만 switching 비용이 전체를 지배한다.
+
+[[sim:cfs_eevdf]]
+
+== 관련 문서 ==
+* [[sched_latency]] · [[CFS]] · [[time slice]] · [[컨텍스트 스위치]]
+* [[vruntime]] · [[비례 지분 스케줄링]]

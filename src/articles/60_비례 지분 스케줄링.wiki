@@ -1,0 +1,415 @@
+key: 비례 지분 스케줄링
+title: 비례 지분 스케줄링 (Proportional Share)
+category: 6강 Proportional Share, 핵심
+---
+'''비례 지분 스케줄링'''(proportional share) = '''공정 배분(fair-share) 스케줄링'''은 목표 자체가 5강과 다르다. [[turnaround time]]이나 [[response time]]을 줄이는 게 아니라, '''각 job이 CPU 시간의 몇 %를 받을지 보장'''하는 것이 목적이다.
+
+{def}
+'''Proportional share (or fair-share) scheduler''' (슬라이드 p.9 원문)
+* Guarantee that each job obtains a '''certain percentage of CPU time'''
+* '''Not optimized for turnaround or response time'''
+
+'''Why proportional share?'''
+* '''Fairness'''
+* '''Predictability''' — e.g.) Elevator
+{/def}
+
+{warn}'''시험 함정 1순위.''' "비례 지분 스케줄러의 목표는?"에 "반환 시간/응답 시간 최적화"라고 답하면 '''틀린다'''. 슬라이드에 "Not optimized for turnaround or response time"이라고 명시되어 있다. 목표는 '''[[fairness]] + predictability''' 딱 둘이다.{/warn}
+
+발전 순서는 '''[[Lottery 스케줄링]](확률적) → [[Stride 스케줄링]](결정적) → [[CFS]](리눅스 실제 구현) → [[EEVDF]](리눅스 6.6~)''' 네 단계다. 각 단계가 앞 단계의 어떤 약점을 고쳤는지로 기억하면 된다.
+
+{analogy}'''엘리베이터'''가 슬라이드에 나온 교수님의 비유다. 엘리베이터가 "가장 빨리 내릴 사람부터" 태우면 평균 대기 시간은 줄겠지만, 내가 언제 탈지 예측할 수 없다. 반면 순서가 정해져 있으면 느려도 '''언제쯤 내 차례인지 안다'''. 클라우드에서 "이 VM은 CPU 25%를 보장" 하고 파는 것도 같은 이야기다 — 빠름보다 '''약속대로''' 가 중요한 영역이 있다.{/analogy}
+
+== 티켓 — 모든 것의 기본 단위 ==
+
+{def}
+'''Tickets''': Represent the '''share of a resource''' that a process should receive. The '''percent of tickets''' represents its share of the system resource in question.
+{/def}
+
+예: 프로세스 A가 [[tickets|티켓]] 75장, B가 25장이면 A는 CPU의 '''75%''', B는 '''25%'''를 받는다. 티켓은 CPU뿐 아니라 메모리·네트워크 대역폭 등 어떤 자원에도 쓸 수 있는 일반적 개념이다.
+
+== Lottery 스케줄링 ==
+
+[[img:L6-12.png|총 100장 중 A가 0~74번, B가 75~99번. 난수 15개로 A 11번 / B 4번|medium]]
+
+{def}
+'''Lottery Scheduling''': The scheduler picks a '''winning ticket randomly''' → load the state of that winning process and runs it.
+The '''longer''' these two jobs compete, the '''more likely''' they are to achieve the desired percentages.
+{/def}
+
+<pre class="txt">
+ 총 티켓 100장. A = 0~74 (75장), B = 75~99 (25장)
+ 당첨 번호:  63 85 70 39 76 17 29 41 36 39 10 99 68 83 63
+ 실행 결과:  A  B  A  A  B  A  A  A  A  A  A  B  A  B  A
+ → 15번 중 B가 4번 ≈ 27%. 목표는 25%지만 '''정확히는 아니다'''.
+</pre>
+
+=== 티켓 메커니즘 세 가지 ===
+
+{|
+! 이름 || 내용 || 예시
+|-
+| '''Ticket currency''' || 사용자가 '''자기 화폐'''로 자기 job들에 티켓을 나눠 주면 시스템이 '''전역 화폐로 환산''' || 전역 200장, A·B가 100장씩. A가 자기 화폐 500씩 A1·A2에 → 각 전역 '''50장'''. B가 자기 화폐 10을 B1에 → 전역 '''100장'''
+|-
+| '''Ticket transfer''' || 프로세스가 티켓을 '''일시적으로 양도''' || client가 server에 티켓을 넘김 → server가 최고 속도로 처리 → 끝나면 돌려줌
+|-
+| '''Ticket inflation''' || 프로세스가 '''스스로 티켓 수를 늘리거나 줄임''' || 전역 200 → 300장, A가 100 → 200장. ⚠ 탐욕스러운 프로세스 하나가 머신을 독점할 수 있어 '''서로 신뢰하는 환경에서만''' 사용
+|}
+
+<pre class="txt">
+ currency 환산 공식
+   전역 티켓 = (사용자의 전역 티켓) × (job의 지역 티켓 / 사용자 지역 티켓 합)
+   A1 = 100 × (500 / 1000) = 50
+</pre>
+
+=== 구현 — 리스트 순회 ===
+
+[[img:L6-17.png|총 400장, A(100) → B(50) → C(250) 리스트를 순회하며 누적합이 당첨 번호를 넘는 순간|medium]]
+
+<pre class="c">
+1   // counter: used to track if we've found the winner yet
+2   int counter = 0;
+3
+4   // winner: use some call to a random number generator to
+5   // get a value, between 0 and the total # of tickets
+6   int winner = getrandom(0, totaltickets);
+7
+8   // current: use this to walk through the list of jobs
+9   node_t *current = head;
+10
+11  // loop until the sum of ticket values is > the winner
+12  while (current) {
+13      counter = counter + current->tickets;
+14      if (counter > winner)
+15          break;                 // found the winner
+16      current = current->next;
+17  }
+18  // 'current' is the winner: schedule it...
+</pre>
+
+* 6행: 0 ~ (총 티켓 수 − 1) 중 하나를 뽑는다.
+* 13행: 리스트를 따라가며 티켓 수를 '''누적'''한다.
+* 14행: 누적합이 당첨 번호를 '''넘는 순간'''의 노드가 당첨자.
+* 예: `winner = 300`이면 A(100) → B(150) → C(400 > 300) → '''C 당첨'''.
+
+구현에 필요한 건 셋뿐이다 — 좋은 난수 생성기, 프로세스 리스트, 총 티켓 수. 이 단순함이 lottery의 최대 장점이다. 다만 '''시간 복잡도 O(n)'''이고, 이게 [[CFS]]가 등장하는 이유가 된다.
+
+=== 공정성 지표 ===
+
+[[img:L6-20.png|실행 시간 R을 1~1000으로 바꾸며 30회 평균. R이 클수록 F가 1에 수렴|medium]]
+
+$$F = \frac{T_{first}}{T_{second}}$$
+
+티켓 수도 실행 시간도 같은 두 job인데 난수 때문에 하나가 먼저 끝난다. 이 불공정을 수치화한 것이 [[fairness|F]]다. R=1이면 0.5에서 시작해, '''실행 시간이 충분히 길면(= 슬라이스가 많으면) 1에 수렴'''한다.
+
+[[sim:stride_lottery]]
+
+== Stride 스케줄링 ==
+
+난수를 쓰지 않는 '''결정적(deterministic)''' 방식이다.
+
+{def}
+'''Stride Scheduling'''
+* Each process has a '''stride''', which is '''inverse in proportion to tickets''' it has
+* Each process maintains a '''pass''' value which is initially 0 and increases by its stride whenever the process runs
+* The scheduler picks the process to run that has the '''lowest pass''' value
+{/def}
+
+<pre class="c">
+current = remove_min(queue);        // pick client with minimum pass
+schedule(current);                  // use resource for quantum
+current->pass += current->stride;   // compute next pass using stride
+insert(queue, current);             // put back into the queue
+</pre>
+
+$$stride_i = \frac{\text{(a large number)}}{tickets_i}$$
+
+{analogy}이름 그대로 '''보폭(stride)'''이다. 티켓이 많은 프로세스는 '''종종걸음'''(작은 보폭)이라 같은 거리를 가는 데 여러 번 움직여야 하고, 티켓이 적은 프로세스는 '''성큼성큼'''(큰 보폭)이라 한 번에 멀리 간다. 스케줄러는 '''항상 가장 뒤처진 사람(pass 최소)'''에게 다음 한 걸음을 준다. 결국 종종걸음 프로세스가 훨씬 자주 걷게 된다.{/analogy}
+
+=== 계산 예 ===
+
+[[img:L6-25.png|A=100, B=50, C=250 티켓. 큰 수 10000 기준 stride는 100 / 200 / 40|medium]]
+
+<pre class="txt">
+ A: 10000 / 100 = stride '''100'''
+ B: 10000 /  50 = stride '''200'''
+ C: 10000 / 250 = stride '''40'''
+</pre>
+
+{|
+! Pass(A) (stride=100) || Pass(B) (stride=200) || Pass(C) (stride=40) || Who Runs?
+|-
+| 0 || 0 || 0 || '''A''' (동점 — 임의 선택)
+|-
+| 100 || 0 || 0 || '''B'''
+|-
+| 100 || 200 || 0 || '''C'''
+|-
+| 100 || 200 || 40 || '''C'''
+|-
+| 100 || 200 || 80 || '''C'''
+|-
+| 100 || 200 || 120 || '''A'''
+|-
+| 200 || 200 || 120 || '''C'''
+|-
+| 200 || 200 || 160 || '''C'''
+|-
+| 200 || 200 || 200 || … (한 사이클 종료)
+|}
+
+한 사이클에서 '''C 5번, A 2번, B 1번''' = 티켓 비율 250 : 100 : 50 = '''5 : 2 : 1 정확히 일치'''. 처음 동점에서 B를 먼저 골라도 결과 비율은 같다.
+
+{exam}'''표 읽는 법이 시험의 절반이다.''' 각 행의 pass 값은 '''그 행에서 실행하기 직전 상태'''이고, "Who Runs?"는 그중 최솟값을 가진 프로세스다. 실행한 뒤 그 프로세스의 pass에 stride를 더한 것이 '''다음 행'''이다. 이 규칙만 지키면 표는 기계적으로 채워진다.{/exam}
+
+=== 왜 그래도 Lottery를 쓰나 ===
+
+{|
+! || [[Lottery 스케줄링]] || [[Stride 스케줄링]]
+|-
+| 비율 달성 || '''확률적''' (오래 돌수록 수렴) || '''결정적''' (사이클마다 정확)
+|-
+| 전역 상태 || '''없음''' || [[pass]] 값을 모두 관리해야 함
+|-
+| 새 job 진입 || 총 티켓 수만 갱신하면 끝 || '''pass를 뭘로 줄지 문제''' — 0으로 두면 CPU 독점
+|}
+
+'''"새 job의 pass 문제"'''는 이 강의의 반복 주제다. [[CFS]]에서는 min_vruntime으로, [[EEVDF]]에서는 [[lag]]의 성질로 각각 해결된다.
+
+== CFS (Completely Fair Scheduler) ==
+
+리눅스가 2007년(커널 2.6.23)부터 2023년(6.6)까지 쓴 실제 스케줄러다. 출발점은 '''오버헤드'''다 — 공격적으로 최적화한 뒤에도 '''데이터센터 CPU 시간의 약 5%'''가 스케줄링에 쓰인다. 위 lottery 코드의 O(n) 순회가 그 예다.
+
+{def}
+The Linux CFS implements fair-share scheduling in a highly efficient and scalable manner.
+* '''Not based on the concept of a fixed time slice''' (e.g., 10 ms)
+* CFS uses a counting-based technique, '''virtual runtime (vruntime)'''
+* As each process runs, it '''accumulates vruntime'''
+* CFS picks the process with the '''lowest vruntime''' to run next
+{/def}
+
+{analogy}[[vruntime]]은 '''각자 손목에 찬 시계'''다. CPU를 쓰는 동안만 시계가 돈다. 스케줄러는 방 안을 둘러보고 '''시계가 가장 적게 간 사람'''에게 다음 차례를 준다. 우선순위가 높은 사람의 시계는 '''천천히 가도록 조작'''되어 있어서(→ [[weight]]), 실제로 10초를 써도 시계에는 3.2초만 찍힌다. 그래서 계속 "제일 덜 쓴 사람"으로 뽑힌다.{/analogy}
+
+=== 동적 time slice ===
+
+[[img:L6-33.png|sched_latency 48ms. n=4면 슬라이스 12ms, C·D가 끝나 n=2가 되면 24ms로 자동 확대|large]]
+
+$$\text{time slice} = \frac{sched\_latency}{n}$$
+
+* [[sched_latency]] = 한 프로세스가 전환을 고려하기 전까지 얼마나 돌아야 하는지의 기준. 이 기간 동안 CFS는 '''완전히 공정'''하다.
+* 예: sched_latency = 48ms, n = 4 → 슬라이스 '''12ms'''. C·D가 끝나 n = 2가 되면 '''24ms'''로 자동 확대.
+* 프로세스가 너무 많으면? n = 10 → 4.8ms → [[컨텍스트 스위치]] 폭증. 그래서 [[min_granularity]](리눅스 기본 '''6ms''')가 하한선을 둔다. 4.8ms는 6ms로 올림된다.
+
+=== nice와 weight ===
+
+[[img:L6-35.png|prio_to_weight[40] 테이블. nice 0 = 1024, 한 단계마다 약 1.25배|medium]]
+
+* [[nice]] 값의 범위는 '''−20 ~ +19''', 기본 '''0'''.
+* '''양수 = 낮은 우선순위''' (남에게 nice하게 양보), '''음수 = 높은 우선순위'''.
+* CFS는 nice를 [[weight]]로 매핑한다. nice 0 → weight '''1024'''.
+
+{|
+! nice || −20 || −15 || −10 || −5 || '''0''' || 5 || 10 || 15
+|-
+| weight || 88761 || 29154 || 9548 || '''3121''' || '''1024''' || 335 || 110 || 36
+|}
+
+[[img:L6-36.png|vruntime 공식과 nice −5 예제|medium]]
+
+$$vruntime_i = vruntime_i + \frac{weight_0}{weight_i} \cdot runtime_i$$
+
+* $runtime_i$ = 실제로 돈 물리 시간, $weight_0 = 1024$ (nice 0의 weight)
+* 예: nice = −5 → $weight_i = 3121$. 10초를 돌면
+$$\Delta vruntime = \frac{1024}{3121} \times 10 = 0.328 \times 10 = 3.2\text{초}$$
+실제보다 작게 쌓이니 '''더 자주 선택'''된다.
+
+{warn}슬라이드의 "a high priority (i.e., a '''low''' weight)"는 '''오타에 가깝다'''. 공식과 예제 숫자가 기준이다 — 우선순위가 높으면 '''weight가 크고''', 그래서 $weight_0/weight_i$가 작아져 vruntime이 '''천천히''' 쌓인다. nice −5의 weight 3121이 nice 0의 1024보다 '''크다'''는 것이 증거.{/warn}
+
+=== red-black tree ===
+
+[[img:L6-38.png|vruntime 1,5,9,10,14,17,18,21,22,24를 담은 레드블랙 트리. 루트 14|medium]]
+
+* 리스트는 O(n)이라 확장성이 없다 → [[레드블랙 트리]] 사용.
+* '''runnable 프로세스만''' 트리에 둔다 — I/O나 네트워크를 기다리며 '''자는 프로세스는 제외'''.
+* '''[[vruntime]]을 키'''로 정렬.
+* 다음 job 찾기 = 가장 왼쪽 노드 제거 → '''O(1)''' (leftmost를 캐시). 되돌려 넣기(삽입) → '''O(log n)'''.
+
+=== 자는 프로세스 처리 ===
+
+* job이 I/O로 잠들면 vruntime이 '''그대로 멈춘다'''.
+* 깨어나면 남들보다 vruntime이 '''작으므로''' CFS가 먼저 고른다 → I/O(대화형) job 우대. [[MLFQ]]가 규칙 5개로 만든 효과를 vruntime 하나로 얻는다.
+* '''부작용 = starvation''': A는 계속 실행, B는 10초 동안 잠. B가 깨면 vruntime이 A보다 10초 뒤져 있으므로 '''다음 10초를 독점'''하고 A가 굶는다.
+* '''해법''': 깬 job의 vruntime을 '''트리의 최솟값(min_vruntime)'''으로 맞춰 준다. 밀린 몫을 다 돌려주지 않고 "지금 제일 앞 사람과 동급"으로만 취급한다.
+
+[[sim:cfs_eevdf]]
+
+== EEVDF ==
+
+리눅스 '''6.6(2023년 10월)'''부터 CFS의 코어를 대체했다. CFS의 한계는 둘이다.
+
+* '''지연 요구(latency-nice)를 반영할 수 없다''' — [[nice]]는 CPU의 '''양'''만 정하지 "얼마나 빨리 반응해야 하는지"는 못 정한다.
+* 15년의 진화로 '''휴리스틱이 잔뜩''' (interactive bonus, wakeup replacement …) → 이론적 기반 없음, 복잡하고 예측 어려움.
+
+{def}
+'''EEVDF''' = '''E'''arliest '''E'''ligible '''V'''irtual '''D'''eadline '''F'''irst
+
+'''Lag''' — Difference between '''allocated''' vs. '''received''' CPU time
+* lag > 0 : '''owes service''' → the process is '''eligible'''
+* lag < 0 : already got more service
+* Negative lag is '''decayed during sleep but not increased above 0'''
+
+'''Virtual Deadline (VD)'''
+$$VD = t_{now} + \frac{slice_i}{weight_i}$$
+* $t_{now}$ : '''eligible time''' of the process (i.e. when lag = 0)
+* Slice는 CFS처럼 계산하되 '''latency_nice'''로 조정. 예: sched_latency 48ms, n=4 → 12ms, latency_nice −10 → '''6ms'''
+
+'''Rules''': Schedule a process with '''lag > 0''' and '''earliest VD'''.
+{/def}
+
+{exam}'''모의 퀴즈 A13에서 틀린 문장.''' "EEVDF schedules a process whose lag is greater than 0 and whose virtual deadline is the earliest." → '''참'''이다. 규칙이 슬라이드에 한 줄로 그대로 있다.
+
+[[CFS]]와의 차이를 표로 잡아 두면 안 헷갈린다.
+
+{|
+! || 선택 조건
+|-
+| '''[[CFS]]''' || 조건 '''하나''' — [[vruntime]]이 가장 작은 것
+|-
+| '''[[EEVDF]]''' || 조건 '''둘''' — ① 자격([[lag]] > 0) ② 순서([[virtual deadline]] 최소)
+|}
+
+이름 자체가 답이다: '''E'''arliest '''E'''ligible '''V'''irtual '''D'''eadline '''F'''irst.{/exam}
+
+EEVDF의 개선점: '''명시적 지연 제어'''(latency_nice), '''예측 가능한 공정성'''(tight lag bound가 수학적으로 증명됨), '''더 나은 tail latency'''.
+
+== 네 스케줄러 비교 ==
+
+{|
+! || 비율 보장 방식 || 전역 상태 || 선택 기준 || 복잡도
+|-
+| '''[[Lottery 스케줄링]]''' || 확률적 || 없음 || 난수 추첨 || O(n)
+|-
+| '''[[Stride 스케줄링]]''' || 결정적 || [[pass]] || pass 최소 || O(n) 또는 힙
+|-
+| '''[[CFS]]''' || 결정적 || [[vruntime]] + [[weight]] || vruntime 최소 || O(log n)
+|-
+| '''[[EEVDF]]''' || 결정적 + 증명된 한계 || [[lag]], [[virtual deadline]] || lag>0 중 VD 최소 || O(log n)
+|}
+
+== 예상 문제 ==
+
+{quiz}
+'''(2025F 중간고사 Problem 4 재현)''' 스케줄러가 [[Stride 스케줄링]]으로 프로세스를 스케줄한다. 세 프로세스 A, B, C의 [[tickets|티켓]] 수는 각각 '''100, 50, 250'''이다. [[pass]] 값은 매 time slice 후에 갱신되며, 스케줄러는 티켓으로부터 [[stride]]를 계산할 때 '''큰 수 500'''을 쓴다.
+
+'''4.1''' 6번째 time slice에서 각 프로세스의 pass 값과 스케줄되는 프로세스는? (8pts)
+'''4.2''' 100번째 time slice에서는? (8pts)
+{/quiz}
+
+{answer}
+'''0단계 — stride 계산'''
+<pre class="txt">
+ stride = 500 / tickets
+   A: 500 / 100 = '''5'''
+   B: 500 /  50 = '''10'''
+   C: 500 / 250 = '''2'''
+</pre>
+
+'''1단계 — 표를 굴린다.''' 규칙은 "pass 최소를 고른다 → 실행 → 그 프로세스 pass += stride". 동점이면 A→B→C 순으로 잡는다.
+
+{|
+! # Timeslice || Pass(A) || Pass(B) || Pass(C) || Who Runs?
+|-
+| 1 || 0 || 0 || 0 || A
+|-
+| 2 || 5 || 0 || 0 || B
+|-
+| 3 || 5 || 10 || 0 || C
+|-
+| 4 || 5 || 10 || 2 || C
+|-
+| 5 || 5 || 10 || 4 || C
+|-
+| '''6''' || '''5''' || '''10''' || '''6''' || '''A'''
+|-
+| 7 || 10 || 10 || 6 || C
+|-
+| 8 || 10 || 10 || 8 || C
+|}
+
+'''4.1 답''': Pass(A) = '''5''', Pass(B) = '''10''', Pass(C) = '''6''', 스케줄되는 프로세스 = '''A'''
+
+(6번째 행에서 최솟값은 5 = Pass(A)이므로 A가 실행된다.)
+
+'''2단계 — 100번째는 주기성으로 푼다.''' 손으로 100줄을 굴리지 않는다.
+
+한 사이클에서 pass가 전부 같은 값으로 모이는 지점을 찾는다. stride의 최소공배수 $\text{lcm}(5, 10, 2) = 10$. pass가 전부 10이 되는 데 필요한 실행 횟수는
+<pre class="txt">
+ A: 10 / 5  = 2번
+ B: 10 / 10 = 1번
+ C: 10 / 2  = 5번
+ 합계 = '''8번 = 한 사이클'''   (비율 2:1:5 = 100:50:250 ✔)
+</pre>
+즉 '''8 슬라이스마다 pass가 모두 +10'''씩 오른 상태로 같은 패턴이 반복된다.
+
+$100 = 8 \times 12 + 4$이므로, 100번째 슬라이스는 '''12 사이클(= pass 전체 +120) 뒤의 4번째 행'''과 같은 상황이다.
+
+<pre class="txt">
+ 4번째 행:  Pass(A)=5,  Pass(B)=10,  Pass(C)=2   → C 실행
+ +120:      Pass(A)=125, Pass(B)=130, Pass(C)=122 → '''C 실행'''
+</pre>
+
+'''4.2 답''': Pass(A) = '''125''', Pass(B) = '''130''', Pass(C) = '''122''', 스케줄되는 프로세스 = '''C'''
+
+{tip}검산: 100 슬라이스 동안 C는 $100 \times (250/400) = 62.5$번쯤 실행되어야 하고, Pass(C) = 실행 횟수 × 2 ≈ 122 → 61번. 거의 맞는다. 비율이 정확히 맞는 건 '''사이클 경계'''에서다.{/tip}
+{/answer}
+
+{quiz}
+[[CFS]]에서 sched_latency = 48ms, [[min_granularity]] = 6ms이다. (a) 실행 가능한 프로세스가 6개일 때 time slice는? (b) 12개일 때는? (c) (b)의 경우 sched_latency 안에서 완전히 공정한가?
+{/quiz}
+
+{answer}
+'''(a)''' $48 / 6 = $ '''8ms'''. min_granularity(6ms)보다 크므로 그대로 쓴다.
+
+'''(b)''' $48 / 12 = 4\text{ms}$ → min_granularity보다 작다 → '''6ms로 올림'''한다.
+
+'''(c)''' '''아니다.''' 12개 × 6ms = '''72ms'''가 필요하므로 48ms 안에 모두가 한 번씩 돌 수 없다. 슬라이드 표현대로 "CFS won't be perfectly fair over sched_latency of 48ms, '''but it will be close while still achieving high CPU efficiency'''". min_granularity는 '''공정성을 조금 포기하고 [[컨텍스트 스위치]] 오버헤드를 막는''' 장치다.
+{/answer}
+
+{quiz}
+nice 값이 −5인 프로세스(weight 3121)와 nice 0인 프로세스(weight 1024)가 있다. 둘 다 실제로 10초씩 CPU를 썼다면 각각의 [[vruntime]] 증가량은? 그리고 CFS는 다음에 누구를 고르는가?
+{/quiz}
+
+{answer}
+<pre class="txt">
+ Δvruntime = (weight₀ / weightᵢ) × runtimeᵢ,  weight₀ = 1024
+
+ nice −5 (weight 3121):  (1024 / 3121) × 10 = 0.328 × 10 = '''3.2초'''
+ nice  0 (weight 1024):  (1024 / 1024) × 10 = 1.000 × 10 = '''10초'''
+</pre>
+
+CFS는 [[vruntime]]이 '''가장 작은''' 프로세스를 고르므로 '''nice −5 프로세스'''를 다시 고른다. 같은 물리 시간을 썼는데 장부에는 3.2초만 적혔기 때문이다.
+
+'''한 줄 정리''': weight가 크다 → 분수 $weight_0/weight_i$가 작다 → vruntime이 천천히 쌓인다 → '''더 자주 뽑힌다'''.
+{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# 비례 지분 스케줄러의 목표는 '''CPU 몫(%) 보장'''이지 turnaround/response 최적화가 '''아니다'''. 이유는 '''fairness + predictability'''.
+# '''[[tickets|티켓]]''' = 자원 몫. 부가 기능 셋: '''currency'''(사용자 단위 → 전역 환산), '''transfer'''(client → server), '''inflation'''(신뢰 환경에서만).
+# '''[[Lottery 스케줄링]]''': 난수로 당첨 티켓, 리스트 누적합 순회 '''O(n)'''. 장점 = 단순 + 전역 상태 없음. 단점 = '''확률적'''.
+# '''[[fairness|공정성 지표]] F''' = 먼저 끝난 시각 / 나중 끝난 시각 (0.5 ~ 1). 실행 시간이 길수록 1에 수렴. (7강에서는 '''U'''로 표기)
+# '''[[Stride 스케줄링]]''': stride = 큰 수 / 티켓, [[pass]]는 실행마다 stride씩 증가, '''pass 최소 선택''' → 사이클마다 '''정확한''' 비율. 단점 = 새 job의 pass를 0으로 두면 독점.
+# '''[[CFS]]''': 고정 슬라이스 없음. '''vruntime 최소''' 선택. 슬라이스 = '''sched_latency / n''', 단 '''min_granularity(6ms)''' 이상.
+# CFS 공식: $vruntime \mathrel{+}= (weight_0 / weight_i) \times runtime$. '''weight₀ = 1024 = nice 0'''.
+# [[nice]] 범위 '''−20 ~ +19''', '''양수 = 낮은 우선순위'''.
+# runnable 프로세스만 '''[[레드블랙 트리]]'''(키 = vruntime)에 → 최소 찾기 '''O(1)''', 삽입 '''O(log n)'''.
+# CFS의 I/O 처리: 자는 동안 vruntime 정지 → 깨면 우선 선택. 부작용 '''starvation''' → 깬 job의 vruntime을 '''트리 최솟값'''으로 재설정.
+# '''[[EEVDF]]'''(리눅스 6.6~): [[lag]] = 받아야 할 − 받은 시간, '''lag > 0이면 eligible'''. '''VD = t_now + slice/weight'''. 규칙 = '''lag > 0 중 VD 최소'''.
+
+== 관련 문서 ==
+* [[Lottery 스케줄링]] · [[tickets]] · [[Stride 스케줄링]] · [[pass]] · [[stride]]
+* [[CFS]] · [[vruntime]] · [[nice]] · [[weight]] · [[sched_latency]] · [[min_granularity]] · [[레드블랙 트리]]
+* [[EEVDF]] · [[lag]] · [[virtual deadline]]
+* [[스케줄링]] · [[fairness]] · [[MLFQ]] — 5강과의 대비
+* [[멀티프로세서 스케줄링]] — 7강 앞 14쪽이 이 강의의 복습이다
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

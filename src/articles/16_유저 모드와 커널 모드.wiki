@@ -1,0 +1,96 @@
+key: 유저 모드와 커널 모드
+title: 유저 모드와 커널 모드 (User Mode / Kernel Mode)
+category: 2강 What is OS, 용어
+---
+CPU는 매 순간 '''user mode''' 아니면 '''kernel mode''' 둘 중 하나로 돌고 있다. 이 하드웨어 비트 하나가 OS의 보호(protection) 전체를 떠받친다. 2강에서 비유로 소개되고, 4강 [[제한적 직접 실행]]에서 본격적으로 다뤄진다.
+
+{def}
+2강 슬라이드는 모드를 "wall(벽)"로 소개한다 (p.5).<br>
+"Someone (malicious user) comes. Can you allow them to '''modify your countertop'''? Can you allow '''any order''' from them? '''Solution: Make a wall and give them a kiosk''' — but allow them to order anything in the menu."<br>
+그리고 1강 p.30의 그림에서 점선 위는 '''User space''', 아래는 '''OS'''로 표시된다.
+{/def}
+
+{analogy}
+🍦 주방(커널)과 손님 구역(유저) 사이의 '''벽'''이 모드 비트다. 손님은 벽 안으로 못 들어가지만, 키오스크([[시스템 콜]])로 주문하면 주방이 대신 해 준다. 손님이 벽을 넘으려 시도하면? 경보가 울리고 경비가 온다 — 그게 '''[[트랩]]'''이다.
+{/analogy}
+
+== 두 모드의 차이 ==
+
+{| class="table"
+! || User mode || Kernel mode (supervisor mode)
+|-
+| 누가 || 응용 프로그램, 라이브러리 || [[커널]] 코드
+|-
+| [[특권 명령]] || ✗ 실행하면 [[트랩]] 발생 || ✓
+|-
+| 접근 가능한 메모리 || 자기 [[주소 공간]]만 || 물리 메모리 전부
+|-
+| I/O 장치 직접 접근 || ✗ || ✓
+|-
+| 쓰는 스택 || [[스택|user stack]] || [[커널 스택]]
+|-
+| [[레지스터|모드 비트]]의 물리적 실체 || [[RISC-V]]의 현재 privilege level (U / S / M) ||
+|}
+
+<pre class="ascii">
+   ┌───────────────────────────────────────────────┐
+   │  User mode                                    │
+   │    응용 프로그램, printf(), malloc()           │
+   │    "메뉴에 있는 건 뭐든 주문 가능"              │
+   └───────────────────────────────────────────────┘
+       │  ecall / 인터럽트 / exception      ▲  sret
+       │  (모드 ↑, 트랩 테이블로 점프)        │  (모드 ↓, epc 로 복귀)
+       ▼                                     │
+   ┌───────────────────────────────────────────────┐
+   │  Kernel mode                                  │
+   │    usertrap(), syscall(), 스케줄러, 드라이버   │
+   │    특권 명령 + 전체 메모리 + I/O                │
+   └───────────────────────────────────────────────┘
+</pre>
+
+== 모드는 언제 바뀌나 ==
+
+'''user → kernel''' (올라감): 유저가 스스로 올라갈 수는 없다. 세 가지 사건뿐.
+# '''System call''' — `ecall` 명령 (의도적, [[트랩]])
+# '''Interrupt''' — [[타이머 인터럽트]], 디스크 완료 등 (비동기, 외부 사건)
+# '''Exception / fault''' — page fault, 0으로 나누기, 잘못된 [[특권 명령]] 실행
+
+'''kernel → user''' (내려감): [[return-from-trap]] — [[RISC-V]]에서는 [[sret]] 명령. 이때 [[sepc]]에 저장돼 있던 주소로 PC가 복원된다.
+
+{warn}
+'''"유저 프로그램이 커널 모드로 전환한다"는 표현은 부정확하다.''' 유저가 하는 일은 `ecall`을 실행하는 것뿐이고, 모드를 올리고 정해진 진입점으로 점프시키는 것은 '''하드웨어'''다. 그래서 유저는 "커널의 아무 주소"로 들어갈 수 없고, OS가 [[트랩 테이블]]에 등록해 둔 곳으로만 들어간다.
+{/warn}
+
+== 과제 1에서 왜 중요한가 ==
+
+{exam}
+2026-09-23 퀴즈 '''1번(10점)''' — "The alarm handler registered by `sigalarm` executes in ( user mode / kernel mode )."<br>
+정답은 '''user mode'''. [[alarm_handler]]는 유저 프로그램이 작성한 함수이고, 커널은 [[trapframe]]의 [[epc]]를 그 주소로 바꿔치기해서 '''유저 모드로 내려간 뒤에''' 실행되게 만든다. 커널이 핸들러를 "부르는" 게 아니다. → [[퀴즈1 복기]]
+{/exam}
+
+{tip}
+0831 녹음본에서 교수님이 프로세스 생성 5단계(`main()`에서 시작)를 설명하며: "the process would start from the '''kernel state''' and then transfer the control to the '''user space'''. Inside the user space, the program will run from the main function." 새 프로세스조차 커널 모드에서 태어난다.
+{/tip}
+
+== 예상 문제 ==
+
+{quiz}
+'''(선택)''' 다음 중 user mode → kernel mode 전환을 일으키지 '''않는''' 것은?<br>
+① `ecall` 실행 ② [[타이머 인터럽트]] ③ page fault ④ 일반 함수 `call` 명령 ⑤ 유저 코드가 특권 명령을 실행
+{/quiz}
+{answer}
+'''④ 일반 함수 call 명령.''' 함수 호출은 같은 모드·같은 [[주소 공간]] 안의 점프일 뿐이다. ⑤는 실행이 '''실패'''하며 exception(트랩)을 일으켜 커널로 들어간다.
+{/answer}
+
+{quiz}
+'''(개념)''' [[sigalarm]]으로 등록한 alarm handler는 어느 모드에서 실행되는가? 한 문장으로 이유까지 쓰시오.
+{/quiz}
+{answer}
+'''User mode.''' 커널은 [[trapframe]]의 [[epc]]를 핸들러 주소로 바꾼 뒤 [[sret|return-from-trap]]으로 유저 모드로 내려가므로, 핸들러는 유저 코드로서 실행된다.
+{/answer}
+
+== 관련 문서 ==
+* [[커널]] / [[커널 모드]] / [[특권 명령]] / [[커널 스택]]
+* [[시스템 콜]] / [[트랩]] / [[트랩 테이블]]
+* [[제한적 직접 실행]] / [[return-from-trap]] / [[sret]] / [[sepc]] / [[epc]]
+* [[과제1 xv6 alarm]] / [[alarm_handler]]

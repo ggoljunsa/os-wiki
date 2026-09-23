@@ -1,0 +1,60 @@
+key: 락 평가 기준
+title: 락 평가 기준 (Evaluating Locks)
+category: 9강 Lock, 용어
+---
+9강 p.14 "Evaluating Locks – Basic criteria". 이후의 모든 락 구현이 이 세 잣대로 채점된다. 슬라이드에 p.24, p.29, p.42 세 번이나 다시 나오므로 '''출제 의도가 노골적'''이다.
+
+[[img:L9-14.png|Evaluating Locks – Basic criteria|medium]]
+
+{def}'''1. Mutual exclusion''' — "Does the lock work, '''preventing multiple threads from entering a critical section'''?"
+
+'''2. Fairness''' — "Does each thread contending for the lock get a '''fair shot at acquiring it once it is free'''? ('''Starvation''')"
+
+'''3. Performance''' — "The '''time overheads''' added by using the lock"{/def}
+
+== 각 기준을 실제로 어떻게 판정하나 ==
+
+{|
+! 기준 || "No"가 나오는 대표 상황
+|-
+| '''Correctness''' (mutual exclusion) || [[flag 락]]처럼 '''두 스레드가 동시에 락을 얻는''' 인터리빙이 존재하면 즉시 No
+|-
+| '''Fairness''' || "a thread spinning may '''spin forever'''" — 운 나쁜 스레드가 영원히 못 잡을 수 있으면 No. '''순서 보장(FIFO)'''이 있으면 Yes
+|-
+| '''Performance''' || 락을 쥔 스레드가 preempt됐을 때 나머지가 '''[[time slice]]를 통째로 낭비'''하면 No
+|}
+
+{warn}⭐ '''Performance를 평가할 때는 항상 조건을 명시해야 한다.''' 슬라이드가 든 예도 조건부다: "'''In the single CPU''', performance overheads can be quite painful — imagine the case where the thread holding the lock is preempted '''within a critical section''' — every other thread will spin for a given [[time slice]]."
+즉 '''① CPU 개수'''와 '''② critical section 길이'''에 따라 답이 바뀐다. 멀티코어 + 아주 짧은 critical section이면 [[spin lock]]이 오히려 유리하다.{/warn}
+
+== 슬라이드에 나온 세 번의 채점표 ==
+
+{|
+! 슬라이드 || 대상 || Correctness || Fairness || Performance
+|-
+| '''p.24''' || [[test-and-set]] [[spin lock]] || '''Yes''' || '''No''' || '''No'''
+|-
+| '''p.29''' || [[ticket lock]] ([[fetch-and-add]]) || Yes || '''Yes''' ← 바뀐 곳 || No
+|-
+| '''p.42''' || sleeping lock ([[queue 락]] / [[futex]]) || Yes || Yes || '''Yes''' ← 바뀐 곳
+|}
+
+{exam}⭐⭐⭐ '''한 번에 한 칸씩만 No→Yes로 바뀐다.'''
+* p.24 → p.29: '''fairness'''가 바뀐 이유 = [[fetch-and-add]]로 '''고유한 번호표'''를 받아 FIFO가 되기 때문
+* p.29 → p.42: '''performance'''가 바뀐 이유 = spin 대신 '''yield와 sleeping'''을 쓰기 때문
+이 "무엇이 바뀌었고 왜 바뀌었는가"를 묻는 서술형이 가장 나오기 쉽다.{/exam}
+
+{analogy}🎭 세 기준은 '''식당 줄 서기'''로 생각하면 쉽다.
+'''Correctness''' = 한 테이블에 한 팀만 앉는가 (두 팀이 같은 테이블에 앉으면 대참사).
+'''Fairness''' = 먼저 온 사람이 먼저 앉는가 (새치기가 가능하면 No).
+'''Performance''' = 기다리는 동안 무엇을 하는가 — 문 앞에 서서 '''계속 문을 쳐다보는 것'''(spin)과 '''번호표 받고 앉아 있다가 호출되면 가는 것'''(park)의 차이.{/analogy}
+
+{quiz}[[test-and-set]] 스핀락과 [[ticket lock]]의 채점표에서 '''딱 한 칸'''이 다르다. 어느 칸이고 왜 바뀌는가?{/quiz}
+{answer}'''Fairness''' 칸이 No → Yes로 바뀐다. TAS 스핀락은 락이 풀릴 때 '''누가 잡을지 보장이 없어''' 운 나쁜 스레드가 영원히 spin할 수 있다(starvation). [[ticket lock]]은 `FetchAndAdd(&ticket)`로 각 스레드가 '''고유한 myturn'''을 받고 `turn`이 순서대로 올라가므로 '''FIFO 진입이 보장'''된다.{/answer}
+
+{quiz}[[ticket lock]]은 fairness가 Yes인데 performance는 여전히 No다. 왜인가?{/quiz}
+{answer}'''spin 자체가 그대로'''이기 때문이다. 순서는 공평해졌지만, 자기 차례를 기다리는 스레드들은 여전히 `while (turn != myturn)`을 돌며 [[time slice]]를 태운다. 락을 쥔 스레드가 preempt되면 나머지가 전부 낭비한다. (p.29){/answer}
+
+== 관련 문서 ==
+* [[락]] · [[spin lock]] · [[ticket lock]] · [[queue 락]] · [[futex]]
+* [[mutual exclusion]] · [[time slice]] · [[fairness]]

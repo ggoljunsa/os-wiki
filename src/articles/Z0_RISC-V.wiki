@@ -1,0 +1,96 @@
+key: RISC-V
+title: RISC-V
+category: 용어, 과제1
+---
+'''RISC-V'''는 개방형 RISC 계열 명령어 집합 구조(ISA)다. 과제에서 쓰는 [[xv6]]가 RISC-V 버전이므로, [[trapframe]]·[[a0]]·[[sepc]]·[[sret]] 같은 과제 1의 모든 용어가 이 ISA의 것이다.
+
+{def}
+3강 p.5에서 '''RISC'''가 대비 개념으로 등장한다 — x86은 "'''Complex''' instruction set computer (CISC): many different instructions with many different formats. '''Hard to match performance of Reduced Instruction Set Computers (RISC)'''."<br>
+1강 p.8 — [[xv6]]는 "designed for multiprocessor x86 and '''RISC-V'''".
+{/def}
+
+{analogy}
+🔧 '''공구 세트'''의 철학 차이다. CISC(x86)는 "이 나사 전용 드라이버, 저 나사 전용 드라이버…" 하고 특수 공구를 수백 개 갖춘 세트다. RISC-V는 "드라이버·렌치·망치 몇 개만 두고 조합해서 쓴다"는 세트다. 공구가 적으면 손이 더 가지만, 공구함(디코더)이 단순해져서 더 빠르고 전기를 덜 먹는다. 게다가 RISC-V는 '''설계도가 공개'''되어 있어 누구나 직접 만들 수 있다.
+{/analogy}
+
+== CISC vs RISC ==
+
+{| class="table"
+! || CISC (x86) || RISC (RISC-V, ARM)
+|-
+| 명령어 || 많고 형식이 다양 || 적고 형식이 규칙적
+|-
+| 명령어 길이 || 가변 || 대체로 고정
+|-
+| 성능 || 슬라이드: "hard to match RISC" || 유리
+|-
+| 시장 || 데스크탑·서버 ('''backward compatibility''' 때문) || 모바일·임베디드, 그리고 확산 중
+|}
+
+{tip}
+0831 녹음본에서 교수님의 현실 진단: x86이 서버 시장을 잡은 이유는 성능이 아니라 '''하위 호환'''이다 — "inside the server we usually just use the '''legacy program''' without upgrading it … '''that is the reason X86 processor wins the server market'''." 그리고 "they are '''slowly transitioning''' into the RISC computers"라고 덧붙인다. → [[OS 역사]]
+{/tip}
+
+== 과제 1에서 알아야 할 것 ==
+
+=== 레지스터 규약 ===
+
+{| class="table"
+! 레지스터 || 용도
+|-
+| '''`a0`~`a7`''' || 함수/시스템 콜 '''인자'''. 그리고 '''`a0`는 반환값''' → [[a0]]
+|-
+| '''`a7`''' || [[시스템 콜]] '''번호'''를 싣는 자리
+|-
+| `sp` || [[스택 포인터]]
+|-
+| `ra` || return address
+|-
+| `s0`~`s11` || callee-saved — `struct context`에 저장되는 것들
+|-
+| `t0`~`t6` || caller-saved (임시)
+|}
+
+=== 트랩 관련 명령·CSR ===
+
+{| class="table"
+! 이름 || 무엇
+|-
+| '''`ecall`''' || 유저가 [[시스템 콜]]을 일으키는 명령 ([[트랩]] 발생)
+|-
+| '''[[sepc]]''' || Supervisor Exception PC — 트랩 순간의 [[프로그램 카운터|PC]]를 하드웨어가 저장
+|-
+| `stvec` || 트랩 벡터 주소 ([[트랩 테이블]])
+|-
+| `scause` || 트랩의 원인 (시스템 콜인지 인터럽트인지 → [[which_dev]])
+|-
+| '''[[sret]]''' || Supervisor Return — 유저 모드로 복귀 ([[return-from-trap]])
+|}
+
+<pre class="asm">
+# user/usys.S (usys.pl 이 생성) — 시스템 콜의 전부
+.global sigalarm
+sigalarm:
+ li a7, SYS_sigalarm      # 번호를 a7 에
+ ecall                    # 트랩 → 커널
+ ret                      # 결과는 a0 에
+</pre>
+
+{warn}
+슬라이드의 [[struct proc]]·`struct context`는 '''x86''' 코드(`eip`, `ebx`, `esi`, `edi`, `ebp`)이고 과제 코드는 '''RISC-V'''(`ra`, `sp`, `s0`~`s11`)다. 레지스터 이름이 통째로 다르니 섞지 말 것. → [[struct proc]]
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(빈칸)''' [[RISC-V]] xv6에서 시스템 콜 번호는 `_____` 레지스터에 싣고, 반환값은 `_____` 레지스터로 돌아온다.
+{/quiz}
+{answer}
+번호 = '''`a7`''', 반환값 = '''`a0`'''. `kernel/syscall.c`의 `num = p->trapframe->a7;` / `p->trapframe->a0 = syscalls[num]();`가 그 증거다. → [[시스템 콜 추가 절차]]
+{/answer}
+
+== 관련 문서 ==
+* [[a0]] / [[a0 복원]] / [[레지스터]] / [[스택 포인터]]
+* [[sepc]] / [[epc]] / [[sret]] / [[트랩]] / [[트랩 테이블]]
+* [[xv6]] / [[struct proc]] / [[시스템 콜 추가 절차]]
+* [[OS 역사]] — CISC vs RISC 배경

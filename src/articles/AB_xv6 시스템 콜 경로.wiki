@@ -1,0 +1,124 @@
+key: xv6 시스템 콜 경로
+title: xv6 시스템 콜 경로 (user.h → sret)
+category: 과제1, 4강 LDE
+---
+'''xv6 시스템 콜 경로'''는 유저가 `sigalarm(2, periodic)`이라고 쓴 한 줄이 '''커널 함수 `sys_sigalarm()`까지 갔다가 돌아오는''' 전체 왕복 경로다. [[과제1 xv6 alarm|과제 1]]에서 파일 9개를 고쳐야 하는 이유가 이 경로에 전부 들어 있다.
+
+{analogy}
+이 경로는 '''국제 택배'''다. 발송장 양식(`user.h`) → 창구에서 송장 번호 붙이기(`usys.S`의 `a7`) → 세관 통과(`ecall` = [[트랩]]) → 분류 센터(`syscall()`이 번호로 분류) → 담당 창구(`sys_sigalarm`) → 다시 세관(`sret`) → 수령. '''중간에 한 군데라도 서류가 빠지면 소포는 사라진다''' — 그래서 9개 파일을 전부 고쳐야 한다.
+{/analogy}
+
+== 전체 경로 ==
+
+<pre class="ascii">
+ user/user.h        int sigalarm(int ticks, void (*handler)());   ← 프로토타입 (C 컴파일러용)
+       │
+ user/usys.pl  ─생성→  user/usys.S:   sigalarm:
+                                        li a7, SYS_sigalarm     ← 번호를 a7 에
+                                        ecall                   ← ★ 트랩 (user → kernel)
+                                        ret
+       │
+ ══════════════════ 여기서 모드가 user → supervisor 로 바뀐다 ═══════════════════
+       │
+ trampoline.S  uservec:  유저 레지스터 31개 → p->trapframe
+                         커널 스택 / 커널 페이지 테이블로 전환  →  jr t0
+       │
+ kernel/trap.c  usertrap():
+                  p->trapframe->epc = r_sepc();     ← 끊긴 PC 대피
+                  if (r_scause() == 8) {            ← 8 = U-mode ecall
+                      p->trapframe->epc += 4;       ← ecall 다음 명령어로
+                      syscall();
+                  }
+       │
+ kernel/syscall.h   #define SYS_sigalarm 22                       ← 번호 정의
+ kernel/syscall.c   syscall():
+                      num = p->trapframe->a7;                     ← 번호 읽기
+                      p->trapframe->a0 = syscalls[num]();         ← ★ 디스패치 + a0 덮어쓰기
+       │
+ kernel/sysproc.c   sys_sigalarm():
+                      argint(0, &n);  argaddr(1, &handler);       ← 인자는 trapframe 의 a0, a1
+                      p->alarm_interval = n; …
+                      return 0;
+       │
+ kernel/trap.c  usertrapret():  w_sepc(p->trapframe->epc)         ← 복귀 주소 세팅
+       │
+ trampoline.S  userret:  p->trapframe → 레지스터 31개 복원  →  sret
+       │
+ ══════════════════ 모드가 supervisor → user 로 돌아온다 ════════════════════════
+       │
+ 유저 코드:  sigalarm() 호출 다음 줄부터 계속, 반환값은 a0 에
+</pre>
+
+== 레지스터 규약 ==
+
+{| class="table"
+! 역할 || 레지스터 || 비고
+|-
+| 시스템 콜 '''번호''' || '''`a7`''' || x86의 `%eax`에 해당
+|-
+| 인자 1~6 || `a0` ~ `a5` || `argint`/`argaddr`/`argstr`가 [[trapframe]]에서 꺼냄
+|-
+| '''반환값''' || '''[[a0]]''' || `syscall()`이 `p->trapframe->a0 = 결과`로 씀 → [[a0 복원]] 문제의 원인
+|-
+| 트랩 원인 || `scause` (CSR) || `8` = Environment call from U-mode
+|-
+| 끊긴 PC || [[sepc]] (CSR) → [[epc]] ([[trapframe]]) || [[과제1 xv6 alarm|알람]]이 바꾸는 곳
+|}
+
+== 고쳐야 하는 파일 9개 ==
+
+{| class="table"
+! 파일 || 무엇을 || 빠뜨리면
+|-
+| `Makefile` || `UPROGS += $U/_alarmtest` || `alarmtest` 명령이 없음
+|-
+| `user/user.h` || 프로토타입 || 컴파일 에러 (implicit declaration)
+|-
+| '''[[usys.pl]]''' || `entry("sigalarm");` || 링크 에러 — 스텁이 생성되지 않음
+|-
+| `kernel/syscall.h` || `#define SYS_sigalarm 22` || `usys.S`가 번호를 모름
+|-
+| `kernel/syscall.c` || `extern` + `syscalls[]` 등록 || "unknown sys call 22"
+|-
+| `kernel/sysproc.c` || `sys_sigalarm` 구현 || 링크 에러
+|-
+| `kernel/proc.h` / `proc.c` || 필드 추가 + 초기화 || 쓰레기 값으로 알람이 멋대로 터짐
+|-
+| '''`kernel/trap.c`''' || [[usertrap]]의 타이머 분기 || 알람이 아예 안 울림
+|}
+
+{tip}
+앞의 5개(Makefile ~ syscall.c)는 '''[[시스템 콜 추가 절차]]'''(3강 p.30–34)와 '''글자 그대로 동일'''하다. 과제 PDF도 "Refer 3-From_Program_to_Process"라고 못 박았다. 3강을 복습하면 절반이 끝난다.
+{/tip}
+
+[[sim:syscall_trap]]
+
+== 4강 이론과의 대응 ==
+
+{| class="table"
+! 4강 슬라이드 || [[xv6]] 구현
+|-
+| Trap instruction || `ecall`
+|-
+| [[트랩 테이블]] || `stvec` CSR + `usertrap()`의 `scause` 분기
+|-
+| syscall number k || `a7`의 값 → `syscalls[]` 배열 인덱스
+|-
+| 커널 스택에 저장된 user state || '''[[trapframe]]'''
+|-
+| [[return-from-trap]] || '''[[sret]]'''
+|-
+| jump to PC after trap || [[sepc]] ← `p->trapframe->[[epc]]` (`ecall`이라 +4된 값)
+|}
+
+{quiz}
+`sys_sigalarm()`이 `return 0;` 하면 그 `0`은 어떻게 유저에게 전달되는가?
+{/quiz}
+{answer}
+`syscall()`이 `p->trapframe->[[a0]] = syscalls[num]();`으로 '''[[trapframe]]의 `a0` 칸에 써 넣고''', 나갈 때 `userret`이 그 칸의 값을 실제 [[a0]] 레지스터로 복원한다. 즉 반환값은 '''메모리(trapframe)를 경유해''' 레지스터가 된다. 이 경로 때문에 [[sigreturn]]에서 [[a0 복원]] 문제가 생긴다.
+{/answer}
+
+== 관련 문서 ==
+* [[시스템 콜]] · [[시스템 콜 추가 절차]] · [[트랩]] · [[usertrap]] · [[usertrapret]] · [[sret]]
+* [[trapframe]] · [[epc]] · [[sepc]] · [[a0]] · [[a0 복원]] · [[usys.pl]] · [[myproc]]
+* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[xv6]] · [[RISC-V]]

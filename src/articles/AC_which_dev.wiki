@@ -1,0 +1,88 @@
+key: which_dev
+title: which_dev
+category: 과제1, 4강 LDE, 용어
+---
+'''`which_dev`'''는 [[usertrap]]의 지역 변수로, '''`devintr()`가 판별한 인터럽트의 종류'''를 담는다. `2`이면 [[타이머 인터럽트]]라는 [[xv6]]의 약속이며, [[과제1 xv6 alarm|과제 1]]의 알람 코드는 '''`which_dev == 2` 분기 안에만''' 들어간다.
+
+{def}
+`devintr()` 반환값 — '''0''' = 알 수 없는 트랩 / '''1''' = 다른 장치 (UART, 디스크) / '''2''' = '''타이머'''.
+과제 PDF 힌트: "You only want to manipulate a process's alarm ticks if there's a timer interrupt; you want something like `if(which_dev == 2) ...`"
+{/def}
+
+{analogy}
+`which_dev`는 '''응급실 접수 데스크의 분류 코드'''다. 환자가 왜 왔는지(`scause`)는 구급차가 적어 온 '''표준 코드'''지만, 병원 내부에서 쓰는 "1번 = 일반, 2번 = 심정지" 같은 '''자체 분류 번호'''가 따로 있다. `which_dev`가 그 자체 번호다.
+{/analogy}
+
+== scause와는 다른 번호 체계다 ⭐ ==
+
+{| class="table"
+! || '''`scause`''' || '''`which_dev`'''
+|-
+| 누가 정했나 || '''하드웨어''' ([[RISC-V]] 명세) || '''소프트웨어''' ([[xv6]]의 `devintr()`)
+|-
+| 어디에 있나 || CSR 레지스터 || `usertrap()`의 지역 변수
+|-
+| 값의 예 || `8` = U-mode ecall, `12/13/15` = page fault, (bit63=1) `5` = timer, `9` = external || `0` = 모름, `1` = UART/디스크, '''`2` = 타이머'''
+|-
+| 쓰이는 분기 || `if (r_scause() == 8)` — 시스템 콜 || `if (which_dev == 2)` — 타이머 ([[과제1 xv6 alarm|알람]])
+|}
+
+<pre class="ascii">
+   scause (64비트)
+   ┌─┬──────────────────────────────────────────────┐
+   │I│              exception code                  │
+   └─┴──────────────────────────────────────────────┘
+   bit63 = 1 → Interrupt  (비동기: 타이머, 디스크, UART …)
+   bit63 = 0 → Exception  (동기: 명령어 실행의 결과)
+
+   ⇒ 4강 p.10~12의 synchronous / asynchronous 구분이
+     하드웨어 명세에 "비트 하나"로 박혀 있는 것.
+
+   devintr() 가 이 scause 를 읽어 종류를 판별한 뒤
+   0 / 1 / 2 로 요약해 주는 것이 which_dev.
+</pre>
+
+== usertrap에서의 위치 ==
+
+<pre class="c">
+int which_dev = 0;
+...
+if(r_scause() == 8){                             // 1  시스템 콜
+    ...
+    syscall();
+} else if((which_dev = devintr()) != 0){         // 2  장치 인터럽트 — 판별만
+    // 처리는 devintr() 안에서 끝남
+} else {
+    setkilled(p);                                // 3  page fault 등 → 죽임
+}
+
+if(killed(p)) exit(-1);
+
+if(which_dev == 2){                              // 4  ★ 타이머였으면
+    /* Assignment 1 알람 코드가 들어가는 자리 */
+    yield();
+}
+usertrapret();
+</pre>
+
+{warn}
+'''알람 코드가 2행이 아니라 4행에 들어가는 이유:'''
+* 2행은 '''판별만''' 하는 자리다. 실제 "타이머였으니 CPU를 양보한다"는 결정은 4행에서 한다.
+* 4행은 '''`killed(p)` 검사를 통과한 뒤'''라, 죽을 프로세스에 알람을 걸지 않는다.
+* 그리고 반드시 '''`yield()` 앞'''이어야 한다 — `yield()`는 [[컨텍스트 스위치]]를 일으켜 한참 뒤에야 돌아오거나 아예 안 돌아올 수 있다.
+{/warn}
+
+{tip}
+"`which_dev == 2`일 때만 센다"는 것이 곧 '''"[[alarm_elapsed]]는 CPU 시간을 센다"'''는 뜻이다. 이 프로세스가 유저 모드로 돌다가 걸린 타이머만 세므로, 자고 있는 동안의 tick은 포함되지 않는다.
+{/tip}
+
+{quiz}
+알람 코드를 `which_dev` 검사 없이 [[usertrap]] 맨 앞에 넣으면 어떻게 되는가?
+{/quiz}
+{answer}
+'''시스템 콜이나 page fault로 들어올 때마다 [[alarm_elapsed]]가 증가'''한다. `sigalarm(2, fn)`을 걸어 두면 `printf` 두 번만 해도 알람이 터지므로, "n tick의 '''CPU 시간'''마다"라는 사양이 깨진다. `usertests`의 여러 테스트가 예상 못 한 지점에서 핸들러로 튀어 '''대량 실패'''한다.
+{/answer}
+
+== 관련 문서 ==
+* [[usertrap]] · [[yield]] · [[타이머 인터럽트]] · [[인터럽트]] · [[트랩]]
+* [[alarm_elapsed]] · [[재진입 금지]] · [[과제1 xv6 alarm]] · [[xv6]] · [[RISC-V]]

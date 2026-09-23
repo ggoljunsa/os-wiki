@@ -1,0 +1,109 @@
+key: futex
+title: futex (Fast Userspace Mutex)
+category: 9강 Lock, 용어
+---
+'''futex'''는 리눅스가 제공하는 '''fast userspace mutex''' 시스템 콜이다. 9강 p.39~41. [[park와 unpark|park()]]의 "'''Checked'''"하고 "'''Queued'''"된 버전이라고 슬라이드가 소개한다.
+
+{def}p.39 원문:
+* '''`futex_wait(address, value)`''' — "Put a calling thread to sleep queue '''only if `*address == value`'''"
+* '''`futex_wake(address)`''' — "Wake a waiting thread that waits for `address`"{/def}
+
+{warn}⭐ '''"only if"가 전부다.''' 잠들기 직전에 값을 한 번 더 확인하는 일을 '''커널이 [[atomic|원자적]]으로''' 해 준다. 그래서 [[setpark]] 같은 예고제 없이도 [[queue 락]]의 '''lost wakeup'''이 생기지 않는다.
+그리고 '''주소(address) 하나가 대기열의 key'''가 된다 — 커널은 "이 주소를 기다리는 스레드들"의 큐를 관리한다.{/warn}
+
+== futex 기반 락 (p.40) ==
+
+[[img:L9-40.png|Futex-based lock implementation — glibc mutex의 골격|large]]
+
+<pre class="c">
+ 1   void lock(int *mutex) {
+ 2       if (atomic_bit_test_set(mutex, 31) == 0) return;   // (1) 빠른 경로
+ 3       atomic_increment(mutex);                           // (2) 대기자 수 +1
+ 4       while (1) {
+ 5           if (atomic_bit_test_set(mutex, 31) == 0) {     // (3) 다시 시도
+ 6               atomic_decrement(mutex);                   //     성공 -> 대기자 수 -1
+ 7               return;
+ 8           }
+ 9           v = *mutex;                                    // (4) 현재 상태를 읽어 두고
+10           if (v >= 0) continue;                          //     bit31이 0(=풀림)이면 재시도
+11           futex_wait(mutex, v);                          // (5) 값이 v 그대로일 때만 잠든다
+12       }
+13   }
+14
+22   void unlock(int *mutex) {
+23       if (atomic_add_zero(mutex, 0x80000000))            // 대기자 0이면 커널 진입 없이 끝
+24           return;
+25       futex_wake(mutex);                                 // 대기자가 있을 때만 커널로
+26   }
+</pre>
+
+=== 정수 하나에 상태를 패킹한다 ===
+
+{|
+! 비트 || 의미
+|-
+| '''bit 31''' (최상위) || 락이 잡혀 있는가 (1 = held). 부호 비트이므로 '''값이 음수면 held'''
+|-
+| 나머지 비트 (0~30) || '''대기자 수'''
+|}
+
+이 트릭 덕분에 10번 줄 `if (v >= 0) continue;`가 성립한다 — "'''양수 = bit31이 0 = 락이 풀렸다'''"이므로 잠들 필요 없이 다시 시도하면 된다.
+
+=== 줄 읽기 ===
+
+{|
+! 줄 || 하는 일 || 커널 진입?
+|-
+| 2 || '''빠른 경로''' — bit31을 세워 보고 원래 0이었으면 바로 획득하고 리턴 || '''없음'''
+|-
+| 3 || 실패했으니 "나 기다리는 중" 카운트를 올린다 || 없음
+|-
+| 5~7 || 루프 안에서 다시 시도. 성공하면 카운트를 되돌리고 리턴 || 없음
+|-
+| 9~10 || 현재 값 `v`를 읽고, 락이 이미 풀렸으면(`v >= 0`) 잠들지 않고 재시도 || 없음
+|-
+| 11 || '''값이 여전히 `v`일 때만''' 잠든다 || '''있음'''
+|-
+| 23 || 대기자가 0이면 커널에 가지 않고 끝 || '''없음'''
+|-
+| 25 || 대기자가 있을 때만 깨운다 || 있음
+|}
+
+{warn}⭐ '''9~11번 줄이 lost wakeup을 막는 자리다.''' `v`를 읽은 뒤 `futex_wait(mutex, v)`를 호출하기까지의 틈에 다른 스레드가 `unlock`으로 값을 바꿨다면, 커널은 `*mutex != v`임을 보고 '''잠재우지 않고 즉시 리턴'''시킨다. [[setpark]]가 "예고"로 푼 문제를 futex는 "'''잠들기 직전 값 재확인'''"으로 푼다.{/warn}
+
+== 설계 철학 — 이것만 기억하면 된다 ==
+
+{def}'''"경쟁이 없으면 유저 공간에서 [[atomic]] 연산만으로 끝나고(커널 진입 0회), 경쟁이 있을 때만 커널로 들어간다."'''
+
+이것이 "'''fast userspace''' mutex"라는 이름의 뜻이고, [[two-phase lock]]의 정의이기도 하다.{/def}
+
+{analogy}🎭 futex = '''셀프 계산대'''다.
+사람이 없으면 '''직원을 부르지 않고''' 혼자 찍고 나간다(유저 공간 원자 연산만, 커널 진입 0). 문제가 생겼을 때만 호출 버튼을 누른다(`futex_wait`/`futex_wake` = 시스템 콜).
+락 경쟁은 실제로 '''대부분 일어나지 않기''' 때문에, "문제 없을 때 공짜"인 설계가 압도적으로 이득이다.{/analogy}
+
+{info}코드를 통째로 외울 필요는 없다. 시험에 나온다면 ① bit 31 = 락 여부 / 나머지 = 대기자 수 ② "무경쟁이면 커널 진입 없음" ③ `futex_wait`의 값 검사가 lost wakeup을 막는다 — 이 세 가지다.{/info}
+
+== park/unpark vs futex (p.41) ==
+
+{|
+! || '''[[park와 unpark|park/unpark]]''' (Solaris) || '''futex''' (Linux)
+|-
+| 성격 || '''Purely scheduling primitive''' || 락 지원에 특화된 시스템 콜
+|-
+| 커널이 유지하는 것 || '''minimal state''' || '''대기 queue를 커널이 직접 관리''' (락 상태는 '''유저가 소유''')
+|-
+| 왜 그렇게? || || '''Fair wakeup''' ([[priority inversion|priority inheritance]]) · '''Robust mutexes''' (owner-death detection)
+|}
+
+{exam}🎯 "커널이 대기 큐를 관리하면 무엇이 좋은가?" → '''① fair wakeup (priority inheritance)''' '''② robust mutexes (owner-death detection)'''. 슬라이드에 그대로 적힌 두 줄이라 단답으로 나오기 좋다.{/exam}
+
+{quiz}`futex_wait(address, value)`의 `value` 인자는 왜 필요한가?{/quiz}
+{answer}'''lost wakeup을 막기 위해서다.''' 유저 공간에서 값을 읽은 뒤 `futex_wait`을 호출하기까지의 틈에 다른 스레드가 락을 놓아 값이 바뀔 수 있다. 커널은 잠재우기 직전 `*address == value`인지 '''원자적으로 확인'''하고, 다르면 '''잠재우지 않고 즉시 리턴'''시킨다. [[setpark]]와 같은 문제를 다른 방식으로 푼 것이다.{/answer}
+
+{quiz}futex가 "fast"한 이유를 한 문장으로 쓰시오.{/quiz}
+{answer}'''락 경쟁이 없는 경우(uncontended)에는 유저 공간의 [[atomic]] 연산만으로 lock/unlock이 끝나 커널에 전혀 진입하지 않기''' 때문이다. 시스템 콜은 경쟁이 실제로 발생했을 때만 일어난다. → [[two-phase lock]]{/answer}
+
+== 관련 문서 ==
+* [[two-phase lock]] · [[park와 unpark]] · [[setpark]] · [[queue 락]]
+* [[락]] · [[락 평가 기준]] · [[atomic]] · [[priority inversion]]
+* [[시스템 콜]] · [[자주 틀리는 함정 모음]]

@@ -1,0 +1,45 @@
+key: sched_latency
+title: sched_latency
+category: 6강 Proportional Share, 용어
+---
+'''sched_latency'''는 [[CFS]]의 제어 파라미터로, '''한 [[프로세스]]가 전환을 고려하기 전까지 얼마나 돌아야 하는지'''를 정하는 기준값이다. CFS는 고정 [[time slice]]를 쓰지 않는 대신 이 값을 프로세스 수로 나눠 슬라이스를 '''동적으로''' 계산한다.
+
+$$\text{time slice} = \frac{sched\_latency}{n}$$
+
+{def}
+* '''sched_latency''' is used to determine how long one process should run before considering a switch
+* CFS uses sched_latency to decide a time slice '''dynamically''' — a time slice is decided by dividing sched_latency by the number ('''n''') of processes running on the CPU
+* '''Over this period of time (sched_latency), CFS is completely fair'''
+* Example: sched_latency = 48 ms, n = 4 (with same priority) → a time slice is '''12 ms'''
+{/def}
+
+{analogy}'''수업 시간 하나를 조별 발표로 나누는 것'''과 같다. 48분짜리 한 교시(sched_latency)를 조 수로 나눠서 배정한다. 4개 조면 12분씩, 2개 조면 24분씩. '''한 교시 안에 모든 조가 반드시 한 번씩 발표한다'''는 게 보장이고, 이게 "over this period, CFS is completely fair"의 의미다. 조가 10개가 되면 4.8분씩이라 발표 준비하다 끝나므로, 최소 시간([[min_granularity]])을 두게 된다.{/analogy}
+
+[[img:L6-33.png|sched_latency 48ms. n=4면 12ms씩, C·D가 끝나 n=2가 되면 24ms로 자동 확대|large]]
+
+<pre class="txt">
+ sched_latency = 48ms
+
+ n = 4  →  48 / 4  = '''12ms'''   A B C D | A B C D | ...
+ n = 2  →  48 / 2  = '''24ms'''   A  B  |  A  B  |  ...    (C, D 종료 후)
+ n = 10 →  48 / 10 = 4.8ms  →  [[min_granularity]] 6ms로 '''올림'''
+</pre>
+
+'''프로세스가 줄면 슬라이스가 늘어난다'''는 것이 동적 슬라이스의 핵심이다. [[Round Robin]]처럼 "무조건 10ms"로 고정하면 프로세스가 2개일 때 불필요하게 자주 [[컨텍스트 스위치]]한다.
+
+== 우선순위가 다를 때 ==
+
+nice가 모두 같으면 $sched\_latency / n$이지만, 다르면 [[weight]] 비율로 나눈다.
+
+$$slice_i = \frac{weight_i}{\sum_j weight_j} \times sched\_latency$$
+
+== EEVDF에서 ==
+
+[[EEVDF]]도 slice를 "CFS처럼" 계산한 뒤 '''latency_nice'''로 추가 조정한다. 예: sched_latency 48ms, n = 4 → 기본 12ms, latency_nice = −10이면 '''6ms'''로 축소. 이 slice가 [[virtual deadline]] 공식에 들어간다.
+
+[[sim:cfs_eevdf]]
+
+== 관련 문서 ==
+* [[CFS]] · [[min_granularity]] · [[time slice]] · [[weight]] · [[nice]]
+* [[EEVDF]] · [[virtual deadline]]
+* [[비례 지분 스케줄링]]

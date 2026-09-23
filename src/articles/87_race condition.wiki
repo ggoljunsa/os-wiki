@@ -1,0 +1,87 @@
+key: race condition
+title: Race Condition (경쟁 상태)
+category: 8강 Concurrency, 용어
+---
+'''Race condition'''(경쟁 상태)은 8강에서 '''정의 문장을 영어로 통째로 외워야 하는''' 최우선 항목이다. 실제로 2025F 중간고사에 슬라이드 문장 그대로 출제되었다.
+
+[[img:L8-42.png|Race Condition and Critical Section — 슬라이드 p.42|large]]
+
+{def}'''Race condition''' — "An '''undesirable situation''' that occurs when a device or system attempts to perform '''two or more operations at the same time'''."
+
+"Race condition occurs when there exists a '''critical section(s)''' in the code."{/def}
+
+{exam}🎯 '''2025F 중간고사 Problem 2-e) 출제.'''
+"What is the name of an undesirable situation that occurs when a device or system attempts to perform two or more operations at the same time?" → '''Race Condition'''
+문제 문장이 '''슬라이드 정의와 한 글자도 다르지 않다'''. 교수님은 정의→용어 단답을 이렇게 낸다. → [[2025F 중간고사 족보]]{/exam}
+
+== OSTEP의 더 정확한 정의 ==
+
+슬라이드 정의는 짧아서 "왜 나쁜가"가 안 보인다. OSTEP 26장의 설명을 덧붙이면:
+
+> 여러 스레드가 [[critical section]]에 '''거의 동시에 진입'''해서 공유 자료를 갱신하려 할 때, 결과가 '''명령어 실행 타이밍(인터리빙)에 따라 달라지는''' 상황. 결과가 '''indeterminate''' — 같은 입력에도 실행마다 다르다.
+
+이름 그대로 스레드들이 "누가 먼저 가나" '''경주(race)'''하고, 그 승패에 결과가 좌우된다. OSTEP은 공유 데이터에 대한 이 경우를 '''data race'''라고도 부른다.
+
+== 구체적 증상 ==
+
+[[counter 예제]]에서 기대값은 20,000,000인데:
+
+[[img:L8-38.png|첫 실행 19345221, 두 번째 실행 19221041 — 매번 다르고 항상 모자라다|large]]
+
+{|
+! 증상 || 설명
+|-
+| 결과가 '''틀림''' || lost update — 한 스레드의 증가가 다른 스레드의 늦은 store에 덮임
+|-
+| 결과가 '''매번 다름''' || non-deterministic / indeterminate. 재현이 안 되니 디버깅이 지옥
+|-
+| CPU 1개여도 발생 || [[타이머 인터럽트]]에 의한 [[컨텍스트 스위치]]만 있으면 충분하다
+|}
+
+[[sim:counter_race]]
+
+{warn}'''"멀티코어에서만 생긴다"는 오해에 주의.''' 원인은 병렬 실행이 아니라 '''uncontrolled scheduling''' — 아무 명령어 경계에서나 끊길 수 있다는 것이다. 싱글 CPU에서도 그대로 발생한다.{/warn}
+
+== 용어 4형제 정리 ==
+
+{|
+! 용어 || 한 줄 정의 || 품사
+|-
+| '''[[critical section]]''' || 공유 자원에 접근하는 '''코드 조각''' || 장소
+|-
+| '''Race condition''' || 여러 스레드가 critical section을 동시에 실행해 결과가 타이밍에 좌우되는 '''상황''' || 현상
+|-
+| '''Indeterminate''' || 같은 입력에도 실행마다 결과가 다른 '''성질''' || 증상
+|-
+| '''[[mutual exclusion]]''' || 한 스레드가 critical section 안에 있으면 다른 스레드는 못 들어오게 하는 '''성질''' || 해법
+|}
+
+인과 사슬:
+<pre class="ascii">
+공유 자원 존재
+  -> 그것에 접근하는 코드 = critical section
+  -> 보호 없이 여러 스레드가 동시 실행 = race condition
+  -> 결과가 indeterminate
+  -> 해법: mutual exclusion (lock)
+</pre>
+
+{analogy}🎭 race condition = '''두 사람이 같은 종이에 잔액을 고쳐 적는 것'''. 둘 다 "잔액 50"을 읽고 각자 머릿속에서 51을 만든 뒤, 차례로 종이에 51을 적는다. 두 번 입금했는데 잔액은 한 번만 올랐다. 문제는 "동시에 적은 것"이 아니라 '''읽기와 쓰기 사이에 남이 끼어든 것'''이다.{/analogy}
+
+== 9강의 반전 ==
+
+[[flag 락]]은 race condition을 막으려고 만든 코드인데, '''그 코드 자체에 race condition이 있다'''. `while (flag == 1)`(TEST)와 `flag = 1`(SET)이 별개의 명령이라 그 틈에 끊기면 두 스레드가 모두 락을 얻는다.
+
+같은 패턴이 [[queue 락]]의 '''wakeup/waiting race'''에서도 반복된다 — "큐에 등록"과 "[[park와 unpark|park()]]" 사이의 틈. '''원자적이어야 할 두 동작이 분리되어 있으면 늘 race가 생긴다'''는 것이 8~9강을 관통하는 패턴이다.
+
+{quiz}Race condition과 [[critical section]]을 정의하고 둘의 관계를 쓰시오.{/quiz}
+{answer}'''Critical section''' = 공유 변수(자원)에 접근해서 둘 이상의 스레드가 동시에 실행하면 안 되는 코드 조각.
+'''Race condition''' = 그런 코드가 보호 없이 동시에 실행되어, 결과가 실행 타이밍에 따라 달라지는(indeterminate) 바람직하지 않은 상황.
+'''관계''': 코드에 critical section이 존재할 때 race condition이 발생하며, [[mutual exclusion]]으로 막는다. (p.42~43){/answer}
+
+{quiz}CPU가 하나뿐인 시스템에서도 race condition이 생길 수 있는가? 이유는?{/quiz}
+{answer}'''생긴다.''' [[타이머 인터럽트]]에 의한 [[컨텍스트 스위치]]가 '''아무 명령어 경계에서나''' 일어나므로, `load / add / store` 사이에서 끊기면 다른 스레드가 옛 값을 읽어 간다. 병렬 실행이 원인이 아니라 '''uncontrolled scheduling'''이 원인이다.{/answer}
+
+== 관련 문서 ==
+* [[critical section]] · [[mutual exclusion]] · [[atomic]] · [[counter 예제]]
+* [[스레드]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]]
+* [[락]] · [[flag 락]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

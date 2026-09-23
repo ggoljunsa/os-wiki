@@ -1,0 +1,114 @@
+key: 프로세스 API
+title: 프로세스 API (Process API)
+category: 3강 From Program to Process, 용어
+---
+'''프로세스 API'''는 유저 프로그램이 프로세스를 만들고·죽이고·기다리고·조회하는 [[시스템 콜]] 묶음이다. 3강 p.31이 다섯 갈래로 정리해 준다.
+
+{def}
+'''Process APIs''' — "These APIs are available on '''any modern OS'''" (3강 p.31)<br>
+· '''Create''': Create a new process to run a program — e.g., `fork()` and `execv()`<br>
+· '''Destroy''': Halt a runaway process — e.g., `exit()` and `kill(SIGKILL)`<br>
+· '''Wait''': Wait for a process to stop running — e.g., `wait()` and `waitpid()`<br>
+· '''Miscellaneous Control''': Some method to '''suspend''' a process and then '''resume''' it — e.g., `kill(SIGSTOP)` and `signal()`<br>
+· '''Status''': Get some status info about a process — e.g., `getpid()`, `getpriority()`
+{/def}
+
+{analogy}
+🍦 가게 사장이 직원에게 쓸 수 있는 명령 목록이다. '''Create'''는 알바 한 명 더 투입, '''Destroy'''는 퇴근시키기, '''Wait'''는 "저 알바 끝날 때까지 기다렸다 인수인계 받아", '''Control'''은 "잠깐 멈춰" / "다시 해", '''Status'''는 "지금 몇 번 주문 하고 있어?"다. 이 다섯 가지만 있으면 어떤 작업 흐름이든 짤 수 있다는 게 유닉스의 주장.
+{/analogy}
+
+[[sim:fork_exec]]
+
+== 다섯 갈래 ==
+
+{| class="table"
+! 갈래 || 시스템 콜 || 하는 일 || 자세히
+|-
+| '''Create''' || `fork()`, `execv()` || 프로세스 복제 / 프로그램 교체 || [[fork]], [[exec]]
+|-
+| '''Destroy''' || `exit()`, `kill(SIGKILL)` || 스스로 끝내기 / 남을 강제 종료 ||
+|-
+| '''Wait''' || `wait()`, `waitpid()` || 자식이 끝날 때까지 블록 || [[wait]]
+|-
+| '''Control''' || `kill(SIGSTOP)`, `signal()` || 일시정지·재개, 시그널 핸들러 등록 || [[sigalarm]](과제 1이 흉내 내는 것)
+|-
+| '''Status''' || `getpid()`, `getpriority()` || 정보 조회 ||
+|}
+
+{tip}
+0831 녹음본에서 교수님이 일상 경험과 연결해 준 부분: "you can type '''Control-C''' or Control-D to the shell and then you can finish the program execution — it is actually related to this '''kill''' system call. And also you can type the '''ps''' command and then you can get the ID of each process — it actually uses this '''getpid''' system call."
+{/tip}
+
+== fork / exec가 분리된 이유 ==
+
+가장 자주 나오는 개념 문제다. "프로그램 실행"이라는 한 가지 일이 왜 '''두 개'''의 시스템 콜로 쪼개져 있나?
+
+<pre class="ascii">
+   부모 프로세스
+       │
+       │  fork()        ← 복제. 주소 공간·열린 파일이 그대로 복사된다
+       ├──────────────► 자식 (부모와 똑같은 프로그램)
+       │                   │
+       │                   │  이 틈에 자식이 환경을 손볼 수 있다
+       │                   │  (stdout 리다이렉트, 우선순위 변경 …)
+       │                   │
+       │                   │  exec("/bin/ls")   ← 프로그램만 갈아 끼움
+       │                   ▼
+       │                자식 (이제 ls)
+       │                   │
+       │  wait()  ◄────────┘  자식 종료를 회수
+       ▼
+</pre>
+
+{warn}
+`fork()`와 `exec()` '''사이의 틈'''이 유닉스 셸의 모든 기능(파이프, 리다이렉션, 백그라운드 실행)이 사는 곳이다. 두 개를 합친 API였다면 `ls > out.txt` 같은 것을 만들 수 없다. "왜 분리했나"를 묻는 문제의 정답은 '''"자식이 exec 전에 자기 실행 환경을 바꿀 수 있게 하려고"'''.
+{/warn}
+
+{tip}
+녹음본: "the fork system call is generating the process and actually it '''only copies the process data and then generates a separate logical control flow'''. And then you can use the '''execv''' system call to load another program. So if you want to run a program, you first need to fork the process and then call the execv system call to change the executing program."
+{/tip}
+
+== 프로세스 트리 ==
+
+프로세스를 만드는 방법이 [[fork]]뿐이라는 사실에는 구조적 귀결이 있다.
+
+{tip}
+0831 녹음본: "if we want to generate the process, we need a '''parent''' process … if we need a process to generate another process, then it is actually related to the '''tree''' concept in the data structure. If you have a single parent for each node, the data structure would be a '''tree'''. … all of the processes are actually originated from a '''single process''' and we give some special role to that root process — it is called '''init''' process in Linux."
+{/tip}
+
+<pre class="ascii">
+              init  (pid 1, 루트)
+             ╱   │   ╲
+        sshd   getty   systemd-*
+          │
+        bash
+       ╱    ╲
+     ls      gcc
+</pre>
+
+그래서 [[struct proc]]에 `struct proc *parent;` 필드가 있고, [[wait]]가 '''부모만''' 자식을 회수할 수 있는 것이다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(분류)''' 다음 시스템 콜을 3강 p.31의 다섯 갈래(Create / Destroy / Wait / Control / Status)로 분류하시오.<br>
+`waitpid()`, `kill(SIGSTOP)`, `execv()`, `getpid()`, `exit()`
+{/quiz}
+{answer}
+`waitpid()` = '''Wait''' / `kill(SIGSTOP)` = '''Miscellaneous Control'''(suspend) / `execv()` = '''Create''' / `getpid()` = '''Status''' / `exit()` = '''Destroy'''.<br>
+함정: `kill()`은 시그널에 따라 갈래가 갈린다 — `kill(SIGKILL)`은 Destroy, `kill(SIGSTOP)`은 Control.
+{/answer}
+
+{quiz}
+'''(서술)''' 프로세스 생성이 `fork()`와 `exec()` 두 시스템 콜로 나뉘어 있는 이유를 한 문장으로 설명하시오.
+{/quiz}
+{answer}
+`fork()` 직후 `exec()` 이전의 '''틈'''에서 자식이 자기 실행 환경(열린 파일 디스크립터, 리다이렉션, 우선순위 등)을 고칠 수 있게 하기 위해서다. 셸의 파이프·리다이렉션이 전부 이 틈에서 구현된다.
+{/answer}
+
+== 관련 문서 ==
+* [[프로세스]] — 본문
+* [[fork]] / [[exec]] / [[wait]]
+* [[시스템 콜]] / [[시스템 콜 추가 절차]]
+* [[프로세스 상태]] — `ZOMBIE`와 [[wait]]의 관계
+* [[struct proc]] — `parent` 필드

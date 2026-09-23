@@ -1,0 +1,94 @@
+key: 캐시 일관성
+title: 캐시 일관성 (Cache Coherence)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''캐시 일관성'''(cache coherence)은 '''같은 데이터의 복사본이 여러 캐시에 존재할 때 그것들이 일관되게 유지되어야 한다'''는 요구다. CPU가 하나일 때는 존재하지 않던 문제로, 멀티프로세서의 모든 어려움이 여기서 시작한다.
+
+{def}
+'''Cache Coherence''': Consistency of shared resource data stored in '''multiple caches'''.
+{/def}
+
+{analogy}'''같은 구글 문서를 오프라인으로 받아 간 두 사람'''이다. A가 자기 노트북에서 3장을 고쳐 썼지만 아직 업로드하지 않았다. 그 사이 B가 서버에서 문서를 내려받으면 '''고치기 전 버전'''을 받는다. 서버의 값이 최신이 아니라는 게 문제의 본질이고, 해결책은 "누군가 문서를 고치면 나머지 모두에게 '''네 사본은 폐기해'''라고 알리는 것"이다. 그 알림을 하드웨어가 버스로 하는 게 '''bus snooping'''이다.{/analogy}
+
+== 문제가 생기는 과정 ==
+
+[[img:L7-27.png|2단계: CPU0이 D를 D′으로 수정(캐시에만). 3단계: CPU1이 같은 주소를 읽어 옛 값 D를 얻는다|large]]
+
+<pre class="ascii">
+ 0. 초기 상태 — 메모리 주소 1에 값 D
+      CPU 0            CPU 1
+    ┌───────┐        ┌───────┐
+    │ Cache │        │ Cache │
+    └───┬───┘        └───┬───┘
+        └──────┬─────────┘   Bus
+          ┌────┴────┐
+          │ D @ 주소1│  Memory
+          └─────────┘
+
+ 1. CPU0이 주소 1을 읽음 → 자기 캐시에 D 복사
+      Cache(CPU0) = D
+
+ 2. CPU0이 D를 '''D′으로 수정''' — 캐시에만 반영(write-back), 메모리는 아직 D
+    그 상태에서 프로세스가 '''CPU1로 스케줄'''됨
+      Cache(CPU0) = D′    Memory = D
+
+ 3. CPU1이 같은 주소를 읽음 → 자기 캐시에 없으니 '''메모리에서''' 가져옴
+      Cache(CPU1) = D     ← ❌ '''옛 값!''' 올바른 값은 D′
+</pre>
+
+슬라이드의 빨간 글씨: "'''CPU1 gets the old value $D$ instead of the correct value $D'$!'''"
+
+== 해결: bus snooping ==
+
+{def}
+'''Bus snooping'''
+* Each cache '''pays attention to memory updates by observing the bus'''
+* When a CPU sees an update for a data item it holds in its cache, it will notice the change and either '''invalidate''' its copy '''or update''' it
+{/def}
+
+<pre class="ascii">
+      CPU 0                      CPU 1
+    ┌───────┐                  ┌───────┐
+    │ D → D′│                  │  D    │
+    └───┬───┘                  └───┬───┘
+        │  "주소1 갱신!"            │ 👂 버스를 엿듣는 중
+        └──────────┬───────────────┘
+                   │  Bus
+            ┌──────┴──────┐
+            │   Memory    │
+            └─────────────┘
+   → CPU1의 캐시는 자기 사본을 '''invalidate''' 하거나 '''update''' 한다
+</pre>
+
+{info}'''이건 하드웨어가 해결해 주는 문제다.''' OS나 프로그래머가 신경 쓰지 않아도 캐시 컨트롤러가 알아서 처리한다. 그래서 슬라이드도 한 장으로 짧게 끝낸다. 하지만 '''바로 다음 장의 동기화는 다르다''' — 그건 소프트웨어의 책임이다.{/info}
+
+== 일관성 ≠ 동기화 ==
+
+{warn}'''가장 중요한 구분이다.'''
+* '''캐시 일관성'''이 보장하는 것: "내가 읽는 값이 '''최신 값인가'''" — 하드웨어(bus snooping)가 해결.
+* '''캐시 일관성이 보장하지 못하는 것''': "두 CPU의 '''명령어 순서가 섞이는 것'''" — [[락]]으로 [[critical section]]을 감싸야 해결.
+
+슬라이드 다음 장의 `List_Pop()` 예제가 정확히 이 차이를 보여 준다. 두 CPU가 같은 `head` 값을 읽는 것 자체는 '''일관성 위반이 아니다'''(둘 다 최신 값을 읽었다). 그런데 둘 다 그 값을 `free()` 하면 '''double free'''가 난다. 이건 [[race condition]]이고, [[mutual exclusion]]으로만 막을 수 있다.{/warn}
+
+<pre class="c">
+int List_Pop() {
+    Node_t *tmp = head;        // 두 CPU가 '''같은 최신 head'''를 읽음 — 일관성은 OK
+    int value = head->value;
+    head = head->next;
+    free(tmp);                 // 둘 다 실행 → '''double free''' ❌
+    return value;
+}
+</pre>
+
+== 시험에서 ==
+
+{exam}2025F 중간고사 '''Problem 2(용어 단답형)'''는 슬라이드의 영어 정의를 그대로 주고 용어를 쓰게 한다. 이 주제에서 나올 수 있는 세 개를 영어 정의째로 외울 것.
+* '''Cache coherence''' — "Consistency of shared resource data stored in multiple caches"
+* '''Bus snooping''' — "Each cache pays attention to memory updates by observing the bus"
+* '''Cache affinity''' — Problem 2 d)에 실제로 출제됨 (Hint: C___ A___)
+→ [[2025F 중간고사 족보]]{/exam}
+
+== 관련 문서 ==
+* [[cache affinity]] · [[멀티프로세서 스케줄링]] · [[멀티코어]]
+* [[락]] · [[mutual exclusion]] · [[race condition]] · [[critical section]]
+* [[SQMS]] · [[MQMS]]

@@ -1,0 +1,66 @@
+key: 커널 모드
+title: 커널 모드 (Kernel Mode)
+category: 용어
+---
+'''커널 모드'''(kernel mode, supervisor mode)는 CPU가 [[특권 명령]]을 실행하고 모든 메모리·장치에 접근할 수 있는 실행 모드다. [[커널]] 코드만 이 모드에서 돈다. 반대편이 user mode이며, 둘의 대비는 [[유저 모드와 커널 모드]] 문서에 자세히 있다.
+
+{def}
+2강·1강 슬라이드는 모드를 그림의 '''경계선'''으로 표현한다. 1강 p.30에서 점선 위는 "'''User space'''", 아래는 "'''OS'''"로 표시되고, `write()` system call이 그 선을 넘는다. 2강 p.5는 같은 것을 "'''Make a wall''' and give them a kiosk"로 비유한다.
+{/def}
+
+{analogy}
+🔑 '''마스터키를 든 상태'''다. 같은 사람(CPU)인데 손에 마스터키를 쥐고 있으면 어느 방이든 열 수 있고, 내려놓으면 자기 방만 열 수 있다. 중요한 건 '''키를 스스로 집어들 수 없다'''는 것 — 정해진 관문(`ecall`, [[인터럽트]], exception)을 통과할 때 '''하드웨어가 쥐여 주고''', [[sret]]로 나갈 때 '''도로 빼앗는다'''.
+{/analogy}
+
+== 이 모드에서만 가능한 것 ==
+
+* '''[[특권 명령]]''' 실행 (I/O 명령, 페이지 테이블 레지스터 변경, 인터럽트 활성/비활성 …)
+* 물리 메모리 전체 접근 — 다른 프로세스의 [[주소 공간]]과 모든 [[PCB]]
+* 장치 레지스터 직접 조작
+* [[커널 스택]] 사용
+
+== 언제 들어가고 나오나 ==
+
+<pre class="ascii">
+   user mode  ──┐                                    ┌──  user mode
+                │ ① ecall (시스템 콜)                  │
+                │ ② 인터럽트 (타이머, 디스크)            │  sret
+                │ ③ exception (page fault, 특권 위반)   │
+                ▼                                    │
+              ──── kernel mode ──────────────────────┘
+</pre>
+
+{warn}
+'''유저 프로그램이 "커널 모드로 전환한다"는 표현은 부정확하다.''' 유저가 하는 일은 `ecall`을 실행하는 것뿐이고, 모드를 올리면서 [[트랩 테이블]]에 등록된 '''정해진 주소'''로 점프시키는 것은 하드웨어다. 그래서 유저는 커널의 임의 지점으로 뛰어들 수 없다. 이것이 [[제한적 직접 실행]]의 핵심 안전장치다.
+{/warn}
+
+{tip}
+[[RISC-V]]에서는 모드를 privilege level이라 부르고 U(user) / S(supervisor) / M(machine) 세 단계가 있다. xv6 커널이 도는 곳은 '''S 모드'''이며, `sepc`·`stvec`·`scause` 같은 CSR도 앞의 `s`가 supervisor를 뜻한다. → [[sepc]], [[sret]]
+{/tip}
+
+== 자주 나오는 함정 ==
+
+{exam}
+2026-09-23 퀴즈 '''1번(10점)''': "The alarm handler registered by `sigalarm` executes in ( user mode / kernel mode )."<br>
+정답은 '''user mode'''. 커널은 [[trapframe]]의 [[epc]]를 [[alarm_handler]] 주소로 바꾼 뒤 [[sret]]로 '''내려가서''' 실행시키므로, 핸들러는 유저 코드다. "커널이 등록받은 함수니까 커널 모드"라고 착각하기 쉽다. → [[퀴즈1 복기]]
+{/exam}
+
+{warn}
+'''새 프로세스도 커널 모드에서 태어난다.''' 0831 녹음본: "the process would start from the '''kernel state''' and then transfer the control to the user space. Inside the user space, the program will run from the `main` function." 프로세스 생성 5단계의 마지막 "control transfer"가 바로 이 하강이다. → [[프로세스]]
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(선택)''' 다음 중 CPU를 user mode에서 kernel mode로 전환시키는 사건이 '''아닌''' 것은?<br>
+① `ecall` ② [[타이머 인터럽트]] ③ page fault ④ 함수 `call` 명령
+{/quiz}
+{answer}
+'''④ 함수 call 명령.''' 같은 모드·같은 [[주소 공간]] 안의 점프일 뿐이다.
+{/answer}
+
+== 관련 문서 ==
+* [[유저 모드와 커널 모드]] — 상세 비교
+* [[커널]] / [[특권 명령]] / [[커널 스택]]
+* [[시스템 콜]] / [[트랩]] / [[트랩 테이블]] / [[제한적 직접 실행]]
+* [[sret]] / [[sepc]] / [[return-from-trap]]

@@ -1,0 +1,97 @@
+key: alarm_saved
+title: alarm_saved
+category: 과제1, 핵심
+---
+'''`alarm_saved`'''는 [[struct proc]]에 추가하는 '''`struct trapframe` 구조체 통째'''로, 알람이 터지는 순간의 '''끊긴 유저 문맥 전체 사본'''이다. [[과제1 xv6 alarm|과제 1]]에서 가장 중요한 필드이며, '''퀴즈 1의 2번 ②와 3번 (a)가 전부 이 필드에 관한 문제'''였다.
+
+{def}
+`struct trapframe alarm_saved;` — a '''separate struct trapframe value''' holding the interrupted user context (31 registers + [[epc]]), restored by [[sigreturn]].
+포인터가 아니라 '''값'''이다 — 퀴즈 문제지가 "a separate struct trapframe '''value'''"라고 명시했다.
+{/def}
+
+{analogy}
+[[trapframe]]이 '''책갈피'''라면 `alarm_saved`는 '''그 책갈피의 복사본'''이다. 책갈피 자리는 하나뿐이고 새 트랩이 날 때마다 새 책갈피로 갈린다. 그래서 원래 페이지를 잃지 않으려면 '''복사본을 서랍에 넣어 둬야''' 한다. [[sigreturn]]은 "서랍에서 꺼내 다시 끼워 주세요"다.
+{/analogy}
+
+== 저장과 복원 ==
+
+<pre class="c">
+// usertrap() — 알람 발사 시
+p->alarm_saved = *p->trapframe;      // ★ 구조체 "값" 대입 (= memmove)
+
+// sys_sigreturn() — 핸들러가 끝났을 때
+*p->trapframe = p->alarm_saved;      // ★ 31 레지스터 + epc 전부 되돌림
+</pre>
+
+<pre class="ascii">
+        p->trapframe (페이지 1장)            p->alarm_saved (proc 칸 안에 내장)
+        ┌────────────────┐                 ┌────────────────┐
+        │ kernel_satp …  │                 │                │
+        │ epc  = 0x1234  │ ──  복사  ──►   │ epc  = 0x1234  │   알람이 터질 때
+        │ ra sp gp tp    │                 │ ra sp gp tp    │
+        │ a0 a1 … a7     │ ◄──  복원  ──   │ a0 a1 … a7     │   sigreturn 때
+        │ t0 … t6        │                 │ t0 … t6        │
+        │ s0 … s11       │                 │ s0 … s11       │
+        └────────────────┘                 └────────────────┘
+          "지금 트랩의 문맥"                  "알람 직전의 문맥"  ← 슬롯 하나뿐!
+          (트랩마다 덮어써짐)                  (sigreturn 까지 안전)
+</pre>
+
+{warn}
+'''`p->alarm_saved = p->trapframe;`는 틀렸다''' — 포인터 대입이라 타입이 안 맞고(컴파일 에러), 설령 통과해도 '''같은 페이지를 가리키는 두 번째 이름'''일 뿐이라 백업이 되지 않는다. 반드시 `*`를 붙여 '''내용물'''을 복사해야 한다.
+{/warn}
+
+== 왜 별도 사본이 필요한가 — 퀴즈 3번 (a) ⭐⭐⭐ ==
+
+{exam}
+'''실제 퀴즈 1의 3번 (a), 10점.''' "On a timer interrupt, xv6 already saves the user context in `p->trapframe`. '''Why is a separate copy still needed''' before starting the alarm handler?"
+
+'''한 문장 답안:''' "핸들러는 '''user mode에서 실행'''되면서 자기 자신의 시스템 콜(최소한 [[sigreturn]])이나 또 다른 트랩으로 '''`p->trapframe`을 덮어쓰기''' 때문에, 끊긴 문맥을 미리 별도 슬롯에 복사해 두어야 한다."
+{/exam}
+
+풀어 쓰면:
+
+<pre class="ascii">
+   p->trapframe 은 "지금 이 트랩의 문맥" 슬롯 하나뿐이고,
+   트랩이 날 때마다 uservec 이 유저 레지스터 31개를 그 자리에 덮어쓴다.
+
+   핸들러가 유저 모드에서 하는 모든 일이 trapframe 을 덮는다:
+      · sigreturn()        ← ecall.  반드시 부른다.      ⇒ 덮임
+      · printf("alarm!")   ← write 시스템 콜             ⇒ 덮임
+      · 핸들러 도중 타이머 인터럽트                        ⇒ 덮임
+      · 핸들러가 page fault                              ⇒ 덮임
+
+   ⇒ 핸들러가 한 발짝만 움직여도 원래 유저 코드의 문맥은 사라진다.
+   ⇒ 그래서 "핸들러를 시작하기 전에" 프로세스 전용 슬롯으로 통째로 복사한다.
+</pre>
+
+{tip}
+'''1번 문제(핸들러는 user mode에서 돈다)의 답이 곧 3번 (a)의 이유'''다. 만약 핸들러가 커널 모드에서 돈다면 자기 시스템 콜을 부를 일이 없으니 `trapframe`도 덮이지 않았을 것이다. 두 문제가 한 줄로 이어져 있다는 것이 이번 퀴즈의 설계.
+{/tip}
+
+== 왜 "전부" 저장하는가 ==
+
+과제 PDF 힌트: "what registers do you need to save and restore to resume the interrupted code correctly? ('''Hint: it will be many'''.)"
+
+{warn}
+일반 함수 호출이라면 '''caller-saved / callee-saved 규약''' 덕에 일부만 저장하면 된다. 그러나 알람은 '''[[인터럽트]]'''다 — 끊긴 코드는 "지금 함수를 호출할 참"이었을 수도, "계산 중간"이었을 수도 있다. '''어떤 규약도 적용되지 않으므로 전부 저장해야 한다.''' [[a0]] 하나만 빠져도 test1이 실패한다([[a0 복원]]).
+{/warn}
+
+== 슬롯이 하나라는 사실의 귀결 ==
+
+저장 슬롯이 '''하나'''이기 때문에 '''[[재진입 금지]]'''가 필요해진다. 핸들러 실행 중에 알람이 또 터지면 `alarm_saved`가 '''핸들러 중간 문맥'''으로 덮여, 원래 유저 코드로 돌아갈 길이 영영 사라진다.
+
+{quiz}
+`alarm_saved`를 [[struct proc]] 안에 구조체로 두는 것과, `kalloc()`으로 페이지를 할당해 포인터로 두는 것 중 어느 쪽이 맞는가?
+{/quiz}
+{answer}
+'''둘 다 맞다''' — 실제로 두 방식 모두 `make grade` 만점(80/80)을 받는다.
+* 구조체 내장: `struct proc` 크기가 288 B × NPROC(64) ≈ 18 KB 늘지만 '''누수가 없다'''.
+* `kalloc` 포인터: 포인터 8 B만 늘지만, 핸들러 실행 중 프로세스가 죽으면 `freeproc`에서 해제하지 않아 '''1페이지 누수''' 가능. 이 경우 `!= 0` 자체를 [[alarm_active]] 대용으로 쓸 수 있다는 장점은 있다.
+핵심 메커니즘(통째 저장/복원)은 동일하며, 퀴즈는 '''구조체 값''' 쪽 표기(`*p->trapframe`)로 출제됐다.
+{/answer}
+
+== 관련 문서 ==
+* [[trapframe]] · [[epc]] · [[a0]] · [[a0 복원]] · [[재진입 금지]] · [[alarm_active]]
+* [[sigreturn]] · [[sigalarm]] · [[usertrap]] · [[struct proc]] · [[커널 스택]]
+* [[과제1 xv6 alarm]] · [[alarmtest]] · [[퀴즈1 복기]]

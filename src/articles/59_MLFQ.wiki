@@ -1,0 +1,208 @@
+key: MLFQ
+title: MLFQ (Multi-Level Feedback Queue)
+category: 5강 Process Scheduling, 핵심
+---
+'''MLFQ'''(Multi-Level Feedback Queue, 다단계 피드백 큐)는 '''job의 실행 시간을 전혀 모르는 상태에서''' [[STCF]]의 [[turnaround time]]과 [[Round Robin]]의 [[response time]]을 동시에 노리는 [[스케줄링]] 정책이다. 1962년 Corbató가 CTSS에서 만들었고, 그 공로로 튜링상을 받았다.
+
+{def}
+'''MLFQ의 목표 (슬라이드 p.28 원문)'''
+Real-world workloads are the mixture of batch and interactive jobs, '''without any prior knowledge'''.
+The goal of MLFQ is to (1) '''optimize turnaround time''' for batch jobs while (2) '''minimizing response time''' for interactive jobs.
+
+'''두 가지 기술적 난제'''
+* How to decide type of jobs (batch or interactive)?
+* How to know run-times of job? (← 워크로드 가정 4)
+→ MLFQ '''learns from the past''' to predict the type and runtime of jobs.
+{/def}
+
+{analogy}MLFQ는 '''처음 보는 손님을 일단 VIP로 모시는 식당'''이다. 누가 에스프레소 한 잔만 마시고 갈 사람이고 누가 3시간 코스를 시킬 사람인지 알 방법이 없다. 그러니 '''전부 VIP석(최상위 큐)에 앉힌다.''' 커피만 마시고 갈 사람은 금방 일어나니 VIP석이 아깝지 않고, 계속 눌러앉는 손님은 알아서 뒷자리로 옮겨진다. '''손님이 자기 행동으로 스스로 정체를 증명하게 만드는 것''' — 이게 "feedback"이다.{/analogy}
+
+== 기본 구조 ==
+
+[[img:L5-30.png|MLFQ 정적 스냅샷. Q8(최고)~Q1(최저). A·B는 Q8, C는 Q4, D는 Q1|medium]]
+
+* 우선순위가 다른 '''여러 개의 큐'''를 유지한다.
+* 실행 준비가 된 job은 '''정확히 하나의 큐'''에만 들어 있다.
+* 높은 큐의 job이 먼저 선택되고, '''같은 큐 안에서는 [[Round Robin]]'''.
+
+위 그림의 상태라면 A와 B만 RR로 번갈아 돌고 '''C와 D는 영원히 못 돈다'''. 우선순위가 고정이면 이런 일이 생긴다는 걸 보여주려고 넣은 슬라이드다. 그래서 '''우선순위를 바꿔야''' 한다.
+
+== 5가지 규칙 ==
+
+{def}
+'''The refined set of MLFQ rules (슬라이드 p.43 원문 그대로)'''
+
+* '''Rule 1''': If Priority(A) > Priority(B), '''A runs''' (B doesn't).
+* '''Rule 2''': If Priority(A) = Priority(B), A & B run in '''RR'''.
+* '''Rule 3''': When a job '''enters the system''', it is placed at the '''highest priority'''.
+* '''Rule 4''':
+** If a job '''uses up an entire time slice''' while running, its priority is '''reduced''' (i.e., it moves down on queue);
+** If a job '''gives up the CPU before the time slice is up''', it '''stays at the same priority''' level;
+** '''Once a job uses up its time slice at a given level, its priority is reduced.'''
+* '''Rule 5''': After some time period '''S''', move '''all the jobs''' in the system to the '''topmost queue'''.
+{/def}
+
+{info}'''Rule 4의 세 줄이 왜 세 줄인가.''' 원래 슬라이드 p.32에서는 Rule 4a(슬라이스 소진 → 하락) / Rule 4b(먼저 반납 → 유지) 두 개였다. 그런데 4b를 악용하는 '''gaming''' 공격이 가능해서(p.39), "한 레벨에서 '''누적'''해서 슬라이스를 다 쓰면 하락"이라는 세 번째 줄을 붙여 하나의 Rule 4로 합친 것이다. 이 '''누적분'''을 allotment(할당량)라 부른다.{/info}
+
+[[sim:mlfq]]
+
+== 우선순위를 바꾸는 원리 ==
+
+{def}
+MLFQ varies the priority of a job based on its '''observed behavior'''.
+* A job repeatedly '''relinquishes the CPU''' while waiting for I/Os (e.g., keyboard) → this is how an '''interactive''' process might behave → keep its priority '''high''' w/ '''short''' time slice → better '''response time'''
+* A job '''uses the CPU intensively''' for long periods → this is how a '''batch''' job might behave → '''reduce''' its priority w/ '''long''' time slice → better '''turnaround time'''
+{/def}
+
+== 단계별 예제 ==
+
+=== 예제 1 — 긴 job 하나 ===
+
+3개 큐(Q2 > Q1 > Q0), [[time slice]] 10ms.
+
+<pre class="ascii">
+ Q2 ████                                  ← Rule 3으로 Q2 진입, 10ms 소진
+ Q1     ████                              ← Rule 4로 하락, 또 10ms 소진
+ Q0         ████████████████████████████  ← 바닥까지 내려가 계속 실행
+    0      20        50       100      200 (ms)
+</pre>
+
+긴 job은 '''자기 행동으로 스스로 바닥까지 내려간다.''' 아무도 "너는 batch야"라고 알려 주지 않았는데도.
+
+=== 예제 2 — 짧은 job이 끼어들면 ===
+
+[[img:L5-34.png|A는 긴 CPU job(Q0에서 실행 중), B는 20ms짜리 짧은 job이 t=100에 도착. "Behave like STCF"|medium]]
+
+<pre class="txt">
+ t<100   A가 Q0에서 실행 중 (이미 바닥까지 내려감)
+ t=100   B 도착 → '''Rule 3'''으로 '''Q2''' 진입 → Rule 1에 의해 A를 밀어내고 즉시 실행
+ t=110   B가 10ms 슬라이스 소진 → '''Rule 4'''로 Q1 하락, 계속 실행
+ t=120   B 완료 (총 20ms)
+ t>120   A가 Q0에서 재개
+</pre>
+
+'''결과가 [[STCF]]와 같다.''' 슬라이드의 빨간 글씨 "Behave like STCF"가 그 뜻이다.
+
+{exam}'''서술형 단골: "MLFQ는 실행 시간을 모르는데 어떻게 STCF를 근사하는가?"'''
+
+슬라이드 p.35의 세 문장이 모범답안이다.
+# MLFQ doesn't know whether a job will be short or long-running, so it '''first assumes it might be a short job''', thus giving the job '''high priority'''.
+# If it '''actually is a short job''', it will run quickly and complete.
+# If it is '''not''' a short job, it will '''slowly move down the queues''', and thus soon '''prove itself''' to be a long-running, more batch-like process.
+
+녹음본에서 교수님이 여기에 "'''this is quite important'''"를 붙이며 이유까지 설명했다 — I/O-intensive job은 우선순위를 빨리 줘야 의미가 있고, CPU-intensive batch job은 어차피 completion이 멀어서 분류에 시간을 좀 써도 손해가 아니다.{/exam}
+
+=== 예제 3 — I/O 하는 대화형 job ===
+
+A는 긴 CPU job, B는 '''1ms만 CPU를 쓰고 I/O를 하는''' 대화형 job.
+
+<pre class="ascii">
+ Q2 ▌  ▌  ▌  ▌  ▌  ▌  ▌  ▌      ← B: 매번 슬라이스 전에 CPU 반납 → Rule 4로 '''Q2 유지'''
+ Q1
+ Q0  ██  ██  ██  ██  ██  ██     ← A: B가 I/O 나간 틈에만 실행
+    0    50    100   150   200 (ms)
+</pre>
+
+슬라이드 노란 박스: "The MLFQ approach '''keeps an interactive job at the highest priority'''." → [[response time]] 확보. [[I/O와 스케줄링]]과 같은 원리다.
+
+== 기본 MLFQ의 세 가지 문제 ==
+
+Rule 1~4만으로는 문제가 셋 생긴다.
+
+{|
+! 문제 || 내용 || 해법
+|-
+| '''Starvation''' || 대화형 job이 "too many"면 긴 job은 CPU를 영영 못 받음 || '''Rule 5''' (priority boost)
+|-
+| '''행동 변화''' || CPU-bound → I/O-bound로 바뀌어도 '''최하위 큐에 갇힘''' || '''Rule 5''' (priority boost)
+|-
+| '''Gaming(공격)''' || 슬라이스 끝나기 '''직전에''' CPU 반납 → I/O 집약처럼 보이지만 실은 CPU 독점. 슬라이드 표현으로 '''"Sort of security threat"''' || '''Rule 4''' (better accounting)
+|}
+
+=== Rule 5 — The Priority Boost ===
+
+[[img:L5-38.png|왼쪽(부스트 없음): A가 Q0에서 starvation. 오른쪽(부스트 있음): S마다 전부 Q2로 올라온다|large]]
+
+{def}
+'''Rule 5''': After some time period '''S''', move '''all the jobs''' in the system to the '''topmost queue'''.
+{/def}
+
+* '''왼쪽''': 긴 job A + 짧은 대화형 B·C. t≈100 이후 B·C가 Q2를 점유하고 A는 Q0에서 '''Starvation'''.
+* '''오른쪽''': 시간 S마다 A가 Q2로 끌려 올라와 조금씩이라도 돈다. 기아 해결 + 행동이 바뀐 프로세스의 구제도 동시에 해결.
+
+$S$ 정하기는 어렵다. 너무 크면 기아가 길고, 너무 작으면 대화형 job이 손해를 본다. Solaris 기본값은 '''약 1초'''.
+
+=== Rule 4 — Better Accounting ===
+
+[[img:L5-39.png|왼쪽(누적 없음): gaming 성공, Q2에 눌러앉아 CPU 독점. 오른쪽(누적함): 결국 Q0까지 내려간다|large]]
+
+CPU를 자진 반납했다고 '''사용량 카운터를 리셋하지 않고 그 레벨에서 누적'''한다. 슬라이스가 10ms라면, 9.9ms씩 쓰고 반납하는 짓을 두 번 하면 누적 19.8ms > 10ms이므로 하락시킨다. → gaming tolerance.
+
+== 파라미터 튜닝 ==
+
+[[img:L5-41.png|큐마다 슬라이스를 다르게: Q2=10ms, Q1=20ms, Q0=40ms|medium]]
+
+* 큐를 몇 개? 큐마다 [[time slice]]는? 부스트 주기 $S$는?
+* 슬라이드 원문: "'''There are no easy answers to these questions.''' Only some experience with workloads and subsequent tuning of the scheduler will lead to a satisfactory balance."
+* 원칙: '''높은 큐 = 짧은 슬라이스''' (대화형), '''낮은 큐 = 긴 슬라이스''' (CPU-bound).
+* '''Solaris''' 기본값: 큐 '''60개''', 슬라이스 최고 20ms → 최하위 수백 ms, 부스트 '''약 1초'''.
+
+{joke}Solaris 슬라이드의 마지막 줄이 "But you know, '''no one touches the default'''". 60개짜리 테이블을 관리자가 마음대로 고칠 수 있게 만들어 놨는데 아무도 안 고친다는 교수님의 코멘트다.{/joke}
+
+== 예상 문제 ==
+
+{quiz}
+3개 큐(Q2 > Q1 > Q0), 각 큐의 [[time slice]]는 10ms로 동일, priority boost 주기 $S$ = 50ms라고 하자.
+Job A는 t=0에 도착한 100ms짜리 순수 CPU job, Job B는 t=25에 도착해 '''5ms 실행 후 I/O를 반복'''하는 대화형 job이다.
+
+'''(a)''' t=0 ~ 25 동안 A는 어느 큐에 있는가?
+'''(b)''' t=25에 B가 도착하면 무슨 일이 일어나는가? 적용되는 Rule 번호를 쓰라.
+'''(c)''' B는 왜 계속 Q2에 머무는가?
+'''(d)''' t=50의 priority boost 직후 A와 B는 각각 어느 큐에 있는가?
+{/quiz}
+
+{answer}
+'''(a)''' A는 Rule 3으로 t=0에 '''Q2'''에 들어간다. 10ms를 다 쓰면 '''Rule 4'''로 Q1 하락(t=10), 또 10ms를 다 쓰면 Q0 하락(t=20). 따라서 t=20부터 25까지는 '''Q0'''에 있다.
+
+<pre class="txt">
+ t= 0~10  Q2 (A)
+ t=10~20  Q1 (A)
+ t=20~25  Q0 (A)
+</pre>
+
+'''(b)''' B는 '''Rule 3'''(새 job은 최상위 큐)으로 '''Q2'''에 들어간다. 그러면 '''Rule 1'''(Priority(B) > Priority(A))에 의해 A는 '''즉시 선점'''되고 B가 실행된다.
+
+'''(c)''' B는 5ms만 쓰고 I/O를 위해 CPU를 '''스스로 반납'''한다. 슬라이스 10ms를 다 쓰지 않았으므로 '''Rule 4'''의 두 번째 줄("gives up the CPU before the time slice is up → stays at the same priority level")에 따라 Q2에 머문다.
+
+{warn}단, '''누적(allotment)'''이 적용되는 개정된 Rule 4에서는 5ms + 5ms = 10ms가 되는 순간 하락한다. 문제에 "better accounting을 적용한다"는 말이 있으면 '''두 번째 5ms 실행 후 Q1으로 내려간다'''고 답해야 한다. 이 차이가 gaming 방지의 전부다.{/warn}
+
+'''(d)''' '''Rule 5'''에 의해 t=50에 '''시스템의 모든 job'''이 최상위 큐로 이동한다. 따라서 A도 B도 '''둘 다 Q2'''. 그 뒤 Rule 2에 의해 둘이 RR로 번갈아 돌다가, A가 슬라이스를 다 쓰면 다시 내려가기 시작한다. Rule 5의 목적이 정확히 이것 — A의 starvation 방지다.
+{/answer}
+
+{quiz}
+악의적인 프로세스가 [[time slice]] 10ms 중 9ms만 쓰고 의미 없는 I/O를 호출해 CPU를 반납하는 짓을 반복한다. (a) 이 공격의 이름은? (b) 기본 Rule 4a/4b에서는 왜 통하는가? (c) 어떻게 막는가?
+{/quiz}
+
+{answer}
+'''(a)''' '''Gaming''' (the scheduler). 슬라이드 원문: "Malicious process returns the CPU '''right before the deadline'''. Looks like I/O intensive, but CPU-intensive in real. '''Sort of security threat'''."
+
+'''(b)''' Rule 4b가 "슬라이스가 끝나기 전에 CPU를 놓으면 우선순위 유지"라고만 되어 있어서, 9ms를 쓰고 반납하면 카운터가 '''리셋'''되고 최상위 큐에 영원히 남는다. 결과적으로 CPU의 90%를 독점한다.
+
+'''(c)''' '''Better accounting''' — 개정된 Rule 4: "Once a job uses up its time slice '''at a given level''', its priority is reduced." 한 레벨에서 쓴 시간을 '''누적(allotment)'''하고, 누적분이 슬라이스에 도달하면 하락시킨다. 9ms + 9ms = 18ms > 10ms이므로 두 번째 반납에서 바로 하락한다.
+{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# MLFQ의 목표: '''실행 시간을 모르면서''' batch의 turnaround와 interactive의 response를 동시에 잡는다. 방법은 '''learn from the past'''.
+# '''Rule 1~5를 영어 문장 그대로''' 외울 것. 특히 Rule 4의 세 줄.
+# Rule 3(새 job은 최상위) + 스스로 내려가기 = '''STCF 근사'''. "일단 짧다고 가정하고, 아니면 스스로 증명하게 한다".
+# 기본형의 세 문제 = '''starvation / 행동 변화 / gaming'''.
+# 해법 = '''Rule 5 priority boost'''(앞 둘) + '''Rule 4 better accounting'''(gaming).
+# 같은 큐 안에서는 '''[[Round Robin]]''' (Rule 2).
+# 튜닝 원칙: 높은 큐 = 짧은 슬라이스, 낮은 큐 = 긴 슬라이스. 정답은 없다. Solaris = 60큐 / 20ms~수백ms / 1초 부스트.
+
+== 관련 문서 ==
+* [[스케줄링]] · [[STCF]] · [[Round Robin]] · [[time slice]]
+* [[I/O와 스케줄링]] — 대화형 job이 우선순위를 유지하는 원리
+* [[선점]] · [[컨텍스트 스위치]]
+* [[CFS]] — MLFQ가 규칙 5개로 만든 "대화형 우선"을 [[vruntime]] 하나로 얻는다

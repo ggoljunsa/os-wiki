@@ -1,0 +1,89 @@
+key: 로드 밸런싱
+title: 로드 밸런싱 (Load Balancing / Load Imbalance)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''로드 밸런싱'''(load balancing)은 여러 CPU에 작업을 '''고르게 나누는''' 문제다. [[MQMS]]에서는 큐가 독립적이라 저절로 균형이 깨지는데, 그 상태를 '''load imbalance(부하 불균형)'''라고 부른다.
+
+{analogy}'''마트 계산대'''다. 계산대마다 줄을 따로 세우면([[MQMS]]) 직원들끼리 부딪힐 일이 없어 빠르지만, 3번 줄만 길고 5번 줄은 텅 비는 일이 생긴다. 번호표 하나로 통합하면([[SQMS]]) 이 문제는 없지만 번호표 기계 앞에서 병목이 생긴다. '''줄을 나누면 불균형, 합치면 병목''' — 이 딜레마가 7강의 결론이다.{/analogy}
+
+== 불균형이 생기는 과정 ==
+
+[[img:L7-38.png|C가 끝나면 A가 B·D보다 CPU를 2배 받고, A까지 끝나면 CPU0이 완전히 논다|large]]
+
+<pre class="txt">
+ 시작:  Q0 = {A, C},  Q1 = {B, D}   → 완벽히 균형
+   CPU0: A A C C A A C C ...
+   CPU1: B B D D B B D D ...
+
+ ① C 종료:  Q0 = {A},  Q1 = {B, D}
+   CPU0: A A A A A A A A A A A A ...
+   CPU1: B B D D B B D D B B D D ...
+   → '''A가 B, D보다 CPU를 2배''' 받는다 — [[fairness|공정성]] 붕괴
+
+ ② A 종료:  Q0 = { },  Q1 = {B, D}
+   CPU0: (idle)
+   CPU1: B B D D B B D D ...
+   → '''CPU0이 완전히 논다''' — 자원 낭비
+</pre>
+
+{warn}'''원인은 큐가 서로의 상황을 모른다는 것.''' [[MQMS]]가 확장성과 [[cache affinity]]를 얻기 위해 큐를 분리한 바로 그 결정의 대가다. [[SQMS]]에는 이 문제가 아예 없다 — 큐가 하나라 비는 CPU가 알아서 다음 job을 꺼내 간다.{/warn}
+
+== 해법: migration (마이그레이션) ==
+
+{def}
+'''How to Deal with Load Imbalance?''' The answer is to '''move jobs (Migration)'''.
+Consider the situation where one CPU is '''idle''' and the other has jobs → The OS should simply '''move one''' of B or D to CPU 0 → The result of this single job migration is '''evenly balanced load and everyone is happy'''.
+{/def}
+
+=== 쉬운 경우 ===
+
+<pre class="ascii">
+   Q0 = { }          Q1 = {B, D}
+        ◄──── D 이동 ────
+   Q0 = {D}          Q1 = {B}
+   → 1:1, 끝.
+</pre>
+
+=== 까다로운 경우 ===
+
+job 3개를 CPU 2개에 공평하게 주려면 한 job을 '''계속 왔다 갔다''' 옮겨야 한다.
+
+<pre class="txt">
+ Q0 = {A},  Q1 = {B, D}
+ 한 개만 옮기면 이번엔 반대쪽이 2:1로 불균형 → 번갈아 옮기는 패턴
+
+ CPU0: A A A A B A B A B B B B ...
+ CPU1: B D B D D D D D A D A D ...
+        ↑ B를 CPU0으로     ↑ A를 CPU1로
+</pre>
+
+{info}슬라이드가 "A more tricky case"라고 부르는 상황이다. '''누군가는 계속 이사를 다녀야 공평해진다'''는 것이 요점이고, 그래서 마이그레이션은 공짜가 아니다.{/info}
+
+== 근본적 trade-off ==
+
+{|
+! || 옮기지 않으면 || 자주 옮기면
+|-
+| [[cache affinity]] || '''보존''' ✔ || '''상실''' ✗ (매번 cache miss)
+|-
+| CPU utilization || CPU가 논다 ✗ || '''균형''' ✔
+|-
+| [[fairness]] || 깨진다 ✗ || '''유지''' ✔
+|-
+| 오버헤드 || 없음 ✔ || peek·이동 비용 ✗
+|}
+
+{exam}'''[[cache affinity]]와 로드 밸런싱은 정확히 반대 방향의 요구'''라는 점이 서술형의 핵심이다.
+* cache affinity: "job을 '''옮기지 마라'''"
+* load balancing: "노는 CPU가 있으면 '''옮겨라'''"
+
+[[work stealing]]의 임계값(얼마나 자주 엿볼 것인가)이 바로 이 둘 사이의 타협점을 정하는 손잡이이고, 슬라이드는 그것을 '''"black art"'''라고 부른다.{/exam}
+
+== 구현: work stealing ==
+
+마이그레이션을 실제로 구현하는 대표 기법이 [[work stealing]]이다 — 작업이 적은 큐(source)가 가끔 다른 큐(target)를 엿보고, target이 더 차 있으면 job을 훔쳐 온다. '''한가한 쪽이 주도한다'''는 점이 포인트다(바쁜 CPU에 부담을 주지 않는다).
+
+== 관련 문서 ==
+* [[work stealing]] · [[MQMS]] · [[SQMS]] · [[cache affinity]]
+* [[멀티프로세서 스케줄링]] · [[멀티코어]]
+* [[fairness]] · [[Amdahl의 법칙]]

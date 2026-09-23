@@ -1,0 +1,62 @@
+key: epc
+title: epc (p->trapframe->epc)
+category: 4강 LDE, 과제1, 용어
+---
+'''`epc`'''는 [[trapframe]] 구조체 안의 '''필드 하나'''로, '''"트랩으로 끊긴 유저 PC"의 사본'''이다. [[레지스터]]가 아니라 '''메모리 칸'''이라는 점이 핵심이다. CSR 레지스터인 [[sepc]]와 이름이 비슷해 헷갈리기 쉬운데, 둘의 관계를 아는 것이 [[과제1 xv6 alarm|과제 1]] 전체의 열쇠다.
+
+{def}
+`p->trapframe->epc` — a '''per-process memory field''' holding a copy of the interrupted user PC.
+[[usertrap]]이 `r_sepc()`로 채우고, [[usertrapret]]이 `w_sepc()`로 되돌려 쓴다.
+{/def}
+
+{analogy}
+[[sepc]]가 '''비행기 자동조종 장치에 입력된 목적지'''라면, `epc`는 '''조종석 노트에 적어 둔 목적지 메모'''다. 자동조종 장치는 하나뿐이라 다른 승무원이 다른 목적지를 넣어 버릴 수 있다. 그래서 착륙 직전에 '''노트를 보고 다시 입력'''한다. [[과제1 xv6 alarm|알람]]은 이 '''노트를 슬쩍 고쳐 쓰는 것''' — 자동조종 장치를 직접 건드리지 않고도 비행기가 다른 데로 간다.
+{/analogy}
+
+== 왜 sepc에서 옮겨 적나 ⭐ ==
+
+<pre class="ascii">
+  sepc 는 CPU(hart)마다 딱 하나 → 커널 안에서 곧 덮어써진다:
+     · 타이머 분기의 yield() → 다른 프로세스로 전환 → 그쪽이 트랩하면 sepc = 그쪽 PC
+     · 커널 실행 중 또 인터럽트 → sepc = 커널 PC
+
+  ⇒ 프로세스별 메모리인 p->trapframe->epc 로 "대피"시켜 두고,
+     나갈 때 usertrapret() 이 w_sepc(p->trapframe->epc) 로 다시 넣어 준다.
+
+  하드웨어 → sepc → (r_sepc) → trapframe->epc → [커널 작업] → (w_sepc) → sepc → sret
+                                    ▲
+                            과제 1이 바꾸는 곳 (프로세스별이라 안전)
+</pre>
+
+== 시스템 콜이면 +4 ==
+
+<pre class="c">
+if(r_scause() == 8){            // 유저가 ecall 했다 = 시스템 콜
+    p->trapframe->epc += 4;     // ecall(4바이트) 다음 명령어로 돌아가게
+    intr_on();
+    syscall();
+}
+</pre>
+
+{warn}
+'''+4를 하는 것은 [[시스템 콜]]일 때뿐이다.''' [[타이머 인터럽트]]는 '''끊긴 명령어를 아직 실행하지 않았으므로''' 그 명령어부터 다시 해야 한다 → +4 없음. 4강의 예외 분류로 말하면 '''trap은 "next instruction"으로, fault는 "current instruction" 재실행'''이라는 구분이 여기 코드로 나타난 것.
+{/warn}
+
+== 과제 1에서 ==
+
+<pre class="c">
+p->trapframe->epc = (uint64)p->alarm_handler;   // 퀴즈 1의 2번 ③ 빈칸
+</pre>
+
+이 한 줄이 '''과제 1의 전부'''다. 3단계 체인:
+# [[usertrap]]: `p->trapframe->epc = r_sepc()` — 대피
+# '''커널이 여기서 값을 바꾼다''' ← 알람
+# [[usertrapret]]: `w_sepc(p->trapframe->epc)` → [[sret]]이 그 주소로 점프
+
+{exam}
+'''"sret은 [[sepc]]로 간다. sepc는 trapframe->epc에서 온다. 그래서 epc를 바꾼다."''' — 퀴즈 1의 2번 ③과 3번 (b)가 이 한 문장으로 풀린다. 모의고사 A18에서 틀린 문항이기도 하다.
+{/exam}
+
+== 관련 문서 ==
+* [[sepc]] · [[sret]] · [[trapframe]] · [[usertrap]] · [[usertrapret]] · [[return-from-trap]]
+* [[프로그램 카운터]] · [[alarm_handler]] · [[alarm_saved]] · [[과제1 xv6 alarm]] · [[퀴즈1 복기]]

@@ -1,0 +1,79 @@
+key: tickets
+title: tickets (티켓)
+category: 6강 Proportional Share, 용어
+---
+'''tickets'''(티켓)은 [[프로세스]]가 받아야 할 자원의 '''몫(share)'''을 나타내는 단위다. [[비례 지분 스케줄링]] 전체가 이 개념 위에 서 있다.
+
+{def}
+'''Tickets''': Represent the '''share of a resource''' that a process should receive. The '''percent of tickets''' represents its share of the system resource in question.
+e.g., Process A has 75 tickets → receive '''75%''' of the CPU / Process B has 25 tickets → '''25%'''.
+{/def}
+
+{analogy}'''회사 주식'''이다. 전체 발행 주식 중 내 지분율이 곧 내가 받을 배당 비율이다. 100주 중 75주를 가졌으면 배당의 75%. 티켓도 똑같이 '''절대 개수가 아니라 전체 대비 비율'''만 의미가 있다 — A가 75장, B가 25장이든 A가 750장, B가 250장이든 결과는 같다.{/analogy}
+
+<pre class="ascii">
+ 전체 티켓 100장
+ ┌───────────────────────────────────┬───────────┐
+ │  A : 0 ~ 74  (75장 = 75%)         │ B: 75~99  │
+ └───────────────────────────────────┴───────────┘
+   ↑ [[Lottery 스케줄링]]은 0~99 중 난수를 뽑아 이 구간에 떨어뜨린다
+</pre>
+
+티켓은 CPU만을 위한 개념이 아니다. 메모리, 디스크 대역폭, 네트워크 등 '''나눠 쓸 수 있는 모든 자원'''에 같은 방식으로 적용할 수 있다.
+
+== 세 가지 메커니즘 ==
+
+=== Ticket currency (티켓 화폐) ===
+
+사용자가 '''자기 마음대로의 단위'''로 자기 job들에 티켓을 나눠 주면, 시스템이 '''전역(global) 화폐로 환산'''한다. 남이 티켓을 몇 장 가졌는지 신경 쓸 필요가 없어진다.
+
+<pre class="txt">
+ 전역 200장. 사용자 A·B가 100장씩.
+
+ User A → 500 (A's currency) to A1 → '''50''' (global)
+        → 500 (A's currency) to A2 → '''50''' (global)
+ User B →  10 (B's currency) to B1 → '''100''' (global)
+
+ 환산 공식: 전역 = (사용자의 전역 티켓) × (job의 지역 티켓 / 사용자 지역 티켓 합)
+            A1 = 100 × (500 / 1000) = 50
+            B1 = 100 × ( 10 /   10) = 100
+</pre>
+
+{exam}계산 문제로 나오기 딱 좋은 형태다. '''분모는 "그 사용자의 지역 티켓 총합"'''이다. A는 500+500=1000, B는 10 하나뿐이라 10이다. 이 분모를 전역 총합(200)으로 잡으면 전부 틀린다.{/exam}
+
+=== Ticket transfer (티켓 양도) ===
+
+프로세스가 자기 티켓을 다른 프로세스에 '''일시적으로 넘겨준다'''.
+
+<pre class="ascii">
+ ① client ──"이 일 해줘"──► server
+ ② client ──"내 티켓 줄게"─► server   (client는 어차피 기다리는 중)
+ ③ server 가 최고 속도로 처리
+ ④ server ──"티켓 돌려줌"──► client
+</pre>
+
+특정 상황에서 우선순위를 잠깐 바꾸는 수단이다. 9강의 [[priority inversion]]을 티켓으로 푸는 아이디어이기도 하다.
+
+=== Ticket inflation (티켓 인플레이션) ===
+
+프로세스가 '''스스로 티켓 수를 늘리거나 줄인다'''. CPU가 더 필요하면 부풀린다.
+
+{warn}슬라이드 노란 박스: "'''One greedy process could give itself a vast number of tickets and take over the machine.'''" 따라서 '''서로 신뢰하는 프로세스들 사이에서만''' 쓸 수 있는 기능이다. 경쟁 환경에서는 말이 안 되고, 협력 환경(같은 앱의 여러 컴포넌트 등)에서는 유용하다.{/warn}
+
+== 다른 스케줄러의 대응물 ==
+
+{|
+! 스케줄러 || 티켓에 해당하는 것
+|-
+| [[Lottery 스케줄링]] || tickets (그대로)
+|-
+| [[Stride 스케줄링]] || tickets → [[stride]] = 큰 수 / tickets (반비례)
+|-
+| [[CFS]] || [[nice]] → [[weight]] (슬라이드 원문: "similar to the number of tokens in other fair-share scheduling algorithms")
+|-
+| [[EEVDF]] || [[weight]] + latency_nice
+|}
+
+== 관련 문서 ==
+* [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[stride]]
+* [[비례 지분 스케줄링]] · [[weight]] · [[nice]]

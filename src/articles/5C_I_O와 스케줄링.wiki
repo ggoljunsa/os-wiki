@@ -1,0 +1,56 @@
+key: I/O와 스케줄링
+title: I/O와 스케줄링 (Incorporating I/O)
+category: 5강 Process Scheduling, 용어
+---
+워크로드 '''가정 3'''("모든 job은 CPU만 쓴다")을 풀면 [[스케줄링]]에 새 문제가 생긴다. job이 I/O를 요청하면 CPU에서 내려와야 하고, 그동안 CPU를 놀릴 것이냐가 문제다. 답은 '''overlap(겹치기)'''이다.
+
+{analogy}'''세탁기와 요리'''다. 세탁기를 돌려 놓고(I/O 요청) 30분간 멍하니 세탁기 앞에 서 있는 사람은 없다. 그 시간에 요리를 한다(다른 job 실행). 빨래가 끝나면 알림이 울리고(완료 [[인터럽트]]) 그때 널면 된다. '''기계가 일하는 동안 사람이 노는 게 진짜 낭비''' — 이게 CPU utilization의 전부다.{/analogy}
+
+== 문제 상황 ==
+
+A와 B가 각각 CPU 시간 50ms를 필요로 한다. A는 '''10ms 돌고 I/O 요청'''(각 I/O는 10ms)을 반복하고, B는 I/O 없이 CPU만 50ms 쓴다. 스케줄러는 [[STCF]].
+
+[[img:L5-23.png|위: A의 I/O 동안 CPU를 놀려 140ms. 아래: overlap으로 B를 끼워 넣어 100ms|large]]
+
+<pre class="ascii">
+ ❌ Poor Use of Resources
+ CPU  A····A····A····A····A····      B B B B B
+ Disk     ▓▓▓▓ ▓▓▓▓ ▓▓▓▓ ▓▓▓▓ ▓▓▓▓
+      0    20   40   60   80  100  120  140 (ms)
+      → A가 I/O 하는 동안 CPU가 '''놀고 있다'''. 총 140ms.
+
+ ✅ Overlap Allows Better Use of Resources
+ CPU  A B  A B  A B  A B  A B
+ Disk   ▓▓▓▓ ▓▓▓▓ ▓▓▓▓ ▓▓▓▓ ▓▓▓▓
+      0    20   40   60   80  100 (ms)
+      → A가 I/O로 나간 10ms 동안 '''B를 CPU에''' 올린다. 총 100ms.
+</pre>
+
+{def}
+* When a job initiates an '''I/O request''': the job is '''blocked''' waiting for I/O completion → the scheduler should schedule '''another job''' on the CPU.
+* When the I/O '''completes''': an '''interrupt''' is raised → the OS moves the process from '''blocked''' back to the '''ready''' state.
+{/def}
+
+== 왜 STCF가 알아서 이걸 하나 ==
+
+핵심 아이디어: '''A의 각 10ms CPU 구간을 독립된 짧은 sub-job으로 취급'''한다. 그러면 남은 시간이 10ms인 A 조각이 50ms짜리 B보다 짧으므로 [[STCF]]가 자연스럽게 A를 먼저 돌린다. A가 I/O로 나가면 CPU에 남은 건 B뿐이니 B가 돈다. 정책을 고칠 필요가 없다.
+
+== 프로세스 상태와의 연결 ==
+
+3강의 [[프로세스 상태]] 기계가 여기서 쓰인다.
+
+<pre class="ascii">
+              I/O 요청
+   Running ──────────────► Blocked
+      ▲                       │
+      │ 스케줄               │ I/O 완료 ([[인터럽트]])
+      │                       ▼
+    Ready ◄─────────────── Ready
+</pre>
+
+{exam}[[MLFQ]]와 이어서 볼 것. MLFQ에서 '''대화형 job이 최상위 큐에 머무는 이유'''가 바로 이 I/O 행동이다 — 슬라이스를 다 쓰기 전에 CPU를 반납하므로 Rule 4에 의해 우선순위가 유지된다. [[CFS]]에서도 같은 일이 벌어진다 — 자는 동안 [[vruntime]]이 안 늘어서 깨어나면 우선 선택된다. '''"I/O job은 어느 스케줄러에서나 우대받는다, 다만 메커니즘이 다르다"'''가 한 줄 정리다.{/exam}
+
+== 관련 문서 ==
+* [[스케줄링]] · [[STCF]] · [[MLFQ]]
+* [[프로세스 상태]] · [[인터럽트]]
+* [[CFS]] — vruntime으로 같은 효과를 얻는 방법

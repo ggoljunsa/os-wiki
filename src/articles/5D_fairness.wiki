@@ -1,0 +1,66 @@
+key: fairness
+title: fairness (공정성)
+category: 5강 Process Scheduling, 용어
+---
+'''fairness'''(공정성)는 여러 job이 CPU를 '''얼마나 고르게 나눠 받았는가'''를 재는 [[스케줄링 지표]]다. 5강에서는 "성능과 자주 충돌한다"는 한 줄로만 등장하지만, 6강 [[비례 지분 스케줄링]]에서 '''수치로 정의'''되고 2025F 중간고사에서는 '''계산 문제'''로 나왔다.
+
+{def}
+5강 p.9 / 6강 p.3: "Another metric: '''Fairness'''. Performance and fairness are '''often at odds''' in scheduling."
+6강 p.19 (정량 정의): '''F''' = the time the '''first''' job completes divided by the time that the '''second''' job completes.
+$$F = \frac{T_{first}}{T_{second}}$$
+{/def}
+
+{analogy}'''피자 나누기'''다. 성능(=[[turnaround time]])만 보면 제일 배고픈 사람에게 몰아주는 게 "효율적"일 수 있지만, 그건 공정하지 않다. fairness는 '''모두가 비슷한 크기의 조각을 비슷한 시점에 받았는가'''를 본다. 그래서 [[Round Robin]]처럼 한 조각씩 돌리는 정책이 fairness에서는 만점이고 turnaround에서는 빵점이다.{/analogy}
+
+== 값의 범위 ==
+
+<pre class="txt">
+ 실행 시간이 같은 두 job이 있을 때
+   완전히 순차 실행: 하나는 10에, 다른 하나는 20에 완료
+     F = 10 / 20 = '''0.5'''   ← 최악
+   거의 동시에 완료: 둘 다 20에 완료
+     F = 20 / 20 = '''1'''     ← 완벽
+ → F는 0.5 ~ 1 사이
+</pre>
+
+{warn}'''기호가 강의마다 바뀐다.''' 6강 p.19에서는 '''F (fairness metric)''', 7강 p.3에서는 같은 정의를 '''U (unfairness metric)'''이라고 쓴다. 값과 정의는 동일하다. 시험에 어느 글자로 나오든 '''"먼저 끝난 시각 / 나중 끝난 시각"'''이라는 정의로 답하면 된다.{/warn}
+
+== 성능과의 충돌 ==
+
+{|
+! 정책 || [[turnaround time]] || fairness
+|-
+| [[STCF]] || '''최적''' || 최악 (긴 job starvation)
+|-
+| [[Round Robin]] || 최악 || '''최적'''
+|-
+| [[Lottery 스케줄링]] || 신경 안 씀 || 확률적으로 보장
+|-
+| [[Stride 스케줄링]] || 신경 안 씀 || '''결정적으로''' 정확히 보장
+|-
+| [[CFS]] / [[EEVDF]] || 신경 안 씀 || 보장 + 효율
+|}
+
+[[비례 지분 스케줄링]]은 아예 '''fairness 자체를 1순위 목표'''로 삼은 계열이다. 슬라이드가 못 박는다 — "Not optimized for turnaround or response time."
+
+== 시험에서 ==
+
+{exam}'''2025F 중간고사 Problem 3에서 fairness 정의를 새로 주고 최적화를 시켰다.'''
+
+> 세 task의 완료 시각을 $T_1 \le T_2 \le T_3$이라 할 때 '''total fairness''' $F = \dfrac{T_1}{T_2} + \dfrac{T_2}{T_3}$.
+> (b) total fairness를 '''최대화'''하는 스케줄의 total turnaround time은? (4pts)
+
+이건 수업의 2-job 정의 $F = T_{first}/T_{second}$를 3-job으로 확장한 '''시험용 변형'''이다. 정의를 문제가 주니 그대로 따르면 된다.
+
+A=4, B=5, C=6, $T_3 = 15$ 고정에서:
+# $T_1$로 미분 → $1/T_2 > 0$ (항상 양수) → 경계 $T_1 = T_2 - 1$
+# $F = 1 - 1/T_2 + T_2/15$, $T_2$로 미분 → $1/T_2^2 + 1/15 > 0$ → 경계 $T_2 = T_3 - 1 = 14$
+# 따라서 $T_1 = 13, T_2 = 14, T_3 = 15$ → total turnaround = '''42'''
+
+교수님 해설 첫 줄이 "You can maximize the total fairness by '''round robin'''"이지만, 단순 RR(`ABCABCABCABCBCC`)은 $T_1=10,T_2=13$으로 $F \approx 1.636$이라 '''최적이 아니다'''. 최적 스케줄은 `ABCABCABCBCCABC`처럼 '''셋이 13/14/15에 나란히 끝나게''' 만든 것이다. → [[2025F 중간고사 족보]]{/exam}
+
+== 관련 문서 ==
+* [[스케줄링 지표]] · [[turnaround time]] · [[response time]]
+* [[Round Robin]] · [[STCF]]
+* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]]
+* [[2025F 중간고사 족보]]

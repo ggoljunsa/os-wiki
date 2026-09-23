@@ -1,0 +1,191 @@
+key: counter 예제
+title: counter 예제 (Uncontrolled Scheduling Problem)
+category: 8강 Concurrency, 핵심
+---
+8강에서 '''손으로 재현할 수 있어야 하는 유일한 표'''가 여기 있다. 두 [[스레드]]가 전역 `counter`를 올리는 예제로, [[race condition]]의 교과서적 시연이다.
+
+== 코드 (p.36~37) ==
+
+<pre class="c">
+ 1 #include &lt;stdio.h&gt;
+ 2 #include &lt;pthread.h&gt;
+ 3 #include "common.h"
+ 4 #include "common_threads.h"
+ 5
+ 6 static volatile int counter = 0; // shared data
+ 7
+ 8 // mythread()
+ 9 //
+10 // Simply adds 1 to counter repeatedly, in a loop
+11 // No, this is not how you would add 10,000,000 to
+12 // a counter, but it shows the problem nicely.
+13 //
+14 void *mythread(void *arg) {
+15     printf("%s: begin\n", (char *) arg);
+16     int i;
+17     for (i = 0; i &lt; 1e7; i++) {
+18         counter = counter + 1;
+19     }
+20     printf("%s: done\n", (char *) arg);
+21     return NULL;
+22 }
+</pre>
+
+<pre class="c">
+29 int main(int argc, char *argv[]) {
+30     pthread_t p1, p2;
+31     printf("main: begin (counter = %d)\n", counter);
+32     pthread_create(&p1, NULL, mythread, "A");
+33     pthread_create(&p2, NULL, mythread, "B");
+34
+35     // join waits for the threads to finish
+36     pthread_join(p1, NULL);
+37     pthread_join(p2, NULL);
+38     printf("main: done with both (counter = %d)\n",
+39         counter);
+40     return 0;
+41 }
+</pre>
+
+{|
+! 변수 || 어디 있나 || 공유?
+|-
+| `counter` || 전역(static) → 데이터 영역에 '''하나''' || '''O — 두 스레드가 공유'''
+|-
+| `i` || 지역 변수 → 각 스레드의 [[스레드 스택|스택]] || X
+|}
+
+* `static`: 이 파일 안에서만 보이는 전역. '''공유 여부와는 무관''' — 여전히 스레드 간 공유다.
+* `volatile`: 컴파일러가 최적화로 루프를 `counter += 1e7`로 합쳐 버리는 걸 막아 '''매번 메모리에서 읽고 쓰게''' 강제한다. 문제를 "잘 보이게" 하려고 붙인 것이다.
+
+{warn}⚠️ '''`volatile`은 [[atomic|원자성]]을 보장하지 않는다.''' 메모리 접근을 강제할 뿐, 읽기-더하기-쓰기 사이에 끼어드는 것은 전혀 못 막는다. 대표적 오해 포인트다.{/warn}
+
+[[pthread_join]] '''뒤에''' 출력하므로 "아직 덜 끝나서 작다"는 핑계는 불가능하다. 기대값은 정확히 $2 \times 10^7 = 20{,}000{,}000$.
+
+== 실제 출력 (p.38) ==
+
+[[img:L8-38.png|기대 20000000, 1회차 19345221, 2회차 19221041|large]]
+
+<pre class="txt">
+prompt&gt; gcc -o main main.c -Wall -pthread; ./main
+main: begin (counter = 0)
+A: begin
+B: begin
+A: done
+B: done
+main: done with both (counter = 20000000)     &lt;- 기대
+</pre>
+
+{|
+! 실행 || counter
+|-
+| 기대 || 20,000,000
+|-
+| 실제 1회차 || '''19,345,221'''
+|-
+| 실제 2회차 || '''19,221,041'''
+|}
+
+두 가지 증상: ① '''틀렸다''', ② '''매번 다르다'''(indeterminate). "What happened?"의 답이 다음 슬라이드다.
+
+{info}슬라이드의 "Actual output we '''want'''"는 "Actual output we '''get'''"의 오타다.{/info}
+
+== 원인: C 한 줄 = 기계어 세 줄 (p.39) ==
+
+[[img:L8-39.png|counter = counter + 1의 어셈블리 — mov / add / mov|medium]]
+
+<pre class="asm">
+100  mov 0x8049a1c, %eax   ; (1) LOAD : 메모리의 counter를 eax로
+105  add $0x1, %eax        ; (2) ADD  : eax에 1 (메모리엔 아직 반영 X)
+108  mov %eax, 0x8049a1c   ; (3) STORE: eax를 counter에 다시 씀
+</pre>
+
+> "'''The context switch can happen at any point of time by the OS scheduler'''"
+
+{info}PC가 100 → 105 → 108 → 113으로 '''불규칙하게''' 증가하는 것은 x86 명령어 길이가 가변이기 때문이다 (`mov` 메모리↔eax는 5바이트, `add $1`은 3바이트). [[RISC-V]]였다면 `lw` / `addi` / `sw` 세 개, 각 4바이트였을 것이다.{/info}
+
+== ⭐⭐⭐ 인터리빙 표 (p.40) ==
+
+counter 초기값 '''50''', 두 스레드가 한 번씩 +1 → 기대 '''52'''.
+
+[[img:L8-40.png|Uncontrolled Scheduling Problem (Cont.) — 결과가 빨간 동그라미로 51|large]]
+
+{|
+! OS || Thread 1 || Thread 2 || PC || eax || counter
+|-
+| || (시작 전) || || 100 || 0 || 50
+|-
+| || `mov 8049a1c,%eax` || || 105 || '''50''' || 50
+|-
+| || `add $0x1,%eax` || || 108 || '''51''' || 50
+|-
+| '''interrupt''' — save T1, restore T2 || || || 100 || 0 || 50
+|-
+| || || `mov 8049a1c,%eax` || 105 || '''50''' || 50
+|-
+| || || `add $0x1,%eax` || 108 || '''51''' || 50
+|-
+| || || `mov %eax,8049a1c` || 113 || 51 || '''51'''
+|-
+| '''interrupt''' — save T2, restore T1 || || || 108 || 51 || 51
+|-
+| || `mov %eax,8049a1c` || || 113 || 51 || '''51''' ⭕
+|}
+
+[[sim:counter_race]]
+
+=== 단계별 해설 ===
+
+# T1이 counter(50)를 eax로 읽고 51로 만든다 — '''아직 메모리에 안 썼다''' (eax=51, counter=50).
+# 여기서 [[타이머 인터럽트]]. T1의 레지스터('''eax=51, PC=108''')가 '''T1의 [[TCB]]에 저장'''된다.
+# T2 복원(PC=100). T2는 '''메모리의 옛 값 50'''을 읽어 51을 만들고 '''저장''' → counter=51.
+# 다시 인터럽트, T2 저장, T1 복원 → PC=108, '''eax=51'''(아까 저장해 둔 값).
+# T1이 남은 `mov %eax, counter` 실행 → counter='''51'''.
+# 결과 '''51 ≠ 52'''. T2의 +1이 T1의 늦은 store에 '''덮여서 사라졌다''' — '''lost update'''.
+
+{exam}⭐⭐⭐ '''표 읽는 법 (시험에서 이걸 묻는다)'''
+* '''eax 열이 스레드마다 따로 논다'''는 데 주목. [[레지스터]]는 스레드별([[TCB]]), `counter`는 공유(메모리). '''이 비대칭이 문제의 본질'''이다.
+* "(after instruction)" = 각 행의 값은 그 명령어 '''실행 후''' 상태.
+* interrupt 행의 PC/eax는 '''복원된 스레드'''의 값이다.{/exam}
+
+== 변형 문제 대비 ==
+
+{|
+! 질문 || 답
+|-
+| '''어떤 인터리빙이면 52가 나오나?''' || 한 스레드가 3개 명령어를 '''모두''' 끝낸 뒤 다른 스레드가 시작하면 52. 즉 한 스레드의 load~store '''사이에 다른 스레드의 load가 끼지 않으면''' 정상
+|-
+| 인터럽트가 T1의 `add` 뒤가 아니라 '''`mov`(load) 직후'''에 들어오면? || 똑같이 '''51'''. T1은 이미 50을 읽어 두었다
+|-
+| 인터럽트가 T1의 '''store 뒤(PC=113)'''에 들어오면? || T2가 51을 읽으므로 '''52''' — 문제 없음
+|-
+| 두 스레드가 각각 N번 증가시킬 때 결과의 '''최댓값'''은? || '''2N''' (한 번도 안 겹칠 때)
+|-
+| 결과의 '''최솟값'''은? || 직관(N)과 달리 '''2'''까지 내려갈 수 있다 — 한 스레드가 아주 오래된 값을 들고 있다가 마지막에 덮어쓰는 교묘한 인터리빙 (슬라이드 밖, 심화)
+|}
+
+{analogy}🎭 이 표는 '''두 사람이 같은 장부에 입금을 적는 장면'''이다. A가 "잔액 50"을 읽고 메모지에 51을 적어 둔 채 자리를 비운다. B가 와서 장부의 50을 읽고 51로 고친다. A가 돌아와 '''자기 메모지의 51'''을 장부에 옮겨 적는다. 입금은 두 번인데 잔액은 51. A의 메모지(eax)가 '''자기만의 것'''이라는 점이 사고의 원인이다.{/analogy}
+
+== 해결 (p.44) ==
+
+[[락]]으로 18번 줄을 감싸면 항상 20,000,000이 나온다. 자세한 것은 [[mutual exclusion]] 참고. 그리고 그 `lock()`을 어떻게 만드느냐가 9강 [[락]]이다.
+
+{quiz}counter=50에서 p.40과 같은 인터리빙이 일어나면 최종값은? 52가 나오려면 인터럽트가 어디서 들어와야 하는가?{/quiz}
+{answer}'''51'''. 52가 되려면 한 스레드의 '''load~store 사이에 다른 스레드의 load가 끼지 않아야''' 한다 — 예를 들어 T1의 store(PC=113) '''뒤'''에 전환되면 된다.{/answer}
+
+{quiz}p.40 표에서 두 번째 interrupt 직후 T1의 `eax`가 51인 이유를 설명하시오.{/quiz}
+{answer}첫 번째 interrupt에서 T1의 레지스터 상태(eax=51, PC=108)가 T1의 [[TCB]]에 저장되었고, T1이 다시 스케줄될 때 '''그 값이 그대로 복원'''되기 때문이다. [[레지스터]]는 스레드별 상태이므로 T2가 메모리를 바꾼 것과 무관하게 옛 계산 결과를 들고 있다.{/answer}
+
+== 시험 대비 핵심 요약 ==
+# `counter = counter + 1`은 '''load / add / store''' 세 명령어다
+# [[타이머 인터럽트]]는 '''아무 명령어 경계에서나''' 들어온다 (uncontrolled scheduling)
+# 레지스터는 '''스레드별'''([[TCB]]), counter는 '''공유'''(메모리) — 이 비대칭이 원인
+# 50에서 두 번 증가 → 기대 52, 결과 '''51''' (lost update)
+# `volatile`은 원자성을 '''보장하지 않는다'''
+# CPU가 하나여도 발생한다
+# 해법은 [[mutual exclusion]] — [[락]]으로 18번 줄을 감싸기
+
+== 관련 문서 ==
+* [[race condition]] · [[critical section]] · [[mutual exclusion]] · [[atomic]]
+* [[스레드]] · [[TCB]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]]
+* [[락]] · [[자주 틀리는 함정 모음]]

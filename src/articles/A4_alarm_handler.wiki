@@ -1,0 +1,58 @@
+key: alarm_handler
+title: alarm_handler
+category: 과제1, 용어
+---
+'''`alarm_handler`'''는 [[struct proc]]에 추가하는 필드로, '''유저 핸들러 함수의 주소'''를 담는다. [[sigalarm]]이 설정하고, 알람이 터질 때 '''[[epc]]에 대입될 값'''이다.
+
+{def}
+`uint64 alarm_handler;` — user-space handler address.
+`p->trapframe->epc = (uint64)p->alarm_handler;` — 퀴즈 1의 2번 ③ 빈칸.
+{/def}
+
+{analogy}
+`alarm_handler`는 '''"깨우면 이 번호로 전화해 주세요"라고 적어 둔 전화번호'''다. 커널은 이 번호가 유효한지 '''확인하지 않는다''' — 그냥 적힌 대로 건다. 번호가 0이어도 건다. 그게 [[과제1 xv6 alarm|과제]]에서 "handler가 0일 수 있다"는 경고의 의미다.
+{/analogy}
+
+== 쓰이는 곳은 딱 한 줄 ==
+
+<pre class="c">
+if (p->alarm_elapsed >= p->alarm_interval) {
+    p->alarm_saved  = *p->trapframe;
+    p->alarm_active = 1;
+    p->alarm_elapsed = 0;
+    p->trapframe->epc = (uint64)p->alarm_handler;   // ★ 여기서만 쓰인다
+}
+</pre>
+
+이 한 줄 뒤의 흐름:
+
+<pre class="ascii">
+   p->trapframe->epc = handler
+            │
+            ▼  usertrapret():  w_sepc(p->trapframe->epc)
+            │
+            ▼  userret:  레지스터 31개 복원  →  sret
+            │
+            ▼  PC ← sepc = handler,  mode ← user
+   USER:  periodic() 이 "호출된 것처럼" 실행 시작
+          ← 사실은 call 이 아니라 sret 으로 떨어진 것 (그래서 ra 가 남의 값)
+</pre>
+
+{warn}
+'''핸들러 주소가 0인 것은 정상이다.''' 그래서 "알람이 켜졌나"는 [[alarm_interval]] `> 0`으로 판단해야 한다. `alarm_handler != 0`으로 판단하면 `alarmtest`가 즉시 실패한다.
+{/warn}
+
+{tip}
+타입을 `uint64`로 두는 이유: [[epc]]가 `uint64`라 대입이 자연스럽고, 유저 함수 포인터를 커널에서 '''호출할 일이 없으므로''' 함수 포인터 타입일 필요가 없다. 커널은 이 주소를 '''실행하지 않는다''' — 유저 모드에서 실행되도록 [[sret]]에게 넘길 뿐이다.
+{/tip}
+
+{quiz}
+커널이 `p->alarm_handler`를 '''직접 호출'''하면(`((void(*)())p->alarm_handler)();`) 왜 안 되는가?
+{/quiz}
+{answer}
+그러면 핸들러가 '''[[커널 모드]]에서''' 실행된다. ① 유저 코드가 커널 권한을 얻어 보호가 무너지고, ② 그 주소는 '''유저 페이지 테이블'''의 주소라 커널 페이지 테이블에서는 유효하지도 않다. 핸들러는 반드시 '''user mode에서''' 돌아야 하며(퀴즈 1의 1번), 그 유일한 방법이 [[epc]]를 바꿔 [[sret]]으로 내려보내는 것이다.
+{/answer}
+
+== 관련 문서 ==
+* [[alarm_interval]] · [[alarm_elapsed]] · [[alarm_active]] · [[alarm_saved]]
+* [[epc]] · [[sepc]] · [[sret]] · [[usertrapret]] · [[sigalarm]] · [[과제1 xv6 alarm]] · [[퀴즈1 복기]]

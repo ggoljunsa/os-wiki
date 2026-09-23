@@ -1,0 +1,69 @@
+key: alarm_elapsed
+title: alarm_elapsed
+category: 과제1, 용어
+---
+'''`alarm_elapsed`'''는 [[struct proc]]에 추가하는 필드로, '''마지막 핸들러 호출 이후 이 프로세스가 소비한 tick 수'''를 센다. [[usertrap]]이 `++` 하고, [[alarm_interval]]에 도달하면 발사한 뒤 0으로 되돌린다(re-arm).
+
+{def}
+`int alarm_elapsed;` — ticks elapsed since the last handler call.
+`p->alarm_elapsed++;` → `if (p->alarm_elapsed >= p->alarm_interval) { ... p->alarm_elapsed = 0; }`
+(실제 제출 구현은 반대 방향으로 세는 `alarm_left`를 썼다 — `--p->alarm_left <= 0`. 동작은 동일.)
+{/def}
+
+{analogy}
+`alarm_elapsed`는 '''모래시계'''다. 뒤집으면(0으로 리셋) 다시 처음부터 모래가 쌓이고, 다 차면 종이 울린다. 중요한 건 '''이 모래시계는 내가 CPU를 쓸 때만 흐른다'''는 것 — 내가 스케줄에서 밀려 자고 있는 동안에는 모래가 멈춰 있다.
+{/analogy}
+
+== CPU 시간을 센다 (벽시계 시간이 아니다) ⭐ ==
+
+<pre class="ascii">
+   tick 을 세는 곳은 "이 프로세스의 usertrap()" 뿐이다.
+
+   Process A (alarm 설정됨)   Process B
+   ───────────────────────────────────────────────────
+   유저 실행 ── tick! ──►  usertrap(A):  alarm_elapsed++   ✔ 센다
+       │ yield
+       └──────────────►  B 유저 실행 ── tick! ──► usertrap(B)  ✘ A 는 안 셈
+                              │ yield
+   A 유저 실행 ── tick! ──►  usertrap(A):  alarm_elapsed++   ✔ 센다
+
+   ⇒ "n ticks of CPU time that the program consumes" (과제 PDF 원문)
+</pre>
+
+{warn}
+"`sigalarm(2, fn)`이면 20 ms마다(= 2 tick의 벽시계 시간마다) 호출된다"는 서술은 '''틀렸다'''. 시스템이 바쁘면 A가 2 tick을 '''소비'''하는 데 훨씬 오래 걸린다.
+{/warn}
+
+== 왜 `>=` 인가 ==
+
+<pre class="c">
+if (p->alarm_elapsed >= p->alarm_interval) {   // == 이 아니라 >=
+</pre>
+
+방어적 코딩이다. `alarm_interval`이 도중에 더 작은 값으로 바뀌는 등의 이유로 `elapsed`가 `interval`을 뛰어넘어 버려도 '''놓치지 않고''' 발사한다. `==`로 쓰면 그런 경우 한 바퀴를 통째로 건너뛴다.
+
+== 핸들러 실행 중에는 세지 않는다 ⭐⭐ ==
+
+<pre class="c">
+if (p->alarm_interval > 0 && !p->alarm_active) {   // ★ 가드가 ++ 보다 앞
+    p->alarm_elapsed++;
+    ...
+}
+</pre>
+
+[[재진입 금지]] 가드가 '''`alarm_elapsed++`보다 앞'''에 있기 때문에, 핸들러가 도는 동안 쓴 tick은 '''주기에 전혀 포함되지 않는다'''.
+
+{exam}
+'''퀴즈 1의 5번이 정확히 이 동작을 묻는다.''' `periodic()` 안의 `burn()`이 5 tick 이상을 태우는데도 알람이 다시 터지지 않는 이유가 이것이다 — [[alarm_active]] = 1인 동안 `alarm_elapsed`는 '''멈춰 있다'''. 그래서 핸들러는 정확히 count=1, 2, 3으로 '''세 번만''' 불리고 `sum = 1+2+3 = 6`이 된다.
+{/exam}
+
+{quiz}
+`sigalarm(2, fn)`을 설정했고, 핸들러 안에서 100 tick을 태웠다. 핸들러가 끝나고 몇 tick 뒤에 다음 알람이 울리는가?
+{/quiz}
+{answer}
+'''2 tick 뒤.''' 발사 시점에 `alarm_elapsed = 0`으로 re-arm 했고, 핸들러가 도는 100 tick 동안은 [[alarm_active]] 가드 때문에 '''카운트가 멈춰''' 있었다. [[sigreturn]]이 `alarm_active = 0`으로 풀어 준 뒤부터 다시 1, 2로 세어 2 tick 만에 발사된다.
+{/answer}
+
+== 관련 문서 ==
+* [[alarm_interval]] · [[alarm_active]] · [[alarm_handler]] · [[alarm_saved]] · [[재진입 금지]]
+* [[usertrap]] · [[which_dev]] · [[타이머 인터럽트]] · [[과제1 xv6 alarm]] · [[퀴즈1 복기]]

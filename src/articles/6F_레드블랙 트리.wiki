@@ -1,0 +1,67 @@
+key: 레드블랙 트리
+title: 레드블랙 트리 (Red-Black Tree)
+category: 6강 Proportional Share, 용어
+---
+'''레드블랙 트리'''(red-black tree)는 [[CFS]]가 실행 가능한 [[프로세스]]들을 담아 두는 '''균형 이진 탐색 트리'''다. 키는 [[vruntime]]이며, 덕분에 "다음에 실행할 프로세스 찾기"가 '''O(1)''', "되돌려 넣기"가 '''O(log n)'''이 된다.
+
+{def}
+* The scheduler should find the next job to run '''as quickly as possible'''
+* Simple data structures (lists) '''do not scale''', with '''O(n)''' complexity
+* CFS uses a '''red-black tree''', one of many types of balanced trees
+** '''Runnable processes only''' are kept in the red-black tree — '''no sleeping processes''' (e.g., waiting for I/Os or network packets)
+** Use '''vruntime as a key''' for the tree
+** Ensure '''O(log n)''' complexity
+{/def}
+
+{analogy}'''자동으로 줄이 정렬되는 대기실'''이다. 손님이 들어오면 자기 번호([[vruntime]])에 맞는 자리에 알아서 끼워지고, 직원은 '''항상 맨 왼쪽 사람만''' 부르면 된다. 리스트라면 매번 처음부터 끝까지 훑어 최솟값을 찾아야 하지만(O(n)), 이 대기실은 구조 자체가 정렬을 유지하므로 왼쪽 끝만 보면 된다. 대신 새 손님을 끼워 넣을 때 줄을 조금 재배치하는 비용(O(log n))이 든다.{/analogy}
+
+[[img:L6-38.png|vruntime 1, 5, 9, 10, 14, 17, 18, 21, 22, 24를 담은 레드블랙 트리. 루트는 14|medium]]
+
+<pre class="ascii">
+                        14
+                   ┌─────┴─────┐
+                  (9)          (18)
+                ┌──┴──┐      ┌──┴──┐
+                1     10     17    22
+                 └┐              ┌─┴─┐
+                 (5)            (21) (24)
+
+  ( ) = 빨강 노드,  나머지 = 검정 노드
+  가장 왼쪽 = vruntime 1 = '''다음에 실행할 프로세스'''
+</pre>
+
+== 복잡도 ==
+
+{|
+! 연산 || 복잡도 || 방법
+|-
+| 다음 job 찾기 || '''O(1)''' || 가장 왼쪽 노드 (leftmost 포인터를 캐시해 둔다)
+|-
+| 실행 후 되돌려 넣기 (삽입) || '''O(log n)''' || 갱신된 vruntime 위치에 삽입 + 균형 재조정
+|-
+| ([[Lottery 스케줄링]]의 리스트 순회) || O(n) || 누적합이 winner를 넘을 때까지 순회
+|}
+
+{exam}슬라이드는 "Finding the next job to run in the tree requires '''O(1)'''"이라고 쓰고, 바로 앞 장에서는 트리가 "'''O(log n)''' complexity를 보장한다"고 쓴다. 모순이 아니다.
+* '''찾기'''는 leftmost를 따로 캐시해 두므로 O(1)
+* '''삽입/삭제'''(균형 유지)가 O(log n)
+* 트리 전체의 성격을 말할 때는 O(log n)
+
+출제되면 '''"최소 찾기 O(1), 삽입 O(log n)"'''으로 나눠 쓰는 게 안전하다.{/exam}
+
+== 자는 프로세스는 없다 ==
+
+{warn}'''runnable 프로세스만 트리에 있다.''' I/O나 네트워크 패킷을 기다리는 프로세스는 트리에서 '''빠져 있다'''. 그래서 n이 작게 유지되고, [[sched_latency]] / n 계산의 n도 "CPU에서 도는 프로세스 수"다.
+
+깨어나면 다시 삽입되는데, 이때 [[vruntime]]을 그대로 쓰면 너무 작아서 CPU를 독점한다 → '''트리의 최솟값(min_vruntime)으로 맞춰서''' 삽입한다. [[CFS]]의 starvation 해법이 바로 이 지점이다.{/warn}
+
+== 왜 자료구조가 스케줄러의 문제인가 ==
+
+슬라이드 p.29: '''"scheduling uses about 5% of overall datacenter CPU time!"''' 스케줄러 자체가 쓰는 CPU를 줄이는 게 현대 스케줄러 설계의 핵심 목표 중 하나다. [[Lottery 스케줄링]]의 O(n) 리스트를 O(log n) 트리로 바꾼 것이 [[CFS]]의 "highly efficient and scalable"의 실체다.
+
+[[sim:cfs_eevdf]]
+
+== 관련 문서 ==
+* [[CFS]] · [[vruntime]] · [[sched_latency]]
+* [[Lottery 스케줄링]] — O(n) 리스트와의 대비
+* [[비례 지분 스케줄링]]

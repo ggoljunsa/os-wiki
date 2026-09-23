@@ -1,0 +1,72 @@
+key: pass
+title: pass (패스 값)
+category: 6강 Proportional Share, 용어
+---
+'''pass'''는 [[Stride 스케줄링]]에서 각 [[프로세스]]가 유지하는 '''누적 진행도'''다. 처음엔 0이고, 그 프로세스가 실행될 때마다 자기 [[stride]]만큼 증가한다. 스케줄러는 항상 '''pass가 가장 작은''' 프로세스를 고른다.
+
+{def}
+Each process maintains a '''pass''' value which is '''initially 0''' and '''increases by its stride whenever the process runs'''. The scheduler picks the process to run that has the '''lowest pass value'''.
+{/def}
+
+{analogy}'''마라톤 주자들의 누적 거리 전광판'''이다. pass는 "지금까지 몇 m를 갔는가"이고, 심판은 항상 '''꼴찌에게 다음 한 걸음'''을 준다. 보폭([[stride]])이 작은 사람은 한 걸음에 조금밖에 못 가니 계속 꼴찌로 남아 자주 걷게 되고, 보폭이 큰 사람은 한 걸음에 확 앞서 나가 한참 쉰다. '''전광판 숫자가 작을수록 우대받는다'''는 점이 직관과 반대라 헷갈리기 쉽다.{/analogy}
+
+<pre class="c">
+current = remove_min(queue);        // '''pass 최소''' 프로세스 선택
+schedule(current);
+current->pass += current->stride;   // '''실행했으니 pass 증가'''
+insert(queue, current);
+</pre>
+
+[[img:L6-25.png|pass 표: 매 행에서 최솟값을 가진 프로세스가 실행되고, 그 값에 stride가 더해져 다음 행이 된다|medium]]
+
+== 표를 채우는 법 ==
+
+{exam}2025F 중간고사 Problem 4가 '''이 표를 직접 채우는 문제'''였다. 기계적 규칙 세 줄만 지키면 된다.
+
+# 그 행에서 '''pass 최솟값'''을 가진 프로세스를 찾는다 → "Who Runs?"
+# '''동점이면''' 임의(보통 A → B → C 순)로 고른다.
+# 고른 프로세스의 pass에 '''그 프로세스의 stride'''를 더한 것이 '''다음 행'''이다. 나머지는 그대로.
+
+'''표의 pass 값은 "실행하기 직전" 상태'''라는 점이 핵심이다. "실행 후" 값으로 읽으면 한 칸씩 밀린다.{/exam}
+
+<pre class="txt">
+ stride: A=5, B=10, C=2 (큰 수 500, 티켓 100/50/250)
+
+ #  Pass(A) Pass(B) Pass(C)  Who Runs?
+ 1     0       0       0        A      ← 동점 → A
+ 2     5       0       0        B      ← A만 +5
+ 3     5      10       0        C
+ 4     5      10       2        C
+ 5     5      10       4        C
+ 6     5      10       6        A      ← 최솟값이 5(A)
+ 7    10      10       6        C
+ 8    10      10       8        C
+ ────────────────────────────────────── 여기까지 한 사이클
+ 9    10      10      10        A      ← pass가 전부 10, 처음과 같은 모양
+</pre>
+
+== 사이클과 주기성 ==
+
+pass가 전부 같은 값이 되는 지점이 '''한 사이클의 끝'''이다. 그 안에서 비율이 정확히 맞는다.
+
+<pre class="txt">
+ 사이클 길이 = lcm(모든 stride) 를 각 stride로 나눈 값들의 합
+   lcm(5, 10, 2) = 10
+   A: 10/5 = 2번,  B: 10/10 = 1번,  C: 10/2 = 5번   → 합 '''8 슬라이스'''
+   비율 2 : 1 : 5 = 100 : 50 : 250 ✔
+</pre>
+
+{tip}"100번째 슬라이스의 pass는?" 같은 문제는 '''절대 100줄을 굴리지 않는다'''. $100 = 8 \times 12 + 4$ → 12사이클(= pass 전체 +120) 뒤의 4번째 행과 같은 상황이다. 4번째 행 (5, 10, 2)에 120을 더하면 '''(125, 130, 122)''', 실행되는 건 '''C'''.{/tip}
+
+== 새 job의 pass 문제 ==
+
+{warn}Stride의 유일한 구조적 약점이다. 도중에 들어온 job의 pass를 '''0으로 두면''' 다른 프로세스가 이미 200, 400에 있으므로 따라잡을 때까지 '''CPU를 독점'''한다. [[Lottery 스케줄링]]에는 pass 같은 전역 상태가 없어 이 문제 자체가 없다.
+
+[[CFS]]는 같은 문제를 [[vruntime]]을 '''min_vruntime'''으로 맞추는 방식으로 푼다.{/warn}
+
+[[sim:stride_lottery]]
+
+== 관련 문서 ==
+* [[Stride 스케줄링]] · [[stride]] · [[tickets]]
+* [[vruntime]] — CFS에서 pass와 같은 역할
+* [[2025F 중간고사 족보]]

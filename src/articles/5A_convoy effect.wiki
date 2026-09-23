@@ -1,0 +1,54 @@
+key: convoy effect
+title: convoy effect (호위 효과)
+category: 5강 Process Scheduling, 용어
+---
+'''convoy effect'''(호위 효과)는 '''짧은 작업 여러 개가 무거운 작업 하나 뒤에 줄을 서서 다 같이 기다리게 되는''' 현상이다. [[FIFO]]가 무너지는 이유이자, 2025F 중간고사에 '''용어 단답형'''으로 실제 출제된 단어다.
+
+{def}
+'''Convoy effect''': A number of relatively-short potential consumers of a resource get '''queued behind a heavyweight resource consumer'''.
+e.g., Imagine that, in a single line at a grocery store, you are behind the person with '''three carts'''.
+{/def}
+
+{analogy}슬라이드의 비유가 이미 완벽하다 — '''마트 계산대에서 카트 세 대를 끌고 온 사람 뒤에 선 것'''이다. 내가 살 건 껌 한 통인데 앞사람의 스캔이 끝날 때까지 20분을 서 있어야 한다. 이름의 유래는 '''호송 선단(convoy)''' — 느린 화물선 한 척 때문에 함대 전체가 그 속도로 움직여야 하는 상황이다.{/analogy}
+
+== 언제 생기나 ==
+
+[[img:L5-11.png|A=100초, B=C=10초를 FIFO로. 10초짜리가 100초를 기다린다|medium]]
+
+<pre class="txt">
+ A(100) B(10) C(10)을 [[FIFO]]로
+ A: 0 ──────────────── 100
+ B:                100 ── 110   ← 10초짜리가 100초를 기다림
+ C:                     110 ── 120
+ 평균 [[turnaround time]] = 110초
+</pre>
+
+'''워크로드 가정 1'''(모든 job이 같은 시간 실행)이 풀리는 순간 발생한다. 실행 시간이 다 같으면 "무거운 작업"이라는 개념 자체가 없으므로 생길 수 없다.
+
+== 해법 ==
+
+{|
+! 정책 || convoy effect || 이유
+|-
+| '''[[FIFO]]''' || '''발생''' || 도착 순서를 절대 안 바꿈
+|-
+| '''[[SJF]]''' || 해결 (동시 도착 시) || 짧은 것부터 돌림
+|-
+| '''[[SJF]]''' || '''재발''' (늦은 도착 시) || '''비선점'''이라 이미 시작한 긴 job을 못 멈춤
+|-
+| '''[[STCF]]''' || 해결 || [[선점]]으로 긴 job을 밀어냄
+|-
+| '''[[Round Robin]]''' || 해결 || 애초에 아무도 오래 붙잡지 못함
+|}
+
+{exam}'''2025F 중간고사 Problem 2 (용어 단답형)에 그대로 출제됐다.'''
+> "짧은 작업들이 무거운 작업 뒤에 줄 서는 현상 '''(2 words)'''" → '''Convoy effect'''
+
+Problem 2는 '''정의를 주고 영어 용어를 쓰게 하는''' 형식이고, 단어 수 힌트가 붙는다. 슬라이드의 영어 정의 문장을 통째로 외워 두면 역방향(용어 → 정의)도 대비된다. → [[2025F 중간고사 족보]]{/exam}
+
+[[sim:sched_gantt]]
+
+== 관련 문서 ==
+* [[FIFO]] · [[SJF]] · [[STCF]] · [[선점]]
+* [[스케줄링]] · [[turnaround time]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

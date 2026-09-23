@@ -1,0 +1,70 @@
+key: return-from-trap
+title: return-from-trap
+category: 4강 LDE, 용어
+---
+'''return-from-trap'''은 [[커널]]에서 유저 프로그램으로 '''돌아 나가는''' 명령어다. [[트랩]]의 정확한 짝이며, [[제한적 직접 실행]] 프로토콜 표에서 '''OS @ run 열에 가장 자주 등장하는 줄'''이다.
+
+{def}
+'''Return-from-trap instruction (kernel → user)''': Return to the calling user program / '''Reduce the privilege level back to user mode'''.
+{/def}
+
+{analogy}
+트랩이 '''입국심사'''라면 return-from-trap은 '''출국 게이트'''다. 들어올 때 맡긴 짐(레지스터)을 되찾고, 신분(권한)이 다시 일반 여행객으로 내려가고, 원래 가려던 곳으로 간다. 재미있는 건 '''처음 태어난 프로세스조차 이 출국 게이트로 세상에 나온다'''는 것 — 입국한 적이 없는데 출국 도장을 찍는 셈이다.
+{/analogy}
+
+[[img:L4-23.png|p.23 LDE Protocol (Cont') — Handle trap → Do work of syscall → return-from-trap, 그리고 하드웨어가 하는 세 가지|large]]
+
+== 하드웨어가 하는 세 가지 ==
+
+<pre class="ascii">
+   OS (kernel mode)        Hardware                        Program (user mode)
+   ──────────────────────────────────────────────────────────────────────────
+   Handle trap
+   Do work of syscall
+   return-from-trap ────►  restore regs from kernel stack
+                           move to user mode
+                           jump to PC after trap  ─────►   (계속 실행)
+</pre>
+
+# '''레지스터 복원''' — [[커널 스택]]([[xv6]]에서는 [[trapframe]])에 저장해 둔 유저 상태를 되돌린다.
+# '''모드 하강''' — kernel mode → user mode.
+# '''점프''' — "PC after trap"으로. [[xv6]]에서는 [[sepc]]가 가리키는 주소.
+
+== 프로세스를 시작할 때도 쓴다 ⭐ ==
+
+LDE 프로토콜 p.22를 보면, OS가 프로세스를 처음 만들 때도 마지막 줄이 '''return-from-trap'''이다.
+
+<pre class="ascii">
+   Create entry for process list
+   Allocate memory for program
+   Load program into memory
+   Setup user stack with argv
+   Fill kernel stack with reg/PC     ← 가짜 "유저 상태"를 미리 채워 넣고
+   return-from-trap                  ← 트랩에서 돌아가는 "척"을 한다
+        └─► HW: restore regs / move to user mode / jump to main
+</pre>
+
+{tip}
+[[xv6]]에서 이 경로가 `forkret()` → [[usertrapret]] → `userret` → [[sret]]이다. 새 프로세스의 [[trapframe]]에는 `epc = 0`(프로그램 진입점), `sp = 유저 스택 top`이 미리 채워져 있다. '''"들어온 적 없어도 나갈 수는 있다"'''는 것이 LDE의 재치 있는 부분.
+{/tip}
+
+== 아키텍처별 이름 ==
+
+{| class="table"
+! 아키텍처 || 트랩 (들어갈 때) || return-from-trap (나올 때)
+|-
+| x86 || `int $0x80` / `syscall` || `iret` / `sysret`
+|-
+| [[RISC-V]] / [[xv6]] || `ecall` || '''[[sret]]'''
+|}
+
+{quiz}
+프로세스를 '''처음''' 실행시킬 때 OS가 return-from-trap을 쓰는 이유는?
+{/quiz}
+{answer}
+유저 모드로 내려가면서 동시에 특정 주소(`main`)로 점프하는 '''유일한 수단'''이 그것이기 때문이다. 커널이 그냥 `jmp main`을 하면 '''모드가 여전히 kernel'''이라 유저 프로그램이 [[특권 명령]]을 쓸 수 있게 된다. 그래서 [[커널 스택]]에 가짜 유저 상태를 채우고 return-from-trap으로 "돌아가는 척"을 한다.
+{/answer}
+
+== 관련 문서 ==
+* [[트랩]] · [[sret]] · [[sepc]] · [[epc]] · [[usertrapret]] · [[trapframe]]
+* [[커널 스택]] · [[유저 모드와 커널 모드]] · [[제한적 직접 실행]]

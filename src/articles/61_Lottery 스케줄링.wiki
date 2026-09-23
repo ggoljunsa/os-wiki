@@ -1,0 +1,76 @@
+key: Lottery 스케줄링
+title: Lottery 스케줄링 (Lottery Scheduling)
+category: 6강 Proportional Share, 정책
+---
+'''Lottery 스케줄링'''은 매 [[time slice]]마다 '''당첨 티켓을 무작위로 뽑아''' 그 티켓을 가진 [[프로세스]]를 실행하는 [[비례 지분 스케줄링]] 방식이다.
+
+{def}
+'''Lottery Scheduling''': The scheduler picks a '''winning ticket randomly''' → load the state of that winning process and runs it.
+'''The longer these two jobs compete, the more likely they are to achieve the desired percentages.'''
+{/def}
+
+{analogy}이름 그대로 '''복권'''이다. [[tickets|티켓]]을 많이 산 사람이 당첨 확률이 높다. 단, '''한 번의 추첨에서는''' 티켓 1장짜리가 이길 수도 있다. 75:25로 티켓을 나눠도 15번 추첨에서 27%가 나오는 식이다. 하지만 추첨을 만 번 하면 비율은 반드시 75:25에 수렴한다 — '''큰 수의 법칙'''이 공정성을 보장해 주는 구조다.{/analogy}
+
+== 동작 ==
+
+[[img:L6-12.png|총 100장 중 A가 0~74번, B가 75~99번. 난수 15개로 A 11번 / B 4번|medium]]
+
+<pre class="txt">
+ 총 티켓 100장.  A = 0~74 (75장),  B = 75~99 (25장)
+ 당첨 번호: 63 85 70 39 76 17 29 41 36 39 10 99 68 83 63
+ 실행     :  A  B  A  A  B  A  A  A  A  A  A  B  A  B  A
+ → B가 15번 중 4번 ≈ 27% (목표 25%)
+</pre>
+
+== 구현 ==
+
+필요한 건 셋뿐이다 — '''난수 생성기''', '''프로세스 리스트''', '''총 티켓 수'''. 슬라이드 표현으로 "the most amazing thing about lottery scheduling is the '''simplicity of its implementation'''".
+
+[[img:L6-17.png|총 400장, A(100) → B(50) → C(250) 리스트. 누적합이 winner를 넘는 순간이 당첨|medium]]
+
+<pre class="c">
+1   int counter = 0;
+2   int winner = getrandom(0, totaltickets);   // 0 ~ 399
+3   node_t *current = head;
+4
+5   while (current) {
+6       counter = counter + current->tickets;  // 누적합
+7       if (counter > winner)
+8           break;                             // 당첨자 발견
+9       current = current->next;
+10  }
+11  // 'current' is the winner
+</pre>
+
+* 2행: 0 ~ (총 티켓 − 1) 중 난수 하나.
+* 6~7행: 리스트를 따라가며 티켓을 '''누적'''하다가, 누적합이 winner를 '''넘는 순간'''의 노드가 당첨.
+* 예: `winner = 300` → A(100) → B(150) → C(400 > 300) → '''C 당첨'''.
+
+{tip}티켓이 많은 프로세스를 '''리스트 앞쪽'''에 정렬해 두면 평균 순회 길이가 짧아진다. 정확성에는 전혀 영향이 없고 속도만 개선된다.{/tip}
+
+{warn}이 순회가 '''O(n)'''이다. 슬라이드 p.29가 바로 이 코드를 다시 띄우며 "데이터센터 CPU 시간의 5%가 스케줄링에 쓰인다"고 지적하고, 그 답으로 [[CFS]]의 [[레드블랙 트리]] O(log n)이 나온다.{/warn}
+
+== 공정성의 한계 ==
+
+[[img:L6-20.png|실행 시간 R을 1~1000으로 바꾸며 30회 평균. R이 클수록 F가 1에 수렴|medium]]
+
+티켓 수(100)도 같고 실행 시간(R)도 같은 두 job인데 난수 때문에 하나가 먼저 끝난다. [[fairness|F]] = 먼저 끝난 시각 / 나중 끝난 시각으로 재면 R이 작을 때 0.5(최악)에서 시작해 R이 커질수록 1에 수렴한다.
+
+{def}
+'''Why Randomness?'''
+* Randomness gets us a '''simple and approximately correct''' scheduler
+* However, it occasionally will '''not deliver the exact right proportions''', especially over '''short time scales'''
+{/def}
+
+== Stride와 비교해 남는 장점 ==
+
+Stride가 비율을 정확히 맞추는데도 Lottery가 의미 있는 이유는 '''전역 상태(global state)가 없다'''는 것이다.
+
+* Lottery는 [[pass]] 같은 값을 관리하지 않는다. 새 job이 들어오면 '''총 티켓 수만 갱신'''하면 끝.
+* [[Stride 스케줄링]]은 새 job의 pass를 뭘로 줄지 정해야 하고, 0으로 두면 '''CPU를 독점'''한다.
+
+[[sim:stride_lottery]]
+
+== 관련 문서 ==
+* [[tickets]] · [[Stride 스케줄링]] · [[비례 지분 스케줄링]]
+* [[fairness]] · [[CFS]]

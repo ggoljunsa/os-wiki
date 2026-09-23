@@ -1,0 +1,78 @@
+key: OS 설계 목표
+title: OS 설계 목표 (Design Goals)
+category: 2강 What is OS, 용어
+---
+'''OS 설계 목표'''(Design Goals)는 2강 마지막 두 장(p.37~38)에 나오는 목록으로, "OS를 만들 때 무엇을 잘해야 하는가"를 정리한 것이다. 항목 수가 적고 문장이 짧아 '''정의→용어''' 또는 '''O/X''' 형태로 출제하기 딱 좋은 장이다.
+
+{def}
+'''Design Goals''' (2강 p.37~38)<br>
+· '''Build up abstraction''' — Make the system convenient and easy to use<br>
+· '''Provide high performance''' — Minimize the overhead of the OS; the OS must strive to provide virtualization '''without excessive overhead'''<br>
+· '''Protection between applications''' — Isolation: '''Bad behavior of one does not harm other and the OS itself'''<br>
+· '''High degree of reliability''' — The OS must also run '''non-stop'''<br>
+· '''Other issues''' — Energy-efficiency, Security, Portability
+{/def}
+
+{analogy}
+🍦 가게를 설계할 때의 목표와 똑같다. ① 손님이 메뉴판만 보고 주문할 수 있게(abstraction — 레시피를 몰라도 된다) ② 주문 처리에 쓸데없는 시간을 안 쓰게(performance) ③ 진상 손님 하나가 다른 손님과 '''가게 자체'''를 망치지 못하게(protection/isolation) ④ 24시간 문을 닫지 않게(reliability) ⑤ 그리고 전기세·보안·다른 지점 확장(energy/security/portability).
+{/analogy}
+
+== 항목별로 ==
+
+{| class="table"
+! 목표 || 슬라이드 문장의 핵심 || 이 과목 어디서 배우나
+|-
+| '''Abstraction''' || convenient and easy to use || [[프로세스]], [[주소 공간]], 파일 — 전부 추상화다
+|-
+| '''Performance''' || '''minimize the overhead''' of the OS || [[제한적 직접 실행]](왜 "직접" 실행인가), [[컨텍스트 스위치]] 비용, [[cache affinity]]
+|-
+| '''Protection''' || isolation — 다른 앱'''과 OS 자신'''을 보호 || [[유저 모드와 커널 모드]], [[시스템 콜]], [[트랩]]
+|-
+| '''Reliability''' || run '''non-stop''' || [[비협력적 방식]](무한 루프 프로세스를 [[타이머 인터럽트]]로 끊기)
+|-
+| '''Energy / Security / Portability''' || "other issues" || 범위 밖 (언급만)
+|}
+
+== 왜 Performance가 목표로 들어가나 ==
+
+가상화는 공짜가 아니다. 프로세스를 바꿀 때마다 [[레지스터]]를 메모리에 쏟아붓고 다시 채워야 한다.
+
+{tip}
+0831 녹음본: "you can find their list of overhead — stopping the running process and then change it to another process. This is called '''context switch''' … you need to '''flush the register file contents into the memory''' and you need to store the program counter and so on. So all of them is the '''overhead'''. So for the time sharing, the potential cost is the '''performance'''."
+{/tip}
+
+이 긴장 관계(보호를 위해 개입 vs 성능을 위해 개입 최소화)를 해결하는 아이디어가 4강 [[제한적 직접 실행]]의 이름 그 자체다 — "'''Limited''' Direct Execution", 제한을 걸되 기본은 '''직접''' 실행.
+
+== 시험에 나오는 지점 ==
+
+{warn}
+'''Protection과 Isolation을 별개 항목으로 외우면 안 된다.''' 슬라이드에서 Isolation은 Protection의 '''설명'''으로 들여쓰기 되어 있다.<br>
+그리고 그 문장이 "Bad behavior of one does not harm '''other and the OS itself'''" — 보호 대상에 '''OS 자신이 포함'''된다는 부분이 함정 포인트다.
+{/warn}
+
+{warn}
+"OS는 virtualization을 '''overhead 없이''' 제공해야 한다"는 틀린 문장이다. 슬라이드는 "without '''excessive''' overhead"(과도한 오버헤드 없이)라고 쓴다. 오버헤드는 0이 될 수 없다.
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "한 프로그램의 잘못된 동작이 다른 프로그램과 OS 자신에게 해를 끼치지 않도록 하는 것"을 가리키는 설계 목표 용어는?
+{/quiz}
+{answer}
+'''Protection''' — 구체적으로는 '''Isolation'''(격리). 보호 대상에 "and '''the OS itself'''"가 포함된다는 점을 반드시 함께 쓸 것.
+{/answer}
+
+{quiz}
+'''(O/X)''' "OS의 설계 목표 중 하나는 virtualization을 overhead 없이(without overhead) 제공하는 것이다."
+{/quiz}
+{answer}
+'''X.''' 슬라이드 문장은 "without '''excessive''' overhead" — '''과도한''' 오버헤드 없이다. 오버헤드 자체는 [[컨텍스트 스위치]] 등으로 불가피하며, 목표는 그것을 '''최소화'''(minimize)하는 것이다.
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] — 설계 목표가 나오는 맥락
+* [[가상화]] — 성능 비용의 출처
+* [[유저 모드와 커널 모드]] / [[시스템 콜]] — protection의 구현
+* [[제한적 직접 실행]] — 보호와 성능의 타협점
+* [[비협력적 방식]] / [[타이머 인터럽트]] — reliability의 구현

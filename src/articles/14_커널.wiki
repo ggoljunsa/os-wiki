@@ -1,0 +1,79 @@
+key: 커널
+title: 커널 (Kernel)
+category: 2강 What is OS, 용어
+---
+'''커널'''(Kernel)은 운영체제에서 항상 메모리에 상주하며 [[특권 명령]]을 실행할 수 있는 핵심부다. 슬라이드에서 그냥 "OS"라고 적힌 파란 박스가 사실상 커널이고, 그 위의 [[시스템 콜]] 인터페이스가 유저 프로그램과의 유일한 접점이다.
+
+{def}
+슬라이드에 "kernel"의 독립된 정의 장은 없지만, 1강 p.22의 그림이 정의 역할을 한다.<br>
+'''Operating System: Overall''' — "A '''resource manager and service provider''' for user programs." 그림은 User Program / '''OS''' / Hardware 3층 구조이고, OS 층 안에 Network, File management, File systems, Buffer cache, Device drivers, Process Control(IPC, Scheduler, Memory Management), Hardware control이 들어 있다.
+{/def}
+
+[[img:L1-22.png|1강 p.22. 위 점선이 user program과 OS의 경계, 아래 점선이 OS와 hardware의 경계. 그 사이 전부가 커널이다.|large]]
+
+{analogy}
+🍦 가게에서 '''주방'''이 커널이다. 손님은 절대 주방에 못 들어오고(= [[유저 모드와 커널 모드|모드 분리]]), 주문은 오직 키오스크를 통해서만 들어간다(= [[시스템 콜]]). 대신 주방은 냉장고·조리대·직원(= 하드웨어) 전부를 마음대로 쓸 수 있다(= [[특권 명령]]).
+{/analogy}
+
+== 커널의 자격 ==
+
+{| class="table"
+! || 유저 프로그램 || 커널
+|-
+| 실행 모드 || user mode || '''[[커널 모드]]''' (supervisor mode)
+|-
+| [[특권 명령]] || 실행 불가 (실행하면 trap) || 실행 가능
+|-
+| 메모리 || 자기 [[주소 공간]]만 || 물리 메모리 전부 + 모든 프로세스의 [[PCB]]
+|-
+| 진입 방법 || — || [[시스템 콜]], [[인터럽트]], exception
+|-
+| 스택 || user stack || 프로세스마다 하나씩 있는 [[커널 스택]]
+|}
+
+== 커널은 "따로 도는 프로그램"이 아니다 ==
+
+{warn}
+흔한 오해: "커널이라는 프로세스가 따로 돌면서 유저 프로그램을 감시한다." '''틀렸다.'''<br>
+평소에 CPU 위에서 도는 것은 유저 프로그램뿐이고, 커널 코드는 [[시스템 콜]]·[[인터럽트]]·exception이 발생했을 때 '''그 프로세스의 문맥에서''' 실행된다. 그래서 프로세스마다 [[커널 스택]]이 하나씩 필요한 것이다.
+{/warn}
+
+{tip}
+0831 녹음본, 프로세스 생성의 마지막 단계(control transfer)를 설명하면서 교수님이 짚은 대목: "actually '''every process can run the kernel'''. In terms of this control transfer, the process would start from the '''kernel state''' and then transfer the control to the '''user space'''. Inside the user space, the program will run from the `main` function."<br>
+즉 새 프로세스는 커널 모드에서 태어나서 user mode로 '''내려가며''' 시작한다.
+{/tip}
+
+<pre class="ascii">
+      시간 →
+
+  user mode   ████████         ████████████        ██████
+                      ╲       ╱            ╲      ╱
+                       ecall / 타이머 인터럽트      sret
+                        ╲   ╱                ╲   ╱
+  kernel mode            ███                  ███
+                      (커널 코드가 '그 프로세스의' 커널 스택 위에서 실행)
+</pre>
+
+== 커널이 유지하는 것들 ==
+
+* 모든 프로세스의 [[PCB]] ([[xv6]]에서는 [[struct proc]]) — [[프로세스 목록]]
+* [[트랩 테이블]] — 어떤 사건에 어떤 핸들러를 부를지
+* [[스케줄러]] 자료구조
+* 파일 테이블, 페이지 테이블, 디바이스 큐 …
+
+이 데이터들이 유저 프로그램 손에 닿으면 보호가 무너지기 때문에, 커널은 [[제한적 직접 실행]]이라는 방식으로 "대부분은 하드웨어에서 그냥 직접 돌리되, 위험한 순간에만 개입"한다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(개념)''' "커널은 별도의 프로세스로 항상 돌면서 유저 프로그램을 감시한다." 참인가 거짓인가? 이유를 한 문장으로.
+{/quiz}
+{answer}
+'''거짓.''' 커널 코드는 [[시스템 콜]]·[[인터럽트]]·exception이 발생했을 때 '''그 프로세스의 문맥(커널 스택)에서''' 실행되며, 평소 CPU 위에서 도는 것은 유저 코드다.
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] / [[시스템 콜]] / [[유저 모드와 커널 모드]]
+* [[커널 모드]] / [[특권 명령]] / [[커널 스택]]
+* [[제한적 직접 실행]] / [[트랩]]
+* [[PCB]] / [[struct proc]]

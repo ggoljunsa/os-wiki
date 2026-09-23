@@ -1,0 +1,54 @@
+key: response time
+title: response time (응답 시간)
+category: 5강 Process Scheduling, 용어
+---
+'''response time'''(응답 시간)은 job이 도착한 뒤 '''처음으로 스케줄되기까지'''의 시간이다. [[turnaround time]]만으로는 설명할 수 없는 '''대화형(interactive)''' 시스템의 체감 성능을 재기 위해 도입됐다.
+
+{def}
+'''Response time''': The time from when the job arrives to the first time it is scheduled.
+$$T_{response} = T_{firstrun} - T_{arrival}$$
+{/def}
+
+{analogy}'''식당의 두 시계'''를 생각하면 된다. [[turnaround time]]은 "들어가서 밥 다 먹고 나올 때까지", response time은 "자리에 앉고 나서 '''종업원이 물을 갖다 줄 때까지'''"다. 배치 작업은 앞 시계만 보고, 터미널 앞에 앉은 사람은 뒤 시계만 본다. 물이 3초 만에 나오면 음식이 좀 늦어도 참을 만하지만, 30분 동안 아무도 안 오면 그냥 나가 버린다.{/analogy}
+
+== 왜 필요했나 ==
+
+[[STCF]]는 turnaround의 최적 정책이지만, 슬라이드가 못을 박는다.
+
+{def}
+* STCF would be a great policy for '''early batch computing''' — e.g., assign a bunch of jobs to the machine and check results the next day.
+* STCF is '''not suitable for time-shared machines''' where multiple users and jobs share the same machine — e.g., users would sit at a terminal and demand interactive results.
+* → A new metric is required: '''response time'''.
+{/def}
+
+{exam}'''모의 퀴즈 A7에서 정확히 이 문장을 뒤집어 틀렸다.''' 문제: "STCF is a good policy for time-shared machines where users sit at terminals and expect interactive results." → '''거짓'''. 이 슬라이드가 존재하는 이유 자체가 "STCF로는 안 되니 response time이라는 새 지표가 필요하다"이다.
+
+한 줄 암기: '''STCF = batch / turnaround. interactive엔 RR.'''{/exam}
+
+== 계산 예 ==
+
+[[img:L5-20.png|같은 워크로드에서 SJF는 평균 response 5초, RR(슬라이스 1초)은 1초|large]]
+
+A, B, C가 t=0에 동시 도착, 각 5초.
+
+<pre class="txt">
+ [[SJF]]:  A A A A A | B B B B B | C C C C C
+   response: A = 0−0 = 0,  B = 5−0 = 5,  C = 10−0 = 10
+   평균 = (0 + 5 + 10) / 3 = 5초
+
+ [[Round Robin]] (슬라이스 1초): A B C A B C A B C A B C A B C
+   response: A = 0,  B = 1,  C = 2
+   평균 = (0 + 1 + 2) / 3 = 1초
+</pre>
+
+슬라이스를 더 줄이면 response는 더 좋아진다. 다만 [[time slice]]가 짧아질수록 [[컨텍스트 스위치]] 비용이 전체를 잡아먹으므로 한계가 있다.
+
+{warn}'''선점당한 뒤 재개하는 시각은 세지 않는다.''' [[STCF]]에서 A가 t=0에 실행을 시작했다가 t=10에 선점당하고 t=30에 재개하면, A의 response time은 $30-0$이 아니라 '''$0-0 = 0$'''이다. "first time it is scheduled"의 first를 놓치면 계산이 전부 틀어진다.{/warn}
+
+[[sim:sched_gantt]]
+
+== 관련 문서 ==
+* [[스케줄링 지표]] · [[turnaround time]] · [[fairness]]
+* [[Round Robin]] — response 최적화
+* [[time slice]] — 슬라이스 길이와 response의 trade-off
+* [[MLFQ]] — turnaround와 response를 동시에 노린다

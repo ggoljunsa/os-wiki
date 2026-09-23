@@ -1,0 +1,76 @@
+key: OSTEP
+title: OSTEP (Operating Systems: Three Easy Pieces)
+category: 용어
+---
+'''OSTEP'''은 위스콘신 대학의 Remzi &amp; Andrea Arpaci-Dusseau 부부가 쓴 운영체제 교재로, 이 수업의 '''주교재'''다. 슬라이드 자체가 저자 슬라이드를 기반으로 만들어졌으므로, 슬라이드가 잘 이해되지 않을 때 해당 챕터를 읽는 것이 가장 빠른 길이다.
+
+{def}
+'''Textbooks: OSTEP''' (1강 p.11)<br>
+"Remzi H. Arpaci-Dusseau and Andrea C. Arpaci-Dusseau, University of Wisconsin-Madison — '''Maybe, the best textbook for operating systems'''. '''All the chapters are available to the public'''."<br>
+1강 p.10 — "Lecture slides: '''Based on the authors' slides''', but include the contents of other textbooks and web resources."
+{/def}
+
+{analogy}
+🍰 제목의 "'''Three Easy Pieces'''"가 곧 이 책의 목차다 — [[가상화]] / [[동시성]] / [[영속성]] 세 조각. 파인만의 물리학 강의 "Six Easy Pieces"를 패러디한 제목이고, "운영체제는 결국 이 세 덩어리뿐이다"라는 저자들의 선언이다. 2강이 통째로 이 세 조각의 예고편이다.
+{/analogy}
+
+== 이 수업의 교재 3종 ==
+
+{| class="table"
+! 교재 || 저자 || 쓰이는 곳
+|-
+| '''OSTEP''' (2015) || Arpaci-Dusseau || '''주교재'''. 3~9강 대부분
+|-
+| Operating System Concept (9th, 2013) || Silberschatz || 보조
+|-
+| CSAPP (2nd, 2012) || Bryant &amp; O'Hallaron || 3강 전반부 (어셈블리, 링킹, 로딩)
+|}
+
+== 강의별 대응 챕터 ==
+
+슬라이드 마지막 Reference 장에 적혀 있는 것들이다.
+
+{| class="table"
+! 강의 || OSTEP 챕터
+|-
+| 2강 [[운영체제란|What is OS]] || Chapter 2 — '''Introduction to Operating Systems'''
+|-
+| 3강 [[프로세스]] || Chapter 4 — '''The Abstraction: The Process''' (+ CSAPP 2.1~2.3)
+|-
+| ([[프로세스 API]], [[fork]]/[[exec]]/[[wait]]) || Chapter 5 — Process API (`p1.c`~`p3.c` 예제의 출처)
+|-
+| 4강 [[제한적 직접 실행]] || Chapter 6 — Mechanism: Limited Direct Execution
+|-
+| 5강 [[스케줄링]] || Chapter 7~8 — Scheduling, [[MLFQ]]
+|-
+| 6강 [[비례 지분 스케줄링]] || Chapter 9 — Scheduling: Proportional Share
+|-
+| 7강 [[멀티프로세서 스케줄링]] || Chapter 10 — Multiprocessor Scheduling
+|-
+| 8강 [[스레드]] || Chapter 26 — Concurrency: An Introduction
+|-
+| 9강 [[락]] || Chapter 28 — Locks
+|}
+
+{tip}
+전 챕터가 '''무료 공개'''다 (https://pages.cs.wisc.edu/~remzi/OSTEP/). 한국어 커뮤니티 번역본의 GitHub 주소는 과목 폴더의 `_OSTEP_한국어번역_링크.txt`에 적혀 있다. 슬라이드가 압축해 놓은 문장의 원래 맥락이 필요할 때 해당 챕터 PDF만 열어 보면 된다.
+{/tip}
+
+{warn}
+'''슬라이드에만 있는 것과 OSTEP에만 있는 것을 구분할 것.''' 예를 들어 3강 슬라이드는 [[프로세스 API]]의 '''이름만''' 나열하고, `p1.c`/`p2.c`/`p3.c` 코드와 출력은 OSTEP Chapter 5에 있다. 반대로 아이스크림 가게 비유(2강)는 교수님이 직접 만든 것으로 OSTEP에는 없다. 시험은 '''슬라이드 기준'''이 원칙이다.
+{/warn}
+
+== 예상 문제 ==
+
+{quiz}
+'''(개념)''' OSTEP의 제목에 나오는 "three easy pieces"란 무엇을 가리키는가?
+{/quiz}
+{answer}
+운영체제의 세 대주제 — '''[[가상화|Virtualization]]''', '''[[동시성|Concurrency]]''', '''[[영속성|Persistence]]'''. 2강이 이 셋을 순서대로 소개한다.
+{/answer}
+
+== 관련 문서 ==
+* [[운영체제란]] / [[가상화]] / [[동시성]] / [[영속성]]
+* [[프로세스]] / [[프로세스 API]] / [[fork]] / [[exec]] / [[wait]]
+* [[xv6]] — 이론이 OSTEP이면 구현은 xv6
+* [[OS 역사]]

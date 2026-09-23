@@ -1,0 +1,559 @@
+key: 과제1 xv6 alarm
+title: 과제 1 — xv6 alarm (sigalarm / sigreturn)
+category: 과제1, 핵심
+---
+'''과제 1 "Alarm"'''은 [[xv6]]에 '''주기적으로 유저 함수를 호출해 주는''' 시스템 콜 두 개 — [[sigalarm]]과 [[sigreturn]] — 을 추가하는 과제다. 코드는 스무 줄 남짓인데, 이 스무 줄을 쓰려면 [[제한적 직접 실행|4강 LDE]]의 [[트랩]] 왕복 경로를 '''전부''' 이해해야 한다. 그래서 '''2026-09-23 퀴즈 1이 100점 전부를 이 과제에서 냈다'''([[퀴즈1 복기]] 참고).
+
+{def}
+"You'll be implementing a primitive form of '''user-level interrupt/fault handlers'''."
+과제 PDF의 자기소개. 이건 단순한 타이머 기능이 아니라 '''유저 레벨 인터럽트 핸들러'''의 원시 형태다 — 유닉스의 `signal()`/`SIGALRM`이 하는 일을 손으로 만드는 것.
+{/def}
+
+{analogy}
+알람의 핵심 트릭을 한 문장으로 하면 '''"책갈피를 몰래 다른 페이지로 옮겨 놓기"'''다.
+* [[trapframe]] = 커널이 유저 코드 중간에 끼워 둔 '''책갈피''' (어디서 멈췄고 손에 뭘 들고 있었는지 전부 적혀 있음).
+* [[epc]] = 책갈피에 적힌 '''"여기부터 다시 읽으세요"''' 페이지 번호.
+* 커널은 이 페이지 번호를 '''핸들러 페이지로 바꿔 쓴다''' → 유저는 눈을 떴을 때 핸들러부터 읽게 된다.
+* 그런데 원래 페이지 번호를 잃어버리면 안 되므로, 바꾸기 '''전에 책갈피를 통째로 복사'''해 둔다 → 그게 [[alarm_saved]].
+* [[sigreturn]] = "복사본을 다시 꽂아 주세요"라고 커널에 부탁하는 것.
+{/analogy}
+
+[[img:A1-2.png|Assignment 1 PDF p.2 — Problem 정의와 alarmtest 기대 출력|medium]]
+
+== 1. 과제 사양 ==
+
+{| class="table"
+! 항목 || 내용
+|-
+| 마감 || '''2026-10-10 (금) 23:00'''
+|-
+| TA || Myunggyu Park (myunggyu@dgist.ac.kr)
+|-
+| 환경 || Docker + `coruslab-src/xv6-lab` 저장소의 '''`traps` 브랜치'''
+|-
+| 정답 기준 || `alarmtest` '''전부 통과''' + `usertests -q` '''ALL TESTS PASSED'''
+|-
+| 제출 || 보고서 4–6쪽 + `make zipball` 결과를 `{학번}_{이름}.zip`으로 개명
+|}
+
+=== sigalarm / sigreturn의 의미론 ===
+
+<pre class="c">
+int sigalarm(int ticks, void (*handler)());
+int sigreturn(void);
+</pre>
+
+* `sigalarm(n, fn)` — 이 프로세스가 '''CPU 시간을 n tick 쓸 때마다''' 커널이 유저 함수 `fn`을 부르게 한다.
+* `fn`이 끝나면 프로세스는 '''원래 멈췄던 자리에서''' 계속 실행되어야 한다.
+* `sigalarm(0, 0)` — 주기적 알람 호출을 '''중지'''한다.
+* tick은 xv6에서 꽤 임의적인 시간 단위로, '''하드웨어 타이머가 인터럽트를 얼마나 자주 내느냐'''로 정해진다.
+* 설계상 결정: '''유저 핸들러는 끝날 때 반드시 [[sigreturn]] 시스템 콜을 불러야 한다.'''
+
+{warn}
+'''"n tick마다"는 벽시계 시간이 아니라 이 프로세스가 소비한 CPU 시간이다.''' tick을 세는 곳이 '''이 프로세스의 [[usertrap]]'''이기 때문이다. 이 프로세스가 스케줄에서 밀려 자고 있는 동안 흘러간 tick은 세지 않는다. 퀴즈·시험에서 "wall-clock time마다 호출된다"는 선지는 거짓.
+{/warn}
+
+== 2. 손댈 파일 — 체크리스트 ==
+
+[[img:A1-5.png|Assignment 1 PDF p.5 — 재진입 금지, a0 복원, 그리고 수정할 소스 목록|medium]]
+
+{| class="table"
+! 순서 || 파일 || 무엇을 || 왜
+|-
+| 1 || `Makefile` || `UPROGS += $U/_alarmtest` || [[alarmtest]]를 유저 프로그램으로 빌드
+|-
+| 2 || `user/user.h` || `sigalarm`/`sigreturn` 프로토타입 || C 컴파일러가 알아야 함
+|-
+| 3 || '''[[usys.pl|`user/usys.pl`]]''' || `entry("sigalarm"); entry("sigreturn");` || `usys.S` 스텁(`li a7, N; ecall; ret`) 생성
+|-
+| 4 || `kernel/syscall.h` || `#define SYS_sigalarm 22` / `SYS_sigreturn 23` || 시스템 콜 '''번호''' 부여
+|-
+| 5 || `kernel/syscall.c` || `extern` 선언 + `syscalls[]` 배열에 등록 || 번호 → 함수 디스패치
+|-
+| 6 || '''[[struct proc|`kernel/proc.h`]]''' || 알람 상태 필드 5개 추가 || 프로세스마다 따로 기억해야 함
+|-
+| 7 || `kernel/proc.c` (`allocproc`) || 새 필드 0으로 초기화 || 알람은 꺼진 상태로 시작
+|-
+| 8 || `kernel/sysproc.c` || `sys_sigalarm`, `sys_sigreturn` 구현 || 실제 동작
+|-
+| 9 || '''[[usertrap|`kernel/trap.c`]]''' || `which_dev == 2` 분기에 알람 코드 || 알람이 터지는 자리
+|}
+
+{tip}
+1~5번은 '''[[시스템 콜 추가 절차]]'''(3강 p.30–34)와 '''글자 그대로 똑같다'''. 과제 PDF도 "Refer 3-From_Program_to_Process"라고 못 박았다. 6~9번만 이 과제 고유의 내용이다. 전체 경로 그림은 [[xv6 시스템 콜 경로]] 참고.
+{/tip}
+
+== 3. struct proc에 추가하는 것 ==
+
+퀴즈 1이 쓴 이름 기준(가장 보편적인 작명):
+
+<pre class="c">
+struct proc {
+  ...
+  struct trapframe *trapframe;   // (원래 있음) 현재 트랩의 유저 레지스터 — 페이지 1장
+  ...
+  // ── Assignment 1 추가 ──
+  int    alarm_interval;         // n tick. 0 = 알람 꺼짐            (sigalarm이 설정)
+  uint64 alarm_handler;          // 유저 핸들러 주소 (0일 수도 있음!) (sigalarm이 설정)
+  int    alarm_elapsed;          // 마지막 호출 이후 흐른 tick 수     (usertrap이 ++)
+  int    alarm_active;           // 1 = 핸들러 실행 중 → 재진입 금지  (usertrap이 set, sigreturn이 clear)
+  struct trapframe alarm_saved;  // ★ 끊긴 문맥 통째 백업 (31 레지스터 + epc) — 슬롯은 "하나"
+};
+</pre>
+
+{| class="table"
+! 키 || 타입 || 누가 쓰나 || 한 줄 설명
+|-
+| [[alarm_interval]] || `int` || `sys_sigalarm`이 설정 || 주기 n. '''0이면 알람 자체가 꺼진 것''' — 분기의 판단 기준
+|-
+| [[alarm_handler]] || `uint64` || `sys_sigalarm`이 설정 || 유저 핸들러 '''주소'''. `epc`에 대입될 값
+|-
+| [[alarm_elapsed]] || `int` || [[usertrap]]이 `++` || 마지막 호출 이후 tick. `>= interval`이면 발사
+|-
+| [[alarm_active]] || `int` || `usertrap`이 1, `sys_sigreturn`이 0 || '''[[재진입 금지]]''' 플래그
+|-
+| [[alarm_saved]] || `struct trapframe` || `usertrap`이 복사, `sys_sigreturn`이 되돌림 || '''끊긴 문맥의 전체 사본'''
+|}
+
+<pre class="ascii">
+        p->trapframe (페이지 1장)            p->alarm_saved (proc 칸 안에 내장)
+        ┌────────────────┐                 ┌────────────────┐
+        │ kernel_satp …  │                 │                │
+        │ epc  = 끊긴 PC │ ──  복사  ──►   │ epc  = 끊긴 PC │   알람이 터질 때
+        │ ra sp gp tp    │                 │ ra sp gp tp    │
+        │ a0 a1 … a7     │ ◄──  복원  ──   │ a0 a1 … a7     │   sigreturn 때
+        │ t0 … t6, s0…s11│                 │ t0 … t6, s0…s11│
+        └────────────────┘                 └────────────────┘
+          "지금 트랩의 문맥"                  "알람 직전의 문맥"  ← 슬롯 하나뿐!
+</pre>
+
+{warn}
+'''`alarm_handler`가 0인 것은 정상이다.''' 과제 PDF: "the address of the user's alarm function might be 0 (e.g., in user/alarmtest.asm, `periodic` is at address 0)". 그래서 '''"알람이 켜졌나"는 `handler != 0`이 아니라 `alarm_interval > 0`으로 판단'''해야 한다. `handler`로 판단하면 test0부터 실패한다.
+{/warn}
+
+== 4. sys_sigalarm — 그냥 기록만 한다 ==
+
+<pre class="c">
+// sigalarm(ticks, handler): 이 프로세스가 CPU를 ticks tick 쓸 때마다 handler 호출.
+// sigalarm(0, 0)이면 알람 해제.
+uint64
+sys_sigalarm(void)
+{
+  int n;
+  uint64 handler;
+  struct proc *p = myproc();
+
+  argint(0, &n);          // 1
+  argaddr(1, &handler);   // 2
+  if(n < 0)
+    return -1;
+
+  p->alarm_interval = n;  // 3
+  p->alarm_handler  = handler;
+  p->alarm_elapsed  = 0;  // 4
+  return 0;
+}
+</pre>
+
+* 1–2행 — 인자는 [[trapframe]]의 `a0`, `a1`에 들어 있다. `argint`/`argaddr`이 `p->trapframe->a0`을 읽어 준다. 그래서 '''인자를 꺼내는 데도 trapframe이 필요'''하다.
+* 3행 — [[myproc]]이 돌려준 '''지금 이 CPU에서 도는 프로세스'''의 칸에만 기록된다. 알람 설정은 프로세스별.
+* 4행 — 카운터를 0으로 리셋. `sigalarm(0, 0)`이면 `alarm_interval = 0`이 되어 [[usertrap]]의 분기 조건 `alarm_interval > 0`이 '''거짓'''이 되고, 그 순간부터 알람이 완전히 멈춘다.
+
+{tip}
+`sys_sigalarm`은 '''아무 일도 하지 않는다''' — 그냥 세 값을 기록할 뿐이다. 실제 마법은 전부 [[usertrap]]과 `sys_sigreturn`에서 일어난다. "sigalarm이 타이머를 건다"는 서술은 틀렸다. 타이머는 이미 '''부팅 때 OS가''' 걸어 놨다([[타이머 인터럽트]]).
+{/tip}
+
+== 5. usertrap의 타이머 분기 — 한 줄씩 ⭐⭐⭐ ==
+
+이 분기가 '''퀴즈 1의 2번 문제로 그대로 출제'''됐다.
+
+<pre class="c">
+if (which_dev == 2) {                              // 1  타이머 인터럽트인가?
+
+    if (p->alarm_interval > 0 && !p->alarm_active) {   // 2  켜져 있고, 핸들러 실행 중이 아니면
+        p->alarm_elapsed++;                            // 3  이 프로세스가 소비한 tick 하나
+        if (p->alarm_elapsed >= p->alarm_interval) {   // 4  주기 도달?
+
+            p->alarm_saved  = *p->trapframe;           // 5  ★ 문맥 통째 백업
+            p->alarm_active = 1;                       // 6  재진입 잠금
+            p->alarm_elapsed = 0;                      // 7  re-arm (다음 주기 시작)
+
+            p->trapframe->epc = (uint64)p->alarm_handler;  // 8  ★★ 복귀 주소 바꿔치기
+        }
+    }
+    yield();                                       // 9  CPU 양보 (원래 있던 코드)
+}
+</pre>
+
+{| class="table"
+! 행 || 코드 || 왜 이렇게 쓰나
+|-
+| 1 || `which_dev == 2` || `devintr()`가 '''2'''를 돌려주면 타이머라는 xv6의 약속. '''알람은 타이머일 때만''' 센다. [[which_dev]] 참고
+|-
+| 2 || `alarm_interval > 0` || '''켜짐 판단은 interval로'''. `handler != 0`으로 하면 handler 주소가 0인 alarmtest에서 실패
+|-
+| 2 || `!p->alarm_active` || '''[[재진입 금지]]'''. 핸들러가 도는 중이면 '''tick 자체를 세지 않는다''' (test2)
+|-
+| 3 || `alarm_elapsed++` || 이 프로세스의 usertrap에서만 세므로 = '''소비한 CPU 시간'''
+|-
+| 4 || `>=` (`==` 아님) || 방어적. 어떤 이유로 건너뛰어도 놓치지 않게
+|-
+| 5 || `p->alarm_saved = *p->trapframe;` || 구조체 '''값 대입'''(= `memmove`와 동치). 포인터 복사가 아니다 — `p->alarm_saved = p->trapframe`이면 컴파일 에러이자 논리도 틀림
+|-
+| 6 || `alarm_active = 1` || [[sigreturn]]이 풀어 줄 때까지 잠금
+|-
+| 7 || `alarm_elapsed = 0` || '''re-arm'''. 이게 없으면 한 번만 울리고 만다
+|-
+| 8 || `trapframe->epc = handler` || '''이 한 줄이 과제의 전부'''. [[usertrapret]]이 이 값을 [[sepc]]에 쓰고, [[sret]]이 거기로 점프한다
+|-
+| 9 || `yield()` || 원래부터 있던 코드. 순서상 알람 코드가 '''`yield()` 앞'''에 와야 한다 (yield는 돌아오지 않을 수 있음)
+|}
+
+=== epc를 바꾸면 왜 핸들러로 가는가 — 3단계 체인 ===
+
+{exam}
+'''퀴즈1 모의 A18에서 틀린 문항.''' 과제 PDF p.4의 힌트 문장이 곧 문제다 — "When a trap on the RISC-V returns to user space, '''what determines the instruction address at which user-space code resumes execution?'''"
+# 트랩 진입: [[usertrap]]이 `p->trapframe->epc = r_sepc()` — 하드웨어가 [[sepc]]에 넣어 둔 '''끊긴 PC를 [[trapframe]]에 대피'''시킨다.
+# 트랩 복귀: [[usertrapret]]이 `w_sepc(p->trapframe->epc)` — '''trapframe의 [[epc]]를 [[sepc]]에 되돌려''' 쓴다.
+# '''[[sret]]'''이 '''`sepc`가 가리키는 주소로''' 점프하며 user mode로 내려간다.
+외울 문장: '''"sret은 sepc로 간다. sepc는 trapframe->epc에서 온다. 그래서 우리는 epc를 바꾼다."'''
+{/exam}
+
+<pre class="ascii">
+      USER MODE                          ‖                    KERNEL MODE
+  유저 코드 실행 중 (PC = 0x1234)          ‖
+        │  ① 타이머 인터럽트              ‖
+        ▼                                ‖
+  [하드웨어] sepc ← 0x1234                ‖   "끊긴 PC를 sepc에 넣고"
+            mode ← kernel                 ‖
+            PC   ← stvec (trampoline)     ‖
+        ─────────────────────────────────╫──────────────────────────────►
+                                         ‖   ② uservec (trampoline.S)
+                                         ‖      유저 범용 레지스터 31개 → p->trapframe
+                                         ‖      커널 스택 / 커널 페이지 테이블로 전환
+                                         ‖             ▼
+                                         ‖   ③ usertrap()  (trap.c)
+                                         ‖      p->trapframe->epc = r_sepc()   ★ 대피
+                                         ‖      which_dev==2 → ★ 알람 코드 → yield()
+                                         ‖             ▼
+                                         ‖   ④ usertrapret()
+                                         ‖      w_sepc(p->trapframe->epc)      ★ 되돌림
+                                         ‖             ▼
+                                         ‖   ⑤ userret (trampoline.S)
+                                         ‖      p->trapframe → 레지스터 31개 복원
+        ◄────────────────────────────────╫──   sret  →  PC ← sepc
+        │                                ‖
+  epc를 안 바꿨으면 0x1234 부터,           ‖
+  바꿨으면 handler 부터 실행               ‖
+</pre>
+
+=== 타임라인 (sigalarm(2, periodic)) ===
+
+<pre class="ascii">
+tick:      1        2         3        4         5        6
+           │        │         │        │         │        │
+유저코드 ───┴────────┤         │        │         │        │
+                    ▼ epc=handler                ▼ epc=handler
+                    periodic() ─ sigreturn ─┐    periodic() ─ sigreturn ─┐
+                                            ▼                            ▼
+유저코드(끊긴 곳부터) ───────────────────────┴────────────────────────────┴────
+  alarm_elapsed: 0→1     1→2 (>=2 발사, 0으로 re-arm)   0→1    1→2 (발사) …
+</pre>
+
+[[sim:alarm_trace]]
+
+== 6. sys_sigreturn — 되돌리고, a0를 돌려준다 ⭐⭐⭐ ==
+
+=== 왜 핸들러가 그냥 `return`하면 안 되는가 ===
+
+<pre class="ascii">
+   보통 함수 호출                          알람 핸들러
+   ┌──────────────┐                     ┌──────────────┐
+   │ caller       │ call f → ra=복귀주소 │ 끊긴 유저코드 │  ← 아무도 call 하지 않았다
+   │ (스택에 흔적) │ ◄─ ret (ra로 점프)   │ (PC 0x1234)  │
+   └──────────────┘                     └──────────────┘
+                                               ╳  커널이 epc만 바꿔서 sret으로 "떨어뜨림"
+                                               │  → ra 에는 0x1234 가 없다
+                                               │  → 0x1234 와 레지스터 31개는 커널의 alarm_saved 에만 있다
+                                               ▼
+                                        유저 코드는 alarm_saved 를 읽을 수 없다 (커널 메모리)
+                                        ⇒ 커널로 다시 들어가야 한다 = 시스템 콜 sigreturn()
+</pre>
+
+=== 구현 ===
+
+<pre class="c">
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+
+  if(!p->alarm_active)             // 1  핸들러 밖에서 부르면 거부(선택)
+    return -1;
+  *p->trapframe = p->alarm_saved;  // 2  ★ 31 레지스터 + epc 전부 복원
+  p->alarm_active  = 0;            // 3  잠금 해제
+  p->alarm_elapsed = 0;            // 4  (구현에 따라) 카운터 리셋
+  return p->trapframe->a0;         // 5  ★★ "저장돼 있던 a0"를 반환값으로
+}
+</pre>
+
+* 2행 — 이 한 줄로 `ra, sp, gp, tp, t0~t6, s0~s11, a0~a7`와 '''[[epc]]'''가 전부 알람 직전 값으로 돌아간다. 그래서 [[usertrapret]]이 `w_sepc`할 때 '''0x1234'''가 들어가고, [[sret]]은 끊긴 바로 그 명령어로 복귀한다.
+* 3행 — [[alarm_active]]를 0으로. 이게 빠지면 '''알람이 영원히 한 번만''' 울린다 (test0은 통과, test1부터 실패).
+* 5행 — '''[[a0 복원]]'''. 이유는 아래.
+
+=== a0 문제 — 퀴즈 4번 그 자체 ⭐⭐⭐ ===
+
+{exam}
+'''퀴즈1 모의 A19에서 틀렸고, 실제 퀴즈 1의 4번(20점)으로 그대로 나왔다.''' 과제 PDF 마지막 힌트: "'''Make sure to restore [[a0]].''' sigreturn is a system call, and its return value is stored in a0."
+{/exam}
+
+문제의 근원은 [[xv6]]의 `syscall()`이다.
+
+<pre class="c">
+// kernel/syscall.c
+void
+syscall(void)
+{
+  int num = p->trapframe->a7;                  // 1  시스콜 번호는 a7
+  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    p->trapframe->a0 = syscalls[num]();        // 2  ★ 반환값을 a0에 "덮어쓴다"
+  } else {
+    ...
+  }
+}
+</pre>
+
+2행이 범인이다. 순서를 보자 — '''저장된 a0가 0x2a(=42)였다고 하자:'''
+
+<pre class="ascii">
+   ① sys_sigreturn 안에서 복원:   trapframe->a0 = 0x2a    ✓ (제대로 복원됨)
+   ② syscall()이 이어서 실행:     trapframe->a0 = sys_sigreturn의 반환값
+         return 0;        →      a0 = 0     ✗  끊긴 코드가 42를 쓰려던 참이었다면 test1 실패
+         return trapframe->a0; →  a0 = 0x2a  ✓  덮어써도 같은 값이라 무해
+</pre>
+
+{warn}
+'''"a0는 복원 대상이 아니다"는 틀렸다.''' `a0`는 '''범용 레지스터'''(인자 1번 겸 반환값)라서 끊긴 유저 코드가 한창 계산 중간값으로 쓰고 있을 수 있다. 복원해야 하는 건 과제 PDF 표현 그대로 '''"many"''' — 전부다.
+{/warn}
+
+{tip}
+`return p->alarm_saved.a0;`로 써도 동치다(2행에서 이미 복사했으므로). 단 '''2행보다 앞에서''' 읽으면 안 된다.
+{/tip}
+
+== 7. 재진입 금지 — 슬롯이 하나뿐이라서 ==
+
+[[img:A1-4.png|Assignment 1 PDF p.4 — test1/2/3의 요구사항. 레지스터 복원과 re-arm|medium]]
+
+{exam}
+'''퀴즈1 모의 A20에서 틀린 문항.''' 과제 PDF: "'''Prevent re-entrant calls to the handler''' — if a handler hasn't returned yet, the kernel shouldn't call it again. '''test2 tests this.'''"
+{/exam}
+
+<pre class="ascii">
+   슬롯(alarm_saved)이 하나뿐인 게 핵심이다.
+
+   정상 (alarm_active 가드 있음):           재진입을 허용하면:
+   alarm_saved ← [유저코드 문맥 0x1234]      alarm_saved ← [유저코드 문맥 0x1234]
+   periodic() 실행 중 …                      periodic() 실행 중 … 또 tick!
+   sigreturn → 0x1234 복귀  ✓                alarm_saved ← [periodic 중간 문맥]
+                                                   ↑ 0x1234 문맥이 덮여서 영영 사라짐
+                                             periodic() 다시 실행 (중첩)
+                                             sigreturn → periodic 중간으로 복귀
+                                             sigreturn → ??? 원래 코드로 갈 길이 없음  ✗
+   방어: alarm_active == 1 이면 usertrap에서 tick 자체를 세지 않는다.
+</pre>
+
+{tip}
+가드를 `alarm_elapsed++`'''보다 앞에''' 두느냐 뒤에 두느냐로 의미가 달라진다. `!alarm_active`를 조건에 넣어 '''세는 것 자체를 막으면''', 핸들러가 5 tick을 쓰든 50 tick을 쓰든 '''핸들러 안에서 쓴 시간은 주기에 안 들어간다'''. 퀴즈 5번이 정확히 이 동작을 묻는다(`burn()`이 핸들러 안에서 5 tick 이상 태워도 알람이 다시 안 터지는 이유).
+{/tip}
+
+== 8. sigalarm(0, 0) — 끄기 ==
+
+`sys_sigalarm`이 `alarm_interval = 0`으로 만들면, [[usertrap]]의 조건 `p->alarm_interval > 0`이 거짓이 되어 '''분기 자체를 안 탄다'''. `alarm_elapsed`도 더 이상 늘지 않는다.
+
+{warn}
+핸들러 '''안에서''' `sigalarm(0, 0)`을 부르는 것은 합법이다. 하지만 '''그 뒤에 `sigreturn()`은 반드시 불러야''' 한다 — 알람을 껐다고 해서 [[alarm_active]]가 풀리거나 끊긴 문맥이 복원되지는 않기 때문이다. 퀴즈 5번의 `periodic()`이 `sigalarm(0,0)` 다음에 `sigreturn()`을 부르는 이유.
+{/warn}
+
+== 9. 왜 trapframe이 이미 있는데 따로 복사하나 ⭐⭐⭐ ==
+
+{exam}
+'''실제 퀴즈 1의 3번(a), 10점.''' "On a timer interrupt, xv6 already saves the user context in `p->trapframe`. Why is a separate copy still needed before starting the alarm handler?"
+{/exam}
+
+`p->trapframe`은 '''"지금 이 트랩의 문맥"'''을 담는 '''하나뿐인''' 슬롯이고, 트랩이 날 때마다 `uservec`(trampoline.S)이 '''덮어쓴다'''. 그런데 핸들러는 '''유저 모드에서 실행'''되므로:
+
+* 핸들러 안에서 [[시스템 콜]]을 부르면(`printf` 하나만 써도 `write` 시스템 콜이다, 그리고 마지막에 반드시 `sigreturn`) → `ecall` → `p->trapframe`이 '''핸들러의 레지스터로 덮인다'''.
+* 핸들러 실행 중에 타이머 인터럽트가 또 나도 → `p->trapframe`이 덮인다.
+* page fault가 나도 마찬가지.
+
+즉 핸들러가 한 발짝만 움직여도 원래 유저 코드의 문맥은 사라진다. 그래서 '''핸들러를 시작하기 전에''', 프로세스별로 안전한 별도 공간([[alarm_saved]])에 '''통째로 복사'''해 둬야 한다.
+
+{analogy}
+`p->trapframe`은 '''책상 위의 "지금 보고 있는 서류"''' 자리다. 자리는 하나뿐이고 새 손님이 올 때마다 그 위에 새 서류가 얹힌다. 원래 서류를 지키려면 '''서랍([[alarm_saved]])에 복사본을 넣어야''' 한다. [[sigreturn]]은 "서랍에서 꺼내 책상에 다시 올려 주세요"다.
+{/analogy}
+
+한 문장 답안: '''"핸들러는 유저 모드에서 돌면서 자신의 시스템 콜(최소한 sigreturn)과 트랩으로 `p->trapframe`을 덮어쓰기 때문에, 그 전에 끊긴 문맥을 별도 슬롯에 복사해 두어야 한다."'''
+
+== 10. 핸들러가 sigreturn 없이 C return 하면 ==
+
+{exam}
+'''실제 퀴즈 1의 3번(c), 5점.''' "If the handler uses C `return` without calling `sigreturn()`, where does control go?"
+{/exam}
+
+정확히 따져 보자. 커널이 핸들러를 시작시킬 때 바꾼 것은 '''[[epc]] 하나뿐'''이다. 나머지 레지스터 31개는 '''끊긴 유저 코드의 값 그대로''' 복원되어 핸들러에 들어간다. 즉 '''`ra`에는 끊긴 코드가 갖고 있던 리턴 주소가 그대로 들어 있다.'''
+
+RISC-V에서 C 함수의 `return`은 `ret` = `jalr x0, 0(ra)`, 즉 '''`ra`로 점프'''다. 따라서:
+
+# 제어는 '''`ra`가 가리키는 곳''' — 즉 '''인터럽트 당한 그 함수가 원래 리턴하려던 주소'''(= 그 함수를 부른 caller의 다음 줄)로 간다.
+# 결국 '''인터럽트 당한 함수의 남은 부분이 통째로 건너뛰어진다''' — 스택 프레임이 어긋나고, 핸들러가 망가뜨린 레지스터도 복원되지 않는다.
+# 게다가 [[alarm_active]]가 '''영원히 1로 남아''' 이후 알람이 다시는 울리지 않는다.
+# 결과: 정의되지 않은 동작 — 실제로는 대개 '''잘못된 주소로 튀어 crash'''하거나 `alarmtest`가 "test1 failed"를 찍는다. 과제 PDF도 test0 단계에서 "it's OK for now if your program '''crashes''' after printing alarm!"이라고 예고한다.
+
+{warn}
+'''"ra가 핸들러의 리턴 주소를 담고 있어서 정상 복귀한다"는 틀렸다.''' 핸들러는 `call` 된 적이 없다. `call`(RISC-V `jal`)만이 `ra`를 쓰는데, 커널은 `jal`이 아니라 [[sret]]으로 '''떨어뜨렸다'''. 그래서 `ra`는 '''남의 값'''이다.
+{/warn}
+
+== 11. alarmtest가 검사하는 것 ==
+
+[[img:A1-3.png|Assignment 1 PDF p.3 — test0 invoke handler와 힌트 목록|medium]]
+
+{| class="table"
+! 테스트 || 배점 || 무엇을 검사하나 || 통과하려면 필요한 것
+|-
+| '''test0''' — invoke handler || 20 || `sigalarm(2, periodic)` 후 "alarm!"이 '''한 번이라도''' 찍히나 || `trapframe->epc = handler` (5·8행). 이후 crash해도 OK
+|-
+| '''test1''' — resume interrupted code || 20 || 알람 후 '''원래 명령어로 복귀'''하고 '''레지스터가 온전'''한가 || `alarm_saved` 통째 저장/복원 + '''[[a0 복원]]''' + re-arm
+|-
+| '''test2''' — re-entrancy || 10 || 핸들러가 '''중첩 호출되지 않는가''' || '''[[재진입 금지]]''' ([[alarm_active]] 가드)
+|-
+| '''test3''' || 10 || `sigalarm(0,0)` 후 '''알람이 멈추는가''' || `alarm_interval > 0` 조건
+|-
+| `usertests -q` || 20 || 커널의 '''다른 부분을 망가뜨리지 않았나''' || 알람 코드가 `which_dev == 2` 안에만 있을 것
+|}
+
+기대 출력:
+
+<pre class="sh">
+$ alarmtest
+test0 start
+........alarm!
+test0 passed
+test1 start
+...alarm!
+..alarm!
+...alarm!
+..alarm!
+test1 passed
+test2 start
+..............alarm!
+test2 passed
+test3 start
+test3 passed
+$ usertests -q
+...
+ALL TESTS PASSED
+</pre>
+
+{tip}
+점(`.`)의 개수는 PDF 예시와 달라도 정상이다 — 호스트가 빠르면 tick 사이에 루프가 더 많이 돌아 점이 더 찍힌다. '''`testN passed` 줄만 맞으면 된다.'''
+{/tip}
+
+== 12. 실제 제출 구현 (git diff) ==
+
+실제로 만점(80/80)을 받은 구현의 핵심 hunk 두 개. 필드 이름만 다를 뿐 위에서 설명한 구조와 같다.
+
+<pre class="c">
+diff --git a/kernel/trap.c b/kernel/trap.c
+@@ usertrap()
+   // give up the CPU if this is a timer interrupt.
+-  if(which_dev == 2)
++  if(which_dev == 2){
++    // sigalarm: only count while an alarm is armed and no handler is
++    // already running (prevents re-entrant calls; alarmtest test2).
++    if(p->alarm_ticks > 0 && !p->alarm_inflight){
++      if(--p->alarm_left <= 0){
++        p->alarm_left = p->alarm_ticks;          // re-arm
++        p->alarm_inflight = 1;
++        memmove(&p->alarm_tf, p->trapframe, sizeof(struct trapframe));
++        // usertrapret() writes trapframe->epc into sepc, so sret lands
++        // in the handler instead of the interrupted instruction.
++        p->trapframe->epc = p->alarm_handler;
++      }
++    }
+     yield();
++  }
+</pre>
+
+<pre class="c">
+diff --git a/kernel/sysproc.c b/kernel/sysproc.c
++// sigreturn(): called by the handler when it is done. Restore the whole
++// user register set saved at the moment of the timer interrupt, so the
++// process resumes exactly where it was. The syscall return value lands
++// in a0, so return the *saved* a0 to keep it intact.
++uint64
++sys_sigreturn(void)
++{
++  struct proc *p = myproc();
++
++  if(!p->alarm_inflight)
++    return -1;
++  memmove(p->trapframe, &p->alarm_tf, sizeof(struct trapframe));
++  p->alarm_inflight = 0;
++  return p->trapframe->a0;
++}
+</pre>
+
+{warn}
+'''이름 대응표 — 퀴즈는 왼쪽 이름을 썼다.''' 시험에서는 퀴즈 표기를 따를 것.
+{| class="table"
+! 퀴즈 1 표기 (표준) || 실제 제출 구현 || 차이
+|-
+| `alarm_interval` || `alarm_ticks` || 같음
+|-
+| `alarm_handler` || `alarm_handler` || 같음
+|-
+| `alarm_elapsed` (0에서 '''올라감''', `>= interval`) || `alarm_left` (interval에서 '''내려감''', `<= 0`) || 방향만 반대, 동작 동일
+|-
+| `alarm_active` || `alarm_inflight` || 같음
+|-
+| `alarm_saved` (구조체 대입) || `alarm_tf` (`memmove`) || 같음. `*p->trapframe` 대입 = `memmove(..., sizeof(struct trapframe))`
+|}
+{/warn}
+
+{joke}
+`memmove`와 구조체 대입 중 어느 쪽이 "진짜"냐고 물으면, C 표준은 둘이 같다고 답하고 컴파일러는 둘 다 똑같은 코드를 뱉는다. 다만 퀴즈 2번 빈칸에 `memmove(...)`를 적으면 '''칸이 모자란다''' — 출제자가 `*p->trapframe`을 의도했다는 결정적 증거.
+{/joke}
+
+== 13. 제출 ==
+
+[[img:A1-6.png|Assignment 1 PDF p.6 — Submission 절차. git commit 후 make zipball|medium]]
+
+<pre class="sh">
+$ git add -A
+$ git commit -m "Assignment 1 finished"
+$ make zipball          # lab.zip 생성 → {학번}_{이름}.zip 으로 개명
+</pre>
+
+* '''`make zipball` 전에 반드시 `git commit`''' — zipball이 git 상태를 기준으로 묶기 때문.
+* 보고서는 '''4–6쪽'''. 채점기 점수와 별개로, "왜 trapframe 전체인가 / 왜 sigreturn이 a0를 반환하는가 / 왜 재진입을 막는가"를 '''본인 말로''' 쓰는 것이 핵심이다 — 그리고 퀴즈 1이 정확히 그 세 가지를 물었다.
+* 채점기(`make grade`) 만점은 '''80점''' = test0 20 + test1 20 + test2 10 + test3 10 + usertests 20.
+
+== 시험 대비 핵심 요약 ==
+
+# '''sret은 [[sepc]]로 간다. sepc는 [[trapframe]]->[[epc]]에서 온다. 그래서 epc를 바꾼다.''' — 알람의 전부.
+# 알람이 켜졌는지는 '''[[alarm_interval]] > 0'''으로 판단한다. `handler != 0`으로 하면 안 된다(핸들러 주소가 0일 수 있음).
+# tick은 '''이 프로세스의 [[usertrap]]'''에서 `which_dev == 2`일 때만 센다 = 소비한 '''CPU 시간'''.
+# 발사 시 순서: '''백업([[alarm_saved]]) → 잠금([[alarm_active]]=1) → re-arm([[alarm_elapsed]]=0) → epc 바꿔치기'''.
+# 복원은 '''통째로''' — `*p->trapframe = p->alarm_saved;` 한 줄로 31개 레지스터 + epc. 인터럽트라 caller/callee-saved 약속이 없어서 '''전부''' 저장해야 한다.
+# '''[[a0 복원]]''': `syscall()`이 `p->trapframe->a0 = 반환값`을 실행하므로, [[sigreturn]]은 '''저장돼 있던 a0를 반환값으로''' 줘야 한다 → `return p->trapframe->a0;`
+# '''[[재진입 금지]]''': 백업 슬롯이 하나라서. 핸들러 실행 중이면 tick을 세지 않는다 (test2).
+# 핸들러는 '''[[유저 모드와 커널 모드|user mode]]'''에서 돈다. 그래서 `p->trapframe`을 자기 트랩으로 덮어쓴다 → 별도 복사본이 필요.
+# 핸들러가 `sigreturn` 없이 C `return` 하면 '''`ra`(= 끊긴 코드의 리턴 주소)로 점프''' → 프레임이 어긋나 crash, 게다가 `alarm_active`가 1로 남아 알람이 영영 안 울린다.
+# 시스템 콜 번호 = '''`a7`''', 인자 = '''`a0`, `a1`''', 반환값 = '''`a0`'''. 진입 = `ecall`, 복귀 = [[sret]].
+
+== 관련 문서 ==
+* [[sigalarm]] · [[sigreturn]] · [[alarm_interval]] · [[alarm_handler]] · [[alarm_elapsed]] · [[alarm_saved]] · [[alarm_active]]
+* [[재진입 금지]] · [[a0 복원]] · [[alarmtest]] · [[which_dev]] · [[yield]] · [[myproc]] · [[usys.pl]]
+* [[xv6 시스템 콜 경로]] · [[시스템 콜 추가 절차]] · [[struct proc]]
+* [[trapframe]] · [[epc]] · [[sepc]] · [[sret]] · [[usertrap]] · [[usertrapret]] · [[return-from-trap]]
+* [[제한적 직접 실행]] (4강 이론) · [[타이머 인터럽트]] · [[퀴즈1 복기]]

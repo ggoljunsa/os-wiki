@@ -1,0 +1,81 @@
+key: 커널 스택
+title: 커널 스택 (Kernel Stack)
+category: 4강 LDE, 용어
+---
+'''커널 스택'''은 프로세스가 [[시스템 콜]]이나 [[인터럽트]]로 커널에 들어와 있는 동안 쓰는 '''전용 스택'''이다. [[운영체제란|OS]]는 프로세스마다 '''유저 스택과 커널 스택 두 개'''를 유지한다.
+
+{def}
+For two modes, kernel and user modes, the OS maintains '''separate stacks''' — kernel stack and user stack — '''for each process'''. Save and restore '''user state in the kernel stack''' when entering/exiting the kernel via system call.
+{/def}
+
+{analogy}
+커널 스택은 '''수술실 앞 개인 보관함'''이다. 수술실(커널)에 들어가기 전 내 소지품(레지스터)을 '''내 이름이 붙은''' 보관함에 넣고, 나올 때 그대로 찾는다. 보관함이 '''프로세스마다 따로'''라서 남의 물건과 섞이지 않고, 남이 내 보관함을 열 수도 없다(커널 메모리). 유저 스택에 저장하면? 그건 '''대기실 의자 위에 지갑을 놓고 가는 것''' — 유저 코드가 마음대로 고칠 수 있으니 보안이 무너진다.
+{/analogy}
+
+[[img:L4-20.png|p.20 User Stack and Kernel Stack — 프로세스 A의 스택 두 개와, 커널 스택에 저장된 "User state (saved by HW)"|large]]
+
+== 두 스택의 역할 ==
+
+{| class="table"
+! || User Stack || '''Kernel Stack'''
+|-
+| 위치 || User Space || '''Kernel Space'''
+|-
+| 유저가 접근 || 가능 || '''불가'''
+|-
+| 담는 것 || 유저 함수의 지역변수, 리턴 주소 || ① '''하드웨어가 저장한 유저 상태''' (PC `%eip`, SP `%esp`, flags) <br> ② 커널 함수들의 지역변수·리턴 주소
+|-
+| 스택 포인터 || 유저 모드의 `%esp` || 커널 모드의 `%esp`
+|}
+
+<pre class="ascii">
+                             Process A's Stacks
+   Process A                 ┌──────────────────┐
+   ┌────────┐                │   User Stack     │
+   │        │  SP(user) ───► │  Local vars,     │
+   └────────┘                │  Return addr, …  │
+  ─ System Call ─ ─ ─ ─ ─ ─ ─┼──────────────────┤ ── User Space ──
+   ┌────────┐                │  User state      │ ◄── PC(%eip), SP(%esp),
+   │ Kernel │                │  (saved by HW)   │     flags, …
+   │        │                │  Local vars,     │
+   └────────┘   SP(kernel)─► │  Return addr, …  │
+   ┌────────┐                │   Kernel Stack   │
+   │Hardware│                └──────────────────┘
+   └────────┘
+</pre>
+
+{warn}
+'''왜 유저 스택에 저장하면 안 되는가?''' 세 가지 이유:
+# '''보안''' — 유저 코드가 저장된 PC/모드 정보를 고쳐 커널 주소로 복귀시킬 수 있다.
+# '''신뢰성''' — 유저 `sp`가 잘못된 주소를 가리키고 있으면(스택 오버플로, 악의적 조작) 저장 자체가 실패한다.
+# '''격리''' — 커널 함수의 지역변수가 유저에게 노출된다.
+{/warn}
+
+== xv6에서 ==
+
+[[xv6]]에서는 이 개념이 둘로 나뉜다.
+
+{| class="table"
+! 슬라이드 개념 || [[xv6]]의 구현
+|-
+| 커널 스택에 저장된 '''user state''' || '''[[trapframe]]''' — 프로세스마다 페이지 1장, `p->trapframe`
+|-
+| 커널 함수의 지역변수/리턴 주소 || '''`p->kstack`''' — 프로세스마다 페이지 1장, 진짜 스택
+|-
+| [[컨텍스트 스위치]]가 저장하는 커널 레지스터 || `p->context` ([[struct proc]] 안)
+|}
+
+{tip}
+[[usertrapret]]이 나가기 전에 `p->trapframe->kernel_sp = p->kstack + PGSIZE`를 적어 두는 이유가 이것이다 — 다음에 트랩으로 들어올 때 `uservec`이 그 값을 `sp`에 넣어 '''커널 스택으로 전환'''한다.
+{/tip}
+
+{quiz}
+프로세스가 [[시스템 콜]]을 할 때, 유저 레지스터는 '''누가''' '''어디에''' 저장하는가?
+{/quiz}
+{answer}
+'''하드웨어(+ 트랩 진입 코드)가, 그 프로세스의 커널 스택에.''' LDE 프로토콜 p.23의 Hardware 열 — "save regs to kernel stack / move to kernel mode / jump to trap handler". [[xv6]]에서는 `uservec`이 [[trapframe]]에 저장한다. '''[[컨텍스트 스위치]]가 저장하는 것이 아니다''' — 그쪽은 커널 레지스터를 proc 구조체에 저장한다.
+{/answer}
+
+== 관련 문서 ==
+* [[trapframe]] · [[스택 포인터]] · [[컨텍스트 스위치]] · [[struct proc]] · [[PCB]]
+* [[유저 모드와 커널 모드]] · [[시스템 콜]] · [[usertrapret]] · [[제한적 직접 실행]] · [[스택]]

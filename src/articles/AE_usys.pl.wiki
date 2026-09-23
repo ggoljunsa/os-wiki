@@ -1,0 +1,84 @@
+key: usys.pl
+title: user/usys.pl
+category: 과제1, 용어
+---
+'''`user/usys.pl`'''은 [[xv6]]의 '''시스템 콜 스텁 생성기'''다. Perl 스크립트 한 장이 `user/usys.S`(어셈블리)를 만들어 내고, 그 안에 각 시스템 콜의 '''3줄짜리 진입 코드'''가 들어 있다. [[과제1 xv6 alarm|과제 1]]에서 두 줄만 추가하면 되는 파일이지만, '''빠뜨리면 링크 에러'''가 난다.
+
+{def}
+`entry("sigalarm");` → `usys.S`에 다음을 생성:
+<pre class="asm">
+.global sigalarm
+sigalarm:
+ li a7, SYS_sigalarm    # 시스템 콜 번호를 a7 에
+ ecall                  # 트랩 (user → kernel)
+ ret                    # 커널에서 돌아오면 caller 로
+</pre>
+{/def}
+
+{analogy}
+`usys.pl`은 '''민원 신청서 자동 발급기'''다. 민원 종류를 하나 추가하면 "번호표 뽑고 → 창구 벨 누르고 → 결과 받아 나오기" 3단계 양식을 자동으로 찍어 준다. 이 양식이 없으면 유저 프로그램은 '''벨을 누르는 방법 자체를 모른다''' — `sigalarm`이라는 심볼이 존재하지 않아 링커가 못 찾는다.
+{/analogy}
+
+== 과제 1에서의 수정 ==
+
+<pre class="c">
+# user/usys.pl 끝부분
+entry("getpid");
+entry("sbrk");
+entry("sleep");
+entry("uptime");
++entry("sigalarm");
++entry("sigreturn");
+</pre>
+
+이 두 줄이 빌드 시 `usys.S`의 두 스텁으로 변환된다.
+
+== 3줄이 하는 일 ==
+
+<pre class="ascii">
+   유저 코드:   sigalarm(2, periodic);
+                    │ C 호출 규약: a0 = 2, a1 = periodic 주소
+                    ▼
+   usys.S  sigalarm:
+              li a7, 22      ← ① 시스템 콜 번호 (SYS_sigalarm)
+              ecall          ← ② 트랩! 여기서 커널로 넘어간다
+              ret            ← ③ 커널이 sret 으로 돌려보내 주면 caller 로 복귀
+
+   ★ 인자 a0, a1 은 건드리지 않는다 — C 호출 규약이 넣어 준 그대로
+     커널의 argint(0,...) / argaddr(1,...) 이 trapframe 에서 읽는다.
+   ★ 반환값도 a0 그대로 — syscall() 이 trapframe->a0 에 써 둔 값이
+     userret 에서 복원되어 그대로 C 함수의 반환값이 된다.
+</pre>
+
+{tip}
+'''`ecall` 다음에 `ret`이 실행되는 이유''': 커널이 [[usertrap]]에서 `p->trapframe->[[epc]] += 4`를 했기 때문이다. `ecall`이 4바이트라 +4하면 정확히 `ret` 명령어를 가리킨다. 만약 +4를 안 하면 '''`ecall`을 무한 반복'''한다.
+{/tip}
+
+== 빠뜨렸을 때의 증상 ==
+
+{| class="table"
+! 빠뜨린 파일 || 에러
+|-
+| `user/user.h` || 컴파일 경고/에러 — implicit declaration of `sigalarm`
+|-
+| '''`user/usys.pl`''' || '''링크 에러 — undefined reference to `sigalarm`'''
+|-
+| `kernel/syscall.h` || `usys.S` 생성 실패 (`SYS_sigalarm` 미정의)
+|-
+| `kernel/syscall.c` || 실행 시 "unknown sys call 22"
+|}
+
+{warn}
+`usys.S`는 '''빌드할 때 자동 생성되는 파일'''이라 직접 고쳐도 다음 `make`에서 덮어써진다. 반드시 '''`usys.pl`''' 쪽을 고쳐야 한다. (`.gitignore`에 `usys.S`가 들어 있는 이유이기도 하다.)
+{/warn}
+
+{quiz}
+`sigreturn`도 `usys.pl`에 등록해야 하는가? 커널이 직접 부르면 안 되나?
+{/quiz}
+{answer}
+'''반드시 등록해야 한다.''' [[sigreturn]]은 '''유저 핸들러가 직접 호출하는''' 시스템 콜이다(과제의 설계 결정: "user alarm handlers are '''required to call''' the sigreturn system call"). 커널이 대신 부를 수는 없다 — 핸들러가 '''언제 끝나는지''' 커널은 알 방법이 없기 때문이다. 핸들러가 [[트랩]]으로 커널에 들어와 "나 끝났어"라고 알려 주는 것이 유일한 신호다.
+{/answer}
+
+== 관련 문서 ==
+* [[xv6 시스템 콜 경로]] · [[시스템 콜 추가 절차]] · [[시스템 콜]] · [[트랩]] · [[a0]]
+* [[sigalarm]] · [[sigreturn]] · [[epc]] · [[usertrap]] · [[과제1 xv6 alarm]] · [[xv6]]

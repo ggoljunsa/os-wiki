@@ -1,0 +1,89 @@
+key: main
+title: 운체위키:대문
+category: 안내
+---
+'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.
+
+{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}
+
+{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}
+
+== 빠른 시작 ==
+
+처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:
+
+# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]
+# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]
+# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]
+# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]
+# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]
+# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]
+# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]
+# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]
+# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]
+
+{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
+
+== 시뮬레이터 모음 ==
+
+각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:
+
+{|
+! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나
+|-
+| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정
+|-
+| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙
+|-
+| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지
+|-
+| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정
+|-
+| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]
+|-
+| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간
+|-
+| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]
+|-
+| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유
+|-
+| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이
+|-
+| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서
+|-
+| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지
+|-
+| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost
+|-
+| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨
+|-
+| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]
+|-
+| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정
+|}
+
+== 분류별 문서 ==
+
+=== 시험·과제 ===
+* [[시험 정보]] · [[퀴즈1 복기]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]
+* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]
+
+=== 1~2강 ===
+* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]
+
+=== 3강 ===
+* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]
+
+=== 4강 ===
+* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]
+
+=== 5~7강 ===
+* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]
+* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]
+* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]
+
+=== 8~9강 ===
+* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]
+* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]
+
+{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 "TLB가 뭐더라"를 스무 번 검색했다면, 이번 학기엔 "trapframe이 뭐더라"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}

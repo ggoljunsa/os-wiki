@@ -1,0 +1,139 @@
+key: 프로세스 상태
+title: 프로세스 상태 (Process States)
+category: 3강 From Program to Process, 용어
+---
+'''프로세스 상태'''는 프로세스가 지금 CPU 위에서 돌고 있는지, 돌 준비만 된 채 대기 중인지, 아니면 아예 돌 수 없는 상태인지를 나타내는 세 가지 값이다. 3강에서 가장 출제 확률이 높은 장이고, 함정도 정확히 한 군데에 몰려 있다.
+
+{def}
+"A process can be one of '''three states'''" (3강 p.34)<br>
+· '''Running''' — A process is running on a processor<br>
+· '''Ready''' — A process is '''ready to run''' but for some reason the OS has chosen '''not to run it''' at this given moment<br>
+· '''Blocked''' — A process has performed some kind of operation. When a process '''initiates an I/O request''' to a disk, it becomes blocked and thus '''some other process can use the processor'''
+{/def}
+
+{analogy}
+🏥 병원 진료실. '''Running'''은 지금 진료실 안에서 의사와 마주 앉은 환자. '''Ready'''는 대기실에서 이름 불리기만 기다리는 환자 — 부르면 즉시 들어갈 수 있다. '''Blocked'''는 "엑스레이 찍고 오세요"를 듣고 방사선실로 간 환자 — 지금 이름을 불러도 들어올 수 없다. 엑스레이가 끝나면? 진료실로 직행하는 게 아니라 '''대기실(Ready)로 돌아가서 줄을 선다'''. 그 사이 다른 환자가 들어가 있기 때문이다.
+{/analogy}
+
+== 상태 전이도 ⭐⭐ ==
+
+[[img:L3-35.png|3강 p.35. 이 그림을 그대로 그리라는 문제가 나올 수 있다.|large]]
+
+[[sim:proc_states]]
+
+{| class="table"
+! 전이 || 이름 (슬라이드 표기) || 누가 일으키나
+|-
+| Running → Ready || '''Descheduled''' || [[스케줄러]] (예: [[time slice]] 만료, [[타이머 인터럽트]])
+|-
+| Ready → Running || '''Scheduled''' || [[스케줄러]]
+|-
+| Running → Blocked || '''I/O: initiate''' || 프로세스 자신 (I/O 시스템 콜을 부름)
+|-
+| Blocked → '''Ready''' || '''I/O: done''' || 디바이스 [[인터럽트]] → 커널
+|}
+
+<pre class="ascii">
+                     Descheduled
+        ┌─────────┐ ─────────────► ┌─────────┐
+        │ Running │                │  Ready  │
+        └─────────┘ ◄───────────── └─────────┘
+             │        Scheduled          ▲
+             │                           │
+    I/O:     │                           │   I/O: done
+    initiate │                           │   (Running 으로 직행 ✗)
+             ▼                           │
+        ┌─────────────────────────────────┐
+        │            Blocked              │
+        └─────────────────────────────────┘
+</pre>
+
+{warn}
+'''이 과목 최다 출제 함정.''' I/O가 끝나면 '''Blocked → Ready'''다. '''Blocked → Running 화살표는 존재하지 않는다.'''<br>
+이유: I/O가 도는 동안 CPU는 놀지 않고 다른 프로세스를 돌렸다. 그 프로세스를 쫓아낼 이유가 없으므로, I/O를 마친 프로세스는 '''다시 줄을 서서''' [[스케줄러]]의 선택(Scheduled)을 기다려야 한다.
+{/warn}
+
+{warn}
+'''Ready와 Blocked의 차이를 한 줄로''':<br>
+· '''Ready''' = "CPU만 주면 바로 뜀" — 못 도는 이유가 '''OS의 선택'''<br>
+· '''Blocked''' = "'''CPU를 줘도 못 뜀'''" — 못 도는 이유가 '''기다리는 사건'''(I/O 완료 등)<br>
+그래서 Blocked 프로세스에게 CPU를 주는 것은 [[스케줄링|스케줄링]]상 완전한 낭비다.
+{/warn}
+
+{tip}
+0831 녹음본에서 교수님이 설명한 생애 주기: "when the process is created, first it starts at the '''ready''' state and if it is scheduled, it turns to the '''running''' state … if you initiate the I/O jobs, then it turns into the '''block''' state … if the I/O is done, operating system will change the state into the '''ready''' and now it can be scheduled into the running state. So this is the '''life cycle of the process'''."<br>
+→ 프로세스가 '''태어나는 곳은 Ready'''다. 이것도 시험 포인트.
+{/tip}
+
+== xv6의 실제 상태는 6개 ==
+
+이론의 3-상태 모델은 실제 구현에서 더 잘게 쪼개진다 (3강 p.38).
+
+<pre class="c">
+// the different states a process can be in
+enum proc_state { UNUSED, EMBRYO, SLEEPING,
+                  RUNNABLE, RUNNING, ZOMBIE };
+</pre>
+
+{| class="table"
+! xv6 상태 || 3-상태 모델 대응 || 의미
+|-
+| `UNUSED` || (없음) || 프로세스 테이블의 빈 슬롯
+|-
+| `EMBRYO` || (생성 중) || `allocproc()`이 잡았지만 아직 초기화가 안 끝난 상태
+|-
+| `SLEEPING` || '''Blocked''' || `chan`에 매달려 어떤 사건을 기다림
+|-
+| `RUNNABLE` || '''Ready''' || 돌 준비 완료, [[스케줄러]] 대기
+|-
+| `RUNNING` || '''Running''' || 지금 CPU 위
+|-
+| `ZOMBIE` || (종료됨) || `exit()`은 했지만 부모가 아직 [[wait]]로 회수하지 않음
+|}
+
+{warn}
+'''`RUNNABLE`이 Ready에 대응한다'''는 것을 반드시 기억할 것. 이름이 "runnable"이라 Running과 헷갈리기 쉽다.<br>
+그리고 `ZOMBIE`는 3-상태 모델에 없다 — [[fork]]/[[wait]]의 부모-자식 관계 때문에 생기는 상태다. 부모가 [[wait]]를 안 부르면 자식은 좀비로 남는다.
+{/warn}
+
+== 상태별로 프로세스는 어디에 저장되나 ==
+
+OS는 상태별 목록을 따로 관리한다 ([[프로세스 목록]], 3강 p.36).
+
+* '''Ready processes''' 목록 → [[스케줄러]]가 여기서 고른다
+* '''Blocked processes''' 목록 → I/O 완료 인터럽트가 오면 여기서 찾아 Ready로 옮긴다
+* '''Current running process''' → 지금 누구를 쫓아내야 하는지 알기 위해
+
+프로세스 하나의 상태 값 자체는 [[PCB]](= [[xv6]]의 [[struct proc]])의 `state` 필드에 들어 있다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(정의 → 용어)''' "돌 준비는 되었지만 어떤 이유로 OS가 지금은 돌리지 않기로 선택한 상태"는?
+{/quiz}
+{answer}
+'''Ready'''. 슬라이드 원문: "A process is ready to run but for some reason '''the OS has chosen not to run it''' at this given moment."
+{/answer}
+
+{quiz}
+'''(그림)''' Running / Ready / Blocked 3상태의 전이도를 그리고, 네 개 화살표에 슬라이드 용어로 이름을 붙이시오.
+{/quiz}
+{answer}
+Running →(Descheduled)→ Ready, Ready →(Scheduled)→ Running, Running →(I/O: initiate)→ Blocked, Blocked →('''I/O: done''')→ '''Ready'''.<br>
+Blocked → Running 화살표는 '''없다'''.
+{/answer}
+
+{quiz}
+'''(대응)''' [[xv6]]의 `enum proc_state` 6개 중 3-상태 모델의 Ready에 해당하는 것은? 그리고 3-상태 모델에 대응이 없는 상태 두 개를 고르시오.
+{/quiz}
+{answer}
+Ready = '''`RUNNABLE`'''. 대응이 없는 것은 '''`UNUSED`'''(빈 슬롯), '''`EMBRYO`'''(생성 중), '''`ZOMBIE`'''(종료 후 회수 대기) — 셋 중 둘을 고르면 된다. `SLEEPING`은 Blocked, `RUNNING`은 Running.
+{/answer}
+
+== 관련 문서 ==
+* [[프로세스]] — 본문
+* [[프로세스 목록]] / [[PCB]] / [[struct proc]]
+* [[스케줄러]] / [[스케줄링]] / [[컨텍스트 스위치]]
+* [[wait]] — `ZOMBIE`를 회수하는 시스템 콜
+* [[I/O와 스케줄링]] — Blocked 구간을 활용하는 법
+* [[타이머 인터럽트]] — Descheduled의 대표 원인

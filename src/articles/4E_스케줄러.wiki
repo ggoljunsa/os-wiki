@@ -1,0 +1,68 @@
+key: 스케줄러
+title: 스케줄러 (Scheduler)
+category: 4강 LDE, 용어
+---
+'''스케줄러'''(Scheduler)는 [[커널]] 안에서 '''"지금 이 CPU에 어느 프로세스를 올릴까"'''를 결정하는 부분이다. 4강에서는 '''policy를 담당하는 쪽'''으로만 등장하고(메커니즘은 [[컨텍스트 스위치]]), 구체적인 알고리즘은 5강 [[스케줄링]]부터 다룬다.
+
+{def}
+'''Scheduler makes a decision''': whether to '''continue running''' the current process, or '''switch''' to a different one. If the decision is made to switch, the OS executes a '''context switch'''.
+{/def}
+
+{analogy}
+스케줄러는 '''병원 진료 순서를 정하는 간호사'''다. 환자를 진료실에 넣고 빼는 '''물리적 행위'''는 [[컨텍스트 스위치]](기계)가 하고, '''누구를 다음에 넣을지'''는 간호사가 정한다. 둘을 분리해 둔 덕에, 병원 방침이 "선착순"([[FIFO]])에서 "급한 사람 먼저"([[SJF]])로 바뀌어도 '''진료실 문 여닫는 기계는 그대로'''다. 이것이 4강이 말하는 mechanism/policy 분리의 실익이다.
+{/analogy}
+
+<pre class="ascii">
+             Mechanism (4강)                    Policy (5강~)
+   ┌─────────────────────────────┐   ┌────────────────────────────┐
+   │  timer interrupt            │   │  FIFO / SJF / STCF / RR    │
+   │  trap → usertrap            │   │  MLFQ                      │
+   │  swtch (context switch)     │   │  Lottery / Stride / CFS    │
+   │  "어떻게 바꾸나"             │   │  "누구로 바꾸나"            │
+   └──────────────┬──────────────┘   └──────────────┬─────────────┘
+                  └───────────── scheduler ─────────┘
+                       (결정은 policy, 실행은 mechanism)
+</pre>
+
+== xv6의 스케줄러 ==
+
+[[xv6]]에서는 '''CPU마다 스케줄러 스레드가 하나씩''' 있다 (`kernel/proc.c`의 `scheduler()`).
+
+<pre class="c">
+void
+scheduler(void)
+{
+  struct cpu *c = mycpu();
+  for(;;){
+    intr_on();
+    for(struct proc *p = proc; p < &proc[NPROC]; p++){   // 1  프로세스 배열 순회
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){                          // 2  준비된 것을 찾으면
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);                 // 3  그 프로세스로 전환
+        c->proc = 0;                                     // 4  돌아오면 여기부터
+      }
+      release(&p->lock);
+    }
+  }
+}
+</pre>
+
+* 1–2행 — 단순한 '''round-robin'''. [[프로세스 목록]]을 처음부터 훑어 RUNNABLE인 첫 프로세스를 고른다. 이게 xv6의 "policy" 전부다.
+* 3행 — [[컨텍스트 스위치]]. 여기서 나갔다가, 그 프로세스가 [[yield]]하면 4행으로 돌아온다.
+
+{tip}
+[[yield]] → `sched()` → `swtch()` → '''스케줄러''' → `swtch()` → 다른 프로세스. 즉 프로세스에서 프로세스로 '''직접''' 가는 게 아니라 '''항상 스케줄러 스레드를 경유'''한다. [[타이머 인터럽트]]로 들어온 [[usertrap]]이 `yield()`를 부르는 것이 이 여행의 출발점.
+{/tip}
+
+{quiz}
+"스케줄러가 컨텍스트 스위치를 수행한다"는 서술은 옳은가?
+{/quiz}
+{answer}
+'''느슨하게는 맞지만, 4강의 용어 구분으로는 부정확하다.''' 스케줄러는 '''결정'''(policy)을 하고, 결정이 "바꾼다"로 나면 OS가 '''[[컨텍스트 스위치]]라는 메커니즘을 실행'''한다 (p.28 원문: "If the decision is made to switch, the OS '''executes''' context switch"). 시험에서 mechanism/policy를 구분해 묻는다면 '''스케줄러 = policy, 컨텍스트 스위치 = mechanism'''으로 답해야 한다.
+{/answer}
+
+== 관련 문서 ==
+* [[컨텍스트 스위치]] · [[yield]] · [[타이머 인터럽트]] · [[프로세스 상태]] · [[프로세스 목록]]
+* [[스케줄링]] · [[FIFO]] · [[Round Robin]] · [[MLFQ]] · [[제한적 직접 실행]]

@@ -1,0 +1,82 @@
+key: 스택
+title: 스택 (Stack)
+category: 용어
+---
+'''스택'''(Stack)은 [[주소 공간]]에서 지역 변수·함수 인자·리턴 주소를 담는 영역이다. 함수 호출이 중첩될 때마다 위로 쌓이고, 리턴할 때마다 걷힌다.
+
+{def}
+'''Process Creation 2단계''' (3강 p.32)<br>
+"The program's '''run-time stack''' is allocated. Use the stack for '''local variables, function parameters, and return address'''. Initialize the stack with arguments — '''`argc` and `argv`''' array of `main()` function."<br>
+3강 p.10 — "Memory … Includes '''stack''' used to support procedures."
+{/def}
+
+{analogy}
+🍽️ '''카페테리아의 접시 더미'''다. 가장 마지막에 올린 접시를 가장 먼저 꺼낸다(LIFO). 함수 `main` → `sum` → `printf` 순으로 호출하면 접시가 세 장 쌓이고, `printf`가 끝나면 그 접시부터 치운다. 접시 한 장이 '''스택 프레임''' 하나이고, 거기에는 그 함수의 지역 변수와 "돌아갈 주소"가 적혀 있다.
+{/analogy}
+
+[[img:L3-19.png|3강 p.19. User stack은 주소 공간의 위쪽에 있고 아래로 자란다. "created at runtime" — 실행 파일에 들어 있지 않다.|large]]
+
+== 무엇이 들어 있나 ==
+
+<pre class="ascii">
+   높은 주소
+        ┌───────────────────────────┐
+        │  argc, argv (main 의 인자)  │  ← 프로세스 생성 2단계에서 세팅
+        ├───────────────────────────┤
+        │  main 의 스택 프레임         │
+        │    지역 변수 / 리턴 주소      │
+        ├───────────────────────────┤
+        │  sum 의 스택 프레임          │
+        │    x, y, t / 리턴 주소       │
+        ├───────────────────────────┤  ← %esp (스택 포인터)
+        │            ↓              │     여기서부터 아래로 자란다
+        │       (빈 공간)            │
+   낮은 주소
+</pre>
+
+{| class="table"
+! 항목 || 예
+|-
+| 지역 변수 || `int t = x+y;`의 `t`
+|-
+| 함수 인자 || `sum(buf[0], buf[1])`의 두 값
+|-
+| '''리턴 주소''' || `sum`이 끝나면 돌아갈 [[프로그램 카운터|PC]] 값
+|-
+| 저장된 프레임 포인터 || `pushl %ebp`로 밀어 넣는 것
+|}
+
+{warn}
+'''스택은 실행 파일에 없다.''' `.text`/`.data`/`.bss`는 ELF에서 복사되지만, User stack과 [[힙]]은 '''런타임에 생성'''된다(3강 p.19: "created at runtime"). "실행 파일에 없는데 프로세스에는 있는 영역 두 개"를 묻는 문제의 답이 이 둘이다. → [[프로그램 로딩]]
+{/warn}
+
+{warn}
+'''유저 스택과 [[커널 스택]]은 별개다.''' 프로세스마다 유저 스택 하나, [[커널 스택]] 하나씩 있다. [[트랩]]이 일어나면 [[스택 포인터|SP]]가 커널 스택으로 갈아 끼워진다.
+{/warn}
+
+== 프로세스마다 하나, 스레드마다 하나 ==
+
+3강 p.26이 CPU 가상화를 설명하며 굳이 괄호를 붙인다: "Each program seems to have exclusive use of the CPU '''( + stack )'''". 스택이 control flow의 일부이기 때문이다.
+
+이 때문에 8강에서 [[스레드]]가 등장할 때, 스레드는 [[주소 공간]]은 공유하면서도 '''[[스레드 스택|스택만은 각자]]''' 갖게 된다 — 함수 호출 흐름이 스레드마다 다르기 때문이다.
+
+== 예상 문제 ==
+
+{quiz}
+'''(나열)''' 3강 p.32에 따르면 run-time stack에 저장되는 것 세 가지는 무엇이며, 스택은 무엇으로 초기화되는가?
+{/quiz}
+{answer}
+'''local variables, function parameters, return address'''. 초기화는 `main()`의 '''`argc`와 `argv` 배열'''로 한다.
+{/answer}
+
+{quiz}
+'''(O/X)''' "User stack은 실행 파일(ELF)의 한 섹션으로 저장되어 있다가 로드될 때 메모리로 복사된다."
+{/quiz}
+{answer}
+'''X.''' User stack과 [[힙]]은 '''런타임에 생성'''된다(created at runtime / created by malloc). 실행 파일에서 복사되는 것은 read-only segment(`.init`/`.text`/`.rodata`)와 read/write segment(`.data`/`.bss`)뿐이다.
+{/answer}
+
+== 관련 문서 ==
+* [[힙]] / [[주소 공간]] / [[스택 포인터]]
+* [[프로그램 로딩]] / [[프로세스]]
+* [[커널 스택]] / [[스레드 스택]] / [[스레드]]

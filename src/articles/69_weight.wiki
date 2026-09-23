@@ -1,0 +1,56 @@
+key: weight
+title: weight (가중치)
+category: 6강 Proportional Share, 용어
+---
+'''weight'''(가중치)는 [[CFS]]가 [[nice]] 값을 변환해 얻는 수치로, [[vruntime]] 누적 속도와 CPU 몫을 직접 결정한다. '''클수록 우선순위가 높다.'''
+
+$$vruntime_i \mathrel{+}= \frac{weight_0}{weight_i} \cdot runtime_i, \qquad weight_0 = 1024$$
+
+{analogy}weight는 '''환율'''이다. 모든 프로세스가 "실제 시간"이라는 같은 화폐로 CPU를 쓰지만, 장부에 적힐 때는 각자의 환율로 환산된다. weight가 큰 프로세스는 '''환율이 유리'''해서 10초를 써도 장부에는 3.2초만 찍힌다. 장부 숫자가 작은 사람이 계속 우대받으므로, 유리한 환율 = 높은 우선순위다.{/analogy}
+
+[[img:L6-35.png|prio_to_weight[40] 테이블. nice −20의 88761부터 nice +19의 15까지|medium]]
+
+{|
+! nice || −20 || −15 || −10 || '''−5''' || '''0''' || +5 || +10 || +15 || +19
+|-
+| weight || 88761 || 29154 || 9548 || '''3121''' || '''1024''' || 335 || 110 || 36 || 15
+|}
+
+{warn}'''nice와 weight는 부호 방향이 반대다.'''
+* [[nice]]: '''작을수록''' 높은 우선순위 (−20이 최고)
+* weight: '''클수록''' 높은 우선순위 (88761이 최고)
+
+슬라이드 p.36의 "a high priority (i.e., a '''low''' weight)"는 이 관계를 뒤집어 쓴 오타다. 같은 슬라이드의 예제(nice −5 → weight 3121 → vruntime이 '''적게''' 쌓임 → 자주 선택)가 올바른 방향을 확인해 준다.{/warn}
+
+== 두 가지 용도 ==
+
+=== 1. vruntime 누적 속도 ===
+
+<pre class="txt">
+ Δvruntime = (1024 / weightᵢ) × 실제 실행 시간
+
+ weight 3121 (nice −5): 1024/3121 = 0.328배 → 10초 실행 → '''3.2초''' 누적
+ weight 1024 (nice  0): 1024/1024 = 1.000배 → 10초 실행 → 10초 누적
+ weight  335 (nice +5): 1024/ 335 = 3.057배 → 10초 실행 → 30.6초 누적
+</pre>
+
+=== 2. time slice 크기 ===
+
+$$slice_i = \frac{weight_i}{\sum_j weight_j} \times sched\_latency$$
+
+[[sched_latency]]를 프로세스 수로 균등 분배하는 대신, '''weight 비율대로''' 나눈다. 모든 프로세스의 nice가 같으면 이 식은 $sched\_latency / n$과 같아진다.
+
+== EEVDF에서의 역할 ==
+
+[[EEVDF]]의 [[virtual deadline]] 공식에도 weight가 들어간다.
+
+$$VD = t_{now} + \frac{slice_i}{weight_i}$$
+
+weight가 크면 VD가 '''이르다''' → 먼저 선택된다. CFS와 방향이 일관된다.
+
+[[sim:cfs_eevdf]]
+
+== 관련 문서 ==
+* [[nice]] · [[vruntime]] · [[CFS]] · [[sched_latency]]
+* [[virtual deadline]] · [[EEVDF]]
+* [[tickets]] · [[stride]] — 다른 fair-share 알고리즘의 대응물

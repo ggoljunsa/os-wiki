@@ -1,0 +1,97 @@
+key: SQMS
+title: SQMS (Single Queue Multiprocessor Scheduling)
+category: 7강 Multi-CPU Scheduling, 용어
+---
+'''SQMS'''(Single Queue Multiprocessor Scheduling)는 스케줄할 모든 job을 '''하나의 전역 큐'''에 넣고, 각 CPU가 그 큐에서 다음 job을 꺼내 가는 [[멀티프로세서 스케줄링]] 구조다.
+
+{def}
+'''SQMS''': Put all jobs that need to be scheduled into a '''single queue'''. Each CPU simply picks the next job from the '''globally shared queue'''.
+* '''Strengths''': Simple and easy to implement
+* '''Weaknesses''': Some form of '''locking''' have to be inserted → '''Lack of scalability''' / '''Cache affinity'''
+{/def}
+
+{analogy}'''번호표 하나로 돌아가는 은행'''이다. 창구가 넷이어도 번호표 기계는 하나뿐이고, 비는 창구가 생기면 다음 번호를 부른다. 만들기는 제일 쉽다. 문제는 둘이다. ① 네 창구 직원이 '''동시에 같은 번호표 통을 손대면''' 엉키니까 자물쇠를 걸어야 하고, 창구가 많아질수록 그 자물쇠 앞에서 줄을 선다(확장성). ② 한 손님이 갈 때마다 '''다른 창구'''로 배정되니, 앞 창구에서 꺼내 놨던 서류를 매번 새로 준비해야 한다([[cache affinity]] 상실).{/analogy}
+
+== 장점 ==
+
+단일 CPU 스케줄러([[Round Robin]], [[MLFQ]], [[CFS]] 등)를 거의 그대로 재사용할 수 있다. 큐가 하나이므로 '''공정성이나 부하 균형은 자동으로 맞는다''' — 노는 CPU가 생기면 바로 다음 job을 꺼내 가면 그만이다.
+
+== 약점 1 — 확장성 (lack of scalability) ==
+
+큐 하나를 여러 CPU가 건드리므로 '''[[락]]으로 보호'''해야 한다. 7강 p.29~30에서 `List_Pop()` 예제로 미리 깔아 둔 복선이 여기서 회수된다.
+
+<pre class="ascii">
+   CPU0  CPU1  CPU2  CPU3   ... CPU31
+     │     │     │     │          │
+     └─────┴──┬──┴─────┴──────────┘
+              ▼
+          🔒 lock            ← CPU가 늘수록 여기서 '''경합'''
+              │
+       ┌──────┴──────┐
+       │ 전역 run큐   │
+       └─────────────┘
+</pre>
+
+CPU 수가 늘어날수록 락 경합이 심해져, 실제 일보다 '''락을 기다리는 시간'''이 커진다. 6강 p.29의 "데이터센터 CPU 시간의 5%가 스케줄링"과 같은 맥락의 문제다.
+
+== 약점 2 — cache affinity 상실 ==
+
+[[img:L7-34.png|job A~E 5개, CPU 4개. 각 job이 매 슬라이스마다 다른 CPU로 튕겨 다닌다|large]]
+
+<pre class="txt">
+ 큐: A → B → C → D → E → NULL,  CPU 4개, 각 job은 슬라이스 하나씩
+
+ CPU0: A  E  D  C  B   ... (repeat) ...
+ CPU1: B  A  E  D  C   ... (repeat) ...
+ CPU2: C  B  A  E  D   ... (repeat) ...
+ CPU3: D  C  B  A  E   ... (repeat) ...
+
+ → '''모든 job이 매 슬라이스마다 다른 CPU로 튕겨 다닌다'''
+</pre>
+
+원인은 job 수(5)가 CPU 수(4)로 나눠떨어지지 않아 매 라운드마다 '''한 칸씩 밀리는''' 것이다. 결과적으로 [[cache affinity]]가 전멸한다.
+
+== 보완: 친화도 메커니즘 ==
+
+{def}
+SQMS schedulers include some kind of '''affinity mechanism'''
+* Try to make that process will continue to run on the '''same CPU''' if possible
+* Provide affinity for '''some''' jobs, but '''move others around''' to balance load
+{/def}
+
+<pre class="txt">
+ CPU0: A  E  A  A  A  ...
+ CPU1: B  B  E  B  B  ...
+ CPU2: C  C  C  E  C  ...
+ CPU3: D  D  D  D  E  ...
+
+ → A, B, C, D는 '''자기 CPU에 고정'''(친화도 보존)
+   '''E만 CPU를 돌아다니며''' 공정성을 맞춘다
+</pre>
+
+{warn}"어떤 job을 희생시켜 돌아다니게 할 것인가"를 정하는 로직이 복잡해진다는 게 SQMS의 현실적 부담이다. 단순함이 장점이었는데, 친화도를 챙기려는 순간 그 장점이 사라진다.{/warn}
+
+== MQMS와의 대비 ==
+
+{|
+! || '''SQMS''' || [[MQMS]]
+|-
+| 큐 || 전역 1개 || CPU당 1개
+|-
+| 구현 || '''단순''' || 복잡
+|-
+| 확장성 || '''나쁨''' (락 경합) || 좋음
+|-
+| [[cache affinity]] || '''나쁨''' || 좋음
+|-
+| 부하 균형 || '''쉬움''' (자동) || 어려움 ([[로드 밸런싱]] 필요)
+|-
+| 보완책 || 친화도 메커니즘 || migration, [[work stealing]]
+|}
+
+{exam}'''한 줄 대비로 외울 것''': SQMS는 '''공정성이 쉽고 확장성·친화도가 나쁘다''', MQMS는 '''확장성·친화도가 좋고 균형 맞추기가 어렵다'''. 두 구조의 약점이 정확히 반대라는 게 이 강의의 결론이다.{/exam}
+
+== 관련 문서 ==
+* [[MQMS]] · [[cache affinity]] · [[로드 밸런싱]] · [[work stealing]]
+* [[멀티프로세서 스케줄링]] · [[캐시 일관성]]
+* [[락]] · [[mutual exclusion]]

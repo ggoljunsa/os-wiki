@@ -1,0 +1,83 @@
+key: STCF
+title: STCF (Shortest Time-to-Completion First)
+category: 5강 Process Scheduling, 정책
+---
+'''STCF'''(Shortest Time-to-Completion First)는 [[SJF]]에 '''[[선점]](preemption)'''을 더한 정책이다. '''PSJF'''(Preemptive Shortest Job First), 교과서에 따라 '''SRTF'''(Shortest Remaining Time First)라고도 부른다.
+
+{def}
+'''STCF''': Add preemption to SJF. Also known as '''Preemptive Shortest Job First (PSJF)'''.
+A new job enters the system →
+* Determine the run time of the '''remaining''' jobs and new job
+* Schedule the job which has the '''least time left'''
+{/def}
+
+{analogy}'''응급실 트리아지'''다. 일반 [[SJF]]가 "접수 순서대로 가장 가벼운 환자부터"라면, STCF는 '''치료 중이던 환자도 중단시키고''' 더 빨리 끝날 환자를 먼저 본다. 전체 대기 시간의 합은 최소가 되지만, 오래 걸리는 환자는 계속 밀려나서 영영 치료를 못 받을 수도 있다(starvation).{/analogy}
+
+== 계산 ==
+
+[[img:L5-16.png|t=10에 B·C가 도착하면 A를 선점. 평균 turnaround = 50초|medium]]
+
+<pre class="txt">
+ A: t=0 도착, 100초 / B, C: t=10 도착, 각 10초
+
+ t=0   A 실행 (남은 100)
+ t=10  B(10), C(10) 도착. A 남은 90 > 10 → '''A를 선점'''
+ t=10~20  B 실행 → 완료
+ t=20~30  C 실행 → 완료
+ t=30~120 A 재개 → 완료
+
+ [[turnaround time]]
+   A = 120 − 0  = 120
+   B =  20 − 10 =  10
+   C =  30 − 10 =  20
+   평균 = 150 / 3 = '''50초'''   ([[SJF]]의 103.33초 대비)
+
+ [[response time]]
+   A = 0 − 0  = 0     ← 선점 전 t=0에 이미 한 번 실행됐다
+   B = 10 − 10 = 0
+   C = 20 − 10 = 10
+   평균 = 10 / 3 ≈ 3.33초
+</pre>
+
+== 두 가지 약점 ==
+
+=== 1. Starvation ===
+
+[[img:L5-17.png|10초짜리 job이 계속 들어오면 A(100초)는 영원히 CPU를 못 받는다|medium]]
+
+A가 100초 남았는데 t=10부터 10초짜리 B, C, D, E, … 가 계속 도착하면, 언제나 새 job의 남은 시간이 A보다 짧다. → '''A will never receive any CPU time'''. 같은 문제가 [[MLFQ]]에서 다시 나오고, 거기서는 '''priority boost(Rule 5)'''로 해결한다.
+
+=== 2. response time이 나쁘다 ===
+
+긴 job은 한참 뒤에야 첫 실행을 받는다. 터미널 앞 사용자에겐 최악이다. 그래서 [[response time]]이라는 새 지표와 [[Round Robin]]이 등장한다.
+
+{exam}'''모의 퀴즈 A7·A8을 짝으로 틀린 지점 — 반드시 표로 외울 것.'''
+
+{|
+! || 최적화 || 나쁨 || 어울리는 환경
+|-
+| '''STCF''' || '''[[turnaround time]]''' || [[response time]] || early '''batch''' computing
+|-
+| '''[[Round Robin]]''' || '''[[response time]]''' || [[turnaround time]] (Terrible) || time-shared / '''interactive'''
+|}
+
+슬라이드 원문 그대로: "STCF is '''not suitable''' for time-shared machines where multiple users and jobs share the same machine."{/exam}
+
+[[sim:sched_gantt]]
+
+{|
+! 항목 || STCF
+|-
+| 최적화 || '''[[turnaround time]]''' (도착 시각이 달라도 최적)
+|-
+| 나쁜 지표 || [[response time]], [[fairness]]
+|-
+| [[선점]]? || '''✓ 선점'''
+|-
+| 전제 || 워크로드 가정 4 (실행 시간을 안다)
+|}
+
+== 관련 문서 ==
+* [[SJF]] · [[선점]] · [[Round Robin]]
+* [[MLFQ]] — 실행 시간을 모르면서 STCF를 근사한다
+* [[스케줄링]] · [[turnaround time]] · [[response time]]

@@ -1,0 +1,59 @@
+key: 트랩 테이블
+title: 트랩 테이블 (Trap Table)
+category: 4강 LDE, 용어
+---
+'''트랩 테이블'''(Trap Table)은 '''"어떤 이벤트가 나면 어느 핸들러로 점프할지"'''를 적어 둔 표다. [[커널]]이 '''부팅 때''' 초기화하고, 하드웨어는 그 주소를 기억해 뒀다가 [[트랩]]/[[인터럽트]]가 날 때마다 표를 뒤져 점프한다.
+
+{def}
+Each type of event has a unique '''syscall number k''' → '''k = index into trap table''' → '''Handler k''' is called each time syscall k occurs.
+{/def}
+
+[[img:L4-19.png|p.19 Trap Table — syscall number가 인덱스가 되어 handler 코드로 연결된다|medium]]
+
+{analogy}
+트랩 테이블은 '''회사 대표번호의 ARS 메뉴'''다. "주문은 1번, 배송은 2번, 상담원 연결은 0번" — 고객(유저 프로그램)은 부서 직통번호(커널 함수 주소)를 알 필요도, 알 수도 없고 '''번호만''' 누른다. 그리고 그 메뉴를 만드는 것은 '''회사(OS)'''이지 고객이 아니다.
+{/analogy}
+
+== 왜 부팅 때 OS가 설정하는가 ==
+
+{warn}
+트랩 테이블 설정은 '''[[특권 명령]]'''이다. 유저가 "내 함수를 트랩 테이블 3번에 꽂아 줘"라고 할 수 있다면, 그건 '''커널 모드에서 임의 코드를 실행할 권한'''을 준 것과 같다. 그래서
+* '''언제''' — 부팅 시퀀스 중 (OS @ boot)
+* '''누가''' — OS가 [[커널 모드]]에서
+* '''하드웨어는''' — "remember address of … syscall handler"만 한다
+{/warn}
+
+<pre class="ascii">
+   OS @ boot (kernel mode)          Hardware
+   ─────────────────────────────────────────────────────────
+   initialize trap table  ───────►  remember address of …
+                                       syscall handler
+                                       timer handler       ← p.32에서 추가
+   start interrupt timer  ───────►  start timer
+                                    interrupt CPU in X ms
+</pre>
+
+== 아키텍처별 이름 ==
+
+{| class="table"
+! 아키텍처 || 이름 || 설정 방법
+|-
+| x86 || IDT (Interrupt Descriptor Table) || `lidt` ([[특권 명령]])
+|-
+| [[RISC-V]] / [[xv6]] || '''`stvec`''' CSR — 트랩 진입 주소 하나 || `w_stvec(...)`
+|}
+
+{tip}
+[[xv6]]는 표가 아니라 '''진입점 하나'''(`stvec`)만 두고, 어디서 왔는지는 `scause`를 읽어 C 코드에서 분기한다([[usertrap]]). 그리고 '''유저용/커널용을 바꿔 끼운다''' — `usertrap()` 진입 직후 `w_stvec(kernelvec)`, `usertrapret()` 직전 `w_stvec(uservec)`.
+{/tip}
+
+{quiz}
+트랩 테이블을 초기화하는 주체와 시점은?
+{/quiz}
+{answer}
+'''OS가, 부팅 시퀀스 중, 커널 모드에서.''' 하드웨어는 그 주소를 "기억"할 뿐이고, 유저 프로그램은 관여할 수 없다(특권 명령). — LDE 프로토콜 표 p.22/p.32의 첫 줄.
+{/answer}
+
+== 관련 문서 ==
+* [[트랩]] · [[인터럽트]] · [[인터럽트 핸들러]] · [[특권 명령]]
+* [[시스템 콜]] · [[usertrap]] · [[제한적 직접 실행]] · [[타이머 인터럽트]]

@@ -1,0 +1,88 @@
+key: usertrap
+title: usertrap()
+category: 4강 LDE, 과제1, 용어
+---
+'''`usertrap()`'''(`kernel/trap.c`)은 [[xv6]]에서 '''유저 모드에서 발생한 모든 [[트랩]]이 도착하는 C 함수'''다. 트랩의 '''들어오는 문'''이며, [[과제1 xv6 alarm|과제 1]]의 알람 코드가 들어가는 자리이기도 하다.
+
+{analogy}
+`usertrap()`은 '''응급실 접수 데스크'''다. 구급차([[트랩]])가 어떤 이유로 왔든 일단 여기로 온다. 데스크는 `scause`(왜 왔나)를 보고 '''시스템 콜 / 장치 인터럽트 / 그 외(죽여야 할 것)''' 셋으로 분류해 보낸다. [[과제1 xv6 alarm|알람]]은 "타이머 때문에 온 환자에게 퇴원 주소를 슬쩍 바꿔 적는" 창구 직원이다.
+{/analogy}
+
+== 전체 구조 ==
+
+<pre class="c">
+void
+usertrap(void)
+{
+  int which_dev = 0;
+  ...
+  w_stvec((uint64)kernelvec);        // 1  이제부터 커널 중 트랩은 kernelvec 으로
+  struct proc *p = myproc();
+
+  p->trapframe->epc = r_sepc();      // 2  ★ 끊긴 PC 를 trapframe 에 대피
+
+  if(r_scause() == 8){               // 3  유저가 ecall = 시스템 콜
+    if(killed(p)) exit(-1);
+    p->trapframe->epc += 4;          // 4  ecall 다음 명령어로 돌아가게
+    intr_on();
+    syscall();                       // 5  a7 보고 sys_xxx 디스패치
+  } else if((which_dev = devintr()) != 0){
+    // 6  장치 인터럽트 — 1 = 다른 장치, 2 = 타이머
+  } else {
+    printf("usertrap(): unexpected scause ...");   // 7  page fault 등
+    setkilled(p);
+  }
+
+  if(killed(p)) exit(-1);
+
+  if(which_dev == 2){                // 8  타이머였으면
+    /* ★★ Assignment 1 알람 코드가 들어가는 자리 */
+    yield();                         // 9  CPU 양보
+  }
+
+  usertrapret();                     // 10 나가는 문으로
+}
+</pre>
+
+{| class="table"
+! 행 || 하는 일
+|-
+| 1 || `stvec`을 `kernelvec`으로 교체. 커널 실행 중 트랩은 다른 경로로 가야 하므로
+|-
+| '''2''' || '''`p->trapframe->[[epc]] = r_sepc()`''' — [[sepc]]는 곧 덮어써지므로 프로세스별 메모리로 대피
+|-
+| 3 || `scause == 8` = "Environment call from U-mode". 이 숫자는 '''하드웨어(RISC-V 명세)'''가 정한 것
+|-
+| 4 || `ecall`이 4바이트라 +4. '''인터럽트는 +4 안 한다'''
+|-
+| 6 || `devintr()`의 반환값이 [[which_dev]]. '''여기서는 판별만 하고 yield는 8행에서''' 한다
+|-
+| '''8''' || '''알람 코드가 6행이 아니라 여기 들어가는 이유''' — `which_dev`가 확정된 뒤, 그리고 `yield()` '''앞'''이어야 한다
+|}
+
+{warn}
+'''알람 코드는 반드시 `yield()` '''앞''''''에 와야 한다. `yield()`는 [[컨텍스트 스위치]]를 일으켜 '''한참 뒤에야 돌아오거나 아예 안 돌아올''' 수 있다. `yield()` 뒤에 [[epc]]를 바꾸면 이미 다른 프로세스가 돌고 온 뒤라 순서가 엉킨다.
+{/warn}
+
+== scause와 which_dev는 다른 번호 체계다 ==
+
+{| class="table"
+! || `scause` || `which_dev`
+|-
+| 누가 정했나 || '''하드웨어''' ([[RISC-V]] 명세) || '''소프트웨어''' ([[xv6]]의 `devintr()`)
+|-
+| 값 || 8 = U-mode ecall, 12/13/15 = page fault, (bit63=1) 5 = timer, 9 = external || 0 = 모름, 1 = 다른 장치(UART/디스크), '''2 = 타이머'''
+|-
+| 쓰는 곳 || 3행의 분기 || 8행의 분기 ([[과제1 xv6 alarm|알람]])
+|}
+
+{tip}
+`scause`의 '''최상위 비트 1개'''가 4강 p.10–12의 분류를 그대로 담고 있다 — bit63 = 1이면 '''Interrupt(비동기)''', 0이면 '''Exception(동기: trap/fault/abort)'''. 하드웨어에 박혀 있는 4강 이론.
+{/tip}
+
+[[sim:syscall_trap]]
+
+== 관련 문서 ==
+* [[usertrapret]] · [[trapframe]] · [[epc]] · [[sepc]] · [[which_dev]] · [[yield]] · [[myproc]]
+* [[트랩]] · [[인터럽트]] · [[타이머 인터럽트]] · [[시스템 콜]]
+* [[과제1 xv6 alarm]] · [[xv6 시스템 콜 경로]] · [[퀴즈1 복기]]

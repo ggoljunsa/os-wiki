@@ -1,0 +1,86 @@
+key: guard
+title: guard (락을 만들기 위한 락)
+category: 9강 Lock, 용어
+---
+'''`guard`'''는 [[queue 락]] 안에 등장하는 '''보조 [[spin lock]]'''이다. 슬라이드 주석이 역할을 정확히 말해 준다:
+
+{def}"'''`m->guard` prevents the function `lock` from being executed by multiple threads simultaneously.'''" (p.34)
+"`m->guard` is used as a '''spin-lock around the flag and queue'''. But, the time spent spinning is '''quite limited (just a few instructions)'''." (p.35){/def}
+
+즉 '''"락을 만들기 위한 락"'''이다.
+
+== 왜 필요한가 ==
+
+[[queue 락]]의 `lock()`은 한 번에 여러 단계를 밟는다:
+
+<pre class="c">
+if (m->flag == 0) {              // (1) flag를 읽고
+    m->flag = 1;                 // (2) flag를 쓰고
+    ...
+} else {
+    queue_add(m->q, gettid());   // (3) 큐를 수정하고
+    ...
+}
+</pre>
+
+이 여러 단계 자체가 '''read-modify-write'''라서, 보호하지 않으면 [[flag 락]]과 똑같은 [[race condition]]이 생긴다. 그래서 '''락 내부 자료구조를 보호하는 더 작은 락'''이 필요하다.
+
+{|
+! 이름 || 보호 대상 || 어떻게 기다리나 || 대기 시간
+|-
+| '''`flag`''' || 사용자의 [[critical section]] (길 수 있다) || '''[[park와 unpark|park()]]''' — 잠든다 || 길다
+|-
+| '''`guard`''' || `flag`와 `q` (락 내부 구조) || '''[[spin lock|spin]]''' — [[test-and-set]]으로 돈다 || '''몇 명령어'''
+|}
+
+<pre class="c">
+void lock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;                            // guard 획득 — 여기만 spin
+    if (m->flag == 0) { ... }        // <-- guard로 보호되는 짧은 구간
+    else { ... }
+}                                    // guard는 나가기 전에 반드시 0으로
+
+void unlock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+    if (queue_empty(m->q)) m->flag = 0;
+    else unpark(queue_remove(m->q));
+    m->guard = 0;
+}
+</pre>
+
+{warn}⭐ '''"spin이 완전히 사라진 게 아니다"'''가 p.35 Limitations의 1번이다. 다만 spin하는 구간이 '''사용자의 critical section 전체'''에서 '''몇 개의 명령어'''로 줄었다. critical section이 1시간짜리여도 guard 구간은 여전히 몇 나노초다 — '''이 축소가 핵심'''이다.{/warn}
+
+{analogy}🎭 `guard` = '''접수 창구'''다.
+진료(`flag`가 보호하는 [[critical section]])는 오래 걸리니 '''대기실 의자에 앉아 자면서'''(park) 기다린다. 하지만 '''접수하는 행위 자체'''도 한 번에 한 사람만 해야 한다. 접수는 '''몇 초'''면 끝나니 그 앞에는 그냥 '''서서 기다린다'''(spin).
+"오래 걸리는 것은 앉아서, 짧은 것은 서서" — 이 분업이 queue 락의 설계다.{/analogy}
+
+== guard를 잘못 쓰면 ==
+
+{warn}🔥 '''guard를 쥔 채 [[park와 unpark|park()]]하면 데드락이다.''' 잠든 스레드가 guard를 놓지 않으므로 `unlock()`이 23번 줄 `while (TestAndSet(&m->guard, 1) == 1)`에서 영원히 spin한다. 아무도 못 깨운다.
+그래서 코드는 반드시 '''`m->guard = 0;` → `park();`''' 순서다.
+
+🔥 그런데 바로 그 순서 때문에 '''guard를 놓은 뒤 park하기 전'''의 틈이 생기고, 이것이 '''wakeup/waiting race'''(p.36)다. → [[setpark]], [[futex]]가 이 틈을 메운다.{/warn}
+
+<pre class="ascii">
+   queue_add(q, tid);
+   m->guard = 0;      <-- 여기서 다른 스레드가 unlock -> unpark 가능
+   ~~~~~~~~~~~~~~~ 위험 구간 ~~~~~~~~~~~~~~~
+   park();            <-- 너무 늦게 도착하면 영원히 잠듦
+</pre>
+
+{exam}🎯 '''"guard와 flag의 차이를 설명하시오"'''는 9강에서 가장 나오기 쉬운 서술형 중 하나다. 답의 세 축: ① '''보호 대상'''(사용자 critical section vs 락 내부 구조) ② '''대기 방식'''(park vs spin) ③ '''지속 시간'''(길다 vs 몇 명령어).{/exam}
+
+[[sim:queue_lock]]
+
+{quiz}[[queue 락]]에서 `guard`를 [[park와 unpark|park]] 방식이 아니라 [[spin lock|spin]]으로 잡는 이유는?{/quiz}
+{answer}guard가 보호하는 구간이 '''몇 개의 명령어'''로 극히 짧기 때문이다. 그렇게 짧은 대기에 잠들고 깨우는 [[컨텍스트 스위치]] 비용을 치르면 배보다 배꼽이 크다. 또한 '''guard는 "잠들기 위한 준비"를 보호하는 락'''이므로, 그 자체가 다시 park를 쓰면 순환 문제가 생긴다.{/answer}
+
+{quiz}`m->guard = 0;`을 `park();` 뒤에 놓으면 어떤 일이 생기는가?{/quiz}
+{answer}'''데드락'''이 된다. 스레드가 guard를 쥔 채 잠들어 버리므로, 락을 놓으려는 스레드가 `unlock()`의 guard 획득 루프에서 '''영원히 spin'''하게 되고 아무도 잠든 스레드를 깨우지 못한다.{/answer}
+
+== 관련 문서 ==
+* [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]]
+* [[spin lock]] · [[test-and-set]] · [[락]] · [[critical section]]
+* [[race condition]] · [[자주 틀리는 함정 모음]]

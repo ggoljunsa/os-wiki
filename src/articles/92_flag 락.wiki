@@ -1,0 +1,131 @@
+key: flag 락
+title: flag 락 (Why Hardware Support Needed?)
+category: 9강 Lock, 용어
+---
+'''flag 락'''은 락을 '''소프트웨어만으로''' 만들어 보려는 첫 시도이고, '''실패 사례'''다. 9강 p.16~18. 슬라이드 제목부터가 "'''Why Hardware Support Needed?'''" — 왜 하드웨어의 도움이 필요한지를 보여 주기 위한 반례다.
+
+[[img:L9-16.png|Why Hardware Support Needed? — flag 변수만 쓴 lock 코드|large]]
+
+<pre class="c">
+ 1   typedef struct __lock_t { int flag; } lock_t;
+ 2
+ 3   void init(lock_t *mutex) {
+ 4       // 0 -> lock is available, 1 -> held
+ 5       mutex->flag = 0;
+ 6   }
+ 7
+ 8   void lock(lock_t *mutex) {
+ 9       while (mutex->flag == 1)   // TEST the flag
+10             ;                    // spin-wait (do nothing)
+11       mutex->flag = 1;           // now SET it !
+12   }
+13
+14   void unlock(lock_t *mutex) {
+15       mutex->flag = 0;
+16   }
+</pre>
+
+{|
+! 줄 || 하는 일 || 슬라이드 주석
+|-
+| 5 || `flag = 0`으로 초기화 || `0 -> lock is available, 1 -> held`
+|-
+| '''9~10''' || flag가 1인 동안 제자리에서 돌며 기다린다 || '''`// TEST the flag`''' / `// spin-wait`
+|-
+| '''11''' || 빠져나왔으니 내가 쥔다고 표시 || '''`// now SET it !`'''
+|-
+| 15 || 락 해제 || —
+|}
+
+{warn}'''9번 줄(TEST)과 11번 줄(SET)이 별개의 명령'''이라는 것 — 이 한 가지가 전부다.{/warn}
+
+== 무엇이 고장나는가 ==
+
+=== Problem 1: No Mutual Exclusion ===
+
+슬라이드 p.17의 타임라인 (flag=0에서 시작):
+
+{|
+! Thread1 || Thread2
+|-
+| `call lock()` ||
+|-
+| `while (flag == 1);` ← 통과 (flag=0) ||
+|-
+| '''interrupt: switch to Thread 2''' ||
+|-
+| || `call lock()`
+|-
+| || `while (flag == 1);` ← '''통과''' (flag가 아직 0!)
+|-
+| || `flag = 1;` ← '''락 획득'''
+|-
+| || '''interrupt: switch to Thread 1'''
+|-
+| `flag = 1; // set flag to 1 (too!)` ← '''락 획득''' ||
+|}
+
+그림 버전이 p.18이다:
+
+[[img:L9-18.png|Two threads obtain locks! — ①~⑤ 마커|large]]
+
+{|
+! 마커 || 의미 (슬라이드 주석)
+|-
+| ① || Thread1이 `lock()`의 while 검사 지점에 도달
+|-
+| ② || '''Thread1 & Context Switch''' — ''flag is still 0''
+|-
+| ③ || Thread2가 `lock()` 진입
+|-
+| ④ || '''Thread2 & Context Switch''' — ''flag becomes 1 (obtain the lock)''
+|-
+| ⑤ || Thread1 복귀 — ''set flag to 1 too!! (obtain the lock)''
+|}
+
+> '''"Two threads obtain locks!"'''
+
+[[sim:flag_lock]]
+
+=== Problem 2: Spin-waiting wastes time ===
+
+설사 correctness가 맞았더라도, 기다리는 동안 '''CPU를 태운다'''. 이 문제는 [[test-and-set]] [[spin lock]]까지 그대로 이어지고, [[yield 락]]과 [[queue 락]]에서야 해결된다.
+
+== 왜 이런 일이 생기나 ==
+
+`lock()` 안의 "확인하고 표시하기"가 '''read-modify-write'''다. [[counter 예제]]의 `counter = counter + 1`과 '''구조가 완전히 같다''':
+
+<pre class="ascii">
+counter 예제:   load counter  ->  add 1     ->  store counter
+flag 락:        load flag     ->  (판단)    ->  store flag = 1
+                     ^                              ^
+                     +-------- 이 사이에서 끊긴다 ---+
+</pre>
+
+{warn}⭐ '''[[race condition]]을 막으려고 쓴 코드 안에 또 race condition이 있다.''' 이것이 "락은 공짜로 만들 수 없다 → 하드웨어의 도움이 필요하다"는 결론으로 이어진다.
+
+> "'''An atomic instruction supported by hardware is needed!''' — test-and-set instruction, also known as '''atomic exchange'''" (p.17){/warn}
+
+{analogy}🎭 '''화장실 문 팻말'''이다. 팻말을 '''보는 것'''(TEST)과 '''뒤집는 것'''(SET) 사이에 누가 끼어들 수 있다. A가 "비어 있음"을 확인하고 손을 뻗는 순간 전화가 와서 자리를 뜬다. B가 와서 역시 "비어 있음"을 보고 팻말을 뒤집고 들어간다. A가 돌아와 '''아까 본 것만 믿고''' 팻말을 뒤집고 들어간다 — 둘이 같이 들어갔다.
+
+해결은 간단하다. '''"팻말을 확인하면서 동시에 뒤집는" 한 동작'''을 하드웨어가 제공하면 된다. 그게 [[test-and-set]]이다.{/analogy}
+
+{exam}⭐⭐ '''p.18 타임라인을 서술하라'''는 문제가 나올 수 있다. ①~⑤를 "T1이 검사 통과 → 전환(flag는 아직 0) → T2가 검사 통과 → T2가 flag=1, 획득 → T1 복귀, flag=1, 획득"으로 다섯 줄 쓸 수 있으면 된다. '''"flag is still 0"'''이 핵심 문구.{/exam}
+
+{quiz}아래 코드가 mutual exclusion을 보장하지 못하는 이유를, 인터리빙을 들어 설명하시오.
+<pre class="c">
+void lock(lock_t *mutex) {
+    while (mutex->flag == 1)
+        ;
+    mutex->flag = 1;
+}
+</pre>{/quiz}
+{answer}`while` 검사(TEST)와 `flag = 1`(SET)이 '''분리된 두 명령'''이기 때문이다. T1이 검사를 통과한 직후, `flag = 1`을 '''실행하기 전에''' [[컨텍스트 스위치]]가 일어나면 flag는 여전히 0이다. T2도 검사를 통과해 flag=1을 쓰고 락을 얻고, 복귀한 T1도 flag=1을 써서 '''둘 다 락을 획득'''한다. (p.17~18){/answer}
+
+{quiz}이 코드의 문제는 몇 가지인가? 각각 무엇인가?{/quiz}
+{answer}'''두 가지'''. ① '''No mutual exclusion''' — 두 스레드가 동시에 락을 얻을 수 있다. ② '''Spin-waiting wastes time''' — 기다리는 동안 CPU 시간을 태운다. (p.17){/answer}
+
+== 관련 문서 ==
+* [[락]] · [[test-and-set]] · [[spin lock]] · [[atomic]]
+* [[race condition]] · [[counter 예제]] · [[컨텍스트 스위치]]
+* [[자주 틀리는 함정 모음]]

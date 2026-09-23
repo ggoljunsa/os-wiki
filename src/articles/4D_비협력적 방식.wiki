@@ -1,0 +1,65 @@
+key: 비협력적 방식
+title: 비협력적 방식 (Non-Cooperative Approach)
+category: 4강 LDE, 용어
+---
+'''비협력적 방식'''(A Non-Cooperative Approach)은 [[운영체제란|OS]]가 '''[[타이머 인터럽트]]로 CPU를 강제로 빼앗는''' 방식이다. [[협력적 방식]]이 무한 루프 앞에서 무력했던 문제를 해결하며, '''현대의 모든 OS'''가 이 방식을 쓴다.
+
+{def}
+'''A timer interrupt'''
+* During the '''boot sequence, the OS starts the timer'''
+* The timer raises an interrupt every so many milliseconds
+* When the interrupt is raised: the currently running process is '''halted''' / '''save enough of the state''' of the program / a '''pre-configured interrupt handler''' in the OS runs / '''the OS regains control of the CPU''' — it stops the current process and starts a different one
+{/def}
+
+{analogy}
+[[협력적 방식]]이 "알아서 시간 지켜 주세요"라면, 비협력적 방식은 '''노래방 기계'''다. 시간이 다 되면 '''노래가 그냥 끊긴다''' — 부르는 사람의 동의는 필요 없다. 그리고 결정적으로, '''시간을 설정하는 리모컨은 카운터(OS)에 있지 방 안에 있지 않다.'''
+{/analogy}
+
+[[img:L4-32.png|p.32 — OS @ boot에서 timer handler 등록과 start interrupt timer가 추가된 LDE 프로토콜|large]]
+
+== 통제권 회수 시나리오 ==
+
+<pre class="ascii">
+   OS @ boot                 Hardware
+   ──────────────────────────────────────────────────────
+   initialize trap table  →  remember … syscall handler
+                                        timer handler     ← 추가
+   start interrupt timer  →  start timer
+                             interrupt CPU in X ms (10 ms)
+
+   ── 이후, 유저 모드 ─────────────────────────────────────
+   Process A: while(1) { }        ← 시스템 콜 안 함, 사고도 안 침
+        │
+        ▼  10 ms 뒤 timer interrupt (A 의 동의 불필요)
+   HW: save regs(A) to k-stack(A) / move to kernel mode / jump to trap handler
+   OS: 스케줄러 판단 → switch() → Process C 로
+</pre>
+
+{warn}
+슬라이드의 굵은 결론: '''"A timer interrupt gives OS the ability to run again on a CPU."'''
+그리고 그 능력의 전제가 '''"타이머를 켠 것이 OS이고, 유저는 끌 수 없다"'''는 것. 타이머 설정은 [[특권 명령]]이다.
+{/warn}
+
+{exam}
+'''모의고사 A5에서 틀린 문항.''' "The timer ... is started by '''each user program''' when it begins running." → '''거짓'''. 슬라이드 첫 줄이 "'''During the boot sequence, the OS starts the timer'''".
+반대로 생각해 보면 자명하다 — 유저가 타이머를 켠다면 '''안 켜면 그만'''이고, 그럼 [[협력적 방식]]으로 되돌아간다.
+{/exam}
+
+== 저장하는 "enough of the state" ==
+
+"충분한 상태"가 구체적으로 무엇인지는 [[컨텍스트 스위치]] 문서를 보라. 요약하면 '''두 단계'''다 — ① 하드웨어가 '''유저''' 상태를 [[커널 스택]]에, ② OS의 `switch()`가 '''커널''' 레지스터를 [[PCB|proc 구조체]]에.
+
+[[sim:context_switch]]
+
+{quiz}
+[[협력적 방식]]과 비협력적 방식의 차이를 '''한 문장'''으로 쓰고, 각각의 실패/성공 조건을 말하라.
+{/quiz}
+{answer}
+'''협력적 = 프로세스가 시스템 콜을 할 때까지 OS가 기다린다 / 비협력적 = OS가 부팅 때 켠 [[타이머 인터럽트]]로 강제 회수한다.'''
+* 협력적은 프로세스가 '''협조하지 않으면'''(무한 루프) 실패 → 재부팅.
+* 비협력적은 '''유저가 타이머를 못 건드리기''' 때문에 항상 성공 — 타이머 설정이 [[특권 명령]]인 것이 그 보장이다.
+{/answer}
+
+== 관련 문서 ==
+* [[협력적 방식]] · [[타이머 인터럽트]] · [[인터럽트]] · [[인터럽트 핸들러]] · [[특권 명령]]
+* [[컨텍스트 스위치]] · [[스케줄러]] · [[선점]] · [[제한적 직접 실행]] · [[time slice]]

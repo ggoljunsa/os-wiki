@@ -1,0 +1,68 @@
+key: two-phase lock
+title: Two-Phase Lock (2단계 락)
+category: 9강 Lock, 용어
+---
+'''Two-phase lock'''은 "'''먼저 잠깐 [[spin lock|spin]]해 보고, 그래도 안 되면 [[park와 unpark|잠든다]]'''"는 하이브리드 전략이다. 9강 p.40의 [[futex]] 기반 락이 정확히 이 구조이며, 실제 리눅스 mutex가 쓰는 방식이다.
+
+== 두 단계 ==
+
+{|
+! 단계 || 하는 일 || 커널 진입 || 언제 유리한가
+|-
+| '''Phase 1''' || 유저 공간에서 [[atomic]] 연산으로 '''잠깐 시도/spin''' || '''없음''' || 락이 곧 풀릴 때 (대부분의 경우)
+|-
+| '''Phase 2''' || 그래도 못 얻으면 '''`futex_wait`로 잠든다''' || 있음 || 락 보유자가 오래 잡고 있을 때
+|}
+
+== 왜 이렇게 하나 ==
+
+앞 단계들을 되짚어 보면 어느 쪽도 항상 옳지 않았다:
+
+{|
+! 방식 || 강점 || 약점
+|-
+| '''[[spin lock]]''' || 락이 '''곧''' 풀리면 최고 — 깨어나는 지연이 0 || 오래 기다리면 [[time slice]] 전체를 태움
+|-
+| '''[[queue 락|sleeping lock]]''' || 오래 기다려도 CPU를 안 씀 || 잠들고 깨는 [[컨텍스트 스위치]] 비용이 고정으로 든다
+|}
+
+'''대기 시간이 짧으면 spin이, 길면 sleep이 이긴다.''' 그런데 얼마나 기다릴지는 미리 알 수 없다. 그래서 '''일단 짧게 spin해 보고 → 안 되면 잠든다'''로 두 전략의 좋은 쪽만 취한다.
+
+{analogy}🎭 '''엘리베이터 앞에서'''. 곧 올 것 같으면 그냥 서서 기다린다(phase 1 = spin). 층 표시가 한참 위에서 안 내려오면 '''계단으로 가거나 의자에 앉는다'''(phase 2 = park). 처음부터 앉아 버리면 5초면 올 엘리베이터에 '''일어나 앉는 수고'''만 더한 꼴이고, 끝까지 서 있으면 10분을 낭비한다.{/analogy}
+
+== futex 코드에서 두 단계 찾기 (p.40) ==
+
+<pre class="c">
+ 1   void lock(int *mutex) {
+ 2       if (atomic_bit_test_set(mutex, 31) == 0) return;   // === Phase 1 (fast path) ===
+ 3       atomic_increment(mutex);
+ 4       while (1) {
+ 5           if (atomic_bit_test_set(mutex, 31) == 0) {     //     Phase 1 재시도
+ 6               atomic_decrement(mutex);
+ 7               return;
+ 8           }
+ 9           v = *mutex;
+10           if (v >= 0) continue;
+11           futex_wait(mutex, v);                          // === Phase 2 (sleep) ===
+12       }
+13   }
+</pre>
+
+* '''2번 줄''' — 경쟁이 없으면 '''여기서 끝'''. 시스템 콜 0회. 이것이 "fast userspace mutex"의 fast다.
+* '''11번 줄''' — 여기까지 왔다는 건 실제로 경쟁 중이라는 뜻. 그제서야 커널로 들어가 잠든다.
+
+`unlock` 쪽도 대칭이다 — '''대기자가 없으면 `futex_wake`조차 부르지 않는다'''(23~24번 줄).
+
+{warn}⭐ 시험에서 묻는다면 코드가 아니라 '''원리'''다: "'''경쟁이 없을 때는 유저 공간에서 원자 연산만으로 끝내고, 경쟁이 있을 때만 커널에 들어간다.'''" 이 한 문장이 [[futex]]와 two-phase lock 양쪽의 답이다.{/warn}
+
+{info}'''spin을 얼마나 해야 하나?'''는 정해진 답이 없다. 고정 횟수를 쓰기도 하고, 과거 대기 시간을 관찰해 적응적으로 정하기도 한다. 7강 [[work stealing]]의 임계값처럼 "'''black art'''"에 가깝다.{/info}
+
+{quiz}Two-phase lock이 순수 [[spin lock]]이나 순수 sleeping lock보다 나은 이유를 쓰시오.{/quiz}
+{answer}대기 시간이 '''짧을 때는 spin이''', '''길 때는 sleep이''' 유리한데 어느 쪽인지 미리 알 수 없다. two-phase lock은 '''먼저 짧게 spin해 보고(커널 진입 없이 빠르게 획득 시도), 실패하면 잠들어''' 두 전략의 장점만 취한다. 락 경쟁은 실제로 드물기 때문에 대부분의 호출이 Phase 1에서 끝나 시스템 콜 비용이 0이 된다.{/answer}
+
+{quiz}리눅스 [[futex]] 락에서 "시스템 콜이 한 번도 일어나지 않는" 경우는 언제인가?{/quiz}
+{answer}'''락 경쟁이 없을 때'''(uncontended). `lock()`은 2번 줄의 `atomic_bit_test_set`만으로 획득하고 리턴하며, `unlock()`도 대기자 수가 0이면 `futex_wake` 없이 리턴한다. 유저 공간의 [[atomic]] 연산만으로 완결된다.{/answer}
+
+== 관련 문서 ==
+* [[futex]] · [[락]] · [[spin lock]] · [[queue 락]] · [[park와 unpark]]
+* [[락 평가 기준]] · [[atomic]] · [[컨텍스트 스위치]] · [[시스템 콜]]

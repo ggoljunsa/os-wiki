@@ -1,0 +1,65 @@
+key: 협력적 방식
+title: 협력적 방식 (Cooperative Approach)
+category: 4강 LDE, 용어
+---
+'''협력적 방식'''(A Cooperative Approach)은 [[운영체제란|OS]]가 CPU 통제권을 되찾기 위해 '''프로세스가 스스로 넘겨 주기를 기다리는''' 방식이다. 4강 문제 2(프로세스 간 전환)의 '''첫 번째 답'''이자, '''왜 안 되는지를 보여 주기 위한''' 답이기도 하다.
+
+{def}
+'''A Cooperative Approach: just wait for system calls.'''
+Processes periodically give up the CPU by making system calls such as `open()` and `yield()`. `yield()` does nothing except to transfer control to the OS. Applications also transfer control to the OS when they do something '''illegal''' (divide by zero, illegal memory access).
+{/def}
+
+{analogy}
+협력적 방식은 '''"발표 시간 알아서 지켜 주세요"라고만 하고 타이머를 안 둔 세미나'''다. 대부분의 발표자는 시간을 지킨다(시스템 콜을 부른다). 그런데 '''한 명이 마이크를 놓지 않으면''' 사회자는 할 수 있는 게 아무것도 없다 — 사회자가 마이크를 잡으려면 일단 말할 기회가 있어야 하는데, 그 기회 자체가 발표자에게 달려 있기 때문이다. 유일한 해결책은 '''정전을 시키는 것(재부팅)'''.
+{/analogy}
+
+== 통제권이 OS로 넘어오는 계기 ==
+
+<pre class="ascii">
+   프로세스가 자발적으로:
+      open(), read(), write() …   ← 어차피 I/O 하려면 시스템 콜을 해야 함
+      yield()                      ← "나 CPU 안 쓸래"만 하는 전용 시스템 콜
+
+   프로세스가 사고를 쳐서 (비자발적이지만 결국 트랩):
+      0 으로 나누기
+      접근하면 안 되는 메모리 접근
+
+   ⇒ 어느 쪽이든 "트랩"으로 커널에 들어온다.  그때 OS가 전환 여부를 결정.
+
+   그런데:   while(1);      ← 시스템 콜도 안 하고 사고도 안 친다
+                            ⇒ OS 는 영원히 못 돌아온다  ⇒  재부팅
+</pre>
+
+{warn}
+슬라이드가 굵게 박아 둔 결론: '''"A process gets stuck in an infinite loop → Reboot the machine."'''
+{/warn}
+
+== 실제로 쓰였던 OS ==
+* 초기 버전의 '''Macintosh OS'''
+* '''Xerox Alto''' 시스템
+
+{joke}
+"프로그램이 멈추면 재부팅한다"가 '''설계 사양'''이던 시절이 실제로 있었다. 지금도 가끔 그러긴 하는데, 그건 사양이 아니라 사고다.
+{/joke}
+
+{exam}
+'''모의고사 A4 — 맞췄지만 확신이 없었던 문항.'''
+"In the cooperative approach, the OS regains control of the CPU by '''waiting''' for the process to make a system call." → '''참'''.
+"OS가 기다린다"는 수동적 표현이 틀린 문장처럼 보이지만, 슬라이드 원문이 '''"just wait for system calls"'''다. 대비되는 [[비협력적 방식]]과 '''표로 같이''' 외울 것 — 한쪽만 외우고 다른 쪽을 추론하다 뒤집는 것이 이 학생의 반복 실수 패턴이다.
+{/exam}
+
+{| class="table"
+! || '''협력적''' || '''[[비협력적 방식|비협력적]]'''
+|-
+| 통제권 회수 || 프로세스가 '''줄 때까지 기다림''' || OS가 '''타이머로 빼앗음'''
+|-
+| 계기 || 시스템 콜 / 불법 행위 || '''[[타이머 인터럽트]]'''
+|-
+| 무한 루프 || '''재부팅''' || 다음 tick에 회수
+|-
+| 사례 || 초기 Mac OS, Xerox Alto || 현대의 모든 OS
+|}
+
+== 관련 문서 ==
+* [[비협력적 방식]] · [[타이머 인터럽트]] · [[yield]] · [[시스템 콜]] · [[트랩]]
+* [[컨텍스트 스위치]] · [[스케줄러]] · [[제한적 직접 실행]] · [[선점]]

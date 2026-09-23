@@ -1,0 +1,54 @@
+key: 스케줄링 지표
+title: 스케줄링 지표 (Scheduling Metrics)
+category: 5강 Process Scheduling, 용어
+---
+'''스케줄링 지표'''(scheduling metrics)는 [[스케줄링]] 정책의 좋고 나쁨을 재는 자다. "좋은 스케줄러"라는 말은 지표를 정하기 전에는 의미가 없다. 5강은 지표를 '''두 개 + 하나'''로 정리한다.
+
+{analogy}지표는 '''자'''다. 같은 스케줄러라도 어떤 자로 재느냐에 따라 1등이 꼴등이 된다. [[Round Robin]]은 [[response time]]이라는 자로 재면 최고, [[turnaround time]]이라는 자로 재면 최악이다. 시험 문제를 읽을 때 '''"무슨 자로 재라고 했는지"를 먼저 동그라미 칠 것.'''{/analogy}
+
+== 세 가지 지표 ==
+
+{def}
+* '''Turnaround time''' (성능 지표): The time at which the job '''completes''' minus the time at which the job '''arrived''' in the system.
+$$T_{turnaround} = T_{completion} - T_{arrival}$$
+* '''Response time''': The time from when the job arrives to the '''first time it is scheduled'''.
+$$T_{response} = T_{firstrun} - T_{arrival}$$
+* '''Fairness''': Performance and fairness are '''often at odds''' in scheduling.
+{/def}
+
+{|
+! 지표 || 공식 || 무엇을 보는가 || 최적화하는 정책
+|-
+| '''[[turnaround time]]''' || 완료 − 도착 || 언제 '''다 끝나나''' || [[SJF]], [[STCF]]
+|-
+| '''[[response time]]''' || 첫 실행 − 도착 || 언제 '''처음 반응하나''' || [[Round Robin]]
+|-
+| '''[[fairness]]''' || (6강에서 $F = T_{first}/T_{second}$) || 몫을 '''공평하게''' 받았나 || [[Round Robin]], [[비례 지분 스케줄링]]
+|}
+
+== 계산할 때의 규칙 ==
+
+<pre class="txt">
+ 평균 turnaround = Σ(완료 시각 − 도착 시각) / job 수
+ 평균 response   = Σ(첫 실행 시각 − 도착 시각) / job 수
+</pre>
+
+{warn}가장 흔한 실수 세 가지.
+# '''도착 시각을 안 뺀다.''' 모든 job이 t=0에 도착하는 예제만 보다가, 도착이 다른 문제에서 그대로 틀린다.
+# '''response를 "선점 후 재개 시각"으로 센다.''' response는 오직 '''처음''' 스케줄된 순간만 본다. [[STCF]]에서 A가 t=0에 돌다가 t=10에 선점당하고 t=30에 재개해도 A의 response는 '''0'''이다.
+# '''turnaround를 "실행 시간"으로 센다.''' 기다린 시간이 포함되어야 한다.{/warn}
+
+== 성능 vs 공정성 ==
+
+슬라이드가 두 번(5강 p.9, 6강 p.3) 반복하는 문장이 "Performance and fairness are often at odds"다. 실제로 그렇다.
+
+* [[SJF]]/[[STCF]]는 turnaround(성능)를 최적화하는 대신 긴 job을 '''starvation'''시킨다 — 불공정.
+* [[Round Robin]]은 완벽하게 공정하지만 turnaround가 '''Terrible'''.
+* [[MLFQ]]는 둘을 근사하려는 타협이고, [[비례 지분 스케줄링]]은 아예 '''공정성 자체를 목표로''' 삼는다.
+
+[[sim:sched_gantt]]
+
+== 관련 문서 ==
+* [[스케줄링]] — 지표가 정의되는 맥락
+* [[turnaround time]] · [[response time]] · [[fairness]]
+* [[STCF]] · [[Round Robin]] — 각 지표를 최적화하는 대표 정책
