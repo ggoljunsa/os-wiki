@@ -23,7 +23,7 @@ DGIST **CSE304 운영체제** (Prof. Yongwoo Lee, OSTEP) 중간고사·퀴즈·�
 .
 ├── index.html        # 생성물 (단일 HTML — CSS/JS/문서/시뮬레이터 전부 인라인)
 ├── images/           # 참조된 강의 슬라이드 캡처
-├── build.py          # src/ → index.html
+├── build.py          # src/ → index.html (슬라이드 PNG 원본은 _slides/, git 제외)
 └── src/
     ├── CONTRACT.md   # 문법·문서 키·시뮬레이터 API 규약
     ├── head.html     # CSS + 레이아웃
@@ -37,6 +37,7 @@ DGIST **CSE304 운영체제** (Prof. Yongwoo Lee, OSTEP) 중간고사·퀴즈·�
 ```sh
 python3 build.py        # index.html 재생성, 깨진 링크/누락 이미지 보고
 node src/test_sims.js   # 시뮬레이터 자동 검사
+node src/test_render.js index.html   # 142개 문서 전수 렌더 → 원시 마크업 잔존 검사
 ```
 
 문서 편집은 `src/articles/*.wiki`, 문법은 `src/CONTRACT.md` 참고.

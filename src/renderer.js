@@ -325,16 +325,11 @@ function inlineFormat(text) {
 
   // [[key|label]]
   text = text.replace(/\[\[([^\|\]]+)\|([^\]]+)\]\]/g, function (m, key, label) {
-    var exists = typeof ARTICLES !== "undefined" && !!ARTICLES[key];
-    return '<a href="#' + encodeURIComponent(key) + '" class="' +
-      (exists ? "wiki" : "wiki wiki-stub") + '">' + label + "</a>";
+    return wikiLink(key, label);
   });
   // [[key]]
   text = text.replace(/\[\[([^\]]+)\]\]/g, function (m, key) {
-    var exists = typeof ARTICLES !== "undefined" && !!ARTICLES[key];
-    var label = exists ? ARTICLES[key].title : key;
-    return '<a href="#' + encodeURIComponent(key) + '" class="' +
-      (exists ? "wiki" : "wiki wiki-stub") + '">' + label + "</a>";
+    return wikiLink(key, null);
   });
 
   // 굵게 먼저(3따옴표), 그 다음 기울임(2따옴표).

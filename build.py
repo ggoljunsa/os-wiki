@@ -26,11 +26,8 @@ SIMS_DIR = os.path.join(SRC, "sims")
 IMAGES_DIR = os.path.join(ROOT, "images")
 OUT = os.path.join(ROOT, "index.html")
 
-DEFAULT_SLIDES = (
-    "/private/tmp/claude-501/"
-    "-Users-jangminjun-Library-CloudStorage-OneDrive---------Onedrive--03--Academic-Backup-----3-2-------/"
-    "96ceee28-231f-4e7d-9c18-6b6ed12a7a3e/scratchpad/slides"
-)
+# 슬라이드 PNG 원본 (git 에서는 제외). 재생성: pdftoppm -r 90 -png <강의.pdf> _slides/L<n>
+DEFAULT_SLIDES = os.path.join(ROOT, "_slides")
 
 # caption 에 ']' 가 들어갈 수 있으므로 (예: prio_to_weight[40]) 줄 단위로 lazy 매칭한다.
 IMG_RE = re.compile(r"\[\[img:([^\|\]\n]+)(?:\|[^\n]*?)?(?:\|(?:small|medium|large))?\]\]")
