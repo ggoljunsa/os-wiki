@@ -4,6 +4,8 @@ category: 8강 Concurrency, 용어
 ---
 '''Mutual exclusion'''(상호 배제)은 [[race condition]]의 '''해법'''이다. 8강 p.43 "Enforcing Mutual Exclusion"이 정의한다.
 
+[[img:L8-43.png|8강 p.43 — Enforcing Mutual Exclusion|medium]]
+
 {def}"We must '''synchronize''' the execution of the threads so that '''only one thread enters a critical section''' and performs all the operations '''atomically'''."
 * Guarantee '''mutually exclusive access''' to critical regions
 * In other words, '''support atomicity''' for critical sections{/def}

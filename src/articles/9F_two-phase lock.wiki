@@ -4,6 +4,8 @@ category: 9강 Lock, 용어
 ---
 '''Two-phase lock'''은 "'''먼저 잠깐 [[spin lock|spin]]해 보고, 그래도 안 되면 [[park와 unpark|잠든다]]'''"는 하이브리드 전략이다. 9강 p.40의 [[futex]] 기반 락이 정확히 이 구조이며, 실제 리눅스 mutex가 쓰는 방식이다.
 
+[[img:L9-40.png|9강 p.40 — Linux futex 기반 two-phase lock|medium]]
+
 == 두 단계 ==
 
 {|

@@ -4,6 +4,8 @@ category: 8강 Concurrency, 용어
 ---
 '''TCB'''(Thread Control Block)는 [[스레드]] 하나의 상태를 담아 두는 커널(혹은 스레드 라이브러리)의 자료구조다. [[프로세스]]에 [[PCB]]가 있듯, 스레드에는 TCB가 있다.
 
+[[img:L8-27.png|8강 p.27 — 스레드마다 TCB가 필요하다|medium]]
+
 {def}슬라이드 p.27 원문: "Each thread has its own program counter and set of registers. '''One or more thread control blocks (TCBs) are needed to store the state of each thread.'''"{/def}
 
 == 무엇이 들어가나 ==

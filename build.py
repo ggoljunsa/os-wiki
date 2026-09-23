@@ -32,7 +32,8 @@ DEFAULT_SLIDES = (
     "96ceee28-231f-4e7d-9c18-6b6ed12a7a3e/scratchpad/slides"
 )
 
-IMG_RE = re.compile(r"\[\[img:([^\|\]]+)(?:\|[^\]]*)?\]\]")
+# caption 에 ']' 가 들어갈 수 있으므로 (예: prio_to_weight[40]) 줄 단위로 lazy 매칭한다.
+IMG_RE = re.compile(r"\[\[img:([^\|\]\n]+)(?:\|[^\n]*?)?(?:\|(?:small|medium|large))?\]\]")
 SIM_RE = re.compile(r"\[\[sim:([^\|\]]+)\]\]")
 LINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 REQUIRED_KEYS = ("key", "title", "category")

@@ -4,6 +4,8 @@ category: 8강 Concurrency, 비교표
 ---
 8강 p.24 "Processes vs Threads"는 '''표 하나로 외워야 하는 슬라이드'''다. 슬라이드가 쓰는 표현("heavy-weight", "light-weight", "non-trivial")까지 그대로 기억하는 게 좋다.
 
+[[img:L8-28.png|8강 p.28 — single-threaded vs two-threaded 주소 공간|medium]]
+
 == 슬라이드 원문 표 ==
 
 {def}'''(Heavy-weight) processes have separate address space'''

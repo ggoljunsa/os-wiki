@@ -4,6 +4,8 @@ category: 8강 Concurrency, 용어
 ---
 '''Atomicity'''(원자성)는 "'''전부 실행되거나, 전혀 실행되지 않은 것처럼(all or nothing)''' 보이는 성질"이다. 중간 상태가 외부에 관찰되지 않는다.
 
+[[img:L8-43.png|8강 p.43 — critical section을 atomic하게|medium]]
+
 {def}슬라이드 p.19 [[test-and-set]] 설명의 표현이 가장 명확하다: "This sequence of operations is performed '''atomically''' — '''All or nothing and no context switch'''."{/def}
 
 == 무엇이 원자적인가 ==

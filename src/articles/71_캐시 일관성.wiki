@@ -68,14 +68,14 @@ category: 7강 Multi-CPU Scheduling, 용어
 * '''캐시 일관성'''이 보장하는 것: "내가 읽는 값이 '''최신 값인가'''" — 하드웨어(bus snooping)가 해결.
 * '''캐시 일관성이 보장하지 못하는 것''': "두 CPU의 '''명령어 순서가 섞이는 것'''" — [[락]]으로 [[critical section]]을 감싸야 해결.
 
-슬라이드 다음 장의 `List_Pop()` 예제가 정확히 이 차이를 보여 준다. 두 CPU가 같은 `head` 값을 읽는 것 자체는 '''일관성 위반이 아니다'''(둘 다 최신 값을 읽었다). 그런데 둘 다 그 값을 `free()` 하면 '''double free'''가 난다. 이건 [[race condition]]이고, [[mutual exclusion]]으로만 막을 수 있다.{/warn}
+슬라이드 다음 장의 `List_Pop()` 예제가 정확히 이 차이를 보여 준다. 두 CPU가 같은 `head` 값을 읽는 것 자체는 '''일관성 위반이 아니다'''(둘 다 최신 값을 읽었다). 그런데 둘 다 그 값을 `free()` 하면 double free가 난다. 이건 [[race condition]]이고, [[mutual exclusion]]으로만 막을 수 있다.{/warn}
 
 <pre class="c">
 int List_Pop() {
-    Node_t *tmp = head;        // 두 CPU가 '''같은 최신 head'''를 읽음 — 일관성은 OK
+    Node_t *tmp = head;        // 두 CPU가 같은 최신 head를 읽음 — 일관성은 OK
     int value = head->value;
     head = head->next;
-    free(tmp);                 // 둘 다 실행 → '''double free''' ❌
+    free(tmp);                 // 둘 다 실행 → double free ❌
     return value;
 }
 </pre>

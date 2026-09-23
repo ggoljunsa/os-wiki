@@ -261,6 +261,17 @@
   }
   .exam::before { content: "🎯 출제 포인트  "; font-weight: 700; color: #b32741; }
 
+  /* 박스 안에 표·목록 같은 블록이 오면 본문이 renderWikiText 로 재귀 렌더된다.
+     첫 문단만 inline 으로 두어 "📝 참고" 라벨과 같은 줄에 붙게 한다. */
+  .info > p:first-child, .warn > p:first-child, .tip > p:first-child,
+  .joke > p:first-child, .analogy > p:first-child, .def > p:first-child,
+  .quiz > p:first-child, .exam > p:first-child { display: inline; }
+  .info > :last-child, .warn > :last-child, .tip > :last-child,
+  .joke > :last-child, .analogy > :last-child, .def > :last-child,
+  .quiz > :last-child, .exam > :last-child { margin-bottom: 0; }
+  .info > table, .warn > table, .tip > table, .joke > table,
+  .analogy > table, .def > table, .quiz > table, .exam > table { background: #fff; }
+
   details.answer {
     background: #f4f4f4;
     border: 1px solid var(--border);

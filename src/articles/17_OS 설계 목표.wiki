@@ -4,6 +4,8 @@ category: 2강 What is OS, 용어
 ---
 '''OS 설계 목표'''(Design Goals)는 2강 마지막 두 장(p.37~38)에 나오는 목록으로, "OS를 만들 때 무엇을 잘해야 하는가"를 정리한 것이다. 항목 수가 적고 문장이 짧아 '''정의→용어''' 또는 '''O/X''' 형태로 출제하기 딱 좋은 장이다.
 
+[[img:L2-37.png|2강 p.37 — OS 설계 목표|medium]]
+
 {def}
 '''Design Goals''' (2강 p.37~38)<br>
 · '''Build up abstraction''' — Make the system convenient and easy to use<br>

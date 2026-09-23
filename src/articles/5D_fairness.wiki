@@ -4,6 +4,8 @@ category: 5강 Process Scheduling, 용어
 ---
 '''fairness'''(공정성)는 여러 job이 CPU를 '''얼마나 고르게 나눠 받았는가'''를 재는 [[스케줄링 지표]]다. 5강에서는 "성능과 자주 충돌한다"는 한 줄로만 등장하지만, 6강 [[비례 지분 스케줄링]]에서 '''수치로 정의'''되고 2025F 중간고사에서는 '''계산 문제'''로 나왔다.
 
+[[img:L6-03.png|6강 p.3 — 또 하나의 지표, Fairness|medium]]
+
 {def}
 5강 p.9 / 6강 p.3: "Another metric: '''Fairness'''. Performance and fairness are '''often at odds''' in scheduling."
 6강 p.19 (정량 정의): '''F''' = the time the '''first''' job completes divided by the time that the '''second''' job completes.

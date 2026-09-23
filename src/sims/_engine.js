@@ -100,7 +100,11 @@
     // 헤더
     var head = el("div", "sim-head");
     head.appendChild(el("div", "sim-title", spec.title || this.name));
-    if (spec.desc) head.appendChild(el("div", "sim-subtitle", spec.desc));
+    if (spec.desc) {
+      var sub = el("div", "sim-subtitle");
+      sub.innerHTML = fmtDesc(spec.desc);   // [[링크]] 등 인라인 위키 문법 허용
+      head.appendChild(sub);
+    }
     root.appendChild(head);
 
     var body = el("div", "sim-body");

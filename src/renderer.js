@@ -138,7 +138,7 @@ function renderWikiText(text) {
     }
     if (inPre) {
       if (line.indexOf("</pre>") === 0) {
-        html += '<pre class="' + preClass + '">' + escapeCode(preContent.replace(/\n$/, "")) + "</pre>";
+        html += '<pre class="' + preClass + '">' + formatPre(preContent.replace(/\n$/, ""), preClass) + "</pre>";
         inPre = false;
       } else {
         preContent += line + "\n";
@@ -146,36 +146,28 @@ function renderWikiText(text) {
       continue;
     }
 
-    // ---- 한 줄짜리 박스 ----
-    var boxOne = line.match(/^\{(info|warn|tip|joke|analogy|def|quiz|exam)\}(.*)\{\/\1\}\s*$/);
-    if (boxOne) {
-      closeList(); flushTable();
-      html += '<div class="' + boxOne[1] + '">' + inlineFormat(boxOne[2]) + "</div>";
-      continue;
-    }
-    var ansOne = line.match(/^\{answer\}(.*)\{\/answer\}\s*$/);
-    if (ansOne) {
-      closeList(); flushTable();
-      html += '<details class="answer"><summary>정답 보기</summary>' + inlineFormat(ansOne[1]) + "</details>";
-      continue;
-    }
-
-    // ---- 여러 줄 박스 ----
-    var boxStart = line.match(/^\{(info|warn|tip|joke|analogy|def|quiz|exam|answer)\}(.*)$/);
-    if (boxStart && line.indexOf("{/") === -1) {
+    // ---- 박스 (한 줄 / 여러 줄 공통) ----
+    var boxStart = line.match(/^\{(info|warn|tip|joke|analogy|def|quiz|exam|answer)\}([\s\S]*)$/);
+    if (boxStart) {
       closeList(); flushTable();
       var cls = boxStart[1];
-      var content = boxStart[2];
       var closeRe = new RegExp("\\{/" + cls + "\\}\\s*$");
-      while (++i < lines.length) {
-        var next = lines[i];
-        if (closeRe.test(next)) {
-          content += "\n" + next.replace(closeRe, "");
-          break;
+      var content;
+      if (closeRe.test(line)) {
+        // 같은 줄에서 열고 닫는 경우
+        content = boxStart[2].replace(closeRe, "");
+      } else {
+        content = boxStart[2];
+        while (++i < lines.length) {
+          var next = lines[i];
+          if (closeRe.test(next)) {           // 닫는 태그는 본문 줄 끝에 붙어도 된다
+            content += "\n" + next.replace(closeRe, "");
+            break;
+          }
+          content += "\n" + next;
         }
-        content += "\n" + next;
       }
-      var inner = inlineFormat(content).replace(/\n/g, "<br>");
+      var inner = renderBoxBody(content);
       if (cls === "answer") {
         html += '<details class="answer"><summary>정답 보기</summary>' + inner + "</details>";
       } else {
@@ -256,12 +248,59 @@ function renderWikiText(text) {
     html += "<p>" + inlineFormat(line) + "</p>";
   }
   closeList(); flushTable();
-  if (inPre) html += '<pre class="' + preClass + '">' + escapeCode(preContent) + "</pre>";
+  if (inPre) html += '<pre class="' + preClass + '">' + formatPre(preContent, preClass) + "</pre>";
   return html;
 }
 
+// 제목에 위키 문법이 섞여 있어도 id 에는 남기지 않는다 ('''굵게''', [[링크]], `code`)
 function headingId(text) {
-  return "h_" + String(text).replace(/\s/g, "_");
+  var t = String(text)
+    .replace(/\[\[(?:img|sim):[^\]]*\]\]/g, "")
+    .replace(/\[\[(?:[^\]\|]*\|)?([^\]]+)\]\]/g, "$1")
+    .replace(/'''/g, "")
+    .replace(/''/g, "")
+    .replace(/`/g, "");
+  return "h_" + t.trim().replace(/\s/g, "_");
+}
+
+// 박스 본문: 블록 문법(표/목록/코드/중첩 박스/헤딩/수평선)이 있으면 renderWikiText 로 재귀,
+// 없으면 기존처럼 인라인 + <br> (한 줄짜리 박스의 모양을 그대로 유지하기 위함).
+var BLOCK_IN_BOX = /^(?:\{\||\*+\s|#+\s|<pre\b|=+\s|----+\s*$|\{(?:info|warn|tip|joke|analogy|def|quiz|exam|answer)\})/;
+
+function renderBoxBody(content) {
+  var lines = String(content == null ? "" : content).split("\n");
+  var block = false;
+  for (var i = 0; i < lines.length; i++) {
+    if (BLOCK_IN_BOX.test(lines[i])) { block = true; break; }
+  }
+  if (block) return renderWikiText(content);
+  return inlineFormat(content).replace(/\n/g, "<br>");
+}
+
+// <pre> 본문: 항상 HTML 이스케이프한 뒤, txt/ascii 클래스에 한해
+// '''굵게''' 와 [[링크]] / [[키|표시]] 만 추가로 처리한다 (c/asm/sh/무클래스는 완전 raw).
+function formatPre(src, cls) {
+  var out = String(src == null ? "" : src)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var classes = String(cls || "").split(/\s+/);
+  if (classes.indexOf("txt") === -1 && classes.indexOf("ascii") === -1) return out;
+
+  out = out.replace(/\[\[([^\|\]\n]+)\|([^\]\n]+)\]\]/g, function (m, key, label) {
+    return wikiLink(key, label);
+  });
+  out = out.replace(/\[\[([^\]\n]+)\]\]/g, function (m, key) {
+    return wikiLink(key, null);
+  });
+  out = out.replace(/'''([\s\S]+?)'''/g, "<strong>$1</strong>");
+  return out;
+}
+
+function wikiLink(key, label) {
+  key = key.trim();
+  var exists = typeof ARTICLES !== "undefined" && !!ARTICLES[key];
+  if (label === null || label === undefined) label = exists ? ARTICLES[key].title : key;
+  return '<a href="#' + encodeURIComponent(key) + '" class="' +
+    (exists ? "wiki" : "wiki wiki-stub") + '">' + label + "</a>";
 }
 
 // ------------------------------------------------------------
@@ -275,8 +314,8 @@ function inlineFormat(text) {
     return '<div class="sim" data-sim="' + name.trim() + '"></div>';
   });
 
-  // [[img:file|caption|size]]
-  text = text.replace(/\[\[img:([^\|\]]+)(?:\|([^\|\]]*))?(?:\|(small|medium|large))?\]\]/g,
+  // [[img:file|caption|size]] — caption 안에 ']' 가 들어갈 수 있다 (예: prio_to_weight[40])
+  text = text.replace(/\[\[img:([^\|\]\n]+)(?:\|([^\n]*?))?(?:\|(small|medium|large))?\]\]/g,
     function (m, fname, caption, size) {
       var cls = size || "medium";
       var cap = caption ? "<figcaption>" + caption + "</figcaption>" : "";
@@ -298,8 +337,10 @@ function inlineFormat(text) {
       (exists ? "wiki" : "wiki wiki-stub") + '">' + label + "</a>";
   });
 
-  text = text.replace(/'''([^']+)'''/g, "<strong>$1</strong>");
-  text = text.replace(/''([^']+)''/g, "<em>$1</em>");
+  // 굵게 먼저(3따옴표), 그 다음 기울임(2따옴표).
+  // 본문에 아포스트로피가 섞여도(We'll, Don't, Little's) 끊기지 않도록 lazy 매칭.
+  text = text.replace(/'''([\s\S]+?)'''/g, "<strong>$1</strong>");
+  text = text.replace(/''([^\n'](?:[\s\S]*?[^\n'])?)''/g, "<em>$1</em>");
   text = text.replace(/`([^`]+)`/g, function (m, code) {
     return "<code>" + code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code>";
   });
