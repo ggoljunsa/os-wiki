@@ -103,7 +103,7 @@ function renderWikiText(text) {
 
   function flushTable() {
     if (tableRows.length === 0) { inTable = false; return; }
-    var t = "<table>";
+    var t = "<div class=\"tablewrap\"><table>";
     tableRows.forEach(function (row) {
       t += "<tr>";
       row.cells.forEach(function (c) {
@@ -112,7 +112,7 @@ function renderWikiText(text) {
       });
       t += "</tr>";
     });
-    t += "</table>";
+    t += "</table></div>";
     html += t;
     tableRows = [];
     inTable = false;
@@ -409,3 +409,11 @@ renderArticle(currentArticle());
 window.addEventListener("load", function () {
   renderMath(document.getElementById("articleArea"));
 });
+
+// 모바일 문서 목록 토글 (☰). 문서로 이동하면 자동으로 닫는다.
+(function(){
+  const btn=document.getElementById("navToggle");
+  if(!btn) return;
+  btn.addEventListener("click",()=>document.body.classList.toggle("nav-open"));
+  window.addEventListener("hashchange",()=>document.body.classList.remove("nav-open"));
+})();

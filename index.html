@@ -77,6 +77,10 @@
     color: #222;
     font-size: 14px;
   }
+  .nav-toggle {
+    display: none; background: #1c2840; color: #fff; border: 1px solid #3a4a6a;
+    border-radius: 3px; padding: 5px 9px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
   header.top .tagline {
     margin-left: auto;
     color: #c8d4e6;
@@ -97,10 +101,10 @@
   }
   @media (max-width: 720px) {
     .layout { grid-template-columns: 1fr; gap: 12px; padding: 0 12px; }
-    .nav-side {
-      position: static;
-      max-height: 240px;
-    }
+    /* 폰에서는 문서 목록을 기본 접고 ☰ 버튼으로 연다 (aside.nav-side 규칙보다 우선하도록 선택자 명시) */
+    aside.nav-side { display: none; position: static; max-height: 60vh; }
+    body.nav-open aside.nav-side { display: block; }
+    .nav-toggle { display: inline-block; }
     header.top { padding: 8px 12px; gap: 8px; }
     header.top .tagline { display: none; }
     main.article { padding: 16px 14px 40px; }
@@ -347,11 +351,18 @@
     border-radius: 4px;
     max-width: 100%;
   }
-  figure.pdf-img img { max-width: 100%; height: auto; border: 1px solid #ddd; background: white; }
+  figure.pdf-img img { width: auto; max-width: 100%; height: auto; border: 1px solid #ddd; background: white; }
   figure.pdf-img figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; font-style: italic; }
-  figure.pdf-img.small img { max-width: 400px; }
-  figure.pdf-img.medium img { max-width: 600px; }
-  figure.pdf-img.large img { max-width: 850px; }
+  /* 크기 옵션은 상한만 정한다 — 본문 칸보다 넓어지지 않도록 100% 와 min() */
+  figure.pdf-img.small img  { max-width: min(400px, 100%); }
+  figure.pdf-img.medium img { max-width: min(600px, 100%); }
+  figure.pdf-img.large img  { max-width: min(850px, 100%); }
+  /* grid 자식이 내용물 폭에 끌려 늘어나지 않게 */
+  main.article { min-width: 0; overflow-x: hidden; }
+  main.article .sim { max-width: 100%; }
+  /* 표는 칸보다 넓어지면 가로 스크롤 (폰) */
+  .tablewrap { overflow-x: auto; max-width: 100%; margin: 10px 0; }
+  .tablewrap table { margin: 0; }
 
   .stub-banner {
     background: #fff3cd;
@@ -488,6 +499,7 @@
 
   .sim .sim-code {
     position: relative;
+    min-width: 0; max-width: 100%;
     font-family: "SF Mono", Menlo, Consolas, monospace;
     font-size: 12px;
     line-height: 1.55;
@@ -564,7 +576,7 @@
 
   @media (max-width: 720px) {
     .sim .sim-panels { flex-direction: column; }
-    .sim .sim-panel { flex: 1 1 auto; }
+    .sim .sim-panel { flex: 1 1 auto; width: 100%; max-width: 100%; }
     .sim .sim-code { max-height: 220px; }
   }
 </style>
@@ -572,6 +584,7 @@
 <body>
 
 <header class="top">
+  <button class="nav-toggle" id="navToggle" type="button" aria-label="문서 목록 열기">☰ 목록</button>
   <a class="logo" href="#main">운체<span>위키</span></a>
   <div class="search">
     <input id="searchBox" type="text" placeholder="문서 검색... (예: trapframe, MLFQ, ticket lock)">
@@ -6707,7 +6720,7 @@ function renderWikiText(text) {
 
   function flushTable() {
     if (tableRows.length === 0) { inTable = false; return; }
-    var t = "<table>";
+    var t = "<div class=\"tablewrap\"><table>";
     tableRows.forEach(function (row) {
       t += "<tr>";
       row.cells.forEach(function (c) {
@@ -6716,7 +6729,7 @@ function renderWikiText(text) {
       });
       t += "</tr>";
     });
-    t += "</table>";
+    t += "</table></div>";
     html += t;
     tableRows = [];
     inTable = false;
@@ -7013,6 +7026,14 @@ renderArticle(currentArticle());
 window.addEventListener("load", function () {
   renderMath(document.getElementById("articleArea"));
 });
+
+// 모바일 문서 목록 토글 (☰). 문서로 이동하면 자동으로 닫는다.
+(function(){
+  const btn=document.getElementById("navToggle");
+  if(!btn) return;
+  btn.addEventListener("click",()=>document.body.classList.toggle("nav-open"));
+  window.addEventListener("hashchange",()=>document.body.classList.remove("nav-open"));
+})();
 
 </script>
 </body>
