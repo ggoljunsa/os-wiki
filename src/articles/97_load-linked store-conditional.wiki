@@ -43,6 +43,8 @@ void unlock(lock_t *lock) {
 
 == CAS와의 차이 ==
 
+[[img:L9-22.png|9강 p.22. 비교 대상인 Compare-And-Swap — 한 명령 안에서 "값이 expected와 같으면 new로 교체". LL/SC는 이 판단을 값이 아니라 "그사이 누가 썼는가"로 한다.|medium]]
+
 {|
 ! || '''[[compare-and-swap|CAS]]''' || '''LL/SC'''
 |-

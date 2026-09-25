@@ -12,6 +12,10 @@ category: 8강 Concurrency, 용어
 ** The register state of T2 '''restored'''
 ** '''The address space remains the same'''{/def}
 
+[[anim:thread_ctx_switch|왼쪽(프로세스)과 오른쪽(스레드)이 ①②는 똑같고 ③ 주소 공간 교체에서만 갈라지는 것을 보고, 아래 비교표를 채워 보자.]]
+
+[[img:L8-28.png|8강 p.28. 단일 스레드 vs. 두 스레드 주소 공간 — Code·Heap은 하나를 공유하고 Stack만 스레드마다 하나씩(Stack (1), Stack (2)) 생긴다. 스위치 때 주소 공간을 안 바꿔도 되는 이유.|large]]
+
 == 프로세스 전환과의 비교 ==
 
 {|
@@ -28,6 +32,8 @@ category: 8강 Concurrency, 용어
 | 비용 || '''비쌈''' || '''단순(simple)'''
 |}
 
+[[img:L4-31.png|4강 p.31. 비교용 — 프로세스 A→C 전환. 커널 레지스터를 proc-struct(A)에 저장하고 proc-struct(C)에서 복원하면서 스택·주소 공간까지 C의 것으로 넘어간다.|large]]
+
 {warn}'''저장하는 레지스터의 개수 자체는 비슷하다.''' 스레드 전환이 싼 이유는 저장량이 적어서가 아니라, 주소 공간을 안 바꿔서 '''그 뒤에 따라오는 간접 비용'''(TLB miss 폭증, 캐시 오염)이 없기 때문이다. 이 구분을 묻는 서술형이 나올 수 있다.{/warn}
 
 == 왜 저장해야 하나 — counter 예제와 연결 ==
@@ -36,6 +42,8 @@ category: 8강 Concurrency, 용어
 * T1의 '''eax=51, PC=108'''이 T1의 [[TCB]]에 저장된다
 * T2가 복원되어 자기 eax(0)로 시작한다
 * 나중에 T1이 복원되면 '''eax=51이 그대로 돌아온다'''
+
+[[img:L8-40.png|8강 p.40. counter 예제 표 — interrupt 때마다 "save T1 / restore T2", "save T2 / restore T1"이 찍혀 있다. T1이 돌아왔을 때 eax = 51이 그대로라서 counter가 51로 덮인다.|large]]
 
 이 "레지스터는 스레드별, 메모리는 공유"라는 비대칭이 [[race condition]]의 본질이다. 즉 '''컨텍스트 스위치 메커니즘 자체는 정확하게 동작하는데, 그 정확함이 문제를 만든다'''.
 

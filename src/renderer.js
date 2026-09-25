@@ -54,6 +54,7 @@ function renderArticle(key) {
   area.innerHTML = html;
 
   mountSims(area);
+  mountAnims(area);
   renderMath(area);
 
   renderNav(key);
@@ -71,6 +72,20 @@ function mountSims(scope) {
     } else {
       node.className = "sim-missing";
       node.textContent = "시뮬레이터 없음: " + name;
+    }
+  }
+}
+
+function mountAnims(scope) {
+  var nodes = scope.querySelectorAll(".anim[data-anim]");
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var name = node.getAttribute("data-anim");
+    if (typeof AnimEngine !== "undefined" && AnimEngine && typeof AnimEngine.mount === "function") {
+      AnimEngine.mount(node, name, node.getAttribute("data-caption") || "");
+    } else {
+      node.className = "anim-missing";
+      node.textContent = "움직이는 그림 없음: " + name;
     }
   }
 }
@@ -240,7 +255,7 @@ function renderWikiText(text) {
 
     // ---- 블록 레벨 단독 태그 ----
     var trimmed = line.trim();
-    if (/^\[\[(img|sim):.*\]\]$/.test(trimmed)) {
+    if (/^\[\[(img|sim|anim):.*\]\]$/.test(trimmed)) {
       html += inlineFormat(trimmed);
       continue;
     }
@@ -255,7 +270,7 @@ function renderWikiText(text) {
 // 제목에 위키 문법이 섞여 있어도 id 에는 남기지 않는다 ('''굵게''', [[링크]], `code`)
 function headingId(text) {
   var t = String(text)
-    .replace(/\[\[(?:img|sim):[^\]]*\]\]/g, "")
+    .replace(/\[\[(?:img|sim|anim):[^\]]*\]\]/g, "")
     .replace(/\[\[(?:[^\]\|]*\|)?([^\]]+)\]\]/g, "$1")
     .replace(/'''/g, "")
     .replace(/''/g, "")
@@ -312,6 +327,12 @@ function inlineFormat(text) {
   // [[sim:name]] — 시뮬레이터 자리
   text = text.replace(/\[\[sim:([^\]\|]+)\]\]/g, function (m, name) {
     return '<div class="sim" data-sim="' + name.trim() + '"></div>';
+  });
+
+  // [[anim:name|caption]] — 움직이는 그림 자리 (caption 은 인라인 위키 문법 허용)
+  text = text.replace(/\[\[anim:([^\]\|\n]+)(?:\|([^\n]*?))?\]\]/g, function (m, name, caption) {
+    var cap = (caption || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    return '<div class="anim" data-anim="' + name.trim() + '" data-caption="' + cap + '"></div>';
   });
 
   // [[img:file|caption|size]] — caption 안에 ']' 가 들어갈 수 있다 (예: prio_to_weight[40])
@@ -402,8 +423,36 @@ function currentArticle() {
   return ARTICLES[hash] ? hash : "main";
 }
 
+// 디버그/검증용: index.html?anim=이름&animt=초  → 그 애니메이션 하나만 그 시각에 멈춘 상태로 렌더
+//              index.html?animt=초#문서    → 문서 안의 모든 애니메이션을 t초에 멈춤 (스크린샷용)
+var QUERY = (function () {
+  var q = {};
+  try {
+    String(location.search || "").replace(/^\?/, "").split("&").forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf("=");
+      q[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] = decodeURIComponent(i < 0 ? "" : kv.slice(i + 1));
+    });
+  } catch (e) { /* ignore */ }
+  return q;
+})();
+if (typeof window !== "undefined") window.ANIM_FREEZE_AT = (QUERY.animt !== undefined) ? parseFloat(QUERY.animt) : null;
+
+function renderSingleAnim(name) {
+  var area = document.getElementById("articleArea");
+  area.innerHTML = "";
+  if (!/^[a-z0-9_]+$/.test(name)) { area.textContent = "잘못된 anim 이름"; return; }
+  var node = document.createElement("div");
+  node.className = "anim";
+  node.setAttribute("data-anim", name);
+  area.appendChild(node);
+  mountAnims(area);
+  renderNav("main");
+  renderTOC();
+}
+
 window.addEventListener("hashchange", function () { renderArticle(currentArticle()); });
-renderArticle(currentArticle());
+if (QUERY.anim) renderSingleAnim(QUERY.anim); else renderArticle(currentArticle());
 
 // KaTeX 는 defer 로 로드되므로, 첫 렌더 시점엔 아직 없을 수 있다 → load 후 한 번 더.
 window.addEventListener("load", function () {

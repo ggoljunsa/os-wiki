@@ -48,6 +48,8 @@ RISC-V calling convention — `a0`~`a7` = argument registers, and '''`a0`(and `a
 '''`a0`는 [[sigreturn]]에서 유일하게 "복원했는데도 덮어써지는" 레지스터'''다. `ra`, `sp`, `t0`~`t6`, `s0`~`s11`, `a1`~`a7`은 [[alarm_saved]] 복원 뒤 아무도 건드리지 않지만, `a0`만은 `syscall()`이 반환값으로 덮는다. → [[a0 복원]]
 {/warn}
 
+[[img:A1-5.png|과제1 PDF p.5. "Make sure to restore a0. sigreturn is a system call, and its return value is stored in a0."|medium]]
+
 {exam}
 '''실제 퀴즈 1의 4번(20점)이 이 레지스터 하나에 관한 문제였다.''' 저장된 `a0 = 0x2a`일 때, ① 복원 직후는 `0x2a`, ② 유저 재개 시점은 `0` (`return 0;`이므로). 해결은 `return p->trapframe->a0;`. 모의 A19에서도 "a0는 복원 대상이 아니다"를 참으로 골라 틀렸다.
 {/exam}
@@ -63,6 +65,8 @@ RISC-V calling convention — `a0`~`a7` = argument registers, and '''`a0`(and `a
 |-
 | 반환값 || `%eax` || '''`a0`'''
 |}
+
+[[img:L4-18.png|4강 p.18. x86 대응 — %eax에 syscall number, %ebx·%ecx·%edx…에 인자, int $0x80. RISC-V에서는 번호 a7, 인자 a0–a5, 반환 a0.|medium]]
 
 {tip}
 x86에서는 '''번호와 반환값이 둘 다 `%eax`'''라 겹침이 더 심하다. RISC-V는 번호를 `a7`로 분리해 그나마 낫지만, '''인자와 반환값의 겹침'''은 여전히 남아 있다.

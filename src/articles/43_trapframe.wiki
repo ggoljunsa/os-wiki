@@ -8,6 +8,8 @@ category: 4강 LDE, 과제1, 용어
 trapframe은 '''책갈피'''다. 읽던 책을 덮기 전에 ① 몇 페이지였는지([[epc]]) ② 손에 뭘 들고 있었는지(레지스터 31개)를 적어 끼워 둔다. [[과제1 xv6 alarm|과제 1]]의 [[alarm_saved]]는 '''그 책갈피를 통째로 복사한 사본'''이고, 알람은 '''원본 책갈피의 페이지 번호만 몰래 바꿔 쓰는 장난'''이다.
 {/analogy}
 
+[[img:L4-20.png|4강 p.20 — 커널에 들어갈 때 user state(PC, SP, flags)를 저장하는 자리. xv6에서는 이 자리가 커널 스택이 아니라 p->trapframe 페이지다|large]]
+
 == 구조체 필드 ==
 
 <pre class="c">
@@ -45,6 +47,8 @@ struct trapframe {
 {warn}
 '''`x0`는 없다.''' RISC-V의 `x0`는 항상 0이라 저장할 필요가 없다. 그래서 범용 레지스터는 32개가 아니라 '''31개'''. 그리고 '''PC는 범용 레지스터가 아니다''' — 그래서 `epc`라는 '''별도 칸'''을 만들어 따로 적는다.
 {/warn}
+
+[[img:L4-23.png|4강 p.23 — LDE Protocol. HW: save regs to kernel stack → handle trap → return-from-trap: restore regs → move to user mode → jump to PC after trap|medium]]
 
 == 왜 커널 정보까지 들어 있나 ==
 

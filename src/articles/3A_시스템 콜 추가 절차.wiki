@@ -9,6 +9,8 @@ category: 3강 From Program to Process, 과제1, 용어
 TA가 가리킨 것은 [[프로세스 API]] 장(= "OS는 시스템 콜이라는 인터페이스로 서비스를 노출한다")으로 보이며, 실제 절차는 [[xv6]] 소스에서 기존 시스템 콜(`sys_getpid` 등)을 흉내 내며 익혀야 한다. 이 문서가 그 빈칸을 메운다.
 {/warn}
 
+[[img:A1-5.png|Assignment 1 PDF p.5 — Tips 1 "fix this regarding the 3-From_Program_to_Process (30p-34p)"와 Tips 3 수정할 소스 목록(proc.h/proc.c, usys.pl/user.h/syscall.h/syscall.c, sysproc.c)|medium]]
+
 {analogy}
 🏢 '''관공서에 새 민원 창구를 여는 일'''이다. ① 민원 안내책자에 항목을 추가하고(`user.h`) ② 접수 번호표 기계에 버튼을 만들고(`usys.pl`) ③ 내부 문서번호를 부여하고(`syscall.h`) ④ 문서번호 → 담당 부서 배정표에 한 줄 넣고(`syscall.c`) ⑤ 담당 부서에 실제로 일할 직원을 앉히고(`sysproc.c`) ⑥ 그 업무에 필요한 서류철을 민원인 파일에 끼운다(`proc.h`/`proc.c`). 여섯 군데 중 하나라도 빠지면 "그런 창구 없습니다"(링크 에러)나 "담당자가 없습니다"(unknown sys call)가 뜬다.
 {/analogy}
@@ -45,6 +47,8 @@ TA가 가리킨 것은 [[프로세스 API]] 장(= "OS는 시스템 콜이라는 
   │                    p->alarm_interval = ...   ⑥ kernel/proc.h│
   └─────────────────────────────────────────────────────────────┘
 </pre>
+
+[[img:L1-30.png|1강 p.30 — Application → write() wrapper(User space) → write() system call(OS). usys.pl이 만드는 스텁이 바로 이 wrapper다|medium]]
 
 == 파일별 체크리스트 ==
 

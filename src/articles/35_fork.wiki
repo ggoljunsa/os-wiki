@@ -13,6 +13,8 @@ category: 3강 From Program to Process, 용어
 🧬 '''세포 분열'''이다. `fork()` 직전의 프로세스가 반으로 갈라져 '''똑같은 두 개'''가 된다. 코드도 같고, 변수 값도 같고, 열어 둔 파일도 같고, 심지어 "지금 `fork()` 줄을 막 끝냈다"는 실행 위치까지 같다. 딱 하나 다른 게 있다 — '''`fork()`가 돌려주는 값'''. 부모는 자식의 [[프로세스|PID]]를 받고, 자식은 0을 받는다. 이 숫자 하나로 둘은 자기가 누구인지 안다.
 {/analogy}
 
+[[anim:fork_exec_wait|자식 상자가 생길 때 PID 가 새로 붙는 것, exec 뒤에는 PID 는 그대로인데 주소 공간 세 칸이 wc 의 것으로 바뀌는 것, 부모 배지가 blocked 로 있다가 rc_wait 를 받는 순간을 보세요. 그다음 p3.c 출력 순서를 직접 예측해 보세요.]]
+
 == 예제 (OSTEP p1.c) ==
 
 <pre class="c">
@@ -97,6 +99,8 @@ prompt>
 |-
 | `parent` 포인터 || 부모를 가리킴 || [[struct proc]]의 `parent`
 |}
+
+[[img:L3-37.png|3강 p.37 — struct proc. fork()는 새 슬롯을 잡아 pid를 새로 발급하고, parent를 호출자로, ofile[] 등은 부모 것을 복사한다|medium]]
 
 == fork만으로 프로세스 트리가 생긴다 ==
 

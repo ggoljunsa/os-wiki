@@ -14,6 +14,8 @@ $$vruntime_i = vruntime_i + \frac{weight_0}{weight_i} \cdot runtime_i$$
 
 {analogy}'''각자 손목에 찬 시계'''다. CPU를 쓰는 동안만 돌아가고, 스케줄러는 '''시계가 제일 적게 간 사람'''을 부른다. 그런데 우선순위가 높은 사람의 시계는 '''느리게 가도록 조작'''되어 있다 — nice −5인 사람이 10초를 써도 시계에는 3.2초만 찍힌다. 그래서 계속 "제일 덜 쓴 사람"으로 뽑힌다. 자고 있으면 시계가 멈추니, 깨어나면 당연히 1순위다.{/analogy}
 
+[[anim:cfs_vruntime|같은 Δvruntime(≈11)을 쌓는 데 A는 33.4ms, B는 11ms가 걸리는 것을 본 다음, vruntime 공식에 nice −5 / 0 / +5를 넣어 직접 확인해 보라]]
+
 [[img:L6-36.png|vruntime 공식과 nice −5 예제. weight 3121 → 0.328배로만 누적|medium]]
 
 == 계산 예 ==

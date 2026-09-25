@@ -42,6 +42,8 @@ if (p->alarm_elapsed >= p->alarm_interval) {
 '''핸들러 주소가 0인 것은 정상이다.''' 그래서 "알람이 켜졌나"는 [[alarm_interval]] `> 0`으로 판단해야 한다. `alarm_handler != 0`으로 판단하면 `alarmtest`가 즉시 실패한다.
 {/warn}
 
+[[img:A1-4.png|과제1 PDF p.4. "Note that the address of the user's alarm function might be 0 (e.g., in user/alarmtest.asm, periodic is at address 0)" — 그리고 "what determines the instruction address at which user-space code resumes?"(답: epc).|medium]]
+
 {tip}
 타입을 `uint64`로 두는 이유: [[epc]]가 `uint64`라 대입이 자연스럽고, 유저 함수 포인터를 커널에서 '''호출할 일이 없으므로''' 함수 포인터 타입일 필요가 없다. 커널은 이 주소를 '''실행하지 않는다''' — 유저 모드에서 실행되도록 [[sret]]에게 넘길 뿐이다.
 {/tip}

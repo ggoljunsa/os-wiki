@@ -12,6 +12,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 * (* '''CPU threads differ from SW threads''')
 {/def}
 
+[[img:L7-16.png|7강 p.16. 연도별 power density 그래프 — 클럭을 올리는 길은 hot plate → nuclear reactor 수준의 발열에 막혔고, 그래서 한 칩에 코어를 여러 개 넣는 쪽으로 방향이 바뀌었다.|medium]]
+
 {analogy}'''주방 확장'''이다. 요리사 한 명을 더 빨리 움직이게 하는 데는 한계가 있으니(클럭을 올리면 발열·전력이 폭발), '''요리사를 여러 명 두는''' 쪽으로 방향을 틀었다. 그런데 요리사가 재료 창고에서 물건이 오기를 기다리며 서 있는 시간(memory stall)이 꽤 길다. 그 틈에 '''다른 주문을 처리하게''' 만든 게 Hyper-Threading이다 — 요리사를 늘린 게 아니라 '''노는 시간을 메운 것'''이다.{/analogy}
 
 == 용어 네 개 구분 ==
@@ -39,6 +41,8 @@ category: 7강 Multi-CPU Scheduling, 용어
    OS에게는 '''CPU 0, 1, 2, 3 — 네 개의 논리 프로세서'''로 보인다
 </pre>
 
+[[img:L7-17.png|7강 p.17. Socket / Core / Threads — 소켓 2개 × 코어 2개, 각 코어 안의 hardware thread는 OS에게 "single logical processor"로 보인다. 오른쪽 아래 각주 "CPU threads differ from SW threads".|large]]
+
 {warn}'''슬라이드 각주를 놓치지 말 것''': "CPU threads differ from SW threads". 하드웨어 스레드는 '''"OS가 볼 때 CPU 한 개"'''이고, 소프트웨어 스레드(8강 [[스레드]])는 '''"프로세스 안의 실행 흐름"'''이다. 이 강의에서 "CPU"라고 하면 OS가 스케줄링 대상으로 보는 '''논리 프로세서 = 하드웨어 스레드'''를 뜻한다.{/warn}
 
 == Concurrency vs Parallelism ==
@@ -50,6 +54,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 |-
 | '''Parallelism''' (병렬성) || 시스템이 여러 task를 '''실제로 동시에(simultaneously)''' 수행 || '''2개 이상 필요'''
 |}
+
+[[img:L7-19.png|7강 p.19. Concurrency(single core에서 T1–T4를 번갈아) vs. Parallelism(core 1·2에서 동시에 실행).|medium]]
 
 {exam}단골 개념 문제다. 한 줄 암기: '''동시성은 "구조/착각", 병렬성은 "물리적 사실".''' 그리고 '''"병렬이면 동시적이지만, 동시적이라고 병렬은 아니다."''' → [[동시성]]{/exam}
 

@@ -16,6 +16,8 @@ category: 시험, 총정리
 | 타이머는 '''각 유저 프로그램이 시작할 때''' 켠다 || '''"During the boot sequence, the OS starts the timer."''' — 부팅 때 '''OS가 한 번''' 켜고, 그 뒤로는 하드웨어가 몇 ms마다 알아서 인터럽트를 낸다
 |}
 
+[[img:L4-32.png|4강 p.32 — OS @ boot (kernel mode) 칸에 "start interrupt timer". 타이머를 켜는 건 부팅 때의 OS다|medium]]
+
 유저가 타이머를 끌 수 있다면 무한 루프 프로세스가 '''CPU를 영영 독점'''한다 → OS가 통제권을 잃는다. 그래서 타이머 설정은 '''[[특권 명령]]'''이다. ([[xv6]]에서는 `start.c`의 `timerinit()`)
 
 '''한 줄''': "'''타이머는 OS가 부팅 때 켠다. 유저는 못 건드린다.'''" → [[타이머 인터럽트]] · [[특권 명령]]
@@ -47,6 +49,8 @@ category: 시험, 총정리
 |-
 | Round Robin은 '''turnaround time'''을 최적화한다 || RR이 최적화하는 것은 '''response time'''. turnaround는 '''"Terrible"'''
 |}
+
+[[img:L5-18.png|5강 p.18 — "STCF would be a great policy for early batch computing" / "not suitable for time-shared machines" → 새 지표 response time|medium]]
 
 {|
 ! 정책 || 최적화하는 것 || 나쁜 것 || 어울리는 환경
@@ -143,6 +147,8 @@ category: 시험, 총정리
 |}
 
 슬라이드 p.18의 결론 한 줄: '''"Two threads obtain locks!"''' / 그림 주석: '''"flag is still 0"'''
+
+[[img:L9-18.png|9강 p.18 — flag 락 인터리빙 ①~⑤. Thread1이 while을 통과한 직후 Context Switch(flag is still 0) → 둘 다 flag = 1 → "Two threads obtain locks!"|large]]
 
 → [[flag 락]] · [[test-and-set]]
 

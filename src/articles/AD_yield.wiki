@@ -9,6 +9,8 @@ category: 4강 LDE, 과제1, 용어
 [[xv6]]에서는 시스템 콜이 아니라 커널 내부 함수이며, `usertrap()`이 `which_dev == 2`(타이머)일 때 호출한다.
 {/def}
 
+[[img:L4-26.png|4강 p.26. A cooperative Approach — "yield() does nothing except to transfer control to the OS". 아래 박스: 무한 루프면 재부팅밖에 없다.|medium]]
+
 {analogy}
 `yield()`는 '''"저 먼저 안 가도 돼요"라고 말하며 줄에서 물러나는 것'''이다. 4강의 [[협력적 방식]]에서는 이게 '''예의'''에 기대는 시스템이었고(안 물러나면 방법이 없다), [[비협력적 방식]]에서는 '''경비원이 팔을 잡아 끌어내며''' 대신 말해 준다 — [[타이머 인터럽트]]가 그 경비원이다.
 {/analogy}
@@ -62,6 +64,8 @@ yield(void)
                                                         ▼ usertrapret → sret
                                           Process C (user)
 </pre>
+
+[[img:L4-33.png|4강 p.33. 타이머 인터럽트 후 switch() — save regs(A) to proc-struct(A), restore regs(C), switch to k-stack(C), return-from-trap. xv6에서 yield() → sched() → swtch()가 이 부분.|medium]]
 
 == 과제 1에서의 순서 ⭐ ==
 

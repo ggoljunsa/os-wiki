@@ -73,6 +73,8 @@ p->alarm_saved = *p->trapframe;      // ★ 구조체 "값" 대입 (= memmove)
 
 과제 PDF 힌트: "what registers do you need to save and restore to resume the interrupted code correctly? ('''Hint: it will be many'''.)"
 
+[[img:A1-4.png|과제1 PDF p.4. 아래쪽 Some hints — "what registers do you need to save and restore ... (Hint: it will be many)", "Have usertrap save enough state in struct proc".|medium]]
+
 {warn}
 일반 함수 호출이라면 '''caller-saved / callee-saved 규약''' 덕에 일부만 저장하면 된다. 그러나 알람은 '''[[인터럽트]]'''다 — 끊긴 코드는 "지금 함수를 호출할 참"이었을 수도, "계산 중간"이었을 수도 있다. '''어떤 규약도 적용되지 않으므로 전부 저장해야 한다.''' [[a0]] 하나만 빠져도 test1이 실패한다([[a0 복원]]).
 {/warn}

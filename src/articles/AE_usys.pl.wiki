@@ -31,6 +31,8 @@ entry("uptime");
 +entry("sigreturn");
 </pre>
 
+[[img:A1-3.png|과제1 PDF p.3. 힌트 원문 — "Update user/usys.pl (which generates user/usys.S), kernel/syscall.h, and kernel/syscall.c to allow alarmtest to invoke the sigalarm and sigreturn system calls."|medium]]
+
 이 두 줄이 빌드 시 `usys.S`의 두 스텁으로 변환된다.
 
 == 3줄이 하는 일 ==
@@ -49,6 +51,8 @@ entry("uptime");
    ★ 반환값도 a0 그대로 — syscall() 이 trapframe->a0 에 써 둔 값이
      userret 에서 복원되어 그대로 C 함수의 반환값이 된다.
 </pre>
+
+[[img:L1-30.png|1강 p.30. write() wrapper / write() system call — 점선(위 User space, 아래 OS) 바로 위의 wrapper가 usys.S의 스텁에 해당한다.|medium]]
 
 {tip}
 '''`ecall` 다음에 `ret`이 실행되는 이유''': 커널이 [[usertrap]]에서 `p->trapframe->[[epc]] += 4`를 했기 때문이다. `ecall`이 4바이트라 +4하면 정확히 `ret` 명령어를 가리킨다. 만약 +4를 안 하면 '''`ecall`을 무한 반복'''한다.

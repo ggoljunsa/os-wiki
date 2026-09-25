@@ -29,6 +29,8 @@ category: 4강 LDE, 과제1, 용어
 | `scause`에 이유 기록 || `sstatus.SPP`로 모드 결정
 |}
 
+[[img:L4-23.png|4강 p.23 — return-from-trap 행: restore regs → move to user mode → jump to PC after trap. RISC-V에서는 sret 한 명령이 뒤의 두 줄을 한다|medium]]
+
 == 왜 알람이 되는가 ⭐ ==
 
 <pre class="ascii">

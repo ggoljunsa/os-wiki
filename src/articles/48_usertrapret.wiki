@@ -67,6 +67,10 @@ usertrapret(void)
                                                               mode ← user (SPP=0)
 </pre>
 
+[[img:L4-23.png|4강 p.23 — return-from-trap: restore regs from kernel stack → move to user mode → jump to PC after trap. usertrapret() + userret + sret이 이 세 줄을 구현한다|medium]]
+
+[[img:L4-33.png|4강 p.33 — switch() 후 return-from-trap (into C). yield()로 다른 프로세스가 골라져도 나가는 문은 똑같이 usertrapret()|medium]]
+
 {quiz}
 `usertrapret()`이 `kernel_sp`, `kernel_satp` 같은 '''커널''' 정보를 [[trapframe]]에 적어 두는 이유는?
 {/quiz}

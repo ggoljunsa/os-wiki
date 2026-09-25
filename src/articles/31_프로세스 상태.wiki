@@ -19,6 +19,8 @@ category: 3강 From Program to Process, 용어
 
 [[img:L3-35.png|3강 p.35. 이 그림을 그대로 그리라는 문제가 나올 수 있다.|large]]
 
+[[anim:proc_lifecycle|토큰 A·B 가 어느 화살표를 타는지, 특히 I/O 가 끝난 B 가 Running 이 아니라 Ready 로 가는 장면을 보세요. 그다음 아래 시뮬레이터로 OSTEP 추적표(Time/Process0/Process1)를 한 칸씩 따라가 보세요.]]
+
 [[sim:proc_states]]
 
 {| class="table"

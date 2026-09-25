@@ -579,6 +579,86 @@
     .sim .sim-panel { flex: 1 1 auto; width: 100%; max-width: 100%; }
     .sim .sim-code { max-height: 220px; }
   }
+
+  /* ---------- 움직이는 그림 (AnimEngine, [[anim:]]) ---------- */
+  main.article .anim { max-width: 100%; }
+  .anim {
+    border: 1px solid #b9c4d8;
+    border-left: 5px solid #d6465f;
+    border-radius: 6px;
+    background: #fff;
+    margin: 16px 0;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .anim .anim-head {
+    background: #3b2f4a;
+    color: #fff;
+    padding: 8px 12px;
+  }
+  .anim .anim-head .anim-title { font-weight: 700; font-size: 15px; }
+  .anim .anim-head .anim-title::before { content: "🎞 "; }
+  .anim .anim-head .anim-subtitle { font-size: 12px; color: #dcd3ea; margin-top: 2px; }
+  .anim .anim-head a { color: #ffd75e; }
+  .anim .anim-stage {
+    padding: 10px 12px 4px;
+    text-align: center;
+    background: #fbfbfd;
+    overflow-x: auto;
+  }
+  .anim .anim-stage svg {
+    width: 100%;
+    max-width: 760px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+  .anim .anim-stage.anim-missing { color: #b32741; font-weight: 700; padding: 14px; }
+  .anim .anim-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid #e3e8f0;
+    flex-wrap: wrap;
+  }
+  .anim .anim-btn {
+    border: 1px solid #b9c4d8;
+    background: #fff;
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #34466b;
+    line-height: 1.4;
+  }
+  .anim .anim-btn:hover { background: #eef2f8; }
+  .anim .anim-btn.playing { background: #3b2f4a; color: #fff; border-color: #3b2f4a; }
+  .anim select.anim-speed {
+    font-size: 12px; padding: 2px 4px; border: 1px solid #b9c4d8; border-radius: 4px; background: #fff;
+  }
+  .anim .anim-range { flex: 1; min-width: 100px; accent-color: #d6465f; }
+  .anim .anim-clock {
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #34466b; white-space: nowrap; min-width: 84px; text-align: right;
+  }
+  .anim .anim-caption {
+    padding: 6px 12px 10px;
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+    border-top: 1px dashed #e3e8f0;
+  }
+  .anim-missing {
+    border: 2px dashed #d6465f;
+    background: #ffe4ea;
+    color: #b32741;
+    padding: 12px;
+    border-radius: 4px;
+    margin: 14px 0;
+    font-weight: 700;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>

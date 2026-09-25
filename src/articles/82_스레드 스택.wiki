@@ -6,6 +6,8 @@ category: 8강 Concurrency, 용어
 
 [[img:L8-28.png|단일 스레드 주소 공간(왼쪽) vs 두 스레드 주소 공간(오른쪽). Stack (2)가 free 영역 중간에 끼어든다|large]]
 
+[[anim:thread_addr_space|Stack (2) 가 free 영역 가운데에 생기는 순간과 두 PC 가 같은 코드를 도는 모습을 보고, 아래 시뮬레이터로 스택별 내용을 확인하자.]]
+
 [[sim:thread_stack]]
 
 == 왜 스레드마다 스택이 필요한가 ==

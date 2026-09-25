@@ -11,6 +11,8 @@ e.g., Process A has 75 tickets → receive '''75%''' of the CPU / Process B has 
 
 {analogy}'''회사 주식'''이다. 전체 발행 주식 중 내 지분율이 곧 내가 받을 배당 비율이다. 100주 중 75주를 가졌으면 배당의 75%. 티켓도 똑같이 '''절대 개수가 아니라 전체 대비 비율'''만 의미가 있다 — A가 75장, B가 25장이든 A가 750장, B가 250장이든 결과는 같다.{/analogy}
 
+[[anim:lottery_wheel|티켓 번호 구간(A 0~74, B 75~99)에 난수가 떨어지는 모습을 본 다음, 티켓 비율이 곧 CPU 몫이 되는 이유를 설명해 보라]]
+
 <pre class="ascii">
  전체 티켓 100장
  ┌───────────────────────────────────┬───────────┐
@@ -39,6 +41,8 @@ e.g., Process A has 75 tickets → receive '''75%''' of the CPU / Process B has 
             B1 = 100 × ( 10 /   10) = 100
 </pre>
 
+[[img:L6-13.png|6강 p.13. Ticket currency — User A는 자기 화폐 500+500을, User B는 10을 쓰지만 시스템이 global currency 50·50·100으로 환산한다.|medium]]
+
 {exam}계산 문제로 나오기 딱 좋은 형태다. '''분모는 "그 사용자의 지역 티켓 총합"'''이다. A는 500+500=1000, B는 10 하나뿐이라 10이다. 이 분모를 전역 총합(200)으로 잡으면 전부 틀린다.{/exam}
 
 === Ticket transfer (티켓 양도) ===
@@ -59,6 +63,8 @@ e.g., Process A has 75 tickets → receive '''75%''' of the CPU / Process B has 
 프로세스가 '''스스로 티켓 수를 늘리거나 줄인다'''. CPU가 더 필요하면 부풀린다.
 
 {warn}슬라이드 노란 박스: "'''One greedy process could give itself a vast number of tickets and take over the machine.'''" 따라서 '''서로 신뢰하는 프로세스들 사이에서만''' 쓸 수 있는 기능이다. 경쟁 환경에서는 말이 안 되고, 협력 환경(같은 앱의 여러 컴포넌트 등)에서는 유용하다.{/warn}
+
+[[img:L6-15.png|6강 p.15. Ticket inflation — A가 티켓을 100→200으로 올리자 A1·A2의 global 몫이 50→100으로 뛴다. 아래 문장이 "greedy process" 경고.|medium]]
 
 == 다른 스케줄러의 대응물 ==
 

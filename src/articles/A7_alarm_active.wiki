@@ -10,6 +10,8 @@ category: 과제1, 용어
 (실제 제출 구현의 이름은 `alarm_inflight`.)
 {/def}
 
+[[img:A1-5.png|과제1 PDF p.5. 첫 줄 — "Prevent re-entrant calls to the handler — if a handler hasn't returned yet, the kernel shouldn't call it again. test2 tests this."|medium]]
+
 {analogy}
 `alarm_active`는 '''화장실 문의 "사용 중" 표시'''다. 안에 사람이 있으면 다음 사람을 들여보내지 않는다. 그런데 이 표시는 '''안에서만 내릴 수 있다''' — [[sigreturn]]을 부르지 않고 나가 버리면 표시가 "사용 중"인 채로 영원히 남아, 그 화장실은 다시는 쓰이지 않는다.
 {/analogy}

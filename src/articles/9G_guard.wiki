@@ -50,6 +50,10 @@ void unlock(lock_t *m) {
 }
 </pre>
 
+[[img:L9-34.png|9강 p.34. 원본 코드와 빨간 주석 — "m->guard prevents the function lock from being executed by multiple threads simultaneously". 10–11행이 guard spin, 14·17행이 guard 해제.|large]]
+
+[[img:L9-35.png|9강 p.35. unlock()도 23–24행에서 guard를 spin으로 잡는다. 아래 Limitations 1번: "m->guard is used as a spin-lock around the flag and queue" — 단, 몇 개의 명령어뿐.|large]]
+
 {warn}⭐ '''"spin이 완전히 사라진 게 아니다"'''가 p.35 Limitations의 1번이다. 다만 spin하는 구간이 '''사용자의 critical section 전체'''에서 '''몇 개의 명령어'''로 줄었다. critical section이 1시간짜리여도 guard 구간은 여전히 몇 나노초다 — '''이 축소가 핵심'''이다.{/warn}
 
 {analogy}🎭 `guard` = '''접수 창구'''다.
@@ -69,6 +73,8 @@ void unlock(lock_t *m) {
    ~~~~~~~~~~~~~~~ 위험 구간 ~~~~~~~~~~~~~~~
    park();            <-- 너무 늦게 도착하면 영원히 잠듦
 </pre>
+
+[[img:L9-36.png|9강 p.36. guard를 놓은 뒤 park() 전의 틈(①)에 B의 unpark(③)이 끼어드는 wakeup/waiting race.|large]]
 
 {exam}🎯 '''"guard와 flag의 차이를 설명하시오"'''는 9강에서 가장 나오기 쉬운 서술형 중 하나다. 답의 세 축: ① '''보호 대상'''(사용자 critical section vs 락 내부 구조) ② '''대기 방식'''(park vs spin) ③ '''지속 시간'''(길다 vs 몇 명령어).{/exam}
 

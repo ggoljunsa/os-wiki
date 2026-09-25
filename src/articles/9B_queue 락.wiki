@@ -74,6 +74,8 @@ category: 9강 Lock, 핵심
 
 왜 그래야 하나? flag를 0으로 내려 버리면, 깨어난 스레드가 [[park와 unpark|park()]]에서 리턴한 직후 '''락이 자기 것이라고 믿고''' 진행하는데 그사이 제3의 스레드가 `lock()`에 들어와 flag=1을 해 버릴 수 있다. hand-off는 그 틈을 없앤다.{/warn}
 
+[[anim:park_unpark|T2 가 guard → 큐 등록 → setpark → guard 해제 → park 순서로 잠들고, unlock 이 flag 를 1 로 둔 채 넘겨주는 장면을 본 뒤 시뮬레이터에서 race 시나리오와 비교하라]]
+
 [[sim:queue_lock]]
 
 == Limitations (p.35) ==

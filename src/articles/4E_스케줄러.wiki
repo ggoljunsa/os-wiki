@@ -24,6 +24,8 @@ category: 4강 LDE, 용어
                        (결정은 policy, 실행은 mechanism)
 </pre>
 
+[[img:L4-33.png|4강 p.33 — Handle the trap → Call switch() routine: save regs(A) → restore regs(C) → switch to k-stack(C) → return-from-trap (into C). 스케줄러가 C로 결정한 뒤 실행되는 메커니즘|medium]]
+
 == xv6의 스케줄러 ==
 
 [[xv6]]에서는 '''CPU마다 스케줄러 스레드가 하나씩''' 있다 (`kernel/proc.c`의 `scheduler()`).
@@ -55,6 +57,8 @@ scheduler(void)
 {tip}
 [[yield]] → `sched()` → `swtch()` → '''스케줄러''' → `swtch()` → 다른 프로세스. 즉 프로세스에서 프로세스로 '''직접''' 가는 게 아니라 '''항상 스케줄러 스레드를 경유'''한다. [[타이머 인터럽트]]로 들어온 [[usertrap]]이 `yield()`를 부르는 것이 이 여행의 출발점.
 {/tip}
+
+[[img:L4-30.png|4강 p.30 — Context Switch (Cont'). ① 트랩으로 커널 진입 ② Call switch(); context switch is needed ③ kernel registers를 proc-struct(A)에 저장|large]]
 
 {quiz}
 "스케줄러가 컨텍스트 스위치를 수행한다"는 서술은 옳은가?

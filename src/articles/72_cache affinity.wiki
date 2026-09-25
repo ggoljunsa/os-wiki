@@ -12,6 +12,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 
 {analogy}'''자기 자리에 공구를 늘어놓은 정비공'''이다. 3번 정비대에서 한참 작업한 사람은 필요한 렌치와 부품이 이미 손 닿는 곳에 있다(cache hit). 그런데 관리자가 "이번엔 7번 정비대로 가라"고 하면, 새 정비대에는 아무것도 준비돼 있지 않아 창고(메인 메모리)까지 갔다 와야 한다(cache miss). '''일 자체는 같은데 자리를 옮겼다는 이유만으로 느려진다.'''{/analogy}
 
+[[anim:cache_affinity|A 가 CPU 0 캐시를 데운 뒤 CPU 1 로 옮겨지면 Miss 가 쏟아지는 순간을 보고, 아래 슬라이드 그림 ①②③과 맞춰 보자.]]
+
 == 그림으로 ==
 
 [[img:L7-31.png|① A가 CPU0에서 D 접근(Hit) → ② context switch로 CPU1로 이동 → ③ CPU1 캐시엔 D가 없어 Miss|large]]

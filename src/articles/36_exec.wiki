@@ -103,6 +103,8 @@ prompt>
 # [[trapframe]]의 [[epc]]를 새 프로그램의 엔트리 포인트로 설정
 # [[return-from-trap|유저 모드로 복귀]] → 새 `main()`이 돈다
 
+[[img:L3-19.png|3강 p.19 — Loading Executable. 디스크의 ELF(.text/.data)를 메모리의 주소 공간(code/data/heap/user stack)으로 올리는 그림 — exec()가 기존 프로세스 위에서 다시 하는 일|large]]
+
 {warn}
 `myargs[2] = NULL;`을 빼먹으면 안 된다. `execvp`는 인자 배열의 끝을 '''`NULL` 포인터'''로 판단하기 때문에, 없으면 쓰레기 값을 인자로 읽다가 터진다.
 {/warn}

@@ -13,6 +13,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 
 {analogy}'''창구마다 번호표 기계가 따로 있는 은행'''이다. 손님은 들어올 때 창구 하나를 배정받고 끝까지 거기서 처리된다. 직원들이 같은 통을 만질 일이 없으니 자물쇠가 필요 없고(확장성), 손님이 창구를 바꾸지 않으니 서류가 그대로 남아 있다([[cache affinity]]). 대신 새 문제가 생긴다 — '''1번 창구 줄만 길고 2번 창구는 텅 비는''' 상황이다.{/analogy}
 
+[[anim:work_stealing|큐가 독립이라 생기는 load imbalance 와, 그것을 work stealing 으로 푸는 흐름을 먼저 보고 아래 "약점: 부하 불균형" 절을 읽자.]]
+
 == 동작 ==
 
 <pre class="txt">

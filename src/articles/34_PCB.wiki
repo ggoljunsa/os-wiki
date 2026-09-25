@@ -38,10 +38,14 @@ category: 3강 From Program to Process, 용어
 | '''커널''' || 이 프로세스 전용 [[커널 스택]] || `kstack`
 |}
 
+[[img:L3-37.png|3강 p.37 — xv6의 struct proc = 실물 PCB. mem/sz, kstack, state, pid, parent, ofile, cwd, context, tf(trapframe)|large]]
+
 {tip}
 0831 녹음본에서 교수님이 정리한 문장: "processor needs to maintain the '''register context''' that is some kind of the logical control flow, and this register context is actually '''included in the process control block'''."<br>
 → register context는 PCB와 '''별개'''가 아니라 PCB '''안에''' 들어 있다.
 {/tip}
+
+[[img:L3-38.png|3강 p.38 — register context를 담는 struct context(eip, ebx, esi, edi, ebp)와 enum proc_state. PCB 안에 register context가 들어 있다|medium]]
 
 == PCB가 없으면 무슨 일이 ==
 

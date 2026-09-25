@@ -6,9 +6,10 @@
 하는 일
   1. src/articles/*.wiki 를 파일명 순으로 읽어 ARTICLES JS 객체 생성
   2. category 첫 항목 기준으로 NAV_ORDER 생성 (등장 순서 유지)
-  3. head.html + ARTICLES + NAV_ORDER + sims/_engine.js + sims/*.js + renderer.js 연결
+  3. head.html + ARTICLES + NAV_ORDER + sims/_engine.js + sims/*.js
+     + anims/_anim_engine.js + anims/*.js + renderer.js 연결
   4. 본문이 참조한 [[img:NAME]] 만 슬라이드 디렉터리에서 images/ 로 복사
-  5. 깨진 [[링크]] 와 없는 [[sim:]] 을 경고로 출력
+  5. 깨진 [[링크]] 와 없는 [[sim:]] / [[anim:]] 을 경고로 출력
 
 헤더가 망가진 경우에만 exit 1, 그 밖의 경고는 exit 0.
 """
@@ -23,6 +24,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(ROOT, "src")
 ARTICLES_DIR = os.path.join(SRC, "articles")
 SIMS_DIR = os.path.join(SRC, "sims")
+ANIMS_DIR = os.path.join(SRC, "anims")
 IMAGES_DIR = os.path.join(ROOT, "images")
 OUT = os.path.join(ROOT, "index.html")
 
@@ -32,6 +34,7 @@ DEFAULT_SLIDES = os.path.join(ROOT, "_slides")
 # caption 에 ']' 가 들어갈 수 있으므로 (예: prio_to_weight[40]) 줄 단위로 lazy 매칭한다.
 IMG_RE = re.compile(r"\[\[img:([^\|\]\n]+)(?:\|[^\n]*?)?(?:\|(?:small|medium|large))?\]\]")
 SIM_RE = re.compile(r"\[\[sim:([^\|\]]+)\]\]")
+ANIM_RE = re.compile(r"\[\[anim:([^\|\]\n]+)(?:\|[^\n]*?)?\]\]")
 LINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 REQUIRED_KEYS = ("key", "title", "category")
 
@@ -143,7 +146,7 @@ def main():
     for a in arts:
         for m in LINK_RE.finditer(a["body"]):
             raw = m.group(1)
-            if raw.startswith("img:") or raw.startswith("sim:"):
+            if raw.startswith("img:") or raw.startswith("sim:") or raw.startswith("anim:"):
                 continue
             key = raw.split("|", 1)[0].strip()
             if key and key not in articles:
@@ -165,6 +168,23 @@ def main():
             used_sims.setdefault(m.group(1).strip(), set()).add(a["file"])
     missing_sims = {k: v for k, v in used_sims.items() if k not in defined_sims}
 
+    anim_files = sorted(
+        f for f in os.listdir(ANIMS_DIR) if f.endswith(".js") and f != "_anim_engine.js"
+    ) if os.path.isdir(ANIMS_DIR) else []
+
+    defined_anims = set()
+    for f in anim_files:
+        with open(os.path.join(ANIMS_DIR, f), encoding="utf-8") as fh:
+            for m in re.finditer(r"""ANIMS\[\s*["']([^"']+)["']\s*\]\s*=""", fh.read()):
+                defined_anims.add(m.group(1))
+
+    used_anims = {}
+    for a in arts:
+        for m in ANIM_RE.finditer(a["body"]):
+            used_anims.setdefault(m.group(1).strip(), set()).add(a["file"])
+    missing_anims = {k: v for k, v in used_anims.items() if k not in defined_anims}
+    unused_anims = sorted(defined_anims - set(used_anims))
+
     # ---------- 5. 조립 ----------
     def read(p):
         with open(p, encoding="utf-8") as f:
@@ -183,6 +203,13 @@ def main():
     for f in sim_files:
         parts.append("\n// ===== sims/%s =====\n" % f)
         parts.append(read(os.path.join(SIMS_DIR, f)))
+    anim_engine_path = os.path.join(ANIMS_DIR, "_anim_engine.js")
+    if os.path.isfile(anim_engine_path):
+        parts.append("\n// ===== AnimEngine =====\n")
+        parts.append(read(anim_engine_path))
+    for f in anim_files:
+        parts.append("\n// ===== anims/%s =====\n" % f)
+        parts.append(read(os.path.join(ANIMS_DIR, f)))
     parts.append("\n// ===== renderer =====\n")
     parts.append(renderer)
     parts.append("\n</script>\n</body>\n</html>\n")
@@ -208,11 +235,22 @@ def main():
             print("  [[sim:%s]]  ← %s  (src/sims/%s.js 없음)"
                   % (key, ", ".join(sorted(missing_sims[key])), key))
 
+    if missing_anims:
+        print("\n=== MISSING ANIMS (%d) ===" % len(missing_anims))
+        for key in sorted(missing_anims):
+            print("  [[anim:%s]]  ← %s  (src/anims/%s.js 없음)"
+                  % (key, ", ".join(sorted(missing_anims[key])), key))
+    if unused_anims:
+        print("\n=== UNUSED ANIMS (%d) === (정의됐지만 어떤 문서도 안 씀)" % len(unused_anims))
+        for key in unused_anims:
+            print("  %s" % key)
+
     size_kb = os.path.getsize(OUT) / 1024.0
     print("\n=== BUILD OK ===")
     print("  articles      : %d  (nav groups %d)" % (len(articles), len(nav)))
     print("  images copied : %d  (missing %d)" % (copied, len(missing_imgs)))
     print("  sims          : %d  (missing %d)" % (len(defined_sims), len(missing_sims)))
+    print("  anims         : %d  (missing %d, unused %d)" % (len(defined_anims), len(missing_anims), len(unused_anims)))
     print("  broken links  : %d" % len(broken))
     print("  output        : %s  (%.0f KB)" % (os.path.relpath(OUT, ROOT), size_kb))
     sys.exit(0)

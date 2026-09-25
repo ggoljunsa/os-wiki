@@ -49,6 +49,8 @@ category: 과제1, 4강 LDE
  유저 코드:  sigalarm() 호출 다음 줄부터 계속, 반환값은 a0 에
 </pre>
 
+[[img:L4-17.png|4강 p.17. x86판 같은 경로 — open()이 int $0x80으로 trap → OS가 처리 → returns. xv6에서는 int가 ecall, 복귀가 sret.|medium]]
+
 == 레지스터 규약 ==
 
 {| class="table"
@@ -87,6 +89,8 @@ category: 과제1, 4강 LDE
 | '''`kernel/trap.c`''' || [[usertrap]]의 타이머 분기 || 알람이 아예 안 울림
 |}
 
+[[img:A1-3.png|과제1 PDF p.3. 파일 목록의 출처 — Makefile, user/user.h 선언, "Update user/usys.pl ..., kernel/syscall.h, and kernel/syscall.c", proc.h 필드, allocproc() 초기화.|medium]]
+
 {tip}
 앞의 5개(Makefile ~ syscall.c)는 '''[[시스템 콜 추가 절차]]'''(3강 p.30–34)와 '''글자 그대로 동일'''하다. 과제 PDF도 "Refer 3-From_Program_to_Process"라고 못 박았다. 3강을 복습하면 절반이 끝난다.
 {/tip}
@@ -110,6 +114,8 @@ category: 과제1, 4강 LDE
 |-
 | jump to PC after trap || [[sepc]] ← `p->trapframe->[[epc]]` (`ecall`이라 +4된 값)
 |}
+
+[[img:L4-19.png|4강 p.19. Trap Table — syscall number k가 트랩 테이블의 인덱스, handler k가 호출된다. xv6의 syscalls[] 배열이 바로 이 구조.|medium]]
 
 {quiz}
 `sys_sigalarm()`이 `return 0;` 하면 그 `0`은 어떻게 유저에게 전달되는가?

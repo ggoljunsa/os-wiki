@@ -17,6 +17,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 
 {analogy}'''일 없는 직원이 옆자리 서류함을 넘겨보는 것'''이다. 이름이 "훔치기"인 이유가 있다 — '''바쁜 쪽이 나눠 주는 게 아니라 한가한 쪽이 주도한다'''. 바쁜 CPU는 지금 일하느라 바쁜데 "누구한테 일을 나눠 줄까" 계산까지 시키면 더 느려지기 때문이다. 한가한 쪽은 어차피 놀고 있으니 엿보는 비용을 감당할 여유가 있다.{/analogy}
 
+[[anim:work_stealing|E 가 끝나 CPU 1 이 노는 순간(4 : 0)부터 peek → steal → 2 : 2 균형까지 보고, 아래 source/target 3단계와 맞춰 보자.]]
+
 == 동작 ==
 
 <pre class="ascii">
@@ -37,6 +39,10 @@ category: 7강 Multi-CPU Scheduling, 용어
 # '''source''' 선정: 자기 큐에 job이 적은 CPU.
 # '''peek''': 가끔 다른 큐(target)를 들여다본다.
 # '''steal''': target이 자기보다 더 차 있으면 job을 하나 이상 가져온다.
+
+[[img:L7-39.png|7강 p.39. Migration의 기본형 — Q0가 비고 Q1에 B·D가 있으면 D 하나를 옮기는 것만으로 균형이 맞는다.|medium]]
+
+[[img:L7-40.png|7강 p.40. 더 까다로운 경우 — Q0에 A, Q1에 B·D. 한 번 옮겨서는 균형이 안 맞아 B와 A를 번갈아 migrate하며 계속 바꾼다. work stealing은 이 이동을 "일이 적은 큐가 스스로 엿보고 가져오는" 방식으로 구현한다.|large]]
 
 == 임계값 문제 ==
 

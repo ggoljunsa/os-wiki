@@ -114,6 +114,8 @@ SJF는 '''비선점(non-preemptive)'''이다. 이미 A를 돌리기 시작했으
 # '''Starvation(기아)''': 짧은 job이 계속 들어오면 긴 job A는 영영 실행되지 않는다. 교수님도 녹음본에서 "this phenomenon is called starvation"이라고 짚었다.
 # '''response time이 나쁘다''' → 다음 절.
 
+[[anim:sched_fifo_sjf_stcf|t=10에 B·C가 도착할 때 세 줄이 어떻게 갈라지는지 본 다음, 끝에 나오는 평균 turnaround time(103.33 / 103.33 / 50)을 직접 계산해 보라]]
+
 [[sim:sched_gantt]]
 
 == response time과 Round Robin ==

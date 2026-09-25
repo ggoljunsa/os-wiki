@@ -8,6 +8,8 @@ category: 과제1, 핵심
 "'''Make sure to restore a0.''' sigreturn is a system call, and its return value is stored in a0." (과제 1 PDF, test1 힌트의 마지막 줄)
 {/def}
 
+[[img:A1-5.png|과제1 PDF p.5. 두 번째 힌트 "Make sure to restore a0. sigreturn is a system call, and its return value is stored in a0."|medium]]
+
 {analogy}
 이건 '''"짐을 제자리에 돌려놨는데, 문을 나서면서 경비원이 그 자리에 도장을 쾅 찍는"''' 상황이다. 경비원(`syscall()`)은 규정상 '''모든 방문객에게 반드시 도장을 찍어야''' 한다 — 피할 수 없다. 그렇다면 방법은 하나, '''도장 내용을 원래 물건과 똑같이 만드는 것'''이다. 그래서 [[sigreturn]]은 "저장돼 있던 a0"를 반환값으로 준다.
 {/analogy}

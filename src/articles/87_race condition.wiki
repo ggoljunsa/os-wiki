@@ -38,6 +38,8 @@ category: 8강 Concurrency, 용어
 | CPU 1개여도 발생 || [[타이머 인터럽트]]에 의한 [[컨텍스트 스위치]]만 있으면 충분하다
 |}
 
+[[anim:counter_race|T1 의 add 직후 interrupt 가 끼어 결과가 51 이 되는 14초를 먼저 보고, 아래 시뮬레이터에서 인터럽트 시점을 바꿔 52 가 나오는 경우와 비교하자.]]
+
 [[sim:counter_race]]
 
 {warn}'''"멀티코어에서만 생긴다"는 오해에 주의.''' 원인은 병렬 실행이 아니라 '''uncontrolled scheduling''' — 아무 명령어 경계에서나 끊길 수 있다는 것이다. 싱글 CPU에서도 그대로 발생한다.{/warn}

@@ -59,6 +59,8 @@ myproc(void)
    myproc() 이 돌려주는 p = 이 배열의 "한 칸을 가리키는 포인터"
 </pre>
 
+[[img:L3-37.png|3강 p.37. 슬라이드의 xv6 struct proc(x86 시절 버전) — myproc()이 돌려주는 것이 이런 구조체 한 칸의 주소다. 과제 버전 필드는 다르다.|medium]]
+
 == `->` 와 `.` 의 차이가 곧 "어디에 있나" ==
 
 {| class="table"

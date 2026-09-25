@@ -28,6 +28,8 @@ category: 4강 LDE, 과제1, 용어
                             과제 1이 바꾸는 곳 (프로세스별이라 안전)
 </pre>
 
+[[img:L4-23.png|4강 p.23 — return-from-trap의 마지막 단계 "jump to PC after trap". 그 PC가 xv6에서는 sepc ← trapframe->epc|medium]]
+
 == 시스템 콜이면 +4 ==
 
 <pre class="c">
@@ -52,6 +54,8 @@ p->trapframe->epc = (uint64)p->alarm_handler;   // 퀴즈 1의 2번 ③ 빈칸
 # [[usertrap]]: `p->trapframe->epc = r_sepc()` — 대피
 # '''커널이 여기서 값을 바꾼다''' ← 알람
 # [[usertrapret]]: `w_sepc(p->trapframe->epc)` → [[sret]]이 그 주소로 점프
+
+[[img:A1-4.png|Assignment 1 PDF p.4 — "what determines the instruction address at which user-space code resumes execution?" 힌트. 답이 epc|medium]]
 
 {exam}
 '''"sret은 [[sepc]]로 간다. sepc는 trapframe->epc에서 온다. 그래서 epc를 바꾼다."''' — 퀴즈 1의 2번 ③과 3번 (b)가 이 한 문장으로 풀린다. 모의고사 A18에서 틀린 문항이기도 하다.

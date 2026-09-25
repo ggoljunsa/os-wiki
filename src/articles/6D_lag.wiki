@@ -13,6 +13,8 @@ $$lag_i = (\text{allocated CPU time})_i - (\text{received CPU time})_i$$
 * '''Negative lag is decayed during sleep but not increased above 0'''
 {/def}
 
+[[img:L6-43.png|6강 p.43. Lag 원문 — allocated vs. received CPU time의 차이, lag > 0 = owes service = eligible, "Negative lag is decayed during sleep but not increased above 0".|medium]]
+
 {analogy}'''적금 미납액'''이다. 매달 10만 원씩 넣기로 약속했는데(allocated) 실제로 8만 원만 냈다면 lag = +2만 원, '''아직 낼 게 남았다''' = 창구에 설 자격이 있다. 반대로 12만 원을 냈으면 lag = −2만 원, '''이미 더 냈으니''' 이번 차례는 건너뛴다. 중요한 건 마지막 줄 — '''초과 납입분(음수 lag)은 시간이 지나면 사라지지만, 미납액으로 바뀌지는 않는다'''. 몇 달을 쉬었다고 해서 한 번에 몰아 받을 수는 없다는 뜻이다.{/analogy}
 
 == 부호가 뜻하는 것 ==

@@ -99,6 +99,8 @@ prompt>
 [[xv6]]의 `enum procstate`에 '''`ZOMBIE`'''가 실재한다는 점이 3강 p.38과 이 문서를 잇는 고리다. 3-상태 모델(Running/Ready/Blocked)에는 없는 상태이며, 순전히 '''부모-자식 관계''' 때문에 필요하다. → [[프로세스 상태]]
 {/tip}
 
+[[img:L3-38.png|3강 p.38 — xv6 enum proc_state { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE }. wait()가 회수하는 ZOMBIE가 여기 있다|medium]]
+
 == 예상 문제 ==
 
 {quiz}

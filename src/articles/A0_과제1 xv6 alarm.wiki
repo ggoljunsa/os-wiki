@@ -18,6 +18,8 @@ category: 과제1, 핵심
 * [[sigreturn]] = "복사본을 다시 꽂아 주세요"라고 커널에 부탁하는 것.
 {/analogy}
 
+[[anim:alarm_tick|tick 이 쌓여 알람이 터지는 순간 alarm_saved 백업 → alarm_active → epc 바꿔치기 순서를, sigreturn 이 무엇을 되돌리는지(a0 포함) 본 뒤 아래 5·6절 코드를 읽어라]]
+
 [[img:A1-2.png|Assignment 1 PDF p.2 — Problem 정의와 alarmtest 기대 출력|medium]]
 
 == 1. 과제 사양 ==

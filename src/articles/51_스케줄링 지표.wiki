@@ -16,6 +16,8 @@ $$T_{response} = T_{firstrun} - T_{arrival}$$
 * '''Fairness''': Performance and fairness are '''often at odds''' in scheduling.
 {/def}
 
+[[img:L5-09.png|5강 p.9 — Scheduling Metrics. T_turnaround = T_completion − T_arrival, 그리고 "Performance and fairness are often at odds"|medium]]
+
 {|
 ! 지표 || 공식 || 무엇을 보는가 || 최적화하는 정책
 |-
@@ -32,6 +34,10 @@ $$T_{response} = T_{firstrun} - T_{arrival}$$
  평균 turnaround = Σ(완료 시각 − 도착 시각) / job 수
  평균 response   = Σ(첫 실행 시각 − 도착 시각) / job 수
 </pre>
+
+[[img:L5-10.png|5강 p.10 — FIFO 예제. A, B, C 각 10초 → Average turnaround time = (10+20+30)/3 = 20 sec|medium]]
+
+[[img:L5-20.png|5강 p.20 — 같은 입력(A, B, C 각 5초)에서 SJF는 average response 5 sec, RR(time slice 1초)은 1 sec|medium]]
 
 {warn}가장 흔한 실수 세 가지.
 # '''도착 시각을 안 뺀다.''' 모든 job이 t=0에 도착하는 예제만 보다가, 도착이 다른 문제에서 그대로 틀린다.

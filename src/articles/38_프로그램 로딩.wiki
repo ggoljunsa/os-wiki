@@ -118,6 +118,8 @@ C 한 줄(`x+y`)이 스택 프레임 설정·인자 로드·덧셈·복귀 등 '
 
 == ④ 로딩: 프로그램이 프로세스가 되는 순간 ⭐⭐ ==
 
+[[anim:program_load|오른쪽 주소 공간이 code·data(파일에서) → stack(아래로) → heap(위로) 순서로 채워지고 PC 가 main() 을 가리키는 순간 Running 이 되는 것을 보세요. 그다음 파일에서 오는 영역과 런타임에 만들어지는 영역을 스스로 구분해 보세요.]]
+
 [[img:L3-19.png|3강 p.19. 왼쪽 실행 파일이 오른쪽 메모리 배치로 옮겨진다. 맨 아래 빨간 글씨 "Now, OS takes control of running executable (p)!"|large]]
 
 <pre class="ascii">

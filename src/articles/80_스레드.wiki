@@ -75,6 +75,8 @@ category: 8강 Concurrency, 핵심
 
 [[img:L8-28.png|단일 스레드 주소 공간 vs 두 스레드 주소 공간. Stack (2)가 중간에 끼어든다|large]]
 
+[[anim:thread_addr_space|pthread_create 가 새로 만드는 것(스택·TCB)과 그대로 두는 것(코드·힙)을 먼저 보고, 아래 시뮬레이터에서 p.32 예제를 한 줄씩 따라가 보자.]]
+
 [[sim:thread_stack]]
 
 {warn}'''방향 주의.''' 그림은 0KB가 위쪽이라서, heap이 "아래로(downward)" 자란다 = '''높은 주소 쪽으로''', stack이 "위로(upward)" 자란다 = '''낮은 주소 쪽으로'''다. 헷갈리면 "'''heap은 주소 증가, stack은 주소 감소'''"로 외워라.{/warn}

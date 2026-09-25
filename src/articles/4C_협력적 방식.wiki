@@ -34,6 +34,8 @@ Processes periodically give up the CPU by making system calls such as `open()` a
 슬라이드가 굵게 박아 둔 결론: '''"A process gets stuck in an infinite loop → Reboot the machine."'''
 {/warn}
 
+[[img:L4-26.png|4강 p.26 — A cooperative Approach. open()/yield() 시스템 콜로 CPU를 넘김, 사례 Mac OS·Xerox Alto, 결론 "infinite loop → Reboot the machine"|medium]]
+
 == 실제로 쓰였던 OS ==
 * 초기 버전의 '''Macintosh OS'''
 * '''Xerox Alto''' 시스템

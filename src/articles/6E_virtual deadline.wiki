@@ -17,6 +17,8 @@ $$VD = t_{now} + \frac{slice_i}{weight_i}$$
 * Example: sched_latency = 48 ms, latency_nice = −10, n = 4 (with same priority) → default time slice is 12 ms, but latency nice reduces it to '''6 ms'''
 {/def}
 
+[[img:L6-44.png|6강 p.44. Virtual Deadline 원문 — 위쪽은 slice(latency_nice = −10이면 12 ms → 6 ms), 아래쪽은 VD 공식과 t_now(= lag이 0이 되는 eligible 시각).|medium]]
+
 {analogy}'''과제 마감일'''이다. 각 프로세스에게 "너는 이 시각까지는 네 몫을 받아야 한다"는 가상의 마감을 걸어 두고, 스케줄러는 '''마감이 제일 급한 사람부터''' 처리한다. 실시간 스케줄링의 EDF(Earliest Deadline First)를 가상 시간 위로 옮겨 놓은 것이다. 마감이 이르다 = 급하다 = 먼저 처리, 라는 직관이 그대로 통한다.{/analogy}
 
 == 공식 읽는 법 ==

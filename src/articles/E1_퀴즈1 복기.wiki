@@ -92,6 +92,8 @@ if (which_dev == 2) {             // timer interrupt
 
 관련: [[과제1 xv6 alarm]] · [[usertrap]] · [[which_dev]] · [[alarm_active]] · [[alarm_saved]] · [[alarm_handler]] · [[trapframe]] · [[epc]]
 
+[[img:A1-4.png|Assignment 1 PDF p.4 — usertrap()/which_dev == 2 힌트, "what determines the instruction address...", 레지스터 저장·복원 힌트 = 2번·3번(b)의 출처|medium]]
+
 ----
 
 == 3번 (20점) — 저장과 복원 ==
@@ -324,6 +326,8 @@ after=3
 
 → '''과제 PDF의 힌트 bullet 하나하나가 문제 은행'''이다. 남은 과제(2, 3번)가 나오면 PDF 힌트를 먼저 문장으로 답해 보라.
 
+[[img:A1-5.png|Assignment 1 PDF p.5 — "Prevent re-entrant calls"(2번 ①), "Make sure to restore a0"(4번), Tips 2 "Think about why we need the sigreturn"(3번)|medium]]
+
 === 2. 빈칸 채우기 = 코드를 '''외워서 쓸 수 있어야''' 한다 ===
 2번은 [[usertrap]]의 타이머 분기를 '''손으로 재현'''할 수 있는지 묻는다. 중간고사에서도 손코딩(빈칸/전체 작성)이 나올 가능성이 높다. 외워 둘 코드 블록:
 * [[usertrap]]의 `scause == 8` / `devintr()` / `which_dev == 2` 3분기
@@ -339,6 +343,8 @@ after=3
 
 === 5. 이론 문제는 중간고사에 몰아서 나온다 ===
 퀴즈에 4강 이론이 하나도 안 나왔다는 것은 '''중간고사에서 나온다'''는 뜻에 가깝다. [[제한적 직접 실행]]의 LDE 프로토콜 표(p.22·23·32·33), 예외 4분류, [[협력적 방식]]/[[비협력적 방식]] 대비는 여전히 1순위다.
+
+[[img:L4-23.png|4강 p.23 — 중간고사 1순위로 남은 LDE 프로토콜 표(OS @ run / Hardware / Program)|medium]]
 
 {exam}
 '''모의고사 오답 → 실제 퀴즈 대응표''' (같은 내용이 배점만 키워서 나왔다)

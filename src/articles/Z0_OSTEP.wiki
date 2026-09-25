@@ -10,6 +10,8 @@ category: 용어
 1강 p.10 — "Lecture slides: '''Based on the authors' slides''', but include the contents of other textbooks and web resources."
 {/def}
 
+[[img:L1-11.png|1강 p.11. Textbooks: OSTEP — Intro / Virtualization / Concurrency / Persistence / Security로 나뉜 전체 챕터 표.|large]]
+
 {analogy}
 🍰 제목의 "'''Three Easy Pieces'''"가 곧 이 책의 목차다 — [[가상화]] / [[동시성]] / [[영속성]] 세 조각. 파인만의 물리학 강의 "Six Easy Pieces"를 패러디한 제목이고, "운영체제는 결국 이 세 덩어리뿐이다"라는 저자들의 선언이다. 2강이 통째로 이 세 조각의 예고편이다.
 {/analogy}

@@ -71,6 +71,8 @@ category: 9강 Lock, 핵심
 | ⑦ || spin 중이던 T2: `turn(1) == myturn(1)` → '''obtain the lock!''' || 2 || 1
 |}
 
+[[anim:ticket_turn|ticket(발급기)과 turn(전광판) 숫자가 언제 오르는지, 세 스레드가 번호표 순서대로만 들어가는지 본 뒤 시뮬레이터로 값을 확인하라]]
+
 [[sim:ticket_lock]]
 
 {analogy}🎭 '''은행 번호표.''' `ticket` = 입구의 발급기, `turn` = 벽의 전광판, `myturn` = 내 손의 종이.

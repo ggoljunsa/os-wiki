@@ -24,6 +24,8 @@ category: 안내
 
 {info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
 
+[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]
+
 == 시뮬레이터 모음 ==
 
 각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:

@@ -9,9 +9,13 @@ category: 과제1, 용어
 "If an application calls `sigalarm(n, fn)`, then after every n '''ticks of CPU time''' that the program consumes, the kernel should cause application function `fn` to be called. When `fn` returns, the application should '''resume where it left off'''. If an application calls `sigalarm(0, 0)`, the kernel should '''stop generating periodic alarm calls'''."
 {/def}
 
+[[img:A1-2.png|과제1 PDF p.2. Problem — sigalarm(interval, handler)의 정의, sigalarm(n, fn)은 CPU tick n마다 fn 호출, sigalarm(0, 0)이면 중지. 아래는 alarmtest 기대 출력.|medium]]
+
 {analogy}
 `sigalarm`은 '''알람 시계를 맞추는 행위'''지 '''알람이 울리는 것'''이 아니다. 시계 자체(타이머 하드웨어)는 이미 [[타이머 인터럽트|부팅 때 OS가 켜 둔 것]]이고, `sigalarm`은 그 시계 옆에 '''"2틱마다 나 좀 깨워 줘, 깨우면 이 번호로 전화해"라는 메모'''를 붙이는 것뿐이다. 실제로 깨우는 일은 전부 [[usertrap]]이 한다.
 {/analogy}
+
+[[anim:alarm_tick|sigalarm 은 기록만 하고, 실제 일은 tick 마다 usertrap 이 한다는 것을 본 뒤 구현 코드를 읽어라]]
 
 == 구현 ==
 

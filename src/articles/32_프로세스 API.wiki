@@ -17,6 +17,8 @@ category: 3강 From Program to Process, 용어
 🍦 가게 사장이 직원에게 쓸 수 있는 명령 목록이다. '''Create'''는 알바 한 명 더 투입, '''Destroy'''는 퇴근시키기, '''Wait'''는 "저 알바 끝날 때까지 기다렸다 인수인계 받아", '''Control'''은 "잠깐 멈춰" / "다시 해", '''Status'''는 "지금 몇 번 주문 하고 있어?"다. 이 다섯 가지만 있으면 어떤 작업 흐름이든 짤 수 있다는 게 유닉스의 주장.
 {/analogy}
 
+[[anim:fork_exec_wait|자식 상자가 생길 때 PID 가 새로 붙는 것, exec 뒤에는 PID 는 그대로인데 주소 공간 세 칸이 wc 의 것으로 바뀌는 것, 부모 배지가 blocked 로 있다가 rc_wait 를 받는 순간을 보세요. 그다음 p3.c 출력 순서를 직접 예측해 보세요.]]
+
 [[sim:fork_exec]]
 
 == 다섯 갈래 ==

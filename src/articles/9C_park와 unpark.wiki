@@ -36,6 +36,12 @@ park();                      // 잠들기
 unpark(queue_remove(m->q));  // 큐에서 꺼낸 TID의 스레드를 깨움 (flag는 1로 유지 = hand-off)
 </pre>
 
+[[img:L9-34.png|9강 p.34. Queue 락의 lock() — 16–18행: queue_add(m->q, gettid()) → m->guard = 0 → park().|large]]
+
+[[img:L9-35.png|9강 p.35. unlock() — 28행 unpark(queue_remove(m->q))로 큐 맨 앞 스레드 하나만 깨운다. 아래 Limitations 2번이 "Sleep forever"(wakeup/waiting race).|large]]
+
+[[anim:park_unpark|park() 한 T2 가 Blocked 로 CPU 를 전혀 쓰지 않다가 unpark(T2) 로 깨어나는 것을 본 뒤 시뮬레이터로 줄 단위로 확인하라]]
+
 [[sim:queue_lock]]
 
 {analogy}🎭 '''병원 대기실 의자'''다.
@@ -51,6 +57,8 @@ unpark(queue_remove(m->q));  // 큐에서 꺼낸 TID의 스레드를 깨움 (fla
 해결:
 * '''[[setpark]]''' — "나 곧 park할 거야"를 미리 선언해 두면, 그 뒤에 온 `unpark`이 예약을 소모하고 `park()`는 즉시 리턴한다 (Solaris)
 * '''[[futex|futex_wait(address, value)]]''' — 잠들기 직전 값 검사를 '''커널이 원자적으로''' 수행 (Linux){/warn}
+
+[[img:L9-36.png|9강 p.36. Wakeup/Waiting Race — ① A가 guard를 놓고 park() 직전에 context switch → ②③ B가 unlock에서 unpark(A) → ④ A가 뒤늦게 park()해서 영원히 잠든다.|large]]
 
 == park/unpark vs futex (p.41) ==
 

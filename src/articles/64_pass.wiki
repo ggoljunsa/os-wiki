@@ -10,6 +10,8 @@ Each process maintains a '''pass''' value which is '''initially 0''' and '''incr
 
 {analogy}'''마라톤 주자들의 누적 거리 전광판'''이다. pass는 "지금까지 몇 m를 갔는가"이고, 심판은 항상 '''꼴찌에게 다음 한 걸음'''을 준다. 보폭([[stride]])이 작은 사람은 한 걸음에 조금밖에 못 가니 계속 꼴찌로 남아 자주 걷게 되고, 보폭이 큰 사람은 한 걸음에 확 앞서 나가 한참 쉰다. '''전광판 숫자가 작을수록 우대받는다'''는 점이 직관과 반대라 헷갈리기 쉽다.{/analogy}
 
+[[anim:stride_pass|매 행에서 pass 최소가 실행되고 stride만큼 자라는 것을 본 다음, 아래 pass 표를 가리고 직접 채워 보라]]
+
 <pre class="c">
 current = remove_min(queue);        // pass 최소 프로세스 선택
 schedule(current);

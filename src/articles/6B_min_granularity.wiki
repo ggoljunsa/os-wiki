@@ -11,6 +11,8 @@ category: 6강 Proportional Share, 용어
 * CFS won't be perfectly fair over sched_latency of 48 ms, '''but it will be close while still achieving high CPU efficiency'''
 {/def}
 
+[[img:L6-34.png|6강 p.34. min_granularity 원문 — n = 10이면 4.8 ms가 되지만 6 ms로 올리고, 대신 sched_latency 48 ms 안의 완전한 공정성은 포기한다.|medium]]
+
 {analogy}'''최소 주문 금액'''이다. 배달 앱에서 1,000원짜리 하나만 시킬 수 없는 이유는 배달비(= [[컨텍스트 스위치]] 비용)가 음식값보다 커지기 때문이다. 슬라이스가 4.8ms인데 전환에 1μs씩 든다면 그나마 괜찮지만, 프로세스가 수백 개가 되면 슬라이스가 마이크로초 단위로 떨어져 '''전환하느라 일을 못 하는''' 상태가 된다. min_granularity는 "이 밑으로는 안 받는다"는 선이다.{/analogy}
 
 <pre class="txt">
@@ -22,6 +24,8 @@ category: 6강 Proportional Share, 용어
  n = 10 → 48/10 = 4.8ms  < 6ms  →  '''6ms'''로 올림
  n = 12 → 48/12 =  4ms   < 6ms  →  '''6ms'''로 올림
 </pre>
+
+[[img:L6-33.png|6강 p.33. Simple CFS Example — sched_latency 48 ms를 4개(A–D)면 12 ms씩, C·D가 끝나 2개가 되면 24 ms씩 나눈다. n이 커질수록 슬라이스가 줄어드는 것이 min_granularity가 필요한 이유.|large]]
 
 == 공정성을 조금 포기한다 ==
 

@@ -9,6 +9,8 @@ category: 과제1, 용어
 (실제 제출 구현에서의 이름은 `alarm_ticks`. 퀴즈 1은 `alarm_interval`로 출제됐다.)
 {/def}
 
+[[img:A1-3.png|과제1 PDF p.3. test0 힌트 — "Your sys_sigalarm() should store the alarm interval and the pointer to the handler function in new fields in the proc structure".|medium]]
+
 {analogy}
 `alarm_interval`은 '''알람 시계의 "몇 분마다" 설정값'''이다. 그리고 '''0 = OFF 스위치'''를 겸한다 — 별도의 on/off 플래그를 두지 않고 "주기가 0이면 꺼진 것"으로 약속한 것. 덕분에 `sigalarm(0, 0)` 한 번으로 끄기가 끝난다.
 {/analogy}

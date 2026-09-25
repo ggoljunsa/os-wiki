@@ -80,6 +80,8 @@ held일 때 1을 1로 다시 쓰는 것이 '''아무 해가 없다'''는 점이 
 | '''Performance''' || '''No''' || 싱글 CPU에서 락 보유자가 preempt되면 나머지가 [[time slice]] 전체를 spin에 낭비
 |}
 
+[[anim:spin_lock_tas|반환값(옛 값) 0/1 이 획득/spin 을 가르는 장면을 본 뒤, 시뮬레이터에서 스레드 수를 바꿔 확인하라]]
+
 [[sim:test_and_set]]
 
 {exam}🎯 '''코드 빈칸 채우기'''로 나오기 가장 좋은 형태다 (2025F Problem 7이 [[fetch-and-add]]로 같은 형식이었다). 3~5번 줄의 `int old = *ptr;` / `*ptr = new;` / `return old;`를 순서까지 정확히 쓸 수 있어야 한다.{/exam}

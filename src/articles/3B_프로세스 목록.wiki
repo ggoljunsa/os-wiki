@@ -54,6 +54,8 @@ category: 3강 From Program to Process, 용어
    └───────────────────────────────────────────────┘
 </pre>
 
+[[img:L3-35.png|3강 p.35 — Process State Transition. Running ↔ Ready(Scheduled/Descheduled), Running → Blocked(I/O: initiate), Blocked → Ready(I/O: done) = 목록 사이의 이동|medium]]
+
 {tip}
 0831 녹음본에서 교수님이 세 목록의 '''용도'''를 하나씩 설명한 부분:<br>
 "they need to maintain the list of the '''ready''' process to find out '''which process can be scheduled''' by the scheduling policy. And also the list of '''blocked''' process to find out '''which process's I/O request is finished'''. And also the '''current running''' process to find out '''which process should be descheduled'''."<br>
@@ -100,6 +102,8 @@ scheduler(void)
 |-
 | 빈 슬롯 || `p->state == UNUSED`
 |}
+
+[[img:L3-38.png|3강 p.38 — xv6 enum proc_state. RUNNABLE = Ready list, SLEEPING = Blocked list, RUNNING = current running, UNUSED = 빈 슬롯|medium]]
 
 {warn}
 '''"목록이 세 개 있다"는 개념 모델이고, 구현은 배열 하나 + 상태 필드일 수 있다.''' 교육용 OS인 xv6는 단순함을 택했고(그래서 스케줄링이 O(NPROC) 선형 탐색이다), 리눅스 같은 실제 OS는 우선순위별 런큐·[[레드블랙 트리]] 등을 쓴다. 시험에서 "OS가 유지하는 process list의 종류"를 물으면 '''개념 모델(ready/blocked/running)'''로 답하면 된다.

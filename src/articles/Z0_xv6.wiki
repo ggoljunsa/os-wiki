@@ -48,6 +48,8 @@ $ make qemu          # xv6 부팅 확인
 '''시험은 슬라이드 기준, 과제는 소스 기준'''으로 따로 외울 것. 자세한 대조표는 [[struct proc]]에 있다.
 {/warn}
 
+[[img:L3-37.png|3강 p.37. 슬라이드에 실린 xv6 struct proc — char *mem, struct trapframe *tf 등 x86 버전 필드. 과제 소스와 비교해 볼 것.|medium]]
+
 == 알아 두면 좋은 구조 ==
 
 {| class="table"

@@ -12,6 +12,8 @@ The length of a time slice must be a '''multiple of the timer-interrupt period''
 
 {analogy}'''돌림 노래''' 또는 '''회전 초밥'''이다. 모두가 조금씩 차례로 받는다. 누구도 굶지 않고(공정), 누구나 금방 첫 입을 먹는다([[response time]] 최고). 대신 '''배부르게 먹고 자리를 뜨는 시점은 모두 늦어진다'''([[turnaround time]] 최악). 한 사람이 한 접시를 통째로 먹고 가는 편이 그 사람에겐 빨랐을 것이다.{/analogy}
 
+[[anim:round_robin|RR 줄에서 ▲(첫 실행)는 앞에 몰리고 ▼(완료)는 뒤에 몰리는 것을 확인한 다음, response time 1초 vs 5초와 turnaround time 14초 vs 10초를 손으로 다시 계산해 보라]]
+
 == 계산 예 ==
 
 [[img:L5-20.png|A·B·C 각 5초. 위는 SJF(평균 response 5초), 아래는 RR 슬라이스 1초(평균 response 1초)|large]]

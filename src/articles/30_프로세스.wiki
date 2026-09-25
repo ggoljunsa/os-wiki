@@ -164,6 +164,8 @@ CPU는 이것 말고 아무것도 하지 않는다. 0831 녹음본의 표현: "w
 # '''OS does some other initialization tasks'''<br>· I/O setup<br>· 모든 프로세스는 기본으로 '''3개의 file descriptor'''를 갖는다: '''stdin(0), stdout(1), stderr(2)'''
 # '''Start the program running at the entry point, `main()`'''<br>· OS가 CPU 제어권을 새 프로세스에 넘긴다
 
+[[anim:program_load|오른쪽 주소 공간이 code·data(파일에서) → stack(아래로) → heap(위로) 순서로 채워지고 PC 가 main() 을 가리키는 순간 Running 이 되는 것을 보세요. 그다음 파일에서 오는 영역과 런타임에 만들어지는 영역을 스스로 구분해 보세요.]]
+
 {warn}
 4번의 "stdin / stdout / stderr는 '''OS가''' 열어 준다"가 포인트다. 표준 라이브러리(`stdio.h`)가 여는 게 아니다. 녹음본: "this file descriptor is set up by the operating system so '''you don't need to use the standard library''' to set up these default files."
 {/warn}

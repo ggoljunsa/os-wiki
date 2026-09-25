@@ -15,6 +15,8 @@ The Linux CFS implements fair-share scheduling in a '''highly efficient and scal
 
 {analogy}[[vruntime]]은 '''각자 손목에 찬 시계'''다. CPU를 쓰는 동안만 시계가 돌고, 스케줄러는 '''시계가 가장 적게 간 사람'''에게 다음 차례를 준다. 우선순위가 높은 사람의 시계는 '''천천히 가도록 조작'''되어 있어서([[weight]]가 크다) 실제로 10초를 써도 3.2초만 찍힌다. 그래서 계속 "제일 덜 쓴 사람"으로 뽑힌다. 자고 있는 사람은 시계가 멈춰 있으니, 깨어나면 당연히 1순위가 된다.{/analogy}
 
+[[anim:cfs_vruntime|같은 Δvruntime(≈11)을 쌓는 데 A는 33.4ms, B는 11ms가 걸리는 것을 본 다음, vruntime 공식에 nice −5 / 0 / +5를 넣어 직접 확인해 보라]]
+
 == 왜 만들었나 — 오버헤드 ==
 
 {def}

@@ -81,6 +81,8 @@ category: 8강 Concurrency, 비교표
 {analogy}🎭 프로세스 전환 = '''이사'''. 짐도 옮기고 주소도 바꾸고 우편물도 새로 신청해야 한다(TLB flush, 캐시 오염).
 스레드 전환 = '''같은 집에서 룸메이트끼리 거실 TV 리모컨을 넘기는 것'''. 주소는 그대로고 짐도 안 옮긴다.{/analogy}
 
+[[anim:thread_ctx_switch|"Expensive process switch" 와 "Simple thread switch" 의 차이가 어디서 나오는지(페이지 테이블 교체, TLB flush) 보고 위 전환 비용 표와 맞춰 보자.]]
+
 {quiz}스레드 간 [[컨텍스트 스위치]]가 프로세스 간 전환보다 가벼운 이유는?{/quiz}
 {answer}레지스터 저장/복원은 같지만 '''[[주소 공간]](페이지 테이블)을 바꾸지 않는다'''. 따라서 페이지 테이블 레지스터 교체, TLB flush, 캐시 오염 같은 '''간접 비용이 없다'''. (p.27){/answer}
 

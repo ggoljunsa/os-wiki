@@ -13,6 +13,8 @@ A new job enters the system →
 
 {analogy}'''응급실 트리아지'''다. 일반 [[SJF]]가 "접수 순서대로 가장 가벼운 환자부터"라면, STCF는 '''치료 중이던 환자도 중단시키고''' 더 빨리 끝날 환자를 먼저 본다. 전체 대기 시간의 합은 최소가 되지만, 오래 걸리는 환자는 계속 밀려나서 영영 치료를 못 받을 수도 있다(starvation).{/analogy}
 
+[[anim:sched_fifo_sjf_stcf|t=10에 B·C가 도착할 때 세 줄이 어떻게 갈라지는지 본 다음, 끝에 나오는 평균 turnaround time(103.33 / 103.33 / 50)을 직접 계산해 보라]]
+
 == 계산 ==
 
 [[img:L5-16.png|t=10에 B·C가 도착하면 A를 선점. 평균 turnaround = 50초|medium]]

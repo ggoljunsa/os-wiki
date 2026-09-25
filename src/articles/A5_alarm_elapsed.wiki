@@ -10,6 +10,8 @@ category: 과제1, 용어
 (실제 제출 구현은 반대 방향으로 세는 `alarm_left`를 썼다 — `--p->alarm_left <= 0`. 동작은 동일.)
 {/def}
 
+[[img:A1-3.png|과제1 PDF p.3. 맨 아래 힌트 — "You'll need to keep track of how many ticks have passed since the last call ... you'll need a new field in struct proc for this too" (allocproc()에서 초기화).|medium]]
+
 {analogy}
 `alarm_elapsed`는 '''모래시계'''다. 뒤집으면(0으로 리셋) 다시 처음부터 모래가 쌓이고, 다 차면 종이 울린다. 중요한 건 '''이 모래시계는 내가 CPU를 쓸 때만 흐른다'''는 것 — 내가 스케줄에서 밀려 자고 있는 동안에는 모래가 멈춰 있다.
 {/analogy}

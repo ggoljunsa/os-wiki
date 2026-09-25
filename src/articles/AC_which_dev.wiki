@@ -9,6 +9,8 @@ category: 과제1, 4강 LDE, 용어
 과제 PDF 힌트: "You only want to manipulate a process's alarm ticks if there's a timer interrupt; you want something like `if(which_dev == 2) ...`"
 {/def}
 
+[[img:A1-4.png|과제1 PDF p.4. 위쪽 힌트 — "Every tick, the hardware clock forces an interrupt, which is handled in usertrap()", "You only want to manipulate a process's alarm ticks if there's a timer interrupt; ... if(which_dev == 2) ...".|medium]]
+
 {analogy}
 `which_dev`는 '''응급실 접수 데스크의 분류 코드'''다. 환자가 왜 왔는지(`scause`)는 구급차가 적어 온 '''표준 코드'''지만, 병원 내부에서 쓰는 "1번 = 일반, 2번 = 심정지" 같은 '''자체 분류 번호'''가 따로 있다. `which_dev`가 그 자체 번호다.
 {/analogy}

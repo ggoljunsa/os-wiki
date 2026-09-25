@@ -22,6 +22,8 @@ category: 4강 LDE, 용어
 | I/O 인터럽트 || 키보드 Ctrl-C, 네트워크 패킷 도착, 디스크에서 데이터 도착 || 장치가 준비됐음을 알림 (폴링보다 효율적)
 |}
 
+[[img:L4-32.png|4강 p.32 — 부팅 때 timer handler를 트랩 테이블에 등록하고 start interrupt timer. 이후 timer interrupt가 오면 HW가 regs 저장 → kernel mode → trap handler로 점프|medium]]
+
 == 동기 예외와의 구분 ⭐ ==
 
 <pre class="ascii">

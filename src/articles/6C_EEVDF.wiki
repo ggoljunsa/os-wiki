@@ -35,6 +35,8 @@ category: 6강 Proportional Share, 정책
 * '''Negative lag is decayed during sleep but not increased above 0'''
 {/def}
 
+[[img:L6-43.png|6강 p.43. EEVDF — "Eligible"을 정의하는 Lag: allocated − received, lag > 0이면 eligible, 음수 lag은 자는 동안 0까지만 회복.|medium]]
+
 === virtual deadline — 순서 ===
 
 $$VD = t_{now} + \frac{slice_i}{weight_i}$$
@@ -42,6 +44,8 @@ $$VD = t_{now} + \frac{slice_i}{weight_i}$$
 * $t_{now}$ = 그 프로세스의 '''eligible 시각''' (lag = 0이 되는 시점)
 * $slice_i$ = [[sched_latency]] / n 으로 계산한 뒤 '''latency_nice'''로 조정. 예: 48ms, n=4 → 12ms, latency_nice −10 → '''6ms'''
 * slice가 짧거나 [[weight]]가 크면 VD가 '''이르다''' → 먼저 선택
+
+[[img:L6-44.png|6강 p.44. Virtual Deadline — slice는 CFS처럼 계산하되 latency_nice로 조정(12 ms → 6 ms 예), VD = t_now + slice_i / weight_i.|medium]]
 
 <pre class="ascii">
  EEVDF 선택 과정

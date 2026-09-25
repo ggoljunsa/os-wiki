@@ -10,6 +10,10 @@ CPU는 매 순간 '''user mode''' 아니면 '''kernel mode''' 둘 중 하나로 
 그리고 1강 p.30의 그림에서 점선 위는 '''User space''', 아래는 '''OS'''로 표시된다.
 {/def}
 
+[[img:L2-05.png|2강 p.5 — Analogy: System Call. 손님(malicious user)과 주방 사이에 wall을 세우고 kiosk(메뉴)로만 주문받게 한다 = 모드 분리 + 시스템 콜|medium]]
+
+[[img:L1-30.png|1강 p.30 — printf() → write() wrapper → write() system call. 점선 위가 User space, 아래가 OS|medium]]
+
 {analogy}
 🍦 주방(커널)과 손님 구역(유저) 사이의 '''벽'''이 모드 비트다. 손님은 벽 안으로 못 들어가지만, 키오스크([[시스템 콜]])로 주문하면 주방이 대신 해 준다. 손님이 벽을 넘으려 시도하면? 경보가 울리고 경비가 온다 — 그게 '''[[트랩]]'''이다.
 {/analogy}
@@ -31,6 +35,8 @@ CPU는 매 순간 '''user mode''' 아니면 '''kernel mode''' 둘 중 하나로 
 |-
 | [[레지스터|모드 비트]]의 물리적 실체 || [[RISC-V]]의 현재 privilege level (U / S / M) ||
 |}
+
+[[img:L4-20.png|4강 p.20 — User Stack and Kernel Stack. 점선(User Space / Kernel Space)을 넘을 때 HW가 user state(PC, SP, flags)를 kernel stack에 저장|large]]
 
 <pre class="ascii">
    ┌───────────────────────────────────────────────┐

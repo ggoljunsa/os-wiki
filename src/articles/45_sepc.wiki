@@ -28,10 +28,14 @@ CPU(hart)마다 '''하나'''뿐이며 supervisor 모드 전용이라 유저 모�
         userret: 레지스터 31개 복원 → sret → PC ← sepc, mode ← user
 </pre>
 
+[[img:L4-23.png|4강 p.23 — HW가 트랩 때 PC를 저장하고 return-from-trap 때 "jump to PC after trap". RISC-V에서 이 저장 칸이 sepc|medium]]
+
 {exam}
 '''한 문장으로 외울 것:''' "'''`sret`은 `sepc`로 간다. `sepc`는 `trapframe->epc`에서 온다. 그래서 우리는 `epc`를 바꾼다.'''"
 과제 PDF p.4의 힌트 문장 "When a trap on the RISC-V returns to user space, '''what determines the instruction address at which user-space code resumes execution?'''"의 답이 이것이다. 모의고사 A18에서 틀렸고, 실제 퀴즈 1의 2번 ③·3번 (b)로 나왔다.
 {/exam}
+
+[[img:A1-4.png|Assignment 1 PDF p.4 — usertrap()/which_dev == 2 힌트와 "what determines the instruction address..." 질문 원문|medium]]
 
 == sepc vs epc — 표로 정리 ==
 

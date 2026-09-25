@@ -51,6 +51,8 @@ category: 4강 LDE, 용어
 "Returns control to the '''next''' instruction"이 [[xv6]]에서 `p->trapframe->[[epc]] += 4`로 구현된다 — `ecall`은 4바이트라 4를 더해야 `ecall` 다음 명령어로 돌아간다. 반면 '''[[타이머 인터럽트]]는 +4를 하지 않는다''' — 끊긴 명령어를 아직 실행하지 않았으므로 그것부터 다시 해야 한다.
 {/tip}
 
+[[anim:syscall_trap|CPU 가운데의 mode 배지와 sepc 값이 ecall 에서 어떻게 바뀌고, trapframe 의 epc 가 +4 된 뒤 sret 이 그 값으로 돌아오는지를 보세요. 그다음 아래 시뮬레이터로 레지스터 값을 한 줄씩 확인하세요.]]
+
 [[sim:syscall_trap]]
 
 == 관련 문서 ==

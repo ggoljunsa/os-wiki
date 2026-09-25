@@ -8,6 +8,8 @@ category: 4강 LDE, 과제1, 용어
 `usertrap()`은 '''응급실 접수 데스크'''다. 구급차([[트랩]])가 어떤 이유로 왔든 일단 여기로 온다. 데스크는 `scause`(왜 왔나)를 보고 '''시스템 콜 / 장치 인터럽트 / 그 외(죽여야 할 것)''' 셋으로 분류해 보낸다. [[과제1 xv6 alarm|알람]]은 "타이머 때문에 온 환자에게 퇴원 주소를 슬쩍 바꿔 적는" 창구 직원이다.
 {/analogy}
 
+[[img:L4-32.png|4강 p.32 — LDE Protocol (Timer interrupt). timer interrupt → save regs(A) → move to kernel mode → jump to trap handler. xv6에서 그 trap handler가 usertrap()|medium]]
+
 == 전체 구조 ==
 
 <pre class="c">
@@ -43,6 +45,8 @@ usertrap(void)
   usertrapret();                     // 10 나가는 문으로
 }
 </pre>
+
+[[img:A1-4.png|Assignment 1 PDF p.4 — "Every tick ... handled in usertrap() in kernel/trap.c", "if(which_dev == 2) ..." 힌트 = 8행 알람 코드 자리|medium]]
 
 {| class="table"
 ! 행 || 하는 일
