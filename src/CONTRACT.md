@@ -209,6 +209,7 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | spin_lock_tas | lock->flag 칸: T1 TestAndSet 반환 0 → flag=1 획득·CS 진입, T2 는 반환 1(1→1 무해)로 spinning·낭비 tick 증가, T1 unlock(flag=0) → T2 의 다음 TAS 반환 0 → 획득 | spin lock, test-and-set |
 | ticket_turn | ticket/turn 카운터 + T1·T2·T3: FetchAndAdd(&ticket) 로 myturn 0·1·2, turn==myturn 만 진입, unlock 이 FetchAndAdd(&turn) → T1→T2→T3 FIFO | ticket lock |
 | park_unpark | T1 락 보유 중 T2: guard TAS → queue_add(gettid) → setpark() → guard=0 → park()(Blocked, CPU 0) → T1 unlock: guard → unpark(queue_remove) · flag 1 유지(hand-off) → guard=0 → T2 진입 | queue 락, park와 unpark |
+| futex_lock | p.40 코드(1~13·22~26줄) 줄 하이라이트 + mutex 워드 [bit31 lock][대기자 수] hex·signed: T1 bit_test_set 0 → 획득(fast path) → T2 1 → increment(0x80000001) → v 음수 → futex_wait Checked·Queued → T1 atomic_add_zero → 1 ≠ 0 → futex_wake → T2 bit_test_set 0 · decrement → 0x80000000 | futex, two-phase lock, 락 |
 | alarm_tick | sigalarm(3, handler): which_dev==2 tick 마다 alarm_elapsed 1·2·3 → alarm_saved=*trapframe → alarm_active=1, elapsed=0, epc=handler → sret 로 handler → handler 중 tick 안 셈 → sigreturn: *trapframe=alarm_saved, active=0, a0 반환(42) → 0x1234 재개 | 과제1 xv6 alarm, sigalarm |
 | cv_wait_signal | wait() 가 락을 놓고 잠들었다가 signal 로 깨어나 락을 다시 잡고 돌아오는 10초 — Mesa 라 깨어난 뒤 조건 재검사(while) | 조건 변수, wait와 signal, Mesa semantics |
 | bounded_buffer | 생산자 2·소비자 2, 버퍼 3칸: fill/use 포인터, count, empty/fill 두 cv 에서 자고 깨는 흐름 | producer-consumer, bounded buffer |

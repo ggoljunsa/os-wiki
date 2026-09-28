@@ -564,6 +564,8 @@ void lock(lock_t *lock) {
 26   }
 </pre>
 
+[[anim:futex_lock|무경쟁인 T1 은 유저 공간에서 끝나고, 경쟁한 T2 만 futex_wait(Checked → Queued)로 커널 큐에서 잠드는 흐름을 본 뒤, 아래 비트 표로 mutex 값을 해석해 보라]]
+
 '''정수 하나에 상태를 패킹'''하는 것이 핵심이다:
 
 {|

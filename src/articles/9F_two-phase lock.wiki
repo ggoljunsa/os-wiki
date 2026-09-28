@@ -34,6 +34,8 @@ category: 9강 Lock, 용어
 
 == futex 코드에서 두 단계 찾기 (p.40) ==
 
+[[anim:futex_lock|phase 1(2·5번 줄 atomic, 커널 진입 없음)과 phase 2(11번 줄 futex_wait 로 잠듦)가 언제 갈리는지 보고, 아래 코드에서 두 단계 경계를 직접 표시해 보라]]
+
 <pre class="c">
  1   void lock(int *mutex) {
  2       if (atomic_bit_test_set(mutex, 31) == 0) return;   // === Phase 1 (fast path) ===
