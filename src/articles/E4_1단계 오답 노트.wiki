@@ -1,0 +1,127 @@
+key: 1단계 오답 노트
+title: 웹 퀴즈 1단계 오답 노트 (2026-09-28)
+category: 시험, 오답
+---
+Claude 웹 문제 세트 "1단계"에서 틀린 11문항. 문항마다 '''한 줄 정답 → 슬라이드 원문 → 왜 헷갈렸나 → 바로 볼 문서''' 순서다. 시험 직전엔 각 문항의 굵은 한 줄만 훑어도 된다.
+
+{warn}공통 패턴: 11문항 중 7문항이 '''5·6·7강 스케줄링'''이고, 그중 5개가 "왜 그 규칙이 필요한가"를 묻는 서술형이다. 규칙 자체는 아는데 '''도입 이유'''를 문장으로 못 쓰는 상태 — 각 항목의 "왜"를 한 문장으로 소리 내어 말할 수 있을 때까지.{/warn}
+
+== 2. Convoy effect와 STCF의 메커니즘 ==
+'''정답 한 줄: convoy effect = 짧은 작업들이 무거운 작업 하나 뒤에 줄줄이 갇히는 것. STCF가 도입하는 메커니즘 = [[선점|preemption]] — 새 작업이 도착하면 "남은 완료 시간"이 가장 짧은 작업으로 CPU를 빼앗아 바꾼다.'''
+
+{def}[5강 p.12] "A number of relatively-short potential consumers of a resource get queued behind a heavyweight resource consumer" — e.g., 마트 계산대에서 카트 세 개 끄는 사람 뒤에 선 것.<br>[5강 p.15] STCF: "'''Add preemption to SJF'''. Also known as Preemptive Shortest Job First (PSJF)."{/def}
+
+왜 헷갈렸나: convoy effect는 원래 '''[[FIFO]]의 문제'''다(p.12는 FIFO 뒤에 나온다). [[SJF]]는 도착이 동시일 때 이걸 풀지만, '''긴 작업이 먼저 도착하고 짧은 작업이 나중에 오면''' SJF도 non-preemptive라서 다시 convoy가 생긴다(p.14: A=100@0, B·C=10@10 → 평균 103.33). 그래서 STCF = SJF + preemption(p.16: 평균 50). 답안에는 "SJF는 non-preemptive라 늦게 온 짧은 작업이 기다린다 → STCF는 도착 시점마다 남은 시간을 비교해 선점" 이 두 마디가 들어가야 한다.
+
+→ [[convoy effect]] · [[STCF]] · [[선점]] · [[sim:sched_gantt]] 의 preset `late_arrival`에서 SJF와 STCF를 비교.
+
+== 5. MLFQ Priority Boost(Rule 5)가 필요한 이유 ==
+'''정답 한 줄: ① starvation — interactive 작업이 많으면 낮은 큐의 긴 작업이 CPU를 영영 못 받는다. ② 행동 변화 — CPU-bound였다가 I/O-bound로 바뀐 프로세스가 최하위 큐에 갇혀 있다. 주기 S마다 전부 최상위 큐로 올리면 둘 다 풀린다.'''
+
+{def}[5강 p.37 Problems with the Basic MLFQ] "'''Starvation''': If there are too many interactive jobs, long-running jobs will never receive any CPU time." / "'''A program may change its behavior over time''': CPU bound → I/O bound. The job stays in the lowest queue."<br>[p.38] Rule 5: "After some time period S, move all the jobs in the system to the topmost queue."{/def}
+
+왜 헷갈렸나: 문제가 두 관점을 명시했는데("기아와 프로세스 특성 변화") 한쪽만 썼거나, p.37의 세 번째 문제인 '''gaming(attack)'''을 섞어 썼을 가능성. gaming은 Rule 4(allotment)로 푸는 것이고 boost와 무관하다. 표로 고정:
+
+{|
+! 문제 (p.37) || 해결 규칙
+|-
+| Starvation || Rule 5 boost
+|-
+| 행동 변화(CPU→I/O bound) || Rule 5 boost
+|-
+| Gaming (slice 직전에 CPU 반납) || Rule 4 allotment (better accounting)
+|}
+
+→ [[MLFQ]] · [[sim:mlfq]] 시나리오 `boost` · [[anim:mlfq_boost|boost 전후를 10초로]]
+
+== 7. Stride 첫 실행 후 pass 상태 ==
+'''정답 한 줄: 모두 pass=0이면 동률 → 슬라이드 관례대로 목록의 첫 프로세스 A를 고른다. A가 한 slice 실행하면 pass에 자기 stride를 더해 A=100, B=0, C=0.'''
+
+{def}[6강 p.23] "Pick the process with the '''lowest pass''' value, run it, then '''increment its pass by its stride'''." — `current->pass += current->stride`.{/def}
+
+계산 규칙 두 가지만 지키면 된다:
+* 고르는 기준은 '''pass 최소'''(tickets나 stride가 아님). 동률이면 아무나 — 슬라이드 p.25 표는 A부터 시작한다("B를 먼저 골라도 비율은 같다" p.26).
+* 실행한 프로세스의 pass에 '''그 프로세스의 stride'''를 더한다. 다른 프로세스는 그대로.
+
+문제의 stride가 A 100 / B 50 / C 200 이므로(tickets는 그 역순 — B가 가장 많음) 만약 B를 먼저 골랐다면 B=50, A=C=0. 채점 기준이 "A부터"였다면 A=100. 어느 쪽이든 "선택된 것만 stride만큼 증가"가 핵심.
+
+→ [[Stride 스케줄링]] · [[pass]] · [[stride]] · [[sim:stride_lottery]] 에서 한 단계씩 검산.
+
+== 8. Stride의 결정론적 장점 vs global state 문제 ==
+'''정답 한 줄: Stride는 매 scheduling cycle 끝에 비율을 정확히(deterministic) 맞춘다. 대신 pass라는 global state가 있어서 새 작업이 도착했을 때 pass를 얼마로 줄지 정해야 하는데, 0으로 주면 그 작업이 CPU를 독점한다. Lottery는 global state가 없어 이 문제가 없다.'''
+
+{def}[6강 p.27] "Lottery scheduling achieves the proportions '''probabilistically'''. Stride scheduling gets them '''exactly right''' at the end of each scheduling cycle." / "Lottery scheduling has one nice property – '''no global state''' (e.g., no pass values). Calibrating global states is difficult." / "Imagine a new job enters in the middle of our stride scheduling. What should its pass value be? Should it be set to 0? If so, it will '''monopolize the CPU'''!"{/def}
+
+답안 구조: (장점) 확률이 아니라 정확한 비율 → 짧은 구간에서도 공정. (어려움) 새 작업의 pass 초기값 — 0이면 독점, 그래서 보통 현재 최소 pass로 맞춰야 하고 이런 보정이 "global state 관리"다. [[sim:stride_lottery]] 옵션 `join=zero`가 독점을 그대로 보여 준다.
+
+→ [[Stride 스케줄링]] · [[Lottery 스케줄링]] · [[pass]]
+
+== 13. Cache affinity와 MQMS ==
+'''정답 한 줄: 프로세스가 한 CPU에서 돌면 그 CPU 캐시에 상태가 쌓이므로 같은 CPU에서 다시 돌리면 hit로 빨라진다(옮기면 cold miss). MQMS는 CPU마다 큐를 따로 두고 작업을 한 큐에 고정해 affinity를 자연히 보존하며, 불균형은 migration(work stealing)으로만 푼다.'''
+
+{def}[7강 p.31] "'''Keep a process on the same CPU if possible'''. A process builds up a fair bit of state in the cache of a CPU. The next time the process runs, it will run faster if some of its state is already present in the cache on that CPU."<br>[p.37] "'''MQMS provides more scalability and cache affinity'''." [p.39] "The answer is to move jobs (Migration)."{/def}
+
+왜 헷갈렸나: SQMS와 섞였을 가능성. SQMS는 큐 하나를 모든 CPU가 공유해서 작업이 CPU를 옮겨 다니고(p.34 ABCDE 회전) affinity를 잃으므로 '''별도 affinity 메커니즘'''을 얹어야 한다(p.35). MQMS는 구조 자체가 affinity를 주고, 대신 load imbalance가 생겨 migration이 필요하다.
+
+→ [[cache affinity]] · [[MQMS]] · [[SQMS]] · [[work stealing]] · [[anim:cache_affinity|캐시 warm→cold]]
+
+== 18. 프로세스 상태 전이 중 틀린 것 ==
+'''정답 한 줄: 전이는 네 개뿐 — Running→Ready (descheduled), Ready→Running (scheduled), Running→Blocked (I/O: initiate), Blocked→Ready (I/O: done). "Blocked→Running"과 "Ready→Blocked"은 없다.'''
+
+{def}[3강 p.35 Process State Transition] Running ⇄ Ready (Descheduled / Scheduled), Running → Blocked (I/O: initiate), Blocked → Ready (I/O: done).{/def}
+
+함정 두 개: I/O가 끝나면 '''Ready로 가지 Running으로 바로 가지 않는다'''(스케줄러가 다시 골라야 함). Ready 상태에서는 I/O를 시작할 수 없다(CPU를 잡고 있어야 syscall을 부른다). 3강 시뮬레이터에서 화살표 네 개만 존재하는 걸 눈으로 확인.
+
+→ [[프로세스 상태]] · [[sim:proc_states]] · [[anim:proc_lifecycle|상태 원 위를 도는 토큰]]
+
+== 19. CFS의 "수학적 기반 없는 휴리스틱" 예시 ==
+'''정답 한 줄: interactive bonus, wakeup replacement (소스 코드에 누적된 휴리스틱). 그래서 Linux 6.6(2023-10)이 CFS 코어를 EEVDF로 교체했다.'''
+
+{def}[6강 p.42 Limitation of CFS] "Cannot reflect the latency requirements (latency-nice)" / "Long evolution introduced a lot of heuristics — e.g.) '''interactive bonus, wakeup replacement''' — No theoretical foundation, More complex, Less predictable."{/def}
+
+→ [[CFS]] · [[EEVDF]] (EEVDF 쪽은 "Tight lag bound is mathematically proven", p.45)
+
+== 20. EEVDF의 Eligible 조건 ==
+'''정답 한 줄: lag > 0 (받아야 할 CPU 시간보다 덜 받았다). eligible한 것 중 virtual deadline이 가장 이른 것을 고른다.'''
+
+{def}[6강 p.43] "What is Eligible? '''If lag > 0 the process is eligible'''." [p.44] "t_now: Eligible time of the process (i.e. when lag = 0)". 규칙: "Schedule a process with lag > 0 and earliest VD".{/def}
+
+모의 v1 A13에서도 틀렸던 항목. 이름이 답이다 — '''E'''arliest '''E'''ligible '''V'''irtual '''D'''eadline '''F'''irst: 자격(lag>0) + 순서(VD). CFS는 조건 하나(vruntime 최소), EEVDF는 둘.
+
+→ [[EEVDF]] · [[lag]] · [[virtual deadline]] · [[sim:cfs_eevdf]] policy=eevdf
+
+== 21. `static int x;`가 저장되는 ELF 섹션 ==
+'''정답 한 줄: .bss — 초기화되지 않은 전역/정적 변수. 파일에서 공간을 차지하지 않고(크기만 기록) 로드 시 0으로 채워진다.'''
+
+{def}[3강 p.17 ELF Format] ".text: code / .rodata: read-only data (jump tables…) / .data: initialized global variables / '''.bss: uninitialized global variables''' — occupies no space" [p.18] `static int t` → .bss, `int buf[2]={1,2}` → .data{/def}
+
+→ [[프로그램 로딩]] (섹션 표와 .data vs .bss 함정) · [[주소 공간]]
+
+== 22. Ticket currency와 ticket inflation ==
+'''정답 한 줄: currency = 사용자가 자기 화폐 단위로 자기 작업들에 티켓을 나누면 시스템이 global currency로 환산하는 것. inflation = 프로세스가 스스로 티켓 수를 늘리거나 줄이는 것 — 서로 믿는 cooperative 환경에서는 더 급한 프로세스가 커널에 말하지 않고도 지분을 늘릴 수 있어 편리하다(경쟁 환경에선 남용되므로 불가).'''
+
+{def}[6강 p.13 Ticket Currency] "Currency allows a user to allocate tickets among their own jobs in whatever currency they would like. The system converts the currency into the correct global value." 예: 200장 global — User A 100장을 자기 화폐 1000으로 나눠 A1 500·A2 500 → global 50·50, User B 100장을 B1 10 → global 100.<br>[p.15 Ticket Inflation] global 200 → 300장으로 늘어난 예 (A1·A2 각 100, B1 100). "Inflation can be applied in an environment where a group of processes trust one another."{/def}
+
+왜 헷갈렸나: 세 가지 메커니즘(currency / transfer / inflation)을 한 덩어리로 기억. 구분: '''currency = 환산''', '''transfer = 잠시 넘김'''(client→server), '''inflation = 총량 변경'''(신뢰 환경 전제).
+
+→ [[tickets]] · [[Lottery 스케줄링]]
+
+== 23. ISA에 속하는 것 vs microarchitecture ==
+'''정답 한 줄: ISA(architecture) = 어셈블리를 쓰려면 알아야 하는 것 — 명령어 집합(mov, add)과 레지스터(eip). Microarchitecture = 그 구현 — 캐시 크기, 코어 주파수. 따라서 "레지스터 이름/명령어"가 ISA, "캐시 크기/클럭"이 microarchitecture.'''
+
+{def}[3강 p.7 Definitions] "Architecture: The parts of a processor design that one needs to understand to write assembly code. Also called '''Instruction Set Architecture (ISA)'''. Examples: instruction set specification (e.g., mov and add) and registers (e.g., eip)." / "'''Microarchitecture: Implementation of the architecture'''. Examples: cache sizes and core frequency."{/def}
+
+→ [[ISA와 마이크로아키텍처]] (새 문서) · [[레지스터]] · [[프로그램 카운터]]
+
+== 다시 볼 순서 ==
+# [[선점]] → [[convoy effect]] → [[STCF]] (2번)
+# [[MLFQ]] p.37~40 표 (5번)
+# [[Stride 스케줄링]] 시뮬레이터를 pass 0에서 직접 3단계 (7·8번)
+# [[EEVDF]] 규칙 한 줄 + [[CFS]] 한계 세 가지 (19·20번)
+# [[tickets]] currency/transfer/inflation 세 줄 (22번)
+# [[cache affinity]] → [[SQMS]] vs [[MQMS]] (13번)
+# [[프로세스 상태]] 화살표 4개, [[프로그램 로딩]] 섹션 표, [[ISA와 마이크로아키텍처]] (18·21·23번)
+
+== 관련 문서 ==
+* [[자주 틀리는 함정 모음]] — 이 문서의 항목이 합쳐져 있다
+* [[퀴즈1 복기]] · [[2025F 중간고사 족보]] · [[시험 정보]]
