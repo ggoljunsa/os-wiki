@@ -1,0 +1,53 @@
+key: Mesa semantics
+title: Mesa semantics (vs Hoare semantics)
+category: 10강 Condition Variables, 용어
+---
+'''Mesa semantics'''는 "signal은 '''힌트'''일 뿐, 깨어난 스레드가 실행될 때 조건이 여전히 참이라는 보장은 없다"는 [[wait와 signal|signal]]의 해석이다. 이 때문에 [[조건 변수]] 코드는 '''항상 `while`'''로 조건을 검사한다. OSTEP 30.2절 (Fig 30.9 직후).
+
+{def}"Signaling a thread only wakes them up; it is thus a '''hint that the state of the world has changed''', but there is '''no guarantee''' that when the woken thread runs, the state will still be as desired. This interpretation of what a signal means is often referred to as '''Mesa semantics'''."
+"The contrast, referred to as '''Hoare semantics''', is harder to build but provides a stronger guarantee that the woken thread will '''run immediately''' upon being woken."
+"'''Virtually every system ever built employs Mesa semantics.'''"{/def}
+
+== 비교 ==
+
+{|
+! || '''Mesa''' || '''Hoare'''
+|-
+| signal 후 깨어난 스레드 || '''Ready 큐'''로 이동, signaler는 계속 실행 || '''즉시''' 실행 (signaler가 양보)
+|-
+| 그 사이 끼어들기 || 가능 || 불가능
+|-
+| 조건 검사 || '''`while`''' 필수 || `if` 충분
+|-
+| 구현 난이도 || 쉬움 || 어려움
+|-
+| 이름 || Lampson & Redell, '''Mesa''' 언어 / Pilot OS (1980) || C.A.R. '''Hoare''', monitor (1974)
+|}
+
+== 왜 while인가 — 새치기 타임라인 ==
+
+<pre class="ascii">
+ count:   0          1                    1              0                0
+ Tc1:  wait(zzz) ...... Ready(깨워짐) ...................... 실행! if 라서 바로 get()  → assert 실패
+ Tp :            put, signal(Tc1) → 잠듦
+ Tc2:                                  끼어듦: count==1 → get()  (값을 가져감)
+                                       ^^^^^^^^ Tc1 이 깨어난 뒤 '''실행되기 전'''
+</pre>
+
+`if`면 Tc1은 조건을 '''다시 보지 않고''' `get()`한다. `while`이면 락을 쥔 채 `count == 0`을 재검사하고 다시 잠든다. 자세한 트레이스(Fig 30.9)는 [[조건 변수]].
+
+{def}"Thanks to Mesa semantics, a simple rule to remember with condition variables is to '''always use while loops'''. Sometimes you don't have to re-check the condition, but it is always safe to do so; just do it and be happy."{/def}
+
+[[anim:cv_wait_signal|깨어난 뒤 조건을 재검사(while)하는 마지막 장면을 주목하라]]
+
+[[sim:producer_consumer]]
+
+{analogy}🎭 Mesa = '''식당 진동벨'''. 벨이 울려 카운터로 걸어가는 사이 다른 손님이 내 음식을 집어 갈 수도 있다(그럴 리 없다고? 동시성에서는 일어난다). 그래서 카운터에서 '''번호를 다시 확인'''한다. Hoare = 벨이 울리면 '''직원이 음식을 들고 내 자리까지 와서 손에 쥐여 준다'''. 확인이 필요 없지만 식당 운영이 어렵다.{/analogy}
+
+{exam}🎯 정의→용어 단답 후보: "a hint that the state of the world has changed, but no guarantee that ... the state will still be as desired" → '''Mesa semantics'''. 반대말 '''Hoare semantics'''도 함께. 서술형이면 "왜 `if` 대신 `while`인가?"로 나온다 — 답은 '''Mesa semantics + [[spurious wakeup]]'''.{/exam}
+
+{quiz}Hoare semantics 시스템에서는 [[producer-consumer]] 코드의 `while`을 `if`로 바꿔도 되는가?{/quiz}
+{answer}이론상 '''된다''' — signal된 스레드가 즉시 실행되어 그 사이 상태가 바뀔 수 없기 때문이다. 하지만 (1) 사실상 모든 시스템이 Mesa이고 (2) [[spurious wakeup]]도 있을 수 있으므로 '''실전에서는 항상 while'''.{/answer}
+
+== 관련 문서 ==
+* [[조건 변수]] · [[wait와 signal]] · [[spurious wakeup]] · [[producer-consumer]] · [[covering condition]]

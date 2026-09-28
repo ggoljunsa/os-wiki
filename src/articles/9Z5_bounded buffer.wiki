@@ -1,0 +1,63 @@
+key: bounded buffer
+title: Bounded buffer (유한 버퍼)
+category: 10강 Condition Variables, 용어
+---
+'''Bounded buffer'''는 [[producer-consumer]] 문제의 공유 자료구조 — '''크기가 MAX로 정해진 원형 큐'''다. 크기가 유한(bounded)하므로 "꽉 참"과 "비었음" 두 조건 모두에서 누군가 기다려야 한다. OSTEP Fig 30.13.
+
+{analogy}🎭 '''편의점 음료 냉장고 진열대'''(칸 수 MAX). 직원은 뒤쪽에서 `fill_ptr` 칸에 채워 넣고, 손님은 앞쪽 `use_ptr` 칸에서 꺼낸다. 칸 끝에 닿으면 처음 칸으로 돌아간다(`% MAX`). `count`는 "지금 몇 병 들어 있나"를 적은 계산대 메모.{/analogy}
+
+<pre class="c">
+ 1   int buffer[MAX];
+ 2   int fill_ptr = 0;
+ 3   int use_ptr = 0;
+ 4   int count    = 0;
+ 5
+ 6   void put(int value) {
+ 7       buffer[fill_ptr] = value;
+ 8       fill_ptr = (fill_ptr + 1) % MAX;
+ 9       count++;
+10   }
+11   int get() {
+12       int tmp = buffer[use_ptr];
+13       use_ptr = (use_ptr + 1) % MAX;
+14       count--;
+15       return tmp;
+16   }
+</pre>
+
+{|
+! 변수 || 역할
+|-
+| `buffer[MAX]` || 저장 공간 (원형)
+|-
+| '''`fill_ptr`''' || 다음에 '''넣을''' 칸 (producer만 움직임)
+|-
+| '''`use_ptr`''' || 다음에 '''꺼낼''' 칸 (consumer만 움직임)
+|-
+| '''`count`''' || 현재 들어 있는 개수. '''wait 조건의 근거''' — `count == MAX`면 producer 대기, `count == 0`이면 consumer 대기
+|}
+
+== MAX = 3 추적 ==
+
+<pre class="ascii">
+ 초기            [ _ | _ | _ ]   fill=0 use=0 count=0   → consumer 는 wait(fill)
+ put(A)          [ A | _ | _ ]   fill=1 use=0 count=1
+ put(B)          [ A | B | _ ]   fill=2 use=0 count=2
+ put(C)          [ A | B | C ]   fill=0 use=0 count=3   → count==MAX, producer 는 wait(empty)
+ get() -> A      [ _ | B | C ]   fill=0 use=1 count=2   → signal(empty)
+ put(D)          [ D | B | C ]   fill=1 use=1 count=3   (fill_ptr 가 0 으로 돌아와 재사용)
+</pre>
+
+{warn}⚠️ `put()`/`get()` 자체에는 락이 없다. 이 둘은 [[critical section]]이므로 '''호출하는 쪽(producer/consumer)이 `mutex`를 쥐고''' 불러야 한다. 락 없이 두 producer가 동시에 `put()`하면 같은 `fill_ptr` 칸에 덮어쓰는 [[race condition]]이 생긴다.{/warn}
+
+[[anim:bounded_buffer|fill/use 포인터가 원형으로 돌고 count 가 0 또는 MAX 에 닿을 때 누가 잠드는지 확인하라]]
+
+[[sim:producer_consumer]]
+
+{info}버퍼 한 칸 버전(Fig 30.6)은 `count`가 0/1뿐이고 `assert(count == 0)` / `assert(count == 1)`로 잘못된 접근을 잡는다. 여러 칸으로 늘리면 "잠들기 전에 여러 개 생산/소비"가 가능해 '''context switch가 줄고''', 생산자·소비자가 여럿이면 '''동시성도 늘어난다'''.{/info}
+
+{quiz}MAX=3, 초기 상태에서 put, put, get, put, put, get 순서로 실행한 뒤 `fill_ptr`, `use_ptr`, `count`는?{/quiz}
+{answer}put 4번 → `fill_ptr` = 4 % 3 = '''1'''. get 2번 → `use_ptr` = '''2'''. `count` = 4 − 2 = '''2'''. (중간에 count가 MAX=3을 넘지 않았는지 확인: 1,2,1,2,3,2 → OK){/answer}
+
+== 관련 문서 ==
+* [[producer-consumer]] · [[조건 변수]] · [[concurrent queue]] · [[critical section]]

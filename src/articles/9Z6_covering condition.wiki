@@ -1,0 +1,62 @@
+key: covering condition
+title: Covering condition
+category: 10강 Condition Variables, 용어
+---
+'''Covering condition'''은 "누구를 깨워야 할지 모를 때 '''모두 깨워서''' 깨어나야 할 스레드가 반드시 포함되게(cover) 하는" [[조건 변수]] 사용법이다. 도구는 [[broadcast]]. Lampson & Redell의 Pilot 논문(Mesa semantics를 만든 그 그룹)에서 나온 예. OSTEP 30.3절.
+
+{def}"Lampson and Redell call such a condition a '''covering condition''', as it '''covers all the cases where a thread needs to wake up (conservatively)'''; the cost, as we've discussed, is that '''too many threads might be woken'''."{/def}
+
+== 메모리 할당기 예 (OSTEP Fig 30.15) ==
+
+<pre class="c">
+ 1   // how many bytes of the heap are free?
+ 2   int bytesLeft = MAX_HEAP_SIZE;
+ 3
+ 4   // need lock and condition too
+ 5   cond_t c;
+ 6   mutex_t m;
+ 7
+ 8   void *
+ 9   allocate(int size) {
+10       Pthread_mutex_lock(&m);
+11       while (bytesLeft < size)
+12           Pthread_cond_wait(&c, &m);
+13       void *ptr = ...; // get mem from heap
+14       bytesLeft -= size;
+15       Pthread_mutex_unlock(&m);
+16       return ptr;
+17   }
+18
+19   void free(void *ptr, int size) {
+20         Pthread_mutex_lock(&m);
+21         // return some memory to the heap
+22         bytesLeft += size;
+23         Pthread_cond_signal(&c); // whom to signal??
+24         Pthread_mutex_unlock(&m);
+25   }
+</pre>
+
+<pre class="ascii">
+ bytesLeft = 0
+ Ta: allocate(100) → 100 > 0  → wait   ┐
+ Tb: allocate(10)  → 10  > 0  → wait   ┘  c 의 큐: [Ta, Tb]
+ Tc: free(50)      → bytesLeft = 50
+     signal(&c)   → Ta 를 깨움?  Ta: 100 > 50 → 다시 wait
+                                  Tb (10 이면 충분한데) 계속 잠 ← '''엉뚱한 스레드를 깨움'''
+     broadcast(&c) → Ta, Tb 모두 깨움 → Ta 다시 wait, '''Tb 진행''' (bytesLeft = 40)
+</pre>
+
+문제의 본질: 대기자마다 기다리는 조건(`size`)이 달라서 "the thread waking other threads '''does not know which thread (or threads) to wake up'''."
+
+{analogy}🎭 '''주차장 빈자리 안내'''. 대형 버스와 경차가 둘 다 입구에서 기다린다. 소형차 한 대가 나갔을 때 안내원이 버스만 불러들이면 버스는 못 들어가고 경차는 계속 기다린다. 안내원이 "'''다들 한 번씩 보세요!'''"라고 외치면(broadcast) 들어갈 수 있는 차만 들어간다. 대신 버스 기사는 괜히 시동을 걸었다 끈다.{/analogy}
+
+{warn}⚠️ '''남용 금지''': "In general, if you find that your program '''only works when you change your signals to broadcasts''' (but you don't think it should need to), '''you probably have a bug'''; fix it!"
+[[producer-consumer]]의 CV 1개 버전도 broadcast로 땜질할 수 있었지만, '''CV 두 개'''라는 더 정확한 해법이 있었으므로 그걸 썼다. 할당기처럼 조건이 스레드마다 다를 때만 broadcast가 "the most straightforward solution"이다.{/warn}
+
+[[sim:producer_consumer]]
+
+{quiz}covering condition에서 broadcast를 써도 correctness가 깨지지 않는 이유는? (힌트: 11번 줄){/quiz}
+{answer}각 대기자가 '''`while (bytesLeft < size)`로 재검사'''하기 때문이다. 불필요하게 깨어난 스레드는 조건을 다시 보고 곧바로 잠든다. `if`였다면 broadcast가 조건을 만족하지 않는 스레드까지 진행시켜 버린다 → [[Mesa semantics]].{/answer}
+
+== 관련 문서 ==
+* [[broadcast]] · [[조건 변수]] · [[Mesa semantics]] · [[wait와 signal]] · [[힙]]

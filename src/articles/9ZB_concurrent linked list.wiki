@@ -1,0 +1,121 @@
+key: concurrent linked list
+title: Concurrent linked list
+category: 10강 Condition Variables, 용어, OSTEP 29장
+---
+리스트 전체에 [[락]] 하나를 붙인 thread-safe linked list. OSTEP 29.2절. 요점은 두 가지: ① '''드문 제어 흐름(에러 경로)에서 unlock을 빼먹기 쉽다''' ② 노드마다 락을 다는 '''hand-over-hand locking'''은 생각만큼 빠르지 않다. → 개관 [[락 기반 자료구조]]
+
+== 기본 버전 (Fig 29.7) ==
+
+<pre class="c">
+ 1   // basic node structure
+ 2   typedef struct __node_t {
+ 3       int                 key;
+ 4       struct __node_t         *next;
+ 5   } node_t;
+ 6
+ 7   // basic list structure (one used per list)
+ 8   typedef struct __list_t {
+ 9       node_t                *head;
+10       pthread_mutex_t     lock;
+11   } list_t;
+12
+13   void List_Init(list_t *L) {
+14       L->head = NULL;
+15       pthread_mutex_init(&L->lock, NULL);
+16   }
+17
+18   int List_Insert(list_t *L, int key) {
+19       pthread_mutex_lock(&L->lock);
+20       node_t *new = malloc(sizeof(node_t));
+21       if (new == NULL) {
+22           perror("malloc");
+23           pthread_mutex_unlock(&L->lock);
+24           return -1; // fail
+25       }
+26       new->key = key;
+27       new->next = L->head;
+28       L->head   = new;
+29       pthread_mutex_unlock(&L->lock);
+30       return 0; // success
+31   }
+32
+33   int List_Lookup(list_t *L, int key) {
+34       pthread_mutex_lock(&L->lock);
+35       node_t *curr = L->head;
+36       while (curr) {
+37           if (curr->key == key) {
+38               pthread_mutex_unlock(&L->lock);
+39               return 0; // success
+40           }
+41           curr = curr->next;
+42       }
+43       pthread_mutex_unlock(&L->lock);
+44       return -1; // failure
+45   }
+</pre>
+
+23번 줄과 38번 줄 — '''리턴 경로마다 unlock'''이 따로 있다. 하나라도 빠지면 락이 영원히 잡힌 채 남는다. 리눅스 커널 패치 연구에서 버그의 '''거의 40%'''가 이런 rarely-taken path에서 나왔다.
+
+== 고친 버전 (Fig 29.8) ==
+
+<pre class="c">
+ 1   void List_Init(list_t *L) {
+ 2       L->head = NULL;
+ 3       pthread_mutex_init(&L->lock, NULL);
+ 4   }
+ 5
+ 6   int List_Insert(list_t *L, int key) {
+ 7       // synchronization not needed
+ 8       node_t *new = malloc(sizeof(node_t));
+ 9       if (new == NULL) {
+10           perror("malloc");
+11           return -1;
+12       }
+13       new->key = key;
+14       // just lock critical section
+15       pthread_mutex_lock(&L->lock);
+16       new->next = L->head;
+17       L->head   = new;
+18       pthread_mutex_unlock(&L->lock);
+19       return 0; // success
+20   }
+21
+22   int List_Lookup(list_t *L, int key) {
+23       int rv = -1;
+24       pthread_mutex_lock(&L->lock);
+25       node_t *curr = L->head;
+26       while (curr) {
+27           if (curr->key == key) {
+28               rv = 0;
+29               break;
+30           }
+31           curr = curr->next;
+32       }
+33       pthread_mutex_unlock(&L->lock);
+34       return rv; // now both success and failure
+35   }
+</pre>
+
+* Insert: `malloc`은 thread-safe라고 가정 → '''락 밖으로''' 뺀다. 공유 리스트를 바꾸는 16~17번 줄만 [[critical section]].
+* Lookup: `break`로 빠져나와 '''출구를 하나'''(33~34번 줄)로 → unlock 지점 1개.
+
+{tip}💡 '''TIP: BE WARY OF LOCKS AND CONTROL FLOW''' — 함수 중간의 return/exit/에러 경로는 잡은 락·할당한 메모리를 모두 되돌려야 해서 버그가 잘 생긴다. 그런 패턴을 최소화하도록 코드를 구성하라.{/tip}
+
+== Hand-over-hand locking (lock coupling) ==
+
+<pre class="ascii">
+  리스트 락 1개:     [ LOCK ]  head ─▶ A ─▶ B ─▶ C ─▶ D
+  hand-over-hand:   head ─▶ A🔒 ─▶ B🔒 ─▶ C🔒 ─▶ D🔒
+                     순회:  lock(B) → unlock(A) → lock(C) → unlock(B) → ...
+                            (다음 노드를 잡고 나서 현재 노드를 놓는다)
+</pre>
+
+개념상 여러 순회가 동시에 진행되지만 "'''in practice, it is hard to make such a structure faster than the simple single lock approach''', as the overheads of acquiring and releasing locks for each node of a list traversal is prohibitive." 몇 노드마다 락을 잡는 hybrid가 연구 대상.
+
+{analogy}🎭 hand-over-hand = '''정글짐 구름사다리'''. 다음 봉을 잡은 뒤에야 이전 봉을 놓는다 — 절대 떨어지지 않지만(안전), 봉 하나하나마다 손을 옮겨야 해서 느리다. 락 하나 = '''엘리베이터 한 번 타기'''.{/analogy}
+
+{quiz}Fig 29.7의 `List_Insert`에서 23번 줄을 지우면 어떤 일이 생기는가?{/quiz}
+{answer}`malloc`이 실패하면 락을 쥔 채 리턴한다 → 이후 이 리스트에 `lock`을 호출하는 모든 스레드가 '''영원히 기다린다'''. 평소에는 malloc이 거의 실패하지 않아 테스트로 잘 안 잡히는 버그다.{/answer}
+
+== 관련 문서 ==
+* [[락 기반 자료구조]] · [[concurrent hash table]] (이 리스트를 버킷으로 씀) · [[concurrent queue]] · [[락]]

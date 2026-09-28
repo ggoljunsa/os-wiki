@@ -39,6 +39,11 @@ category: 안내
 # [[race condition]] · [[critical section]] · [[mutual exclusion]] · [[atomic]] — 정의→용어 문제 단골.
 # [[락]] — 처음부터 끝까지. 각 버전의 시뮬레이터를 순서대로: [[flag 락]](고장) → [[test-and-set]](고침, 불공정) → [[ticket lock]](공정) → [[queue 락]](스핀 낭비 해결) → [[futex]].
 
+== 6.5단계 — 조건 변수 (10강, 1시간) ==
+# [[조건 변수]] — 시뮬레이터 두 개(cv_join 의 버그 변형 둘, producer_consumer 의 if→while→2cv 순서)를 반드시 돌려 볼 것. "왜 while 인가"를 [[Mesa semantics]] 한 줄로 말할 수 있으면 통과.
+# [[락 기반 자료구조]] — [[sloppy counter]] 의 threshold 표.
+# 작년 시험에 나온 [[spurious wakeup]] · [[데드락]] 4조건 · [[reader-writer lock]].
+
 == 7단계 — 마무리 (1시간) ==
 # [[2025F 중간고사 족보]] — 작년 문제 유형과 이 위키의 어느 문서가 대응되는지.
 # [[자주 틀리는 함정 모음]] · [[1단계 오답 노트]] — 시험 직전용.

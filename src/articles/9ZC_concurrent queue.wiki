@@ -1,0 +1,77 @@
+key: concurrent queue
+title: Concurrent queue (Michael & Scott 큐)
+category: 10강 Condition Variables, 용어, OSTEP 29장
+---
+큐에 락 하나를 달면 끝이지만, OSTEP 29.3절은 조금 더 동시적인 '''Michael & Scott 큐'''를 소개한다: '''head용 락과 tail용 락을 따로''' 두고, '''dummy node'''로 두 끝의 연산을 분리한다. → 개관 [[락 기반 자료구조]]
+
+<pre class="c">
+ 1   typedef struct __node_t {
+ 2       int                 value;
+ 3       struct __node_t    *next;
+ 4   } node_t;
+ 5
+ 6   typedef struct __queue_t {
+ 7       node_t              *head;
+ 8       node_t              *tail;
+ 9       pthread_mutex_t     head_lock, tail_lock;
+10   } queue_t;
+11
+12   void Queue_Init(queue_t *q) {
+13       node_t *tmp = malloc(sizeof(node_t));
+14       tmp->next = NULL;
+15       q->head = q->tail = tmp;
+16       pthread_mutex_init(&q->head_lock, NULL);
+17       pthread_mutex_init(&q->tail_lock, NULL);
+18   }
+19
+20   void Queue_Enqueue(queue_t *q, int value) {
+21       node_t *tmp = malloc(sizeof(node_t));
+22       assert(tmp != NULL);
+23       tmp->value = value;
+24       tmp->next = NULL;
+25
+26       pthread_mutex_lock(&q->tail_lock);
+27       q->tail->next = tmp;
+28       q->tail = tmp;
+29       pthread_mutex_unlock(&q->tail_lock);
+30   }
+31
+32   int Queue_Dequeue(queue_t *q, int *value) {
+33       pthread_mutex_lock(&q->head_lock);
+34       node_t *tmp = q->head;
+35       node_t *new_head = tmp->next;
+36       if (new_head == NULL) {
+37           pthread_mutex_unlock(&q->head_lock);
+38           return -1; // queue was empty
+39       }
+40       *value = new_head->value;
+41       q->head = new_head;
+42       pthread_mutex_unlock(&q->head_lock);
+43       free(tmp);
+44       return 0;
+45   }
+</pre>
+
+'''줄 읽기'''
+* 13~15번 줄: '''dummy node''' 하나를 만들고 head와 tail이 둘 다 가리키게 한다. 큐는 "빈 상태에서도 노드 1개"를 갖는다.
+* 26~29번 줄 (Enqueue): '''tail_lock만''' 잡는다.
+* 33~42번 줄 (Dequeue): '''head_lock만''' 잡는다. head는 항상 dummy를 가리키고, 실제 첫 값은 `head->next`. 꺼낸 노드가 새 dummy가 되고 옛 dummy는 free.
+
+<pre class="ascii">
+ 초기:        head,tail ─▶ [dummy]
+ enqueue(1):  head ─▶ [dummy] ─▶ [1] ◀─ tail
+ enqueue(2):  head ─▶ [dummy] ─▶ [1] ─▶ [2] ◀─ tail
+ dequeue():   value=1,  head ─▶ [1](새 dummy) ─▶ [2] ◀─ tail   (옛 dummy free)
+              ^^^^ head_lock                        ^^^^ tail_lock
+              → enqueue 와 dequeue 는 서로 다른 락이라 '''동시에''' 진행 가능
+</pre>
+
+{analogy}🎭 '''놀이공원 줄'''. 줄 끝(tail)에서 새 손님을 받는 직원과 줄 앞(head)에서 입장시키는 직원이 따로 있다. 줄 맨 앞에 항상 '''"여기서부터 입장" 안내판(dummy)'''이 서 있어서, 줄이 비어도 두 직원이 같은 사람을 동시에 건드리지 않는다.{/analogy}
+
+{info}이 큐는 비었으면 `-1`을 리턴할 뿐 '''기다리지 않는다'''. "A more fully developed '''bounded queue''', that enables a thread to wait if the queue is either empty or overly full, is the subject of our intense study in the next chapter on condition variables." → [[bounded buffer]] · [[조건 변수]]{/info}
+
+{quiz}dummy node가 없으면 무엇이 문제인가?{/quiz}
+{answer}큐에 원소가 0개나 1개일 때 head와 tail이 '''같은 노드(또는 NULL)'''를 가리키게 되어, enqueue(tail 수정)와 dequeue(head 수정)가 같은 노드를 건드린다 → 두 락만으로는 보호가 안 되고 결국 락 하나가 필요해진다. dummy가 두 끝을 항상 분리해 준다.{/answer}
+
+== 관련 문서 ==
+* [[락 기반 자료구조]] · [[bounded buffer]] · [[concurrent linked list]] · [[락]]

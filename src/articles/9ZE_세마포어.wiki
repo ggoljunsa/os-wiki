@@ -1,0 +1,97 @@
+key: 세마포어
+title: 세마포어 (Semaphore)
+category: 10강 Condition Variables, 용어, OSTEP 31장
+---
+{warn}⚠️ '''10강 슬라이드 확인 전 — OSTEP 31장 참고용.''' 세마포어가 10강에서 다뤄지는지, 별도 강의인지는 수업 후 확인. 다만 '''2025F 중간고사 Problem 6(producer-consumer 세마포어 빈칸, 16pts)'''에 나왔으므로 최소한 아래 내용은 알아 둘 것.{/warn}
+
+'''세마포어'''는 Dijkstra가 만든 '''정수 값 하나 + 두 연산(`sem_wait`, `sem_post`)'''의 동기화 도구다. 초기값에 따라 [[락]]처럼도, [[조건 변수]]처럼도 쓸 수 있다 — "a single primitive for all things related to synchronization".
+
+{def}"A semaphore is an object with an '''integer value''' that we can manipulate with two routines; in the POSIX standard, these routines are '''sem_wait()''' and '''sem_post()'''. Because the '''initial value''' of the semaphore determines its behavior, ... we must first initialize it."
+"The value of the semaphore, '''when negative, is equal to the number of waiting threads'''."
+(역사: Dijkstra는 `P()`(wait) / `V()`(post)라고 불렀다.){/def}
+
+<pre class="c">
+1   int sem_wait(sem_t *s) {
+2       decrement the value of semaphore s by one
+3       wait if value of semaphore s is negative
+4   }
+5
+6   int sem_post(sem_t *s) {
+7       increment the value of semaphore s by one
+8       if there are one or more threads waiting, wake one
+9   }
+</pre>
+
+{analogy}🎭 세마포어 = '''주차장 입구의 "남은 자리 N" 전광판'''. 들어갈 때(`sem_wait`) 숫자를 1 줄이고, 음수가 되면 입구에서 기다린다. 나갈 때(`sem_post`) 1 올리고 기다리는 차가 있으면 한 대 들여보낸다. 자리가 1개인 주차장 = 락, 자리가 0개에서 시작하는 주차장 = "누가 나와야 들어갈 수 있다" = 순서 맞추기.{/analogy}
+
+== 초기값에 따른 세 가지 용도 ==
+
+{|
+! 용도 || 초기값 || 패턴 || 비교 대상
+|-
+| '''Binary semaphore (= 락)''' || '''1''' || `sem_wait(&m); /* critical section */ sem_post(&m);` || [[락]]
+|-
+| '''Ordering (순서 맞추기)''' || '''0''' || 기다리는 쪽 `sem_wait`, 사건을 일으킨 쪽 `sem_post` || [[조건 변수]] ([[done flag 예제|join]])
+|-
+| '''자원 개수 세기''' || '''N''' (예: MAX) || bounded buffer의 `empty` = MAX, `full` = 0 || [[bounded buffer]]
+|}
+
+=== join을 세마포어로 (Fig 31.6) ===
+
+<pre class="c">
+ 1   sem_t s;
+ 2
+ 3   void *child(void *arg) {
+ 4       printf("child\n");
+ 5       sem_post(&s); // signal here: child is done
+ 6       return NULL;
+ 7   }
+ 8
+ 9   int main(int argc, char *argv[]) {
+10       sem_init(&s, 0, X); // what should X be?
+11       printf("parent: begin\n");
+12       pthread_t c;
+13       Pthread_create(&c, NULL, child, NULL);
+14       sem_wait(&s); // wait here for child
+15       printf("parent: end\n");
+16       return 0;
+17   }
+</pre>
+
+'''X = 0'''. 부모가 먼저면 0 → −1로 잠들고 자식의 post가 깨운다. 자식이 먼저면 0 → 1로 '''post가 기억되고''', 부모의 wait는 1 → 0으로 바로 통과. CV의 signal은 기억되지 않아 `done` 변수가 필요했던 것([[done flag 예제]])과 대비된다.
+
+== CV와의 차이 ==
+
+{|
+! || [[조건 변수]] || 세마포어
+|-
+| 상태 || 없음 (별도 상태 변수 필요) || '''정수 값'''이 상태
+|-
+| 대기자 없을 때 깨우기 || signal '''유실''' || post가 값을 올려 '''기억'''
+|-
+| 락 || wait가 mutex를 인자로 받음 || 자체적으로 atomic (락 인자 없음)
+|}
+
+== Producer-Consumer 정답 (2025F Problem 6) ==
+
+<pre class="c">
+sem_t empty;   // MAX 로 초기화 (빈 칸 수)
+sem_t full;    // 0 으로 초기화 (찬 칸 수)
+sem_t mutex;   // 1 로 초기화 (lock)
+
+producer:                          consumer:
+  sem_wait(&empty);                  sem_wait(&full);
+  sem_wait(&mutex);                  sem_wait(&mutex);
+  put(i);                            int tmp = get();
+  sem_post(&mutex);                  sem_post(&mutex);
+  sem_post(&full);                   sem_post(&empty);
+</pre>
+
+{exam}🎯 '''2025F Problem 6''' (16pts): x/y/z 초기값 = '''MAX / 0 / 1''', 그리고 '''순서'''. `sem_wait(&mutex)`를 `sem_wait(&empty)`보다 '''바깥'''에 두면, producer가 mutex를 쥔 채 empty에서 잠들고 consumer는 mutex를 못 잡아 영원히 대기 → '''[[데드락]]'''. 기억법: "'''자원 세마포어가 바깥, mutex가 안쪽'''". → [[2025F 중간고사 족보]]{/exam}
+
+{quiz}binary semaphore로 락을 만들 때 초기값은? 두 스레드가 동시에 `sem_wait`하면 값은 어떻게 변하는가?{/quiz}
+{answer}초기값 '''1'''. T0 `sem_wait` → 0 (통과, CS 진입). T1 `sem_wait` → '''−1''' (음수이므로 잠듦; −1 = 대기자 1명). T0 `sem_post` → 0, T1 깨움. T1 끝나고 `sem_post` → 1.{/answer}
+
+== 관련 문서 ==
+* [[조건 변수]] · [[producer-consumer]] · [[bounded buffer]] · [[reader-writer lock]] · [[데드락]]
+* [[락]] · [[done flag 예제]] · [[2025F 중간고사 족보]]

@@ -1,0 +1,54 @@
+key: 데드락
+title: 데드락 (Deadlock)
+category: 10강 Condition Variables, 용어, 기출
+---
+{warn}⚠️ '''10강 슬라이드 확인 전 — 2025F 해설 슬라이드와 OSTEP 32장 기준 요약.''' 데드락 전용 강의가 따로 있을 수 있다.{/warn}
+
+'''데드락'''은 여러 [[스레드]]가 서로가 가진 자원(보통 [[락]])을 기다리며 '''아무도 진행하지 못하는''' 상태다. '''2025F Problem 1-c'''에 "Which one is '''not''' a condition of deadlock?"(정답: Busy wait)으로 나왔다.
+
+<pre class="c">
+Thread 1:                  Thread 2:
+pthread_mutex_lock(L1);    pthread_mutex_lock(L2);
+pthread_mutex_lock(L2);    pthread_mutex_lock(L1);   // 서로 상대 락을 기다림
+</pre>
+
+<pre class="ascii">
+        holds             wants
+   T1 ───────▶ L1    T1 ─ ─ ─ ▶ L2
+   T2 ───────▶ L2    T2 ─ ─ ─ ▶ L1
+
+        T1 ──wants──▶ L2 ──held by──▶ T2
+         ▲                             │
+         └──held by── L1 ◀──wants──────┘      ← '''circular wait'''
+</pre>
+
+{def}'''Deadlock Characterization — 네 조건이 동시에 성립할 때 발생''' (2025F 해설 슬라이드)
+# '''Mutual exclusion''': Threads claim exclusive control of resources that they require
+# '''Hold and wait''': Threads hold resources already acquired while waiting for additional resources
+# '''No preemption''': Resources cannot be forcibly removed from threads holding them
+# '''Circular wait''': There exists a circular chain of threads, each holding a resource requested by the next{/def}
+
+넷 중 '''하나만 깨도''' 데드락은 생기지 않는다. 가장 실용적인 예방은 '''circular wait 깨기 — 락을 항상 같은 순서로 잡기'''(lock ordering). [[sloppy counter]]에서 정확한 값을 얻으려고 모든 락을 잡을 때 "in a specified order, to avoid deadlock"이라고 한 것이 이것이다.
+
+{analogy}🎭 '''좁은 외나무다리 양쪽에서 동시에 건너온 두 사람'''. 각자 다리 절반을 차지하고(hold), 상대가 비켜 주길 기다리며(wait), 억지로 밀어낼 수 없고(no preemption), 서로가 서로를 기다린다(circular). 규칙 하나 — "항상 동쪽 사람이 먼저 건넌다"(순서 정하기) — 로 해결된다.{/analogy}
+
+{|
+! 비슷해 보이는 것 || 차이
+|-
+| '''Livelock''' (2025F P2-g) || 둘 다 '''움직이고는 있지만'''(trylock 실패 → 놓고 재시도 반복) 진행이 없다. 해결: random delay
+|-
+| '''Starvation''' || 다른 스레드는 진행하는데 '''특정 스레드만''' 계속 못 들어감 ([[spin lock]], [[reader-writer lock]]의 writer)
+|-
+| '''Busy wait''' || [[spin lock]]의 '''대기 방식'''일 뿐 데드락 조건이 아니다 (P1-c 오답 선지)
+|-
+| CV "모두 잠듦" ([[producer-consumer]] CV 1개 버전) || 락 순환이 아니라 '''엉뚱한 스레드를 깨워서''' 모두 CV에서 자는 것
+|}
+
+{exam}🎯 '''2025F Problem 1-c''': ① Mutual exclusion ② Hold and wait ③ No preemption ④ Circular wait '''⑤ Busy wait''' → 정답 '''⑤'''. '''2025F Problem 6'''의 세마포어 순서(mutex를 바깥에 두면)도 데드락 문제다 → [[세마포어]]. 네 조건은 '''영어 이름 그대로''' 외울 것.{/exam}
+
+{quiz}Thread 1은 L1→L2, Thread 2는 L2→L1 순서로 락을 잡는다. 네 조건 중 무엇을 깨서 고칠 수 있으며, 코드는 어떻게 바꾸는가?{/quiz}
+{answer}'''Circular wait'''를 깬다: 두 스레드 모두 '''L1 → L2''' 순서로 잡게 한다(전역 lock ordering). 그러면 L1을 가진 스레드만 L2를 기다릴 수 있으므로 순환이 생기지 않는다.{/answer}
+
+== 관련 문서 ==
+* [[락]] · [[세마포어]] · [[mutual exclusion]] · [[priority inversion]] · [[spin lock]]
+* [[2025F 중간고사 족보]]

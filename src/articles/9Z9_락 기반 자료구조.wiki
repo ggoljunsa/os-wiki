@@ -1,0 +1,191 @@
+key: 락 기반 자료구조
+title: 락 기반 자료구조 (Lock-based Concurrent Data Structures)
+category: 10강 Condition Variables, 핵심, OSTEP 29장
+---
+{warn}⚠️ '''10강 슬라이드 미배포 상태에서 OSTEP 29장 기준으로 작성(2026-09-28).''' 29장이 10강 범위에 포함되는지는 수업 후 확인. 절 제목의 "(Fig 29.x)"는 OSTEP 그림 번호다.{/warn}
+
+9강에서 [[락]]을 '''만드는''' 법을 배웠다면, 29장은 락을 '''쓰는''' 법이다. 자료구조에 락을 붙여 여러 [[스레드]]가 동시에 써도 안전하게(= '''thread safe''') 만들되, '''어떻게 붙이느냐에 따라 correctness와 performance가 갈린다'''.
+
+> "'''CRUX: HOW TO ADD LOCKS TO DATA STRUCTURES''' — When given a particular data structure, how should we add locks to it, in order to make it work correctly? Further, how do we add locks such that the data structure yields high performance, enabling many threads to access the structure at once, i.e., concurrently?"
+
+{def}'''thread safe''': "Adding locks to a data structure to make it usable by threads makes the structure '''thread safe'''."
+'''perfect scaling''': "even though more work is done, it is done in parallel, and hence the time taken to complete the task is '''not increased'''."{/def}
+
+{analogy}🎭 락 = '''출입문'''. 건물(자료구조) 전체에 문 하나(big lock)를 달면 안전하지만 줄이 길다. 층마다(버킷마다), 방마다(노드마다) 문을 달면 동시에 여럿이 들어가지만 문 여닫는 비용이 늘어난다. 29장은 '''"문을 몇 개, 어디에 달 것인가"'''의 이야기다.{/analogy}
+
+{|
+! 자료구조 || 기본 방법 || 확장성 개선 || 문서
+|-
+| Counter || 락 1개 || '''approximate(sloppy) counter''' — CPU별 local + global, threshold S || [[sloppy counter]]
+|-
+| Linked list || 락 1개 || hand-over-hand locking (노드마다 락) — 실제로는 잘 안 빨라짐 || [[concurrent linked list]]
+|-
+| Queue || 락 1개 || '''Michael & Scott''': head_lock + tail_lock + dummy node || [[concurrent queue]]
+|-
+| Hash table || — || '''버킷(리스트)마다 락''' → 매우 잘 확장 || [[concurrent hash table]]
+|}
+
+----
+
+== 29.1 Concurrent Counters ==
+
+=== 락 없는 카운터 (Fig 29.1) ===
+
+<pre class="c">
+ 1   typedef struct __counter_t {
+ 2       int value;
+ 3   } counter_t;
+ 4
+ 5   void init(counter_t *c) {
+ 6       c->value = 0;
+ 7   }
+ 8
+ 9   void increment(counter_t *c) {
+10       c->value++;
+11   }
+12
+13   void decrement(counter_t *c) {
+14       c->value--;
+15   }
+16
+17   int get(counter_t *c) {
+18       return c->value;
+19   }
+</pre>
+
+10번 줄 `c->value++`는 8강 [[counter 예제]]의 그 `counter++` — load/add/store 세 명령이라 [[race condition]]이 난다.
+
+=== 락 하나 붙인 카운터 (Fig 29.2) ===
+
+<pre class="c">
+ 1   typedef struct __counter_t {
+ 2       int             value;
+ 3       pthread_mutex_t lock;
+ 4   } counter_t;
+ 5
+ 6   void init(counter_t *c) {
+ 7       c->value = 0;
+ 8       Pthread_mutex_init(&c->lock, NULL);
+ 9   }
+10
+11   void increment(counter_t *c) {
+12       Pthread_mutex_lock(&c->lock);
+13       c->value++;
+14       Pthread_mutex_unlock(&c->lock);
+15   }
+16
+17   void decrement(counter_t *c) {
+18       Pthread_mutex_lock(&c->lock);
+19       c->value--;
+20       Pthread_mutex_unlock(&c->lock);
+21   }
+22
+23   int get(counter_t *c) {
+24       Pthread_mutex_lock(&c->lock);
+25       int rc = c->value;
+26       Pthread_mutex_unlock(&c->lock);
+27       return rc;
+28   }
+</pre>
+
+"it simply adds a single lock, which is acquired when calling a routine that manipulates the data structure, and is released when returning from the call" — monitor와 같은 패턴. '''정확하지만 느리다'''.
+
+{|
+! 스레드 수 (각 100만 번 증가, 4-CPU iMac) || Precise(락 1개) 소요 시간
+|-
+| 1 || 약 '''0.03초'''
+|-
+| 2 || '''5초 이상''' ("a massive slowdown")
+|-
+| 3, 4 || 더 나빠짐 ("It only gets worse with more threads")
+|}
+
+<pre class="ascii">
+ Time(s)  (Fig 29.5 개형)
+  15 |                         ● Precise (락 1개)
+  10 |                  ●
+   5 |          ●
+   0 |  ●───────■────────■────────■   ■ Approximate (S=1024)
+     +---1-------2--------3--------4---- Threads
+</pre>
+
+=== Approximate (sloppy) counter (Fig 29.3, 29.4) ⭐ ===
+
+'''논리 카운터 하나를 CPU마다 하나씩인 local 카운터 + global 카운터 하나'''로 표현한다. 스레드는 자기 CPU의 local만 올리고(local 락, 경쟁 거의 없음), local이 '''threshold S'''에 닿으면 global 락을 잡고 global에 더한 뒤 local을 0으로 리셋.
+
+{|
+! Time || L1 || L2 || L3 || L4 || G
+|-
+| 0 || 0 || 0 || 0 || 0 || 0
+|-
+| 1 || 0 || 0 || 1 || 1 || 0
+|-
+| 2 || 1 || 0 || 2 || 1 || 0
+|-
+| 3 || 2 || 0 || 3 || 1 || 0
+|-
+| 4 || 3 || 0 || 3 || 2 || 0
+|-
+| 5 || 4 || 1 || 3 || 3 || 0
+|-
+| 6 || '''5→0''' || 1 || 3 || 4 || '''5''' (from L1)
+|-
+| 7 || 0 || 2 || 4 || '''5→0''' || '''10''' (from L4)
+|}
+(Fig 29.3, S = 5, CPU 4개)
+
+[[sim:sloppy_counter]]
+
+코드와 S의 trade-off는 [[sloppy counter]]에 자세히. 요점:
+* '''S 작음''' → 정확하지만 락 1개 카운터처럼 느림
+* '''S 큼''' → 빠르지만 global이 실제 값보다 최대 '''(CPU 수 × S)'''만큼 뒤처짐
+* S = 1024일 때 "the time taken to update the counter four million times on four processors is hardly higher than the time taken to update it one million times on one processor"
+
+{tip}💡 '''TIP: MORE CONCURRENCY ISN'T NECESSARILY FASTER''' — 락을 자주 잡고 푸는 오버헤드가 크면 동시성이 높아도 느리다. "build both alternatives ... and measure how they do. In the end, '''you can't cheat on performance'''."{/tip}
+
+----
+
+== 29.2 Concurrent Linked Lists ==
+
+리스트 전체에 락 하나. 핵심 교훈은 '''락과 제어 흐름'''이다 — `malloc` 실패 같은 드문 경로에서 unlock을 빼먹기 쉽다 (리눅스 커널 버그의 '''약 40%'''가 이런 rarely-taken path에서 발견). 고친 버전은 '''critical section만 락으로 감싸고''', lookup은 '''출구를 하나로''' 만든다. hand-over-hand locking(노드마다 락)은 개념상 동시성이 높지만 실제로는 노드마다 락 비용 때문에 '''락 하나보다 빠르게 만들기 어렵다'''. → [[concurrent linked list]]
+
+== 29.3 Concurrent Queues ==
+
+'''Michael & Scott 큐''': '''head_lock'''(dequeue용)과 '''tail_lock'''(enqueue용) 두 개 + 초기화 때 넣는 '''dummy node'''로 head와 tail 연산을 분리 → enqueue와 dequeue가 동시에 진행. 다만 "큐가 비었으면 기다리기"는 못 한다 → 그게 [[조건 변수]]의 [[bounded buffer]]. → [[concurrent queue]]
+
+<pre class="ascii">
+  head ─▶ [dummy] ─▶ [ 1 ] ─▶ [ 2 ] ◀─ tail
+          head_lock 이 보호          tail_lock 이 보호
+          (dequeue)                  (enqueue)
+</pre>
+
+== 29.4 Concurrent Hash Table ==
+
+크기 고정 해시 테이블 = '''버킷 101개 각각이 concurrent list(자기 락 보유)'''. 락이 버킷마다 있으므로 서로 다른 버킷 연산은 동시에 진행 → "'''scales magnificently'''". 같은 조건에서 락 1개 리스트는 확장되지 않는다(Fig 29.11). → [[concurrent hash table]]
+
+----
+
+== 29.5 요약 — 교훈 세 가지 ==
+
+{def}"to be careful with acquisition and release of locks around '''control flow changes'''; that '''enabling more concurrency does not necessarily increase performance'''; that performance problems should only be remedied once they exist" (= avoid '''premature optimization''', Knuth){/def}
+
+{quiz}approximate counter에서 CPU가 4개, S = 1024일 때 `get()`이 돌려주는 global 값은 실제 카운트보다 최대 얼마까지 작을 수 있는가?{/quiz}
+{answer}각 local이 flush 직전 최대 S−1(= 1023)까지 쌓일 수 있으므로 대략 '''4 × 1024 ≈ 4096'''(정확히는 4 × 1023 = 4092). OSTEP 표현: "the global count lags (by at most '''the number of CPUs multiplied by S''')".{/answer}
+
+{quiz}hash table은 락을 늘려서 크게 빨라졌는데, hand-over-hand linked list는 왜 그렇지 못한가?{/quiz}
+{answer}hash table은 버킷당 '''락 1번'''으로 서로 다른 버킷 연산이 완전히 독립이다. hand-over-hand list는 순회하는 '''노드마다 락을 잡고 풀어야''' 해서 오버헤드가 크고, 모든 순회가 head부터 같은 노드들을 지나가므로 경쟁도 여전하다. → "More concurrency isn't necessarily faster".{/answer}
+
+== 시험 대비 핵심 요약 ==
+
+# '''thread safe''' = 자료구조에 락을 붙여 여러 스레드가 써도 안전하게. 가장 단순한 방법은 '''큰 락 하나'''(monitor 패턴)
+# 락 1개 카운터: 1스레드 '''0.03초''' → 2스레드 '''5초 이상''' — 정확하지만 확장 안 됨. 이상은 '''perfect scaling'''
+# '''approximate counter''': CPU별 local + global, local ≥ '''S'''이면 global로 transfer. S↑ = 빠름·부정확(최대 CPU수 × S 뒤처짐), S↓ = 정확·느림
+# Linked list: 드문 제어 흐름(malloc 실패)에서 '''unlock 누락''' 주의 → critical section만 락, 출구 하나. hand-over-hand는 실제로 잘 안 빨라짐
+# Michael & Scott queue: '''head_lock / tail_lock + dummy node''' → enqueue/dequeue 동시 진행
+# Hash table: '''버킷마다 락''' → 매우 잘 확장
+# 교훈: '''More concurrency isn't necessarily faster''', premature optimization 금지
+
+== 관련 문서 ==
+* [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]
+* [[락]] · [[counter 예제]] · [[race condition]] · [[critical section]] · [[멀티코어]] · [[캐시 일관성]]
+* [[조건 변수]] · [[bounded buffer]] · [[reader-writer lock]]

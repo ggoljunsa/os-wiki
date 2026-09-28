@@ -1,0 +1,82 @@
+key: reader-writer lock
+title: Reader-writer lock
+category: 10강 Condition Variables, 용어, OSTEP 31장, 기출
+---
+{warn}⚠️ '''10강 슬라이드 확인 전 — OSTEP 31.5절 참고용.''' 2025F 중간고사 '''Problem 5'''(계산, 12pts)에 실제로 나왔다.{/warn}
+
+'''Reader-writer lock'''은 읽기는 여럿이 동시에, 쓰기는 혼자만 하게 하는 락이다. 리스트 lookup(읽기)은 동시에 해도 안전하고, insert(쓰기)만 배타적이면 되기 때문이다. [[세마포어]] 두 개와 카운터 하나로 만든다.
+
+{def}* Only a '''single writer''' can acquire the lock
+* Once a reader has acquired a read lock, '''more readers will be allowed''' to acquire the read lock too
+* A writer will have to '''wait until all readers are finished'''
+(2025F 해설 슬라이드 · OSTEP 31.5){/def}
+
+<pre class="c">
+ 1   typedef struct _rwlock_t {
+ 2     sem_t lock;      // binary semaphore (basic lock)
+ 3     sem_t writelock; // allow ONE writer/MANY readers
+ 4     int   readers;   // #readers in critical section
+ 5   } rwlock_t;
+ 6
+ 7   void rwlock_init(rwlock_t *rw) {
+ 8     rw->readers = 0;
+ 9     sem_init(&rw->lock, 0, 1);
+10     sem_init(&rw->writelock, 0, 1);
+11   }
+12
+13   void rwlock_acquire_readlock(rwlock_t *rw) {
+14     sem_wait(&rw->lock);
+15     rw->readers++;
+16     if (rw->readers == 1) // first reader gets writelock
+17       sem_wait(&rw->writelock);
+18     sem_post(&rw->lock);
+19   }
+20
+21   void rwlock_release_readlock(rwlock_t *rw) {
+22     sem_wait(&rw->lock);
+23     rw->readers--;
+24     if (rw->readers == 0) // last reader lets it go
+25       sem_post(&rw->writelock);
+26     sem_post(&rw->lock);
+27   }
+28
+29   void rwlock_acquire_writelock(rwlock_t *rw) {
+30     sem_wait(&rw->writelock);
+31   }
+32
+33   void rwlock_release_writelock(rwlock_t *rw) {
+34     sem_post(&rw->writelock);
+35   }
+</pre>
+
+* 16~17번 줄: '''첫 reader'''가 writelock을 대표로 잡는다 → writer 차단.
+* 24~25번 줄: '''마지막 reader'''가 writelock을 놓는다 → 대기 writer 진입.
+* `lock`은 `readers` 카운터만 보호하는 짧은 락.
+
+{warn}⚠️ '''공정성 문제''': reader가 계속 들어오면 `readers`가 0으로 안 떨어져 '''writer가 starvation'''된다 ("it would be relatively easy for readers to starve writers"). 또 RW 락은 오버헤드가 커서 단순한 락보다 빠르지 않을 때가 많다 — '''Hill's Law: "Big and dumb is better."'''{/warn}
+
+{analogy}🎭 '''도서관 열람실'''. 열람(읽기)은 여러 명이 동시에 해도 되지만, 책장 재배치(쓰기)는 열람실이 '''완전히 빌 때''' 사서 혼자 한다. 첫 열람자가 문에 "열람 중" 팻말을 걸고, 마지막 열람자가 뗀다. 열람자가 끊임없이 오면 사서는 영원히 못 들어간다(starvation).{/analogy}
+
+== 2025F Problem 5 스타일 — 완료 시각 계산 ==
+
+입력은 `R(도착, 길이)` / `W(도착, 길이)`. 동시 reader 수 제한이 문제에 주어진다(5.1은 최대 3명).
+
+<pre class="ascii">
+ 5.1: R(0,3) R(1,5) W(4,3) R(2,1) R(5,3)   (동시 reader 최대 3)
+ t: 0    1    2    3    4    5    6    7    8    9   10   11
+ R(0,3) ███████████████                                        끝 3
+ R(1,5)      ██████████████████████████                        끝 6
+ R(2,1)           █████                                        끝 3
+ W(4,3)                    (대기: reader 가 남아 있음 ..........)
+ R(5,3)                         ███████████████                끝 8
+ W(4,3)                                         ███████████████ 8 → '''11'''
+ → writer 는 reader 가 0 명이 되는 8 에 시작, 11 에 완료 (Best = Worst = 11)
+</pre>
+
+{exam}🎯 '''2025F Problem 5''': 5.1(4pts) Best/Worst = '''11 / 11''', 5.2(8pts) = '''20 / 21'''. 5.2의 best/worst는 reader 자리가 날 때 '''어느 reader를 고르느냐(tie-breaking)'''로 갈렸다. 핵심 규칙은 "'''writer는 모든 reader가 끝날 때까지 기다린다''' + reader는 writer가 대기 중이어도 계속 들어올 수 있다(이 구현 기준)". 자세한 풀이는 [[2025F 중간고사 족보]].{/exam}
+
+{quiz}reader R1이 읽는 중에 writer W가 도착하고, 이어서 reader R2가 도착했다. 위 코드에서 누가 먼저 진입하는가?{/quiz}
+{answer}'''R2'''. `readers`가 이미 1 이상이라 R2는 writelock을 다시 잡을 필요 없이(16번 줄 조건 거짓) 바로 진입한다. W는 `readers`가 0이 되어 마지막 reader가 writelock을 post할 때까지 기다린다 → writer starvation 가능성.{/answer}
+
+== 관련 문서 ==
+* [[세마포어]] · [[락]] · [[데드락]] · [[fairness]] · [[2025F 중간고사 족보]]

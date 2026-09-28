@@ -1,0 +1,46 @@
+key: spurious wakeup
+title: Spurious wakeup (가짜 깨어남)
+category: 10강 Condition Variables, 용어, 기출
+---
+'''Spurious wakeup'''은 [[조건 변수]]에서 기다리던 스레드가 '''조건이 만족되지 않았는데도''' 깨어나는 현상이다. '''2025F 중간고사 Problem 2-f 실제 기출''' (정의 → 용어 단답).
+
+{def}2025F 시험 문장: "the phenomenon in which the OS '''wakes up the sleeping thread, although the waiting condition is not satisfied'''?" → '''Spurious Wakeup'''
+OSTEP 30장 TIP: "In some thread packages, due to details of the implementation, it is possible that '''two threads get woken up though just a single signal has taken place''' [L11]. Spurious wakeups are further reason to '''re-check the condition''' a thread is waiting on."{/def}
+
+== 왜 생기나 ==
+
+OSTEP이 인용한 근거는 Linux `pthread_cond_signal` man page — '''signal/wakeup 코드 내부의 race''' 때문에 signal 한 번에 두 스레드가 깨어날 수 있다. 라이브러리가 "정확히 한 명만 깨운다"를 보장하려면 비싸므로, POSIX는 아예 "깨어났다고 조건이 참이라 믿지 마라"를 규칙으로 삼았다.
+
+<pre class="ascii">
+  signal(&fill) 1 번  ───▶  Tc1 깨어남 ─┐
+                       └─▶  Tc2 도 깨어남 (spurious) ─┐
+                                                      │
+  버퍼에 값은 1 개 ─▶ Tc1: while 재검사 OK → get()     │
+                      Tc2: while 재검사 → count==0 → 다시 wait   ← while 이 막아 줌
+                      Tc2: (if 였다면) get() → '''assert 실패'''
+</pre>
+
+== Mesa 새치기와의 관계 ==
+
+{|
+! || Mesa 새치기 ([[Mesa semantics]]) || Spurious wakeup
+|-
+| 원인 || 깨어난 뒤 실행 전, '''다른 스레드가 상태를 바꿈''' || '''구현 사정'''으로 signal 없이/여분으로 깨어남
+|-
+| 결과 || 깨어났는데 조건이 거짓 || 깨어났는데 조건이 거짓
+|-
+| 처방 || '''`while`''' || '''`while`'''
+|}
+
+{tip}💡 "Using while loops around conditional checks also handles the case where spurious wakeups occur." — 두 문제 모두 '''같은 한 줄(`if` → `while`)'''로 해결된다.{/tip}
+
+{analogy}🎭 spurious wakeup = '''바람 때문에 울린 초인종'''. 초인종이 울렸다고 문을 활짝 열고 택배를 집으려 손을 뻗으면(if) 허공을 잡는다. 문구멍으로 '''택배가 정말 왔는지 다시 확인'''하고(while) 없으면 다시 소파로.{/analogy}
+
+{exam}🎯 '''2025F Problem 2-f''' 실제 기출. "Hint: 2 words" 형태로 나왔다 (→ [[2025F 중간고사 족보]]). 정답 철자: '''Spurious Wakeup'''. 같은 문제 g)는 livelock이었다.{/exam}
+
+{quiz}(정의 → 용어) "The OS wakes up the sleeping thread, although the waiting condition is not satisfied." → ?{/quiz}
+{answer}'''Spurious wakeup'''. 대응 코드: `while (count == 0) Pthread_cond_wait(&fill, &mutex);`{/answer}
+
+== 관련 문서 ==
+* [[조건 변수]] · [[Mesa semantics]] · [[wait와 signal]] · [[producer-consumer]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

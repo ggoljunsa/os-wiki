@@ -1,0 +1,62 @@
+key: wait와 signal
+title: wait()와 signal() — 조건 변수의 두 연산
+category: 10강 Condition Variables, 용어
+---
+[[조건 변수]]에 붙은 연산은 딱 두 개다: '''`wait()`'''(잠들기)와 '''`signal()`'''(깨우기). POSIX 이름은 `pthread_cond_wait` / `pthread_cond_signal`. OSTEP 30.1절. (10강 슬라이드 페이지는 수업 후 추가)
+
+<pre class="c">
+pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m);
+pthread_cond_signal(pthread_cond_t *c);
+</pre>
+
+{def}'''wait()''': "executed when a thread wishes to '''put itself to sleep'''"
+'''signal()''': "executed when a thread has '''changed something''' in the program and thus wants to '''wake a sleeping thread''' waiting on this condition"
+"The responsibility of wait() is to '''release the lock and put the calling thread to sleep (atomically)'''; when the thread wakes up, it must '''re-acquire the lock before returning''' to the caller."{/def}
+
+== wait()가 락을 받는 이유 ==
+
+<pre class="ascii">
+  스레드 A (기다리는 쪽)                       스레드 B (깨우는 쪽)
+  lock(m)
+  while (조건 거짓)
+     wait(c, m):
+       ┌ m 을 놓는다          ┐ atomic
+       └ c 의 큐에서 잠든다   ┘ ─────────────▶  lock(m)   (이제 B 가 잡을 수 있다)
+                                                상태 변경 (done = 1)
+                                                signal(c)  → A 를 Ready 로
+                                                unlock(m)
+       A 가 m 을 '''다시 잡고''' 리턴  ◀─────────
+  (while 로 돌아가 재검사)
+  unlock(m)
+</pre>
+
+"m을 놓기"와 "잠들기" 사이에 틈이 있으면, 그 틈에 온 signal을 놓친다 — 9강 [[queue 락]]의 wakeup/waiting race, 그리고 [[setpark]]가 해결하려던 바로 그 문제다. CV는 '''wait 자체가 둘을 원자적으로''' 해서 해결한다.
+
+[[anim:cv_wait_signal|락을 놓고 잠드는 순간과, 깨어나 락을 다시 잡는 순간 두 곳을 주목하라]]
+
+[[sim:cv_join]]
+
+== 꼭 기억할 성질 ==
+
+{|
+! 성질 || 설명
+|-
+| '''signal은 기억되지 않는다''' || 잠든 스레드가 없을 때 signal하면 '''아무 일도 일어나지 않는다'''. 그래서 상태 변수(`done`)가 필요 → [[done flag 예제]]. [[세마포어]]의 `sem_post`는 값을 올려 "기억"한다는 점이 다르다
+|-
+| '''signal은 하나만 깨운다''' || 여럿을 깨우려면 [[broadcast]]
+|-
+| '''깨어난 스레드는 즉시 실행되지 않는다''' || Ready 큐로 갈 뿐이다 → [[Mesa semantics]] → '''`while`로 재검사'''
+|-
+| '''wait 리턴 시 락을 쥐고 있다''' || 그래서 재검사를 안전하게 할 수 있다
+|}
+
+{tip}💡 "'''hold the lock when calling signal or wait, and you will always be in good shape.'''" — wait에서 락은 의미상 '''필수''', signal에서는 '''권장'''(Fig 30.5처럼 필수인 경우도 있다).{/tip}
+
+{analogy}🎭 wait = '''대기실 의자에 앉으면서 진료실 열쇠를 카운터에 반납하는 것''' (열쇠를 쥔 채 자면 아무도 진료실에 못 들어가 나를 깨울 수 없다). signal = '''간호사의 호출 벨'''. 벨이 울리면 일어나 카운터에서 '''열쇠를 다시 받아야''' 진료실에 들어갈 수 있다.{/analogy}
+
+{quiz}`pthread_cond_wait(&c, &m)`을 호출할 때 `m`을 쥐고 있지 않으면 어떤 문제가 생길 수 있는가?{/quiz}
+{answer}wait의 의미 자체가 "쥐고 있는 락을 놓고 잠든다"이므로 정의되지 않은 동작이다. 더 근본적으로, 조건 검사와 wait 사이를 락이 보호하지 않으면 '''검사 직후·잠들기 직전에 다른 스레드가 상태를 바꾸고 signal'''해 버려 signal이 유실되고 '''영원히 잠든다'''(OSTEP Fig 30.5).{/answer}
+
+== 관련 문서 ==
+* [[조건 변수]] · [[Mesa semantics]] · [[broadcast]] · [[done flag 예제]]
+* [[park와 unpark]] · [[setpark]] · [[락]]

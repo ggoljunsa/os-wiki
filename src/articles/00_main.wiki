@@ -21,6 +21,7 @@ category: 안내
 # [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]
 # [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]
 # [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]
+# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]] + [[락 기반 자료구조]]
 
 {info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
 
@@ -62,6 +63,10 @@ category: 안내
 | CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]
 |-
 | 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정
+|-
+| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유
+|-
+| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지
 |}
 
 == 분류별 문서 ==
@@ -83,6 +88,10 @@ category: 안내
 * [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]
 * [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]
 * [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]
+
+=== 10강 (슬라이드 배포 전, OSTEP 29·30장 기준) ===
+* [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]
+* [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]] · [[세마포어]] · [[reader-writer lock]] · [[데드락]]
 
 === 8~9강 ===
 * [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]

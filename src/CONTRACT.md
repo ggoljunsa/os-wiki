@@ -91,6 +91,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 스레드 · TCB · 스레드 스택 · pthread_create · pthread_join · TLS · 스레드와 프로세스 비교 · race condition · critical section · mutual exclusion · atomic · counter 예제 · 스레드 컨텍스트 스위치
 ### 9강 Lock
 락 · 락 평가 기준 · flag 락 · 인터럽트 비활성화 · test-and-set · spin lock · compare-and-swap · load-linked store-conditional · fetch-and-add · ticket lock · yield 락 · queue 락 · park와 unpark · setpark · futex · two-phase lock · guard · priority inversion
+### 10강 Condition Variables (+ OSTEP 29장 락 기반 자료구조) — 파일 접두어 `9Z0_`~`9ZG_` (9강 뒤·과제 앞에 정렬되도록), 슬라이드 미배포 상태에서 OSTEP 기준으로 작성(2026-09-28)
+조건 변수 · wait와 signal · Mesa semantics · spurious wakeup · producer-consumer · bounded buffer · covering condition · broadcast · done flag 예제 · 락 기반 자료구조 · sloppy counter · concurrent linked list · concurrent queue · concurrent hash table · 세마포어 · reader-writer lock · 데드락
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -116,6 +118,9 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | stride_lottery | Stride pass/stride 표 단계, Lottery(시드 고정) 비교 | Stride 스케줄링, Lottery 스케줄링 |
 | cfs_eevdf | CFS vruntime(weight) 타임라인, EEVDF lag/VD 선택 과정 | CFS, EEVDF |
 | thread_stack | 주소 공간 안 두 스레드 스택 + pthread_create 단계 | 스레드, 스레드 스택 |
+| cv_join | OSTEP 30장 부모-자식 join: done flag + lock + cv. 옵션 bug = none / no_state(flag 없이 cv만 → 자식이 먼저 signal 하면 부모 영원히 잠듦) / no_lock(락 없이 → flag 검사와 wait 사이 race) | 조건 변수, done flag 예제, wait와 signal |
+| producer_consumer | bounded buffer. 옵션 variant = if_1cv(소비자 2명 + if → 빈 버퍼 get, Mesa 버그) / while_1cv(while + cv 하나 → 셋 다 잠듦) / while_2cv(정답) , buffer = 1 / 3 | producer-consumer, bounded buffer, Mesa semantics, spurious wakeup |
+| sloppy_counter | 29장 approximate counter: CPU별 local 카운터가 threshold S 마다 global 로 flush. 옵션 S = 1 / 5 / 1024 | 락 기반 자료구조, sloppy counter |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
@@ -205,4 +210,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | ticket_turn | ticket/turn 카운터 + T1·T2·T3: FetchAndAdd(&ticket) 로 myturn 0·1·2, turn==myturn 만 진입, unlock 이 FetchAndAdd(&turn) → T1→T2→T3 FIFO | ticket lock |
 | park_unpark | T1 락 보유 중 T2: guard TAS → queue_add(gettid) → setpark() → guard=0 → park()(Blocked, CPU 0) → T1 unlock: guard → unpark(queue_remove) · flag 1 유지(hand-off) → guard=0 → T2 진입 | queue 락, park와 unpark |
 | alarm_tick | sigalarm(3, handler): which_dev==2 tick 마다 alarm_elapsed 1·2·3 → alarm_saved=*trapframe → alarm_active=1, elapsed=0, epc=handler → sret 로 handler → handler 중 tick 안 셈 → sigreturn: *trapframe=alarm_saved, active=0, a0 반환(42) → 0x1234 재개 | 과제1 xv6 alarm, sigalarm |
+| cv_wait_signal | wait() 가 락을 놓고 잠들었다가 signal 로 깨어나 락을 다시 잡고 돌아오는 10초 — Mesa 라 깨어난 뒤 조건 재검사(while) | 조건 변수, wait와 signal, Mesa semantics |
+| bounded_buffer | 생산자 2·소비자 2, 버퍼 3칸: fill/use 포인터, count, empty/fill 두 cv 에서 자고 깨는 흐름 | producer-consumer, bounded buffer |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

@@ -303,7 +303,7 @@ Writer 는 8 에 시작해 11 에 끝난다
  3   sem_t mutex;      // = z, 1 로 초기화 (lock 이므로)
  4   void *producer(void *arg) {
  5    int i;
- 6    for (i = 0; i &lt; loops; i++) {
+ 6    for (i = 0; i < loops; i++) {
  7         sem_wait(&empty);    // x
  8         sem_wait(&mutex);    // z
  9         put(i);
@@ -313,7 +313,7 @@ Writer 는 8 에 시작해 11 에 끝난다
 13   }
 14   void *consumer(void *arg) {
 15    int i;
-16    for (i = 0; i &lt; loops; i++) {
+16    for (i = 0; i < loops; i++) {
 17        sem_wait(&full);      // y
 18        sem_wait(&mutex);     // z
 19        int tmp = get();
