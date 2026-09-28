@@ -74,7 +74,7 @@ category: 4강 LDE, 용어
 
 ## 5. 정식 문서 키 목록 (링크는 이 키로만)
 ### 안내
-main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복기 · 2025F 중간고사 족보 · 시험 정보
+main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복기 · 1단계 오답 노트 · 2025F 중간고사 족보 · 시험 정보
 ### 1강 Intro / 2강 What is OS
 운영체제란 · 가상화 · 동시성 · 영속성 · 커널 · 시스템 콜 · 유저 모드와 커널 모드 · OS 설계 목표 · OS 역사
 ### 3강 From Program to Process
@@ -94,7 +94,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
-레지스터 · 프로그램 카운터 · 스택 포인터 · a0 · 인터럽트 핸들러 · 커널 모드 · 특권 명령 · 힙 · 스택 · xv6 · OSTEP · RISC-V
+레지스터 · 프로그램 카운터 · 스택 포인터 · ISA와 마이크로아키텍처 · a0 · 인터럽트 핸들러 · 커널 모드 · 특권 명령 · 힙 · 스택 · xv6 · OSTEP · RISC-V
 
 ## 6. 시뮬레이터 (src/sims/*.js)
 ### 이름 (문서에서 `[[sim:이름]]`)

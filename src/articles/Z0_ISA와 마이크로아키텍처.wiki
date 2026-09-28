@@ -1,0 +1,43 @@
+key: ISA와 마이크로아키텍처
+title: ISA와 마이크로아키텍처 (Architecture vs Microarchitecture)
+category: 용어, 3강 From Program to Process
+---
+3강 p.7의 정의 문제. "프로세서 설계 중 어디까지가 '''어셈블리 프로그래머가 알아야 하는 것'''(ISA)이고, 어디부터가 '''구현'''(microarchitecture)인가"를 가른다. 2026-09-28 웹 퀴즈 23번에서 틀린 항목 → [[1단계 오답 노트]].
+
+{def}[3강 p.7 Definitions]<br>'''Architecture''': "The parts of a processor design that one needs to understand to write assembly code. Also called '''Instruction Set Architecture (ISA)'''. Examples: instruction set specification (e.g., `mov` and `add`) and registers (e.g., `eip`)."<br>'''Microarchitecture''': "Implementation of the architecture. Examples: '''cache sizes and core frequency'''."<br>Example ISAs (Intel): x86 and IA32.{/def}
+
+[[img:L3-07.png|3강 p.7 — Architecture(ISA) vs Microarchitecture 정의|medium]]
+
+{analogy}ISA는 '''자동차 운전면허 시험 범위'''다 — 핸들·페달·기어가 무엇을 하는지(명령어와 [[레지스터]])만 알면 어떤 차든 몰 수 있다. Microarchitecture는 '''엔진 배기량·터보 유무'''(캐시 크기·클럭) — 운전법은 같지만 성능이 달라진다. 소프트웨어(컴파일러·OS)는 면허 범위, 즉 ISA만 보고 만든다.{/analogy}
+
+== 어느 쪽인가 — 판정표 ==
+{|
+! 항목 || 소속 || 이유
+|-
+| 명령어 종류 (`mov`, `add`, `ecall`) || '''ISA''' || 어셈블리에 직접 쓴다
+|-
+| 레지스터 이름·개수 (`eip`, [[a0]], [[스택 포인터|sp]]) || '''ISA''' || 프로그램이 이름으로 접근
+|-
+| [[프로그램 카운터|PC]], condition codes || '''ISA''' || p.9 "Programmer-Visible State"
+|-
+| 메모리 주소 지정 방식, 바이트 단위 주소 || '''ISA''' || 프로그램이 보는 메모리 모델
+|-
+| 캐시 크기 / 캐시 계층 || Microarchitecture || 같은 코드가 그대로 돈다, 속도만 다름
+|-
+| 코어 주파수(클럭) || Microarchitecture || 위와 같음
+|-
+| 파이프라인 단수, out-of-order 실행 || Microarchitecture || 프로그래머에게 보이지 않음
+|}
+
+{tip}판별 한 마디: '''"이게 바뀌면 어셈블리 코드를 고쳐야 하나?"''' — 고쳐야 하면 ISA, 안 고쳐도 되면 microarchitecture.{/tip}
+
+== 3강 p.9 — Programmer-Visible State ==
+ISA가 프로그래머에게 보여 주는 상태 = '''PC''' + '''register file''' + '''condition codes''' + '''memory'''(byte addressable array). 이 네 가지가 곧 [[프로세스]]의 machine state이고, [[컨텍스트 스위치]]가 저장·복원해야 하는 것의 목록이며, [[trapframe]]이 담는 것이다. 즉 이 슬라이드는 "OS가 프로세스를 멈췄다 다시 켤 때 무엇을 챙겨야 하나"의 답을 미리 준다.
+
+[[img:L3-09.png|3강 p.9 — Assembly Programmer's View: PC · Registers · Condition Codes · Memory|medium]]
+
+{exam}2025F 중간고사 1번(객관식)의 근거 슬라이드가 3강 "Assembly Programmer's View"였다 → [[2025F 중간고사 족보]]. "캐시 크기는 ISA에 속한다" 같은 보기를 틀린 것으로 골라내는 유형.{/exam}
+
+== 관련 문서 ==
+* [[레지스터]] · [[프로그램 카운터]] · [[스택 포인터]] · [[RISC-V]] (과제가 쓰는 ISA)
+* [[프로세스]] · [[trapframe]] · [[컨텍스트 스위치]]

@@ -459,3 +459,17 @@ STCF = Shortest '''Time-to-Completion''' First = SJF의 선점 버전. 도착 �
 * [[락]] · [[flag 락]] · [[test-and-set]] · [[ticket lock]] · [[queue 락]] · [[setpark]] · [[futex]] · [[guard]]
 * [[STCF]] · [[Round Robin]] · [[SJF]] · [[MLFQ]] · [[EEVDF]] · [[fairness]] · [[response time]] · [[turnaround time]]
 * [[과제1 xv6 alarm]] · [[sepc]] · [[epc]] · [[a0 복원]] · [[재진입 금지]]
+
+== 2026-09-28 웹 퀴즈 1단계에서 추가된 함정 ==
+11문항 전부 풀이·원문·링크가 [[1단계 오답 노트]]에 있다. 한 줄씩만:
+* ✗ convoy effect는 SJF 문제 → ✓ FIFO의 문제. SJF도 늦게 온 짧은 작업엔 non-preemptive라 재발 → [[STCF]] = SJF + [[선점]]
+* ✗ boost는 gaming 방지 → ✓ boost(Rule 5)는 starvation + 행동 변화. gaming은 Rule 4 allotment → [[MLFQ]]
+* ✗ stride에서 tickets가 큰 것부터 → ✓ '''pass 최소'''를 고르고 그 프로세스 pass에만 stride를 더함 → [[pass]]
+* ✗ lottery의 장점은 정확한 비율 → ✓ 정확한 건 stride, lottery의 장점은 '''global state(pass)가 없음''' → [[Stride 스케줄링]]
+* ✗ MQMS는 affinity를 위해 별도 메커니즘 → ✓ 큐가 CPU별이라 구조적으로 보존, 별도 메커니즘이 필요한 건 SQMS → [[cache affinity]]
+* ✗ I/O 완료 → Running → ✓ Blocked → '''Ready''' → [[프로세스 상태]]
+* ✗ CFS 휴리스틱 = vruntime → ✓ interactive bonus, wakeup replacement → [[CFS]]
+* ✗ eligible = vruntime 최소 → ✓ '''lag > 0''' → [[EEVDF]]
+* ✗ `static int x;` = .data → ✓ '''.bss''' (초기화 안 됨, 파일 공간 0) → [[프로그램 로딩]]
+* ✗ inflation = 환산 → ✓ currency=환산, transfer=잠시 넘김, '''inflation=총량 변경'''(신뢰 환경) → [[tickets]]
+* ✗ 캐시 크기는 ISA → ✓ 캐시 크기·클럭은 '''microarchitecture''', 명령어·레지스터가 ISA → [[ISA와 마이크로아키텍처]]

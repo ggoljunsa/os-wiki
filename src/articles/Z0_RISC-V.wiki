@@ -2,7 +2,7 @@ key: RISC-V
 title: RISC-V
 category: 용어, 과제1
 ---
-'''RISC-V'''는 개방형 RISC 계열 명령어 집합 구조(ISA)다. 과제에서 쓰는 [[xv6]]가 RISC-V 버전이므로, [[trapframe]]·[[a0]]·[[sepc]]·[[sret]] 같은 과제 1의 모든 용어가 이 ISA의 것이다.
+'''RISC-V'''는 개방형 RISC 계열 명령어 집합 구조([[ISA와 마이크로아키텍처|ISA]])다. 과제에서 쓰는 [[xv6]]가 RISC-V 버전이므로, [[trapframe]]·[[a0]]·[[sepc]]·[[sret]] 같은 과제 1의 모든 용어가 이 ISA의 것이다.
 
 {def}
 3강 p.5에서 '''RISC'''가 대비 개념으로 등장한다 — x86은 "'''Complex''' instruction set computer (CISC): many different instructions with many different formats. '''Hard to match performance of Reduced Instruction Set Computers (RISC)'''."<br>

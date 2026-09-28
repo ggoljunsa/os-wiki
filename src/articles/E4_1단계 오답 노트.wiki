@@ -100,7 +100,7 @@ Claude 웹 문제 세트 "1단계"에서 틀린 11문항. 문항마다 '''한 �
 == 22. Ticket currency와 ticket inflation ==
 '''정답 한 줄: currency = 사용자가 자기 화폐 단위로 자기 작업들에 티켓을 나누면 시스템이 global currency로 환산하는 것. inflation = 프로세스가 스스로 티켓 수를 늘리거나 줄이는 것 — 서로 믿는 cooperative 환경에서는 더 급한 프로세스가 커널에 말하지 않고도 지분을 늘릴 수 있어 편리하다(경쟁 환경에선 남용되므로 불가).'''
 
-{def}[6강 p.13 Ticket Currency] "Currency allows a user to allocate tickets among their own jobs in whatever currency they would like. The system converts the currency into the correct global value." 예: 200장 global — User A 100장을 자기 화폐 1000으로 나눠 A1 500·A2 500 → global 50·50, User B 100장을 B1 10 → global 100.<br>[p.15 Ticket Inflation] global 200 → 300장으로 늘어난 예 (A1·A2 각 100, B1 100). "Inflation can be applied in an environment where a group of processes trust one another."{/def}
+{def}[6강 p.13 Ticket Currency] "Currency allows a user to allocate tickets among their own jobs in whatever currency they would like. The system converts the currency into the correct global value." 예: 200장 global — User A 100장을 자기 화폐 1000으로 나눠 A1 500·A2 500 → global 50·50, User B 100장을 B1 10 → global 100.<br>[p.15 Ticket Inflation] "A process can '''raise or lower the number of tickets it owns'''. If a process needs more CPU time, it can boost its tickets." 예: global 200 → 300장 (User A 100→200: A1·A2 각 100, B1 100). "One greedy process could give itself a vast number of tickets and take over the machine" — 그래서 서로 신뢰하는(cooperative) 프로세스 집단에서만 쓴다(OSTEP 9.3).{/def}
 
 왜 헷갈렸나: 세 가지 메커니즘(currency / transfer / inflation)을 한 덩어리로 기억. 구분: '''currency = 환산''', '''transfer = 잠시 넘김'''(client→server), '''inflation = 총량 변경'''(신뢰 환경 전제).
 
