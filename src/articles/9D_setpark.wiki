@@ -71,7 +71,8 @@ setpark 있는 버전 = 문에 "'''나 곧 들어옵니다'''"라고 붙여 둔�
 | 추가된 것 || 시스템 콜 하나 || `futex_wait`의 `value` 인자
 |}
 
-{exam}🎯 "wakeup/waiting race를 해결하는 방법 두 가지를 쓰시오" → '''setpark()'''(예고제)와 '''futex_wait(addr, value)'''(잠들기 전 값 검사). 이 짝을 묶어 기억할 것.{/exam}
+{exam}🎯 "wakeup/waiting race를 해결하는 방법 두 가지를 쓰시오" → '''setpark()'''(예고제)와 '''futex_wait(addr, value)'''(잠들기 전 값 검사). 이 짝을 묶어 기억할 것.
+교수님 (9/28 10강 도입부): "guard 해제와 park의 '''순서는 바꿀 수 없다'''(park하면 다음 줄을 실행 못 하니까). 그러니 다른 쪽에서 고친다 — park 시스템의 한계는 '''unpark를 기록할 메커니즘이 없다'''는 것. setpark를 부르고 나서 unpark가 오면 '''park가 즉시 리턴'''한다. 그리고 futex는 이 큐(fairness)와 검사(setpark)를 '''API 하나로 통합'''한 것 — 'checked and queued version of park'."{/exam}
 
 {quiz}`setpark()`를 `m->guard = 0` '''다음에''' 놓으면 무슨 문제가 생기는가?{/quiz}
 {answer}guard를 놓는 순간부터 다른 스레드가 `unlock()`에 진입해 '''`unpark`을 호출할 수 있다'''. 그 시점에 아직 `setpark()`를 안 했다면 소모할 예약이 없으므로 신호가 사라지고, 뒤이은 `park()`가 '''영원히 잠든다''' — 원래의 wakeup/waiting race가 그대로 재현된다. 그래서 `setpark()`는 반드시 '''guard 해제 이전'''에 와야 한다.{/answer}

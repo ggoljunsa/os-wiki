@@ -2,7 +2,13 @@ key: covering condition
 title: Covering condition
 category: 10강 Condition Variables, 용어
 ---
-'''Covering condition'''은 "누구를 깨워야 할지 모를 때 '''모두 깨워서''' 깨어나야 할 스레드가 반드시 포함되게(cover) 하는" [[조건 변수]] 사용법이다. 도구는 [[broadcast]]. Lampson & Redell의 Pilot 논문(Mesa semantics를 만든 그 그룹)에서 나온 예. OSTEP 30.3절.
+'''Covering condition'''은 "누구를 깨워야 할지 모를 때 '''모두 깨워서''' 깨어나야 할 스레드가 반드시 포함되게(cover) 하는" [[조건 변수]] 사용법이다. 도구는 [[broadcast]]. Lampson & Redell의 Pilot 논문(Mesa semantics를 만든 그 그룹)에서 나온 예. '''10강 p.27~29'''(9/28 수업의 마지막 주제), OSTEP 30.3절.
+
+{def}p.27 원문: "Assume there are '''zero bytes free'''. Thread A calls allocate(100). Thread B calls allocate(10). Both A and B wait on the condition and go to sleep. Thread C calls free(50). '''Which waiting thread should be woken up?'''"{/def}
+
+[[img:L10-28.png|p.28 allocate()/free() 코드 — free()의 signal 옆에 "whom to signal??"|large]]
+
+{exam}🎯 교수님의 설명 (9/28 녹음): "지금까지는 '''모든 producer가 같은 조건'''을 기다렸다. 조건이 '''스레드마다 다르면'''(A는 100B, B는 10B) signal은 A와 B를 '''구분할 수 없다'''. A가 깨어나면 재검사 후 다시 자고, C는 끝났으니 '''active thread가 없어 시스템이 또 죽는다'''. Lampson & Redell의 해법 = '''broadcast'''. 단점: 대기자가 100개면 '''대부분 재검사만 하고 다시 자는 헛일'''이 대량으로 생긴다. 대안: '''thread-level condition variable'''(스레드마다 CV)을 두고 조건이 맞는 스레드에만 signal."{/exam}
 
 {def}"Lampson and Redell call such a condition a '''covering condition''', as it '''covers all the cases where a thread needs to wake up (conservatively)'''; the cost, as we've discussed, is that '''too many threads might be woken'''."{/def}
 

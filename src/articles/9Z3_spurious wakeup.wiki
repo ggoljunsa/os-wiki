@@ -2,7 +2,12 @@ key: spurious wakeup
 title: Spurious wakeup (가짜 깨어남)
 category: 10강 Condition Variables, 용어, 기출
 ---
-'''Spurious wakeup'''은 [[조건 변수]]에서 기다리던 스레드가 '''조건이 만족되지 않았는데도''' 깨어나는 현상이다. '''2025F 중간고사 Problem 2-f 실제 기출''' (정의 → 용어 단답).
+'''Spurious wakeup'''은 [[조건 변수]]에서 기다리던 스레드가 '''조건이 만족되지 않았는데도''' 깨어나는 현상이다. '''2025F 중간고사 Problem 2-f 실제 기출''' (정의 → 용어 단답). '''10강 p.22'''의 제목이 바로 이것이다.
+
+[[img:L10-22.png|p.22 Spurious wakeup — "cond_wait does not guarantee the condition count == 1. OS can freely wake up the thread (Mesa semantics)". 교수님 슬라이드는 spurious wakeup과 Mesa semantics를 한 장에 묶었다|large]]
+
+{def}p.22 원문: "'''Spurious wakeup''' — cond_wait '''does not guarantee''' the condition count == 1. OS can '''freely wake up''' the thread ('''Mesa semantics'''): It can decide to wake up multiple threads from cond_signal / It can decide not to make the thread sleep to handle another interrupt."
+교수님(9/28): "OS는 '''최소 한 스레드가 깨어난다'''만 보장한다. unique wakeup도, signal 때문에 깨어났다는 것도 보장 안 함. 그래서 while."{/def}
 
 {def}2025F 시험 문장: "the phenomenon in which the OS '''wakes up the sleeping thread, although the waiting condition is not satisfied'''?" → '''Spurious Wakeup'''
 OSTEP 30장 TIP: "In some thread packages, due to details of the implementation, it is possible that '''two threads get woken up though just a single signal has taken place''' [L11]. Spurious wakeups are further reason to '''re-check the condition''' a thread is waiting on."{/def}

@@ -2,7 +2,11 @@ key: wait와 signal
 title: wait()와 signal() — 조건 변수의 두 연산
 category: 10강 Condition Variables, 용어
 ---
-[[조건 변수]]에 붙은 연산은 딱 두 개다: '''`wait()`'''(잠들기)와 '''`signal()`'''(깨우기). POSIX 이름은 `pthread_cond_wait` / `pthread_cond_signal`. OSTEP 30.1절. (10강 슬라이드 페이지는 수업 후 추가)
+[[조건 변수]]에 붙은 연산은 딱 두 개다: '''`wait()`'''(잠들기)와 '''`signal()`'''(깨우기). POSIX 이름은 `pthread_cond_wait` / `pthread_cond_signal`. '''10강 p.10''' (Definition and Routines), OSTEP 30.1절.
+
+{def}p.10 원문: "The wait() call '''takes a mutex as a parameter'''. The wait() call '''release the lock and put the calling thread to sleep'''. When the thread wakes up, it must '''re-acquire the lock'''."{/def}
+
+{exam}🎯 교수님이 p.10에서 강조한 "왜 mutex를 넘기는가" (9/28 녹음): "wait와 signal을 부를 때는 '''락을 쥐고 있어야''' 한다 — 조건 변수와 상태 변수를 보호하기 위해. 그런데 '''락을 쥔 채 잠들면 deadlock'''이다: 락 소유자가 자니 다른 스레드가 아무것도 못 한다. 그래서 wait에 락을 넘겨 '''자동으로 풀고''' 자게 한다." 그리고 p.13에서: "부모가 wait에 들어가면 '''락 소유권이 자식에게 넘어가고''', 부모가 wait에서 리턴하는 시점은 '''자식이 락을 놓은 뒤'''다. 리턴하면 부모가 다시 락을 '''소유'''한 상태라 unlock을 또 해야 한다."{/exam}
 
 <pre class="c">
 pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m);

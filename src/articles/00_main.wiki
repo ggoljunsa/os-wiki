@@ -21,7 +21,8 @@ category: 안내
 # [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]
 # [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]
 # [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]
-# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]] + [[락 기반 자료구조]]
+# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함
+# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]
 
 {info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
 
@@ -89,9 +90,10 @@ category: 안내
 * [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]
 * [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]
 
-=== 10강 (슬라이드 배포 전, OSTEP 29·30장 기준) ===
-* [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]
-* [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]] · [[세마포어]] · [[reader-writer lock]] · [[데드락]]
+=== 10강 Condition Variable / Semaphore (슬라이드 p.1~64, 9/28 수업은 p.29까지) ===
+* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]
+* 다음 수업 (슬라이드 있음): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
+* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]
 
 === 8~9강 ===
 * [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]

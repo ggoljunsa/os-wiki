@@ -2,7 +2,15 @@ key: bounded buffer
 title: Bounded buffer (유한 버퍼)
 category: 10강 Condition Variables, 용어
 ---
-'''Bounded buffer'''는 [[producer-consumer]] 문제의 공유 자료구조 — '''크기가 MAX로 정해진 원형 큐'''다. 크기가 유한(bounded)하므로 "꽉 참"과 "비었음" 두 조건 모두에서 누군가 기다려야 한다. OSTEP Fig 30.13.
+'''Bounded buffer'''는 [[producer-consumer]] 문제의 공유 자료구조 — '''크기가 MAX로 정해진 원형 큐'''다. 크기가 유한(bounded)하므로 "꽉 참"과 "비었음" 두 조건 모두에서 누군가 기다려야 한다. '''10강 p.17'''(정의), '''p.37'''(세마포어용 put/get), '''p.48'''(CV용 put/get, `count` 추가), OSTEP Fig 30.13.
+
+{def}p.17 원문: "A bounded buffer is used when you '''pipe''' the output of one program into another. Example: `grep foo file.txt | wc -l` — The grep process is the '''producer'''. The wc process is the '''consumer'''. Between them is an '''in-kernel bounded buffer'''. Bounded buffer is '''Shared resource''' → Synchronized access is required."{/def}
+
+{exam}🎯 '''왜 bounded인가''' — 교수님(9/28): "producer·consumer의 '''rate가 다르면''' 버퍼가 무한히 커져 메모리를 다 먹는다. bound가 '''producer의 속도를 consumer 속도로 제한'''한다(rate matching). bound 크기 자체는 중요하지 않다." → [[producer-consumer]]{/exam}
+
+{info}변수 이름: OSTEP은 `fill_ptr`/`use_ptr`, '''교수님 슬라이드(p.37, p.48)는 `fill`/`use`'''로 줄여 쓴다. 시험 코드 빈칸은 슬라이드 이름으로 나올 것이다. 아래 코드는 OSTEP 이름, [[세마포어]]·[[조건 변수]] 문서의 코드는 슬라이드 이름이다.{/info}
+
+[[img:L10-39.png|p.39 MAX=5 원형 버퍼에 V#0~V#4를 넣으면 fill이 5%5=0으로 돌아온다. 동기화 없이 여섯 번째를 넣으면 V#0이 V#5로 덮어써진다 — bounded buffer에 "기다림"이 필요한 이유|large]]
 
 {analogy}🎭 '''편의점 음료 냉장고 진열대'''(칸 수 MAX). 직원은 뒤쪽에서 `fill_ptr` 칸에 채워 넣고, 손님은 앞쪽 `use_ptr` 칸에서 꺼낸다. 칸 끝에 닿으면 처음 칸으로 돌아간다(`% MAX`). `count`는 "지금 몇 병 들어 있나"를 적은 계산대 메모.{/analogy}
 

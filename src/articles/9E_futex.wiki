@@ -2,7 +2,27 @@ key: futex
 title: futex (Fast Userspace Mutex)
 category: 9강 Lock, 용어
 ---
-'''futex'''는 리눅스가 제공하는 '''fast userspace mutex''' 시스템 콜이다. 9강 p.39~41. [[park와 unpark|park()]]의 "'''Checked'''"하고 "'''Queued'''"된 버전이라고 슬라이드가 소개한다.
+'''futex'''는 리눅스가 제공하는 '''fast userspace mutex''' 시스템 콜이다. 9강 p.39~41, 그리고 '''10강 p.2~3'''에서 다시 한 번(9/28 수업에서 15분 설명). [[park와 unpark|park()]]의 "'''Checked'''"하고 "'''Queued'''"된 버전이라고 슬라이드가 소개한다.
+
+== 10강 p.3 — "simpler" futex 락 (9/28 수업) ⭐ ==
+
+10강은 9강 p.40의 복잡한 버전 '''앞에''' 더 단순한 락을 하나 보여 주고 시작한다:
+
+<pre class="c">
+ 1   void lock(int *mutex) {
+ 2       while (TestAndSet(mutex, 1) == 1) {
+ 3           futex_wait(mutex, 1);
+ 4       }
+ 5   }
+ 6   ...
+22   void unlock(int *mutex) {
+23       *mutex = 0;
+24       futex_wake(mutex);
+25   }
+</pre>
+
+{exam}🎯 교수님 설명 (9/28 녹음): "mutex 값이 1이면 while을 돌고, 돌 때마다 `futex_wait(mutex, 1)`을 부른다. 이런 구현이 필요한 이유는 '''2번 줄과 3번 줄 사이에 context switch'''가 날 수 있기 때문이다. 그 사이에 mutex가 0으로 바뀌었는데 futex_wait 안에서 값을 다시 안 보면 그냥 잠들어 버린다. 그래서 '''futex_wait 시스템 콜이 커널 안에서 mutex가 아직 1인지 재검사'''하고, 0이면 잠들지 않고 리턴 → 2번 줄로 돌아가 while을 탈출한다. '''검사를 통과했을 때만 잔다'''는 것이 보장된다." unlock은 "`*mutex = 0` 후 `futex_wake` — wake가 없으면 잠든 스레드를 아무도 못 깨우니 중요하다."
+'''이 버전의 문제''': "'''대기자가 없어도''' unlock마다 futex_wake 시스템 콜을 부른다. 그래서 9강 p.40의 복잡한 버전은 bit31 + waiter counter로 '''시스템 콜 횟수를 최소화'''한다."{/exam}
 
 {def}p.39 원문:
 * '''`futex_wait(address, value)`''' — "Put a calling thread to sleep queue '''only if `*address == value`'''"
@@ -97,7 +117,8 @@ category: 9강 Lock, 용어
 | 왜 그렇게? || || '''Fair wakeup''' ([[priority inversion|priority inheritance]]) · '''Robust mutexes''' (owner-death detection)
 |}
 
-{exam}🎯 "커널이 대기 큐를 관리하면 무엇이 좋은가?" → '''① fair wakeup (priority inheritance)''' '''② robust mutexes (owner-death detection)'''. 슬라이드에 그대로 적힌 두 줄이라 단답으로 나오기 좋다.{/exam}
+{exam}🎯 "커널이 대기 큐를 관리하면 무엇이 좋은가?" → '''① fair wakeup (priority inheritance)''' '''② robust mutexes (owner-death detection)'''. 슬라이드에 그대로 적힌 두 줄이라 단답으로 나오기 좋다.
+교수님의 부연 (9/28 녹음): "park/unpark는 '''purely scheduling primitive''' — 스레드의 스케줄링만 바꾸고, 커널은 '''setpark 되었는지 1비트'''만 유지하면 된다. futex는 대기자 목록·주소·상태를 커널이 관리해서 복잡하지만 '''fair wakeup'''을 보장하고 매우 '''robust'''하다. 예: spin lock은 '''락을 쥔 스레드가 죽으면''' 아무도 락을 못 잡아 시스템이 그냥 멈춘다. futex는 mutex 값을 OS가 관리하니 '''락 소유자가 죽은 것을 감지'''해 대기자를 처리할 수 있다."{/exam}
 
 {quiz}`futex_wait(address, value)`의 `value` 인자는 왜 필요한가?{/quiz}
 {answer}'''lost wakeup을 막기 위해서다.''' 유저 공간에서 값을 읽은 뒤 `futex_wait`을 호출하기까지의 틈에 다른 스레드가 락을 놓아 값이 바뀔 수 있다. 커널은 잠재우기 직전 `*address == value`인지 '''원자적으로 확인'''하고, 다르면 '''잠재우지 않고 즉시 리턴'''시킨다. [[setpark]]와 같은 문제를 다른 방식으로 푼 것이다.{/answer}

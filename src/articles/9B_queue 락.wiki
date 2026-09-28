@@ -146,6 +146,15 @@ p.42의 최종 평가: "'''Performance: Yes''' — Spinning problem can be mitig
 {quiz}`unlock()`에서 대기자가 있을 때 `flag`를 0으로 내리지 않는 이유는?{/quiz}
 {answer}락을 다음 스레드에게 '''직접 넘기기(hand-off)''' 위해서다. flag를 0으로 내리면 깨어난 스레드가 도착하기 전에 제3의 스레드가 락을 채 갈 수 있다. flag를 1로 유지한 채 `unpark`만 하면, 깨어난 스레드는 '''이미 자기 것이 된 락'''을 들고 그대로 진행하면 된다.{/answer}
 
+== 🎙 9/28 수업의 복습 (10강 도입부 25분) ==
+
+10강 첫 25분을 이 락의 복습에 썼다. 교수님 말 그대로:
+* "spin lock의 문제는 '''성능''' — 기다리는 동안 CPU cycle을 의미 없는 일에 쓴다. spin을 완전히 없앨 수는 없고 '''spin을 sleep으로 옮기는''' 것이 목표. OS 지원이 필요하다."
+* "yield만으로 안 되는 이유: 락 소유자가 '''I/O를 기다리는 중'''이면 대기자들이 아무리 context switch를 해도 락을 못 얻는다 → context switch 비용만 쌓인다. 그리고 '''starvation''' — 오래 기다렸다고 CPU를 얻는다는 보장이 없다. 그래서 '''waiting queue''' + '''park/unpark''': 큐에 thread ID를 넣고 unpark할 때 '''랜덤이 아니라 큐에서 꺼낸 ID'''를 깨운다. 큐 안의 모든 스레드에 차례가 온다."
+* "`flag`는 sleeping lock, `guard`는 spinning lock. guard는 '''큐와 flag에 대한 접근을 보호'''한다."
+* '''문제 ①''': "guard를 잡은 뒤 park 전에 context switch가 나면 다른 스레드가 guard 위에서 spin한다 — spinning lock의 문제가 다시 생긴다." (구간이 짧아 감수)
+* '''문제 ② wakeup/waiting race''': "큐에 넣고 guard를 놓은 직후 ~ park 사이에 context switch → 락 소유자가 '''아직 park하지 않은 스레드를 unpark''' → 그 스레드가 나중에 park → '''영원히 잔다'''. guard 해제를 park 뒤로 옮기면? '''불가능''' — park하면 그 다음 줄을 실행할 수 없으니(자는 중) guard를 놓을 수 없다. '''guard와 park의 순서는 바꿀 수 없다.''' 그러니 다른 데서 고쳐야 한다: park의 한계는 '''unpark를 기록하는 메커니즘이 없다'''는 것 → [[setpark]]."
+
 {quiz}Wakeup/waiting race가 발생하는 정확한 시점과 결과를 쓰시오.{/quiz}
 {answer}스레드 A가 `queue_add` 후 `m->guard = 0`까지 했지만 '''`park()`를 호출하기 직전'''에 선점된 시점이다. 이때 다른 스레드 B가 `unlock()`에서 '''`unpark(A)`를 먼저 호출'''하면, A는 아직 자고 있지 않으므로 그 깨우기 신호가 '''사라진다'''(lost wakeup). 이후 A가 `park()`를 실행하면 깨워 줄 사람이 없어 '''영원히 잠든다'''. (p.36){/answer}
 

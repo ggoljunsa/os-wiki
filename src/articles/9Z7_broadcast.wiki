@@ -2,7 +2,11 @@ key: broadcast
 title: broadcast (pthread_cond_broadcast)
 category: 10강 Condition Variables, 용어
 ---
-'''`pthread_cond_broadcast(&c)`'''는 [[조건 변수]] `c`에서 잠든 '''모든''' 스레드를 깨운다. [[wait와 signal|signal]]이 하나만 깨우는 것과 대비된다. [[covering condition]]의 도구. OSTEP 30.3절.
+'''`pthread_cond_broadcast(&c)`'''는 [[조건 변수]] `c`에서 잠든 '''모든''' 스레드를 깨운다. [[wait와 signal|signal]]이 하나만 깨우는 것과 대비된다. [[covering condition]]의 도구. '''10강 p.29''', OSTEP 30.3절.
+
+{def}p.29 원문 — "Solution (Suggested by '''Lampson and Redell'''): Replace pthread_cond_signal() with '''pthread_cond_broadcast()'''. pthread_cond_broadcast(): '''Wake up all waiting threads'''. Cost: '''too many threads might be woken'''. Threads that shouldn't be awake will simply wake up, '''re-check the condition''', and then go back to sleep."{/def}
+
+{exam}🎯 교수님(9/28): "signal은 '''하나 이상'''이 깨어난다는 것만 보장하지만 broadcast는 '''모든''' 대기 스레드가 깨어난다고 보장한다. 대기자가 100개면 대부분은 조건이 안 맞아 재검사 후 다시 잔다 — 시스템에 쓸데없는 일이 많이 추가된다. '''thread-level condition variable'''로 맞는 스레드에만 signal하는 다른 접근도 있다." → "broadcast의 장단점과 대안"이 서술형 후보.{/exam}
 
 <pre class="c">
 pthread_cond_signal(&c);     // 대기자 중 하나만 깨움

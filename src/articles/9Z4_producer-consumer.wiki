@@ -2,7 +2,11 @@ key: producer-consumer
 title: Producer-Consumer 문제 (생산자-소비자)
 category: 10강 Condition Variables, 용어, 기출
 ---
-'''Producer/Consumer 문제'''(= [[bounded buffer]] 문제)는 Dijkstra가 제기한 고전 동기화 문제다. 생산자 [[스레드]]들은 데이터를 버퍼에 넣고, 소비자 스레드들은 꺼낸다. 버퍼가 차면 생산자가, 비면 소비자가 '''기다려야''' 한다 — [[락]]만으로는 안 되고 [[조건 변수]](또는 [[세마포어]])가 필요하다. OSTEP 30.2절.
+'''Producer/Consumer 문제'''(= [[bounded buffer]] 문제)는 Dijkstra가 제기한 고전 동기화 문제다. 생산자 [[스레드]]들은 데이터를 버퍼에 넣고, 소비자 스레드들은 꺼낸다. 버퍼가 차면 생산자가, 비면 소비자가 '''기다려야''' 한다 — [[락]]만으로는 안 되고 [[조건 변수]](또는 [[세마포어]])가 필요하다. '''10강 p.16~26'''(CV 버전, 9/28 수업), '''p.36~50'''(세마포어 버전 + 다중 버퍼 CV 버전, 다음 수업), OSTEP 30.2 / 31.4절.
+
+{def}p.16 원문: "Assumes a bounded buffer. Producer: '''Produce data items, wish to place data items in a buffer'''. Consumer: '''Grab data items out of the buffer, consume them in some way'''. Example: Multi-threaded web server — A producer puts HTTP requests in to a work queue; consumer threads take requests out of this queue and process them."{/def}
+
+{exam}🎯 교수님이 p.16~17에서 5분 들여 설명한 '''"왜 bounded인가"''' (9/28 녹음, 슬라이드에는 없음): "producer와 consumer의 '''속도가 다르다'''(예: 10개/s vs 5개/s). 버퍼에 한계가 없으면 시간이 갈수록 쌓여 '''메모리를 다 먹고 시스템이 멈춘다'''. bound를 두면 버퍼가 찼을 때 producer가 잠들어 '''producer 속도가 consumer 속도(5/s)로 맞춰진다'''. bound의 크기 자체는 중요하지 않다 — 정상 상태에서 두 속도가 같아지고 버퍼는 최소가 된다." 예: 네트워크에서 읽는 producer + 처리하는 consumer(proxy server), `grep foo file.txt | wc -l`의 in-kernel bounded buffer.{/exam}
 
 {def}"Imagine one or more '''producer''' threads and one or more '''consumer''' threads. Producers generate data items and place them in a buffer; consumers grab said items from the buffer and consume them in some way."
 "Indeed, it was this very producer/consumer problem that led Dijkstra and his co-workers to invent the '''generalized semaphore'''."{/def}
@@ -11,7 +15,9 @@ category: 10강 Condition Variables, 용어, 기출
 
 {analogy}🎭 '''컨베이어 벨트 공장'''. 앞 공정(producer)은 벨트가 꽉 차면 손을 멈추고, 뒷 공정(consumer)은 벨트가 비면 손을 멈춘다. 둘 사이에는 "'''다 찼어요'''" 벨과 "'''비었어요'''" 벨이 '''따로''' 있어야 한다 — 벨이 하나면 뒷 공정 직원이 옆 뒷 공정 직원을 깨우는 헛수고가 생긴다.{/analogy}
 
-== 정답 코드 (CV 두 개 + while, OSTEP Fig 30.14) ==
+== 정답 코드 (CV 두 개 + while, 10강 p.49~50 / OSTEP Fig 30.14) ==
+
+[[img:L10-26.png|p.26 한 칸 버퍼 정답의 consumer — while(count==0) wait(&fill) … signal(&empty). 아래 코드는 이것을 MAX칸으로 넓힌 p.49~50 버전|large]]
 
 <pre class="c">
  1   int loops; // must initialize somewhere...
@@ -69,9 +75,11 @@ category: 10강 Condition Variables, 용어, 기출
 
 [[sim:producer_consumer]]
 
-== 세마포어 버전 (2025F Problem 6) ==
+== 세마포어 버전 (10강 p.36~47, 2025F Problem 6) ==
 
-같은 문제를 [[세마포어]]로 풀면 `empty`(초기 MAX), `full`(초기 0), `mutex`(초기 1)를 쓴다. '''`sem_wait(&empty)`가 `sem_wait(&mutex)`보다 바깥'''이어야 한다 — 뒤집으면 mutex를 쥔 채 잠들어 [[데드락]].
+같은 문제를 [[세마포어]]로 풀면 `empty`(초기 MAX), `full`(초기 0), `mutex`(초기 1)를 쓴다. '''`sem_wait(&empty)`가 `sem_wait(&mutex)`보다 바깥'''이어야 한다 — 뒤집으면 mutex를 쥔 채 잠들어 [[데드락]](p.44~45). 슬라이드는 First(동기화 없음, 덮어쓰기) → Second(empty/full) → Third(mutex 바깥, 데드락) → Final 네 단계로 보여 준다 — 시뮬레이터로 돌려 볼 것:
+
+[[sim:sem_producer_consumer]]
 
 {exam}🎯 '''2025F Problem 6''' (16pts, 코드 빈칸): 세마포어 x/y/z를 MAX/0/1로 초기화하고 wait/post 순서를 채우는 문제였다. 정답과 해설은 [[2025F 중간고사 족보]]. CV 버전이 나오면 "wait에 들어갈 CV 이름(empty/fill)"과 "`while`"이 빈칸이 될 것이다.{/exam}
 

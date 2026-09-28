@@ -2,7 +2,13 @@ key: Mesa semantics
 title: Mesa semantics (vs Hoare semantics)
 category: 10강 Condition Variables, 용어
 ---
-'''Mesa semantics'''는 "signal은 '''힌트'''일 뿐, 깨어난 스레드가 실행될 때 조건이 여전히 참이라는 보장은 없다"는 [[wait와 signal|signal]]의 해석이다. 이 때문에 [[조건 변수]] 코드는 '''항상 `while`'''로 조건을 검사한다. OSTEP 30.2절 (Fig 30.9 직후).
+'''Mesa semantics'''는 "signal은 '''힌트'''일 뿐, 깨어난 스레드가 실행될 때 조건이 여전히 참이라는 보장은 없다"는 [[wait와 signal|signal]]의 해석이다. 이 때문에 [[조건 변수]] 코드는 '''항상 `while`'''로 조건을 검사한다. '''10강 p.22''' ("Thread Trace: Broken Solution (Version 1)" — 슬라이드는 이 현상을 [[spurious wakeup]] 제목 아래 설명한다), OSTEP 30.2절.
+
+[[img:L10-22.png|p.22 — "OS can freely wake up the thread (Mesa semantics): 여러 스레드를 깨울 수도, 인터럽트 처리를 위해 아예 재우지 않을 수도 있다. Hoare semantics는 깨어난 스레드의 즉시 실행을 보장"|large]]
+
+{def}p.22 원문: "cond_wait '''does not guarantee''' the condition count == 1" · "OS can '''freely wake up''' the thread ('''Mesa semantics''') — It can decide to wake up '''multiple threads''' from cond_signal / It can decide '''not to make the thread sleep''' to handle another interrupt" · "'''Hoare semantics''' provides a stronger guarantee that the woken thread will '''run immediately''' upon being woken."{/def}
+
+{exam}🎯 교수님의 정의 (9/28 녹음): "OS가 보장하는 것은 '''signal이 오면 최소 한 스레드는 깨어난다'''는 것뿐. '''unique'''한 스레드가 깨어난다는 것도, '''그 signal 때문에''' 깨어났다는 것도 보장하지 않는다 — 매우 약한 semantics. 실제 OS는 대부분 이 Mesa semantics만 지원한다. Hoare(깨어나자마자 실행)는 보장하기가 매우 어렵다. '''그래서 `if`를 `while`로 바꿔 깨어난 뒤 상태를 재검사한다.'''"{/exam}
 
 {def}"Signaling a thread only wakes them up; it is thus a '''hint that the state of the world has changed''', but there is '''no guarantee''' that when the woken thread runs, the state will still be as desired. This interpretation of what a signal means is often referred to as '''Mesa semantics'''."
 "The contrast, referred to as '''Hoare semantics''', is harder to build but provides a stronger guarantee that the woken thread will '''run immediately''' upon being woken."

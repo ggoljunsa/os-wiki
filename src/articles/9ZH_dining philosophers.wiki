@@ -1,0 +1,122 @@
+key: dining philosophers
+title: The Dining Philosophers (식사하는 철학자)
+category: 10강 Condition Variables, 용어, OSTEP 31장
+---
+{info}📌 '''10강 슬라이드 p.56~62''' 기준. 9/28 수업에서는 아직 안 나갔다(교수님: "semaphore는 다음 강의에서"). 슬라이드 순서상 [[세마포어]] → [[reader-writer lock]] → '''dining philosophers'''로 10강이 끝나며, p.44에서 예고한 "'''deadlock — more details in the next lecture'''"의 첫 구체 예다.{/info}
+
+'''Dining philosophers'''는 Dijkstra가 만든 고전 동시성 문제다. 다섯 철학자가 원탁에 앉아 있고 사이사이에 포크가 하나씩(총 5개) 놓여 있다. 먹으려면 '''양쪽 포크 둘 다''' 필요하다. 포크를 [[세마포어]]로 만들어 잡고 놓게 하면 '''모두가 왼쪽 포크만 든 채 오른쪽을 기다리는 [[데드락]]'''이 생길 수 있고, '''한 명만 잡는 순서를 바꾸면''' 풀린다.
+
+{def}p.57 원문: "Assume there are five '''philosophers''' sitting around a table. Between each pair of philosophers is a '''single fork''' (five total). The philosophers each have times where they '''think''', and don't need any forks, and times where they '''eat'''. In order to eat, a philosopher needs '''two forks''', both the one on their left and the one on their right."
+p.58 '''Key challenges''': "'''No deadlock''' · '''No philosopher starves''' · '''Concurrency should be high'''"{/def}
+
+{analogy}🎭 '''젓가락 한 짝씩만 놓인 원탁'''. 다섯 명이 동시에 "일단 왼쪽 것부터" 집으면 모두 한 짝씩 들고 오른쪽을 노려보며 굶는다. 한 사람만 "나는 오른쪽부터"로 규칙을 바꾸면, 그 사람 옆의 젓가락이 남아 옆 사람이 먹기 시작하고, 차례로 풀린다. 규칙을 '''한 명만''' 바꿔도 '''고리(cycle)'''가 끊기는 것이 핵심이다.{/analogy}
+
+[[anim:dining_philosophers|먼저 ①에서 다섯 명이 모두 멈추는 고리를 보고, ②에서 P4 하나가 순서를 바꾸면 P3→P2→P1 이 차례로 먹는 것을 확인하라]]
+
+== 1. 설정 (p.57~58) ==
+
+[[img:L10-57.png|p.57 The Dining Philosophers — P0~P4와 f0~f4의 배치. P1이 위, f1이 P1의 오른쪽(시계 방향 다음 포크)|medium]]
+
+<pre class="c">
+while (1) {                  // helper functions
+    think();                 int left(int p)  { return p; }
+    getforks();
+    eat();                   int right(int p) {
+    putforks();                  return (p + 1) % 5;
+}                            }
+</pre>
+
+* '''`left(p) = p`''', '''`right(p) = (p + 1) % 5`'''. 예: 철학자 2의 왼쪽 포크는 f2, 오른쪽은 f3. 철학자 4의 오른쪽은 f0 (`% 5`로 한 바퀴).
+* 포크마다 세마포어 하나: `sem_t forks[5]`, 각각 '''1로 초기화'''(포크는 한 사람만 들 수 있으니 binary semaphore = 락).
+
+{|
+! 철학자 p || left(p) || right(p)
+|-
+| 0 || f0 || f1
+|-
+| 1 || f1 || f2
+|-
+| 2 || f2 || f3
+|-
+| 3 || f3 || f4
+|-
+| '''4''' || f4 || '''f0'''
+|}
+
+== 2. Broken Solution — 왼쪽 먼저, 오른쪽 다음 (p.59~60) ⭐⭐⭐ ==
+
+<pre class="c">
+1 void getforks() {
+2   sem_wait(forks[left(p)]);
+3   sem_wait(forks[right(p)]);
+4 }
+5
+6 void putforks() {
+7   sem_post(forks[left(p)]);
+8   sem_post(forks[right(p)]);
+9 }
+</pre>
+
+[[img:L10-60.png|p.60 다섯 명이 동시에 왼쪽 포크를 집은 상태 — "All the philosophers are waiting for right forks"|medium]]
+
+{warn}🔥 p.59 원문: "'''Deadlock occur!''' If each philosopher happens to grab the fork on their left before any philosopher can grab the fork on their right, '''each will be stuck holding one fork and waiting for another, forever'''."
+[[데드락]] 4조건이 전부 성립한다: 포크는 한 명만(mutual exclusion) · 왼쪽을 든 채 오른쪽을 기다림(hold and wait) · 남의 포크를 뺏을 수 없음(no preemption) · P0→P1→P2→P3→P4→P0 순환(circular wait).{/warn}
+
+<pre class="ascii">
+   P0 holds f0, wants f1 ──▶ P1 holds f1, wants f2 ──▶ P2 holds f2, wants f3
+    ▲                                                          │
+    └── P4 holds f4, wants f0 ◀── P3 holds f3, wants f4 ◀──────┘   circular wait
+</pre>
+
+== 3. Solution: Breaking The Dependency (p.61~62) ⭐⭐⭐ ==
+
+{def}p.61 원문: "Change how forks are acquired — Let's assume that '''philosopher 4 acquire the forks in a different order'''."
+"There is no situation where each philosopher grabs one fork and is stuck waiting for another. '''The cycle of waiting is broken.'''"{/def}
+
+<pre class="c">
+1 void getforks() {
+2   if (p == 4) {
+3     sem_wait(forks[right(p)]);   // P4 만 오른쪽(f0)부터
+4     sem_wait(forks[left(p)]);    // 그 다음 왼쪽(f4)
+5   } else {
+6     sem_wait(forks[left(p)]);
+7     sem_wait(forks[right(p)]);
+8   }
+9 }
+</pre>
+
+[[img:L10-62.png|p.62 P1·P2·P3은 왼쪽을 들고 P4는 오른쪽(f0)을 노리지만 P0이 이미 f0을 들었다 → P4는 포크 0개로 대기 → f4가 비어 있으므로 P3이 오른쪽 포크를 집어 먹는다 → P3 다음 P2 …|large]]
+
+'''왜 풀리는가''' (p.62의 그림): 모두 동시에 시작하면 P0~P3은 왼쪽 f0~f3을 든다. P4는 '''f0(오른쪽)부터''' 잡으려 하는데 P0이 이미 들었으므로 '''아무 포크도 없이''' 기다린다. 그러면 '''f4가 아무에게도 잡히지 않고 남아''' P3이 오른쪽 포크 f4를 집어 '''먹을 수 있다'''. P3이 다 먹고 f3·f4를 놓으면 P2가 f3을 집어 먹고, 이어서 P1, P0 … 그리고 P0이 f0을 놓으면 P4 차례. "'''After P3, P2 finishes eating ...'''"
+
+{tip}💡 이것이 [[데드락]] 예방의 정석 '''lock ordering'''(모든 스레드가 락을 같은 전역 순서로 잡기)의 한 형태다. 포크 번호 기준으로 보면 P4만 "작은 번호(f0) → 큰 번호(f4)"가 되어 다른 넷과 '''같은 순서'''가 된다 — 다른 넷은 원래 `p < p+1`이라 작은 번호부터였다. 순환이 생기려면 누군가 "큰 번호를 든 채 작은 번호를 기다려야" 하는데 그런 철학자가 없다.{/tip}
+
+{|
+! || Broken (p.59) || Fixed (p.61)
+|-
+| P0~P3 || left → right || left → right (그대로)
+|-
+| P4 || left(f4) → right(f0) || '''right(f0) → left(f4)'''
+|-
+| 최악의 동시 시작 || 다섯 명 모두 포크 1개씩 → '''deadlock''' || P4가 포크 0개로 대기 → f4 남음 → '''P3부터 먹음'''
+|-
+| 4조건 중 깨진 것 || — || '''circular wait'''
+|}
+
+== 4. 예상 문제 ==
+
+{quiz}(서술) p.59의 `getforks()`가 데드락에 빠지는 상황을 한 문장으로 쓰고, 데드락 4조건 중 어느 것이 어떻게 성립하는지 답하라.{/quiz}
+{answer}다섯 철학자가 '''동시에 각자의 왼쪽 포크를 집으면''' 모두 포크 하나를 든 채 오른쪽 포크를 영원히 기다린다. 조건: 포크는 한 명만 들 수 있고(mutual exclusion), 왼쪽을 든 채 오른쪽을 기다리며(hold and wait), 남의 포크를 뺏지 못하고(no preemption), P0→P1→…→P4→P0이 서로의 포크를 기다리는 고리(circular wait)가 생긴다.{/answer}
+
+{quiz}(코드 빈칸) 데드락을 없애도록 `getforks()`를 고쳐라. 한 철학자만 바꾼다.{/quiz}
+{answer}`if (p == 4) { sem_wait(forks[right(p)]); sem_wait(forks[left(p)]); } else { sem_wait(forks[left(p)]); sem_wait(forks[right(p)]); }` — 철학자 4만 '''오른쪽(f0) → 왼쪽(f4)''' 순서. "The cycle of waiting is broken."{/answer}
+
+{quiz}(단답) p.58의 세 가지 Key challenges는?{/quiz}
+{answer}'''No deadlock''', '''No philosopher starves''', '''Concurrency should be high'''.{/answer}
+
+{quiz}(추론) 고친 버전에서 다섯 명이 동시에 시작했을 때 '''가장 먼저 먹는''' 철학자는 누구이고 왜인가?{/quiz}
+{answer}'''P3'''. P4가 오른쪽 f0을 먼저 잡으려다 P0에게 막혀 f4를 들지 않으므로, P3(왼쪽 f3을 이미 들었음)의 오른쪽 포크 f4가 비어 있어 바로 집을 수 있다 (p.62).{/answer}
+
+== 관련 문서 ==
+* [[데드락]] · [[세마포어]] · [[락]] · [[mutual exclusion]]
+* [[reader-writer lock]] · [[producer-consumer]] · [[조건 변수]]

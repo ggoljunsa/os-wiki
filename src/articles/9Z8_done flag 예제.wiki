@@ -2,7 +2,9 @@ key: done flag 예제
 title: done flag 예제 — 조건 변수로 join 구현하기
 category: 10강 Condition Variables, 용어
 ---
-부모 [[스레드]]가 자식이 끝날 때까지 기다리는 '''join'''을 [[조건 변수]]로 구현하는 OSTEP 30장의 첫 예제(Fig 30.3)와, 일부를 빼서 부서뜨린 두 버전(Fig 30.4, 30.5). "'''상태 변수 + 락 + CV'''" 3종 세트가 왜 모두 필요한지 보여 준다. [[pthread_join]]이 내부적으로 하는 일이다.
+부모 [[스레드]]가 자식이 끝날 때까지 기다리는 '''join'''을 [[조건 변수]]로 구현하는 '''10강 p.11~13'''(Fig 30.3)과, 일부를 빼서 부서뜨린 두 버전 '''p.14'''(done 없음, Fig 30.4)·'''p.15'''(락 없음, Fig 30.5). "'''상태 변수 + 락 + CV'''" 3종 세트(p.9 "Three in a package")가 왜 모두 필요한지 보여 준다. [[pthread_join]]이 내부적으로 하는 일이다. 교수님이 9/28 수업에서 '''서술 대비'''로 가장 공들여 설명한 부분.
+
+[[img:L10-11.png|p.11 정답 — thr_exit()(락·done=1·signal·unlock)과 thr_join()(락·while(done==0) wait·unlock)|large]]
 
 {analogy}🎭 '''세탁기 완료 알림'''. `done` = 세탁기 문 위의 "완료" 램프, 락 = 세탁실 열쇠, CV = 휴대폰 알림. 램프(`done`)가 없으면 내가 휴대폰을 보기 전에 온 알림은 사라져서 영원히 기다린다(30.4). 열쇠(락) 없이 램프를 확인하면, 확인하고 소파에 눕는 사이에 알림이 와서 놓친다(30.5).{/analogy}
 
@@ -53,7 +55,9 @@ category: 10강 Condition Variables, 용어
 
 [[sim:cv_join]]
 
-== 고장 ① — 상태 변수 없음 (Fig 30.4) ==
+== 고장 ① — 상태 변수 없음 (p.14, Fig 30.4) ==
+
+[[img:L10-14.png|p.14 "The importance of the state variable done" — "Imagine the case where the child runs immediately. The child will signal, but there is no thread asleep on the condition. When the parent runs, it will call wait and be stuck."|medium]]
 
 <pre class="c">
  1   void thr_exit() {
@@ -76,7 +80,9 @@ category: 10강 Condition Variables, 용어
 
 "From this example, you should appreciate the importance of the state variable done; '''it records the value the threads are interested in knowing'''."
 
-== 고장 ② — 락 없음 (Fig 30.5) ==
+== 고장 ② — 락 없음 (p.15, Fig 30.5) ==
+
+[[img:L10-15.png|p.15 "Another poor implementation" — "Just before it calls wait to go to sleep, the parent is interrupted and the child runs … When the parent runs again, it sleeps forever."|medium]]
 
 <pre class="c">
 1   void thr_exit() {
@@ -97,6 +103,10 @@ category: 10강 Condition Variables, 용어
 </pre>
 
 {warn}🔥 두 고장 모두 결과는 '''부모가 영원히 잠든다'''. 원인은 다르다: ① signal을 기록할 곳이 없음 ② 검사와 잠들기 사이가 원자적이지 않음. 9강 [[queue 락]]의 wakeup/waiting race([[setpark]]로 해결)와 ②가 같은 구조다.{/warn}
+
+{exam}🎯 교수님의 두 문장 (9/28 녹음):
+① p.14 — "'''exit와 join 사이에는 순서 보장이 없다.''' 자식이 먼저 exit하면 signal을 받을 스레드가 없고, 부모는 무한히 기다린다. `done`은 '''자식이 이미 signal을 보냈는지'''를 기록한다."
+② p.15 — "signal/wait 자체에는 락이 필요 없다. 락이 필요한 이유는 '''`done`을 보호하고, 조건 변경과 signal 사이의 atomicity를 보장'''하기 위해서다. 7~8번 줄 사이에서 context switch가 나면 done이 있어도 무한 대기. 그래서 완성판은 '''20~21번 줄과 7~8번 줄을 각각 락으로 묶는다'''."{/exam}
 
 {info}[[세마포어]]로 같은 join을 짜면 `sem_init(&s, 0, 0)` 후 부모 `sem_wait`, 자식 `sem_post` 한 줄씩이면 된다 — 세마포어는 값이 post를 '''기억'''하기 때문이다(OSTEP Fig 31.6).{/info}
 
