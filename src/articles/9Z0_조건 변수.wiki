@@ -2,7 +2,7 @@ key: 조건 변수
 title: 조건 변수 (Condition Variable)
 category: 10강 Condition Variables, 핵심
 ---
-{info}📌 '''10강 슬라이드 `10-CondVar_Semaphore.pdf`(64쪽) 기준 + 2026-09-28(월) 수업 녹음 반영.''' 이 문서는 p.2~29(futex 복습 → Condition Variable → Covering Conditions)를 다룬다. '''9/28 수업은 p.29 broadcast에서 끝났고''' 교수님이 "semaphore는 다음 시간에"라고 했다 — p.30~62([[세마포어]] · [[reader-writer lock]] · [[dining philosophers]])는 각 문서에 슬라이드 기준으로 정리해 두었다. 절 제목의 `(p.N)`은 슬라이드 인쇄 번호, `(Fig 30.x)`는 OSTEP 그림 번호.{/info}
+{info}📌 '''10강 슬라이드 `10-CondVar_Semaphore.pdf`(64쪽) 기준 + 2026-09-28(월) 수업 녹음 반영.''' 이 문서는 p.2~29(futex 복습 → Condition Variable → Covering Conditions)를 다룬다. '''9/28 수업은 p.29 broadcast에서 끝났고''', p.30~62는 9/30에 '''11강 `11-Semaphore.pdf`'''(같은 내용 + 트레이스 7장 추가)로 다시 배포되어 수업했다 — [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] 문서는 11강 페이지 번호를 쓴다. 절 제목의 `(p.N)`은 슬라이드 인쇄 번호, `(Fig 30.x)`는 OSTEP 그림 번호.{/info}
 
 9강은 "[[락]]을 어떻게 만들까"였다. 10강의 질문은 그다음이다:
 
@@ -572,7 +572,7 @@ p.17: `grep foo file.txt | wc -l` — "The grep process is the producer. The wc 
 
 === 4-6. 최종판: 버퍼 여러 칸 (p.48~50, Fig 30.13~30.14) ===
 
-슬라이드에서는 이 부분이 '''세마포어 절 뒤(p.48~50)'''에 "Condition Variable Solution"으로 붙어 있다 — 9/28 수업에서는 아직 안 나갔다. 버퍼를 `MAX`칸 원형 큐로 늘리면 잠들기 전에 여러 개를 만들고/소비할 수 있어 '''context switch가 줄고 동시성이 늘어난다'''.
+슬라이드에서는 이 부분이 '''세마포어 절 뒤(10강 p.48~50 = 11강 p.26~28)'''에 "Condition Variable Solution"으로 붙어 있다 — 9/30 수업(11강)에서 다뤘다: "세마포어 버전은 값이 count 역할을 하지만 CV 버전은 count 변수가 따로 필요하다. CV는 자기 자신을 보호하지 않으므로 락을 바깥에 둔다." 버퍼를 `MAX`칸 원형 큐로 늘리면 잠들기 전에 여러 개를 만들고/소비할 수 있어 '''context switch가 줄고 동시성이 늘어난다'''.
 
 <pre class="c">
  1   int buffer[MAX];
@@ -829,7 +829,7 @@ Pthread_mutex_unlock(&mutex);
 
 == 관련 문서 ==
 * 10강 (9/28 진도): [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[done flag 예제]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]]
-* 10강 (다음 시간, 슬라이드 p.30~62): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
+* 11강 (9/30, `11-Semaphore.pdf`): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
 * 29장 (락 활용, 참고): [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]
 * 9강: [[락]] · [[spin lock]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]]
 * 8강: [[스레드]] · [[pthread_create]] · [[pthread_join]] · [[race condition]] · [[critical section]] · [[mutual exclusion]] · [[atomic]]

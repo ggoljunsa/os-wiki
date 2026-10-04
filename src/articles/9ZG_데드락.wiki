@@ -2,7 +2,7 @@ key: 데드락
 title: 데드락 (Deadlock)
 category: 10강 Condition Variables, 용어, 기출
 ---
-{info}📌 10강 슬라이드가 데드락을 처음 언급하는 곳은 '''p.44''' — 세마포어 producer/consumer의 Third Attempt에서 "This phenomenon is called a '''deadlock'''. '''More details will be covered in the next lecture.'''" 4조건의 정식 정의는 2025F 해설 슬라이드와 OSTEP 32장 기준이며, 데드락 전용 강의(11강 예상)가 오면 갱신한다. 10강 안의 구체 예는 p.44~45([[세마포어]] mutex 위치)와 p.59~62([[dining philosophers]]).{/info}
+{info}📌 11강 슬라이드(= 10강 p.30~62 재배포)가 데드락을 처음 언급하는 곳은 '''p.22''' — 세마포어 producer/consumer의 Third Attempt에서 "This phenomenon is called a '''deadlock'''. '''More details will be covered in the next lecture.'''" 4조건의 정식 정의는 2025F 해설 슬라이드와 OSTEP 32장 기준이며, 데드락 전용 강의(11강 예상)가 오면 갱신한다. 10강 안의 구체 예는 p.22~23([[세마포어]] mutex 위치)와 p.37~40([[dining philosophers]]).{/info}
 
 '''데드락'''은 여러 [[스레드]]가 서로가 가진 자원(보통 [[락]])을 기다리며 '''아무도 진행하지 못하는''' 상태다. '''2025F Problem 1-c'''에 "Which one is '''not''' a condition of deadlock?"(정답: Busy wait)으로 나왔다.
 
@@ -32,17 +32,17 @@ pthread_mutex_lock(L2);    pthread_mutex_lock(L1);   // 서로 상대 락을 기
 
 {analogy}🎭 '''좁은 외나무다리 양쪽에서 동시에 건너온 두 사람'''. 각자 다리 절반을 차지하고(hold), 상대가 비켜 주길 기다리며(wait), 억지로 밀어낼 수 없고(no preemption), 서로가 서로를 기다린다(circular). 규칙 하나 — "항상 동쪽 사람이 먼저 건넌다"(순서 정하기) — 로 해결된다.{/analogy}
 
-[[anim:dining_philosophers|10강의 데드락 예 — 다섯 철학자가 왼쪽 포크만 들면 circular wait, P4 만 순서를 바꾸면 고리가 끊긴다]]
+[[anim:dining_philosophers|11강의 데드락 예 — 다섯 철학자가 왼쪽 포크만 들면 circular wait, P4 만 순서를 바꾸면 고리가 끊긴다]]
 
-== 10강에 나온 데드락 두 가지 ==
+== 11강에 나온 데드락 두 가지 ==
 
-=== ① 세마포어 producer/consumer의 mutex 위치 (p.43~45) ⭐⭐⭐ ===
+=== ① 세마포어 producer/consumer의 mutex 위치 (p.21~23) ⭐⭐⭐ ===
 
-[[img:L10-45.png|p.45 consumer가 mutex를 쥔 채 full에서 잠들고, producer는 mutex에서 잠든다 → "Both sleep forever! (Deadlock)"|large]]
+[[img:L11-23.png|p.23 consumer가 mutex를 쥔 채 full에서 잠들고, producer는 mutex에서 잠든다 → "Both sleep forever! (Deadlock)"|large]]
 
-`sem_wait(&mutex)`를 `sem_wait(&full)`보다 '''바깥'''에 두면: consumer가 mutex를 잡고(1→0) full에서 잠든다(0→−1, '''mutex를 쥔 채''') → producer가 mutex에서 잠든다(0→−1). consumer는 producer의 `post(&full)`을, producer는 consumer의 `post(&mutex)`를 기다린다. '''hold and wait + circular wait'''. 해결은 mutex를 '''안쪽'''으로(p.46) — 자원을 기다릴 때는 락을 쥐지 않는다. → [[세마포어]] §5-4
+`sem_wait(&mutex)`를 `sem_wait(&full)`보다 '''바깥'''에 두면: consumer가 mutex를 잡고(1→0) full에서 잠든다(0→−1, '''mutex를 쥔 채''') → producer가 mutex에서 잠든다(0→−1). consumer는 producer의 `post(&full)`을, producer는 consumer의 `post(&mutex)`를 기다린다. '''hold and wait + circular wait'''. 해결은 mutex를 '''안쪽'''으로(p.24) — 자원을 기다릴 때는 락을 쥐지 않는다. → [[세마포어]] §5-4
 
-=== ② Dining philosophers (p.59~62) ⭐⭐⭐ ===
+=== ② Dining philosophers (p.37~40) ⭐⭐⭐ ===
 
 다섯 명이 동시에 왼쪽 포크를 들면 모두 오른쪽을 기다리는 '''circular wait'''. 철학자 4만 오른쪽부터 잡게 하면 "the cycle of waiting is broken". → [[dining philosophers]]
 
@@ -51,7 +51,7 @@ pthread_mutex_lock(L2);    pthread_mutex_lock(L1);   // 서로 상대 락을 기
 |-
 | '''Livelock''' (2025F P2-g) || 둘 다 '''움직이고는 있지만'''(trylock 실패 → 놓고 재시도 반복) 진행이 없다. 해결: random delay
 |-
-| '''Starvation''' || 다른 스레드는 진행하는데 '''특정 스레드만''' 계속 못 들어감 ([[spin lock]], [[reader-writer lock]]의 writer — p.55)
+| '''Starvation''' || 다른 스레드는 진행하는데 '''특정 스레드만''' 계속 못 들어감 ([[spin lock]], [[reader-writer lock]]의 writer — p.33)
 |-
 | '''Busy wait''' || [[spin lock]]의 '''대기 방식'''일 뿐 데드락 조건이 아니다 (P1-c 오답 선지)
 |-
@@ -60,7 +60,11 @@ pthread_mutex_lock(L2);    pthread_mutex_lock(L1);   // 서로 상대 락을 기
 | 락을 쥔 채 CV wait (p.10) || 교수님: "wait에 락을 넘기지 않고 쥔 채 자면 deadlock" — 그래서 `pthread_cond_wait`가 mutex를 받아 자동으로 놓는다 → [[wait와 signal]]
 |}
 
-{exam}🎯 '''2025F Problem 1-c''': ① Mutual exclusion ② Hold and wait ③ No preemption ④ Circular wait '''⑤ Busy wait''' → 정답 '''⑤'''. '''2025F Problem 6'''의 세마포어 순서(mutex를 바깥에 두면)도 데드락 문제다 → [[세마포어]]. 네 조건은 '''영어 이름 그대로''' 외울 것. 10강 슬라이드가 데드락을 두 번(p.44, p.59) 보여 줬으니 "이 코드에서 데드락이 생기는 순서를 쓰라"도 대비.{/exam}
+== 🎙 9/30 수업에서 교수님이 데드락을 정의한 말 ==
+
+11강 p.22~23(세마포어 producer/consumer)에서: "여러 동기화 수단이 있을 때 한 스레드가 이 락을, 다른 스레드가 저 락을 잡고 '''서로 상대의 post를 기다리며 경쟁'''하는 현상을 '''deadlock'''이라 부른다 — producer는 consumer의 mutex post를, consumer는 producer의 full post를 기다리는 '''circular dependency'''." 원인은 "세마포어 wait는 CV wait와 달리 '''잡고 있는 락을 놓지 않는다'''"는 것. 그리고 [[dining philosophers]]에서: "모두 왼쪽 포크를 쥐면 아무도 놓지 못해 진행이 없다 → 한 명만 순서를 바꿔 '''cyclic dependency'''를 끊는다." 정식 4조건은 "next lecture".
+
+{exam}🎯 '''2025F Problem 1-c''': ① Mutual exclusion ② Hold and wait ③ No preemption ④ Circular wait '''⑤ Busy wait''' → 정답 '''⑤'''. '''2025F Problem 6'''의 세마포어 순서(mutex를 바깥에 두면)도 데드락 문제다 → [[세마포어]]. 네 조건은 '''영어 이름 그대로''' 외울 것. 10강 슬라이드가 데드락을 두 번(p.22, p.37) 보여 줬으니 "이 코드에서 데드락이 생기는 순서를 쓰라"도 대비.{/exam}
 
 {quiz}Thread 1은 L1→L2, Thread 2는 L2→L1 순서로 락을 잡는다. 네 조건 중 무엇을 깨서 고칠 수 있으며, 코드는 어떻게 바꾸는가?{/quiz}
 {answer}'''Circular wait'''를 깬다: 두 스레드 모두 '''L1 → L2''' 순서로 잡게 한다(전역 lock ordering). 그러면 L1을 가진 스레드만 L2를 기다릴 수 있으므로 순환이 생기지 않는다. dining philosophers에서 철학자 4만 순서를 바꾼 것과 같은 원리.{/answer}

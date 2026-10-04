@@ -91,7 +91,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 스레드 · TCB · 스레드 스택 · pthread_create · pthread_join · TLS · 스레드와 프로세스 비교 · race condition · critical section · mutual exclusion · atomic · counter 예제 · 스레드 컨텍스트 스위치
 ### 9강 Lock
 락 · 락 평가 기준 · flag 락 · 인터럽트 비활성화 · test-and-set · spin lock · compare-and-swap · load-linked store-conditional · fetch-and-add · ticket lock · yield 락 · queue 락 · park와 unpark · setpark · futex · two-phase lock · guard · priority inversion
-### 10강 Condition Variable / Semaphore (+ OSTEP 29장 락 기반 자료구조) — 파일 접두어 `9Z0_`~`9ZH_` (9강 뒤·과제 앞에 정렬되도록). 슬라이드 `10-CondVar_Semaphore.pdf` 64쪽 = `_slides/L10-{pp}.png`(2026-09-28 배포·반영). 9/28 수업은 p.29까지, p.30~62(세마포어·rwlock·dining philosophers)는 다음 수업
+### 10강 Condition Variable / 11강 Semaphore (+ OSTEP 29장 락 기반 자료구조) — 파일 접두어 `9Z0_`~`9ZH_` (9강 뒤·과제 앞에 정렬되도록). 슬라이드 `10-CondVar_Semaphore.pdf` 64쪽 = `_slides/L10-{pp}.png`(9/28 수업 p.1~29). `11-Semaphore.pdf` 42쪽 = `_slides/L11-{pp}.png`(9/30 수업 전부; 10강 p.30~62를 떼어 낸 덱 + 새 페이지 p.6~7, p.9~13. 10강 p.N = 11강 p.N−22 (N≥36), p.31~34→2~5, p.35→8). 세마포어·rwlock·dining philosophers·데드락 문서는 11강 번호를 쓴다
 조건 변수 · wait와 signal · Mesa semantics · spurious wakeup · producer-consumer · bounded buffer · covering condition · broadcast · done flag 예제 · 락 기반 자료구조 · sloppy counter · concurrent linked list · concurrent queue · concurrent hash table · 세마포어 · reader-writer lock · 데드락 · dining philosophers
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
@@ -121,6 +121,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | cv_join | OSTEP 30장 부모-자식 join: done flag + lock + cv. 옵션 bug = none / no_state(flag 없이 cv만 → 자식이 먼저 signal 하면 부모 영원히 잠듦) / no_lock(락 없이 → flag 검사와 wait 사이 race) | 조건 변수, done flag 예제, wait와 signal |
 | producer_consumer | bounded buffer. 옵션 variant = if_1cv(소비자 2명 + if → 빈 버퍼 get, Mesa 버그) / while_1cv(while + cv 하나 → 셋 다 잠듦) / while_2cv(정답) , buffer = 1 / 3 | producer-consumer, bounded buffer, Mesa semantics, spurious wakeup |
 | sloppy_counter | 29장 approximate counter: CPU별 local 카운터가 threshold S 마다 global 로 flush. 옵션 S = 1 / 5 / 1024 | 락 기반 자료구조, sloppy counter |
+| sem_trace | 11강 p.7/p.12/p.13 Thread Trace 표를 한 행씩: 옵션 trace = two_threads(binary semaphore, T1이 −1로 잠들고 wake) / join_case1(부모가 먼저 wait) / join_case2(자식이 먼저 post, 값 1로 기억) | 세마포어 |
 | sem_producer_consumer | 10강 p.37~47 세마포어 producer/consumer 네 시도. 옵션 attempt = none(동기화 없음, V#0 덮어쓰기) / empty_full(empty=MAX·full=0, 6번째 put 에서 empty −1 로 잠듦) / mutex_outside(mutex 를 empty/full 바깥에 → consumer 가 mutex 쥔 채 잠듦 → deadlock, p.45) / final(정답, mutex 안쪽) | 세마포어, producer-consumer |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)

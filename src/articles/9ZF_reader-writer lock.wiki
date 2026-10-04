@@ -2,21 +2,21 @@ key: reader-writer lock
 title: Reader-writer lock (rwlock)
 category: 10강 Condition Variables, 용어, OSTEP 31장, 기출
 ---
-{info}📌 '''10강 슬라이드 p.51~55''' 기준. 9/28 수업에서는 아직 안 나갔다(세마포어 절 다음). '''2025F 중간고사 Problem 5'''(계산, 12pts)에 실제로 나왔으므로 슬라이드 코드와 규칙을 먼저 익혀 둘 것.{/info}
+{info}📌 '''11강 슬라이드 p.29~33''' 기준(10강 p.51~55와 같은 내용). 2026-09-30 수업 녹음 반영. '''2025F 중간고사 Problem 5'''(계산, 12pts)에 실제로 나왔으므로 슬라이드 코드와 규칙을 먼저 익혀 둘 것.{/info}
 
 '''Reader-writer lock'''은 읽기는 여럿이 동시에, 쓰기는 혼자만 하게 하는 락이다. 리스트 lookup(읽기)은 동시에 해도 안전하고, insert(쓰기)만 배타적이면 되기 때문이다. [[세마포어]] 두 개와 카운터 하나로 만든다.
 
-{def}p.52 원문: "Imagine a number of concurrent list operations, including inserts and simple lookups."
+{def}p.30 원문: "Imagine a number of concurrent list operations, including inserts and simple lookups."
 * '''Insert (writer)''': "Change the state of the list — A traditional critical section makes sense"
 * '''Lookup (reader)''': "Simply read the data structure — As long as we can guarantee that '''no insert is on-going''', we can allow '''many lookups to proceed concurrently'''"
 "This special type of lock is known as a '''reader-writer lock'''"
-p.53: "'''Only a single writer''' can acquire the lock" · "Once a reader has acquired a read lock, '''more readers will be allowed''' to acquire the read lock too" · "A writer will have to '''wait until all readers are finished'''"{/def}
+p.31: "'''Only a single writer''' can acquire the lock" · "Once a reader has acquired a read lock, '''more readers will be allowed''' to acquire the read lock too" · "A writer will have to '''wait until all readers are finished'''"{/def}
 
 {analogy}🎭 '''도서관 열람실'''. 열람(읽기)은 여러 명이 동시에 해도 되지만, 책장 재배치(쓰기)는 열람실이 '''완전히 빌 때''' 사서 혼자 한다. '''첫 열람자'''가 문에 "열람 중" 팻말을 걸고(writelock 획득), '''마지막 열람자'''가 뗀다(writelock 반납). 열람자가 끊임없이 오면 사서는 영원히 못 들어간다(starvation).{/analogy}
 
-== 코드 (p.53~54) ⭐⭐⭐ ==
+== 코드 (p.31~32) ⭐⭐⭐ ==
 
-[[img:L10-54.png|p.54 rwlock_acquire_readlock / release_readlock / acquire_writelock / release_writelock — 첫 reader가 writelock을 잡고 마지막 reader가 놓는다|large]]
+[[img:L11-32.png|p.32 rwlock_acquire_readlock / release_readlock / acquire_writelock / release_writelock — 첫 reader가 writelock을 잡고 마지막 reader가 놓는다|large]]
 
 <pre class="c">
  1   typedef struct _rwlock_t {
@@ -84,15 +84,24 @@ p.53: "'''Only a single writer''' can acquire the lock" · "Once a reader has ac
 
 {warn}⚠️ '''읽는 중에 writelock을 잡고 있는 것은 reader가 아니라 "reader 무리"'''다. 첫 reader가 잡고 마지막 reader가 놓으므로, 중간에 들어온 reader가 먼저 나가도 writelock은 풀리지 않는다. 그리고 `readers++`/`--`와 `if` 검사 사이에 다른 reader가 끼어들면 안 되므로 그 부분만 `lock`으로 감싼다.{/warn}
 
-== Fairness 문제 (p.55) ⭐ ==
+== Fairness 문제 (p.33) ⭐ ==
 
-{def}p.55 원문: "The reader-writer locks have '''fairness problem'''. It would be relatively easy for '''reader to starve writer'''. More sophisticated solutions to this problem exist — A basic idea is to '''prevent more readers from entering the lock once a writer is waiting''' (not covered in this class)"{/def}
+{def}p.33 원문: "The reader-writer locks have '''fairness problem'''. It would be relatively easy for '''reader to starve writer'''. More sophisticated solutions to this problem exist — A basic idea is to '''prevent more readers from entering the lock once a writer is waiting''' (not covered in this class)"{/def}
 
 reader가 계속 들어오면 `readers`가 0으로 안 떨어져 '''writer가 starvation'''된다. OSTEP은 덧붙인다 — RW 락은 오버헤드가 커서 단순한 락보다 빠르지 않을 때가 많다: '''Hill's Law: "Big and dumb is better."'''
 
+== 🎙 실제 수업 기록 (9/30 수, 녹음본 기준) ==
+
+* '''왜 필요한가''' (p.30): "reader는 상태를 바꾸지 않으니 여럿이 동시에 읽어도 되고, writer의 변경은 즉시 반영돼야 하니 혼자여야 한다. 그냥 락 하나를 쓰면 '''reader의 동시 lookup이 불가능'''해 성능이 떨어진다."
+* '''왜 세마포어인가''' ⭐ (p.31~32, 슬라이드에 없는 설명): "reader 수를 세려고 세마포어를 쓰는 게 '''아니다''' — lookup은 자원을 소비하지 않는다. 쓰는 세마포어 둘은 사실 '''둘 다 binary semaphore(=락)'''이고, reader 수는 `readers` 카운터가 센다. 그런데 왜 mutex 대신 세마포어인가? '''mutex에는 owner가 있어서 잡은 스레드만 놓을 수 있다.''' 세마포어는 '''다른 스레드가 값을 올려도 된다''' — 그래서 '''첫 reader가 잡은 writelock을 마지막 reader가 놓는''' '공유 소유'가 가능하다. acquire와 release 사이에 writelock의 holder가 같다는 보장이 없고, 소유권이 reader들 사이에서 이전된다."
+* '''코드 읽기''' (p.32): read lock을 잡을 때 '''writelock도 잡아야''' writer가 못 쓴다. 그런데 reader가 여럿이면 두 번째 reader는 writelock을 또 잡을 수 없으니 '''첫 reader만''' 잡는다(`readers == 1`). release는 '''마지막 reader'''(`readers == 0`)가 writelock을 놓는다. `lock`은 `readers` 카운터만 보호. writer는 writelock만 잡고 놓는다. "복잡해 보이지만 '''우아한''' 구현."
+* '''fairness''' (p.33): "writer가 락을 잡고 있을 때는 reader에게 공평한 기회가 있지만, reader가 잡고 있으면 '''여러 reader가 writelock을 함께 쥐므로''' writer의 기회가 훨씬 적다. 해결의 기본 아이디어는 '''writer가 기다리는 동안 새 reader를 막는 것''' — 세마포어 하나와 카운터가 더 필요하다. 이 수업에서는 안 다룬다."
+
+{exam}🎯 서술 후보: "reader-writer lock에서 writelock을 mutex가 아닌 세마포어로 만드는 이유" → '''mutex는 owner만 release할 수 있지만, 첫 reader가 잡은 writelock을 마지막 reader가 놓아야 하므로 owner 개념이 없는 세마포어가 필요하다.'''{/exam}
+
 == 2025F Problem 5 스타일 — 완료 시각 계산 ==
 
-입력은 `R(도착, 길이)` / `W(도착, 길이)`. 동시 reader 수 제한이 문제에 주어진다(5.1은 최대 3명). 규칙은 '''이 슬라이드 구현 기준''': writer는 모든 reader가 끝날 때까지 기다리고, '''writer가 대기 중이어도 reader는 계속 들어올 수 있다'''(p.55의 "not covered" 개선안은 적용하지 않음).
+입력은 `R(도착, 길이)` / `W(도착, 길이)`. 동시 reader 수 제한이 문제에 주어진다(5.1은 최대 3명). 규칙은 '''이 슬라이드 구현 기준''': writer는 모든 reader가 끝날 때까지 기다리고, '''writer가 대기 중이어도 reader는 계속 들어올 수 있다'''(p.33의 "not covered" 개선안은 적용하지 않음).
 
 <pre class="ascii">
  5.1: R(0,3) R(1,5) W(4,3) R(2,1) R(5,3)   (동시 reader 최대 3)
@@ -109,7 +118,7 @@ reader가 계속 들어오면 `readers`가 0으로 안 떨어져 '''writer가 st
 {exam}🎯 '''2025F Problem 5''': 5.1(4pts) Best/Worst = '''11 / 11''', 5.2(8pts) = '''20 / 21'''. 5.2의 best/worst는 reader 자리가 날 때 '''어느 reader를 고르느냐(tie-breaking)'''로 갈렸다. 핵심 규칙은 "'''writer는 모든 reader가 끝날 때까지 기다린다''' + reader는 writer가 대기 중이어도 계속 들어올 수 있다(이 구현 기준)". 자세한 풀이는 [[2025F 중간고사 족보]]. 코드 빈칸으로 나오면 '''17번 줄 `== 1`, 25번 줄 `== 0`, 그리고 어느 세마포어를 wait/post 하는가'''가 빈칸이 된다.{/exam}
 
 {quiz}reader R1이 읽는 중에 writer W가 도착하고, 이어서 reader R2가 도착했다. 위 코드에서 누가 먼저 진입하는가?{/quiz}
-{answer}'''R2'''. `readers`가 이미 1 이상이라 R2는 writelock을 다시 잡을 필요 없이(17번 줄 조건 거짓) 바로 진입한다. W는 `readers`가 0이 되어 마지막 reader가 writelock을 post할 때까지 기다린다 → writer starvation 가능성 (p.55).{/answer}
+{answer}'''R2'''. `readers`가 이미 1 이상이라 R2는 writelock을 다시 잡을 필요 없이(17번 줄 조건 거짓) 바로 진입한다. W는 `readers`가 0이 되어 마지막 reader가 writelock을 post할 때까지 기다린다 → writer starvation 가능성 (p.33).{/answer}
 
 {quiz}(빈칸) `if (rw->readers == __) sem_wait(&rw->____);` / `if (rw->readers == __) sem_post(&rw->____);`{/quiz}
 {answer}acquire: `readers == '''1'''` → `sem_wait(&rw->'''writelock''')` (첫 reader가 writer를 막는다). release: `readers == '''0'''` → `sem_post(&rw->'''writelock''')` (마지막 reader가 풀어 준다).{/answer}

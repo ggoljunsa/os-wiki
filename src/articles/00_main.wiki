@@ -90,9 +90,9 @@ category: 안내
 * [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]
 * [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]
 
-=== 10강 Condition Variable / Semaphore (슬라이드 p.1~64, 9/28 수업은 p.29까지) ===
+=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) ===
 * 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]
-* 다음 수업 (슬라이드 있음): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
+* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
 * OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]
 
 === 8~9강 ===

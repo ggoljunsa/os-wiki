@@ -4,7 +4,7 @@
 # 위키 (운체위키, OS Wiki)
 
 ## Purpose
-A self-contained, 나무위키-style single-page study wiki for CSE304 운영체제 midterm scope (lectures 1–10, Assignment 1 xv6 alarm, Quiz 1 replay, 2025F past exam). It is its **own git repository** (remote `github.com/ggoljunsa/os-wiki`, live at https://ggoljunsa.github.io/os-wiki/), nested inside the OneDrive course folder. Everything the reader sees is generated into `index.html` from `src/` by `build.py`.
+A self-contained, 나무위키-style single-page study wiki for CSE304 운영체제 midterm scope (lectures 1–11, Assignment 1 xv6 alarm, Quiz 1 replay, 2025F past exam). It is its **own git repository** (remote `github.com/ggoljunsa/os-wiki`, live at https://ggoljunsa.github.io/os-wiki/), nested inside the OneDrive course folder. Everything the reader sees is generated into `index.html` from `src/` by `build.py`.
 
 Three kinds of "visual" content exist, and each has its own syntax and engine:
 

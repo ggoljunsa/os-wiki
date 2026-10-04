@@ -2,11 +2,11 @@ key: 세마포어
 title: 세마포어 (Semaphore)
 category: 10강 Condition Variables, 핵심, OSTEP 31장, 기출
 ---
-{info}📌 '''10강 슬라이드 p.30~50''' 기준. '''9/28 수업은 여기 오기 전(p.29)에 끝났다''' — 교수님: "semaphore는 다음 강의에서". 그러나 슬라이드는 이미 배포되었고 '''2025F 중간고사 Problem 6(producer-consumer 세마포어 빈칸, 16pts)'''이 바로 이 절이므로, 다음 수업 전에 읽어 두면 그 수업이 복습이 된다. 수업 후 교수 강조점을 덧붙일 것.{/info}
+{info}📌 '''11강 슬라이드 `11-Semaphore.pdf`(42쪽) 기준 + 2026-09-30(수) 수업 녹음 반영.''' 11강은 10강 p.30~62를 그대로 떼어 낸 덱에 '''새 페이지 7장'''(p.6~7 세마포어 스레드 트레이스, p.9~13 세마포어로 만든 join 트레이스)을 끼운 것이다. 10강 번호로 보던 사람은 '''10강 p.N = 11강 p.(N−22)''' (p.36 이후), 앞부분은 p.31~34 → p.2~5, p.35 → p.8. '''2025F 중간고사 Problem 6(producer-consumer 세마포어 빈칸, 16pts)'''이 바로 이 절이다.{/info}
 
 '''세마포어'''는 Dijkstra가 만든 '''정수 값 하나 + 두 연산(`sem_wait`, `sem_post`)'''의 동기화 도구다. 초기값에 따라 [[락]]처럼도, [[조건 변수]]처럼도 쓸 수 있다 — "a single primitive for all things related to synchronization".
 
-{def}p.31 원문 — '''Semaphore: A definition''': "An object with an '''integer value'''. We can manipulate with two routines; '''sem_wait()''' and '''sem_post()'''."
+{def}p.2 원문 — '''Semaphore: A definition''': "An object with an '''integer value'''. We can manipulate with two routines; '''sem_wait()''' and '''sem_post()'''."
 * "Declare a semaphore s and initialize it to the value 1"
 * "The second argument, '''0''', indicates that the semaphore is '''shared between threads in the same process'''. If it is nonzero, the semaphore is shared between processes"
 * "Semaphore value '''can be negative value, but it is not a POSIX standard''' — the negative value means '''the number of waiters''' in Linux"{/def}
@@ -19,7 +19,7 @@ category: 10강 Condition Variables, 핵심, OSTEP 31장, 기출
 
 {analogy}🎭 세마포어 = '''주차장 입구의 "남은 자리 N" 전광판'''. 들어갈 때(`sem_wait`) 숫자를 1 줄이고, 음수가 되면 입구에서 기다린다. 나갈 때(`sem_post`) 1 올리고 기다리는 차가 있으면 한 대 들여보낸다. 자리가 1개인 주차장 = 락, 자리가 0개에서 시작하는 주차장 = "누가 나와야 들어갈 수 있다" = 순서 맞추기. 전광판이 '''−3'''이면 "3대가 입구에서 기다리는 중".{/analogy}
 
-== 1. sem_wait / sem_post (p.32~33) ⭐⭐⭐ ==
+== 1. sem_wait / sem_post (p.3~4) ⭐⭐⭐ ==
 
 <pre class="c">
 1   int sem_wait(sem_t *s) {
@@ -33,8 +33,8 @@ category: 10강 Condition Variables, 핵심, OSTEP 31장, 기출
 4   }
 </pre>
 
-{def}p.32 '''sem_wait()''': "If the value of the semaphore was '''one or higher''' when called sem_wait(), '''return right away'''" · "It will cause the caller to '''suspend execution''' waiting for a subsequent post" · "When negative, the value of the semaphore is '''equal to the number of waiting threads'''"
-p.33 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "If there is a thread waiting to be woken, '''wakes one of them up'''"{/def}
+{def}p.3 '''sem_wait()''': "If the value of the semaphore was '''one or higher''' when called sem_wait(), '''return right away'''" · "It will cause the caller to '''suspend execution''' waiting for a subsequent post" · "When negative, the value of the semaphore is '''equal to the number of waiting threads'''"
+p.4 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "If there is a thread waiting to be woken, '''wakes one of them up'''"{/def}
 
 {|
 ! || `sem_wait(&s)` || `sem_post(&s)`
@@ -48,9 +48,9 @@ p.33 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "
 | 다른 이름 || '''P()''' (Dijkstra), '''down''' (Linux 커널) || '''V()''', '''up'''
 |}
 
-{info}p.35 Note: "sem_wait() was called '''P()''' and sem_post() called '''V()''' by Dijkstra. P comes from '''"prolaag"''', a contraction of "probeer"(try) and "verlaag"(decrease); V comes from '''"verhoog"'''(increase). Sometimes people call them '''down and up''' — often used in the Linux kernel community." → "P/V가 무엇의 약자인가"는 단답 후보.{/info}
+{info}p.8 Note: "sem_wait() was called '''P()''' and sem_post() called '''V()''' by Dijkstra. P comes from '''"prolaag"''', a contraction of "probeer"(try) and "verlaag"(decrease); V comes from '''"verhoog"'''(increase). Sometimes people call them '''down and up''' — often used in the Linux kernel community." → "P/V가 무엇의 약자인가"는 단답 후보.{/info}
 
-== 2. Binary semaphore = 락 (p.34) ⭐⭐ ==
+== 2. Binary semaphore = 락 (p.5~7) ⭐⭐⭐ ==
 
 <pre class="c">
 1 sem_t m;
@@ -63,41 +63,83 @@ p.33 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "
 
 '''X = 1'''. T0 `sem_wait` → 0 (통과, CS 진입). T1 `sem_wait` → '''−1''' (잠듦, 대기자 1명). T0 `sem_post` → 0, T1 깨움. T1 끝나고 `sem_post` → 1.
 
+{exam}🎯 교수님이 "왜 1인가"를 '''한 단계 위에서''' 설명했다 (9/30 녹음): "0이면 첫 스레드가 락을 잡으려다 바로 잠든다 — semantics가 다르다. 그러니 1이다. 그런데 '''왜''' 1인가? 세마포어는 '''공유 자원의 개수'''를 나타낸다. 락에서 공유 자원은 무엇인가? '''critical section에 들어갈 권한(permission)'''이다. permission 자체가 자원이고, 한 번에 한 스레드만 허용하니 '''자원이 하나 → 초기값 1'''." → "binary semaphore의 초기값이 1인 이유를 서술하라"의 모범 답.{/exam}
+
+=== p.6~7 Thread Trace — 세마포어 값과 스레드 상태를 같이 추적 ===
+
+[[img:L11-07.png|p.7 Two Threads Using A Semaphore — T0가 CS 안에 있을 때 T1이 sem_wait → 값 −1, sleeping. T0의 sem_post가 값을 0으로 올리고 wake(T1). 값·Thread 0·State·Thread 1·State 다섯 열을 그대로 외울 것|large]]
+
+[[sim:sem_trace]]
+
+p.7의 흐름 (교수님 설명): T0가 `sem_wait` → 값 1→0, 바로 리턴, critical section 진입 → '''timer interrupt''' → T1이 `sem_wait` → 값 0→'''−1''', 음수이므로 '''sleep''' → T0로 전환 → T0가 CS를 마치고 `sem_post` → 값 −1→0, '''wake(T1)''' → `sem_post` 리턴 → interrupt → T1이 `sem_wait`에서 리턴해 CS → `sem_post` → 값 1.
+
+{warn}⭐ 교수님이 덧붙인 구현 이야기 (9/30 녹음, 슬라이드에 없음):
+* "'''대기자 수 = 세마포어 값(음수)'''을 유지하려면 post는 값을 1 올릴 때마다 '''정확히 한 스레드'''를 깨워야 한다. 그래서 세마포어는 [[broadcast]]가 없다 — CV와의 차이 하나."
+* "그런데 [[spurious wakeup]]이 있으면 정수 하나로는 '''signal로 깨어난 것인지 구분할 수 없다'''. 그래서 실제 구현은 값 하나가 아니라 '''resource count와 wait count 두 변수'''를 따로 두고, 슬라이드의 '값' = resource count − wait count로 계산한다. '세마포어 값'은 '''자원 수'''와 '''대기자 수''' 두 개념을 한 숫자로 나타낸 것이다."{/warn}
+
 == 3. 초기값에 따른 세 가지 용도 ==
 
 {|
 ! 용도 || 초기값 || 패턴 || 비교 대상
 |-
-| '''Binary semaphore (= 락)''' (p.34) || '''1''' || `sem_wait(&m); /* critical section */ sem_post(&m);` || [[락]]
+| '''Binary semaphore (= 락)''' (p.5) || '''1''' || `sem_wait(&m); /* critical section */ sem_post(&m);` || [[락]]
 |-
 | '''Ordering (순서 맞추기)''' || '''0''' || 기다리는 쪽 `sem_wait`, 사건을 일으킨 쪽 `sem_post` || [[조건 변수]] ([[done flag 예제|join]])
 |-
-| '''자원 개수 세기''' (p.40) || '''N''' (예: MAX) || bounded buffer의 `empty` = MAX, `full` = 0 || [[bounded buffer]]
+| '''자원 개수 세기''' (p.18) || '''N''' (예: MAX) || bounded buffer의 `empty` = MAX, `full` = 0 || [[bounded buffer]]
 |}
 
-=== join을 세마포어로 (OSTEP Fig 31.6, 슬라이드에는 없음) ===
+=== join을 세마포어로 — Semaphore-based CV (p.9~13) ⭐⭐⭐ ===
+
+11강이 새로 넣은 절. p.10은 10강 p.6의 CV 동기(부모가 자식의 종료를 기다림)를 그대로 다시 보여 주고, p.11이 같은 join을 '''세마포어 하나'''로 짠다.
+
+[[img:L11-11.png|p.11 Semaphores As Condition Variables — child는 sem_post(&s), parent는 sem_wait(&s). "What should X be? → The value of semaphore should be set to 0"|large]]
 
 <pre class="c">
  1   sem_t s;
  2
- 3   void *child(void *arg) {
- 4       printf("child\n");
- 5       sem_post(&s); // signal here: child is done
- 6       return NULL;
- 7   }
- 8
- 9   int main(int argc, char *argv[]) {
-10       sem_init(&s, 0, X); // what should X be?
-11       printf("parent: begin\n");
-12       pthread_t c;
-13       Pthread_create(&c, NULL, child, NULL);
-14       sem_wait(&s); // wait here for child
-15       printf("parent: end\n");
-16       return 0;
-17   }
+ 3   void *
+ 4   child(void *arg) {
+ 5       printf("child
+");
+ 6       sem_post(&s); // signal here: child is done
+ 7       return NULL;
+ 8   }
+ 9
+10   int
+11   main(int argc, char *argv[]) {
+12       sem_init(&s, 0, X); // what should X be?
+13       printf("parent: begin
+");
+14       pthread_t c;
+15       pthread_create(&c, NULL, child, NULL);
+16       sem_wait(&s); // wait here for child
+17       printf("parent: end
+");
+18       return 0;
+19   }
 </pre>
 
-'''X = 0'''. 부모가 먼저면 0 → −1로 잠들고 자식의 post가 깨운다. 자식이 먼저면 0 → 1로 '''post가 기억되고''', 부모의 wait는 1 → 0으로 바로 통과. CV의 signal은 기억되지 않아 `done` 변수가 필요했던 것([[done flag 예제]], 10강 p.14)과 대비된다.
+'''X = 0'''. 후보는 0과 1뿐인데 방향이 락과 반대다.
+
+{exam}🎯 교수님의 "왜 0인가" (9/30 녹음): "락(mutex)에서는 '''자원이 이미 존재'''하고 우리는 접근을 제어했다. 여기서는 '''시작할 때 자원이 없다'''. 이 예제의 자원은 '''자식의 종료 상태(end state)'''다 — 자식이 끝나면 end state가 '''생산'''되고 부모가 그것을 '''소비'''한다. 시작 시점엔 아직 생산된 것이 없으니 '''0'''." → 락은 "permission 1개로 시작", CV 대용은 "사건 0개로 시작". 이 두 문장이 초기값 문제의 열쇠.{/exam}
+
+[[img:L11-12.png|p.12 Case 1 — 부모가 먼저 sem_wait: 값 0→−1로 sleeping, 자식이 sem_post로 0을 만들며 wake(Parent)|large]]
+[[img:L11-13.png|p.13 Case 2 — 자식이 먼저 sem_post: 값 0→1 (wake(nobody)), 나중에 부모의 sem_wait가 1→0으로 통과 ("(sem<0)→awake": 잠들지 않음)|large]]
+
+{|
+! || Case 1 (p.12) 부모가 먼저 wait || Case 2 (p.13) 자식이 먼저 post
+|-
+| 순서 || Create → 부모 `sem_wait`: 0→'''−1''', sleep → 자식 실행, `sem_post`: −1→0, '''wake(Parent)''' → 부모 `sem_wait` 리턴 || Create → interrupt로 자식 먼저 → `sem_post`: 0→'''1''', '''wake(nobody)''' → 부모 `sem_wait`: 1→0, 음수 아님 → '''잠들지 않고''' 리턴
+|-
+| 출력 || parent: begin / child / parent: end || 같음
+|-
+| 핵심 || 음수 = 부모 1명이 기다리는 중 || '''post가 값 1로 기억된다''' — CV의 signal이 허공에 사라져 `done`이 필요했던 것([[done flag 예제]], 10강 p.14)과의 차이
+|}
+
+교수님: "세마포어의 좋은 점은 '''wake-up의 수를 기억'''한다는 것. 자식이 부모보다 먼저 실행돼도 값이 올라가 있으므로 부모는 나중에 wait를 불러도 잠들지 않는다. 그래서 mutual exclusion에도, 스레드 사이 '''signaling'''에도 쓸 수 있는 '''유연한''' 메커니즘이다. 단 '''broadcast는 없다''' — 그것만 빼면 CV의 semantics를 세마포어로 만들 수 있다."
+
+위 두 트레이스는 `[[sim:sem_trace]]`(§2)의 옵션 `join_case1` / `join_case2`로 한 줄씩 돌려 볼 수 있다.
 
 == 4. CV와의 차이 ==
 
@@ -113,13 +155,13 @@ p.33 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "
 | 재검사 || `while` 필수 (Mesa) || 필요 없음 — wait에서 리턴 = 값을 하나 가져감
 |}
 
-== 5. Producer/Consumer를 세마포어로 — 네 번의 시도 (p.36~47) ⭐⭐⭐ ==
+== 5. Producer/Consumer를 세마포어로 — 네 번의 시도 (p.14~25) ⭐⭐⭐ ==
 
 교수님 슬라이드는 OSTEP 31.4절을 '''First → Second → Third → Final Attempt''' 네 단계로 쪼개고, 각 단계마다 '''큐 그림'''으로 무엇이 깨지는지 보여 준다. '''2025F Problem 6이 Final Attempt의 빈칸'''이다. 아래 시뮬레이터로 네 시도를 한 줄씩 돌려 보라.
 
 [[sim:sem_producer_consumer]]
 
-=== 5-1. put/get (p.37) ===
+=== 5-1. put/get (p.15) ===
 
 <pre class="c">
  1   int buffer[MAX];
@@ -138,15 +180,15 @@ p.33 '''sem_post()''': "Simply '''increments''' the value of the semaphore" · "
 14   }
 </pre>
 
-p.37: Producer의 put() — "Wait for a buffer to become '''empty''' in order to put data into it" / Consumer의 get() — "Wait for a buffer to become '''filled''' before using it". 이 put/get에는 `count`가 없다 — 세마포어 값이 그 역할을 한다.
+p.15: Producer의 put() — "Wait for a buffer to become '''empty''' in order to put data into it" / Consumer의 get() — "Wait for a buffer to become '''filled''' before using it". 이 put/get에는 `count`가 없다 — 세마포어 값이 그 역할을 한다.
 
-=== 5-2. First Attempt: 그냥 호출 (p.38~39) — 덮어쓴다 ===
+=== 5-2. First Attempt: 그냥 호출 (p.16~17) — 덮어쓴다 ===
 
-[[img:L10-39.png|p.39 First Attempt — MAX=5 큐에 V#0~V#4를 넣으면 fill=5%5=0. 여섯 번째 V#5가 buffer[0]의 V#0을 덮어쓴다 ("V#0 is overwritten by V#5!")|large]]
+[[img:L11-17.png|p.17 First Attempt — MAX=5 큐에 V#0~V#4를 넣으면 fill=5%5=0. 여섯 번째 V#5가 buffer[0]의 V#0을 덮어쓴다 ("V#0 is overwritten by V#5!")|large]]
 
 "Does it work? '''What happen when the buffer becomes full?'''" — 기다리는 장치가 없으니 producer는 계속 넣고, `fill`이 한 바퀴 돌아 '''아직 소비되지 않은 V#0을 V#5로 덮어쓴다'''.
 
-=== 5-3. Second Attempt: empty/full 세마포어 (p.40~41) — 초기값 ===
+=== 5-3. Second Attempt: empty/full 세마포어 (p.18~19) — 초기값 ===
 
 <pre class="c">
  1   sem_t empty;
@@ -179,16 +221,16 @@ p.37: Producer의 put() — "Wait for a buffer to become '''empty''' in order to
 26   }
 </pre>
 
-[[img:L10-41.png|p.41 Second Attempt (Cont.) — 초기 empty=5. 다섯 개 넣으면 empty=0. 여섯 번째에서 sem_wait(&empty)가 empty를 −1로 만들어 producer가 잠들고, consumer가 sem_post(&empty)로 0을 만들 때까지 기다린다|large]]
+[[img:L11-19.png|p.19 Second Attempt (Cont.) — 초기 empty=5. 다섯 개 넣으면 empty=0. 여섯 번째에서 sem_wait(&empty)가 empty를 −1로 만들어 producer가 잠들고, consumer가 sem_post(&empty)로 0을 만들 때까지 기다린다|large]]
 
 * '''`empty` = MAX''': "MAX buffers are empty to begin with" — 빈 칸 수.
 * '''`full` = 0''': "0 are full" — 찬 칸 수.
 * producer는 '''빈 칸을 하나 소비'''(`sem_wait(&empty)`)하고 '''찬 칸을 하나 생산'''(`sem_post(&full)`). consumer는 반대.
-* p.41: 여섯 번째 put에서 "When the producer invokes sem_wait(&empty) in P1, it '''goes to sleep because empty becomes −1'''. The producer sleeps until the consumer calls sem_post(&empty), increasing empty to 0."
+* p.19: 여섯 번째 put에서 "When the producer invokes sem_wait(&empty) in P1, it '''goes to sleep because empty becomes −1'''. The producer sleeps until the consumer calls sem_post(&empty), increasing empty to 0."
 
-{warn}⚠️ 그런데 '''producer가 둘 이상'''이면 (p.42, MAX=10): 두 producer가 P1을 통과(empty=9, 8)한 뒤 '''둘 다 fill=0인 채''' f1에 진입 → context switch → '''Buffer[0]이 덮어써진다'''. "We've forgotten here is '''mutual exclusion''' — the filling of a buffer and incrementing of the index into the buffer is a '''critical section'''."{/warn}
+{warn}⚠️ 그런데 '''producer가 둘 이상'''이면 (p.20, MAX=10): 두 producer가 P1을 통과(empty=9, 8)한 뒤 '''둘 다 fill=0인 채''' f1에 진입 → context switch → '''Buffer[0]이 덮어써진다'''. "We've forgotten here is '''mutual exclusion''' — the filling of a buffer and incrementing of the index into the buffer is a '''critical section'''."{/warn}
 
-=== 5-4. Third Attempt: mutex를 추가했는데 위치가 틀림 (p.43~45) — 데드락 ⭐⭐⭐ ===
+=== 5-4. Third Attempt: mutex를 추가했는데 위치가 틀림 (p.21~23) — 데드락 ⭐⭐⭐ ===
 
 <pre class="c">
  1   sem_t empty;
@@ -219,9 +261,9 @@ p.37: Producer의 put() — "Wait for a buffer to become '''empty''' in order to
 
 "'''So, are you happy with this?'''" — 아니다.
 
-[[img:L10-45.png|p.45 Third Attempt 데드락 트레이스 — ① consumer: c0 mutex 1→0, c1 full 0→−1 "The consumer goes to sleep" (mutex를 쥔 채!) ② producer: p0 mutex 0→−1 "The producer goes to sleep" → Both sleep forever! (Deadlock)|large]]
+[[img:L11-23.png|p.23 Third Attempt 데드락 트레이스 — ① consumer: c0 mutex 1→0, c1 full 0→−1 "The consumer goes to sleep" (mutex를 쥔 채!) ② producer: p0 mutex 0→−1 "The producer goes to sleep" → Both sleep forever! (Deadlock)|large]]
 
-{def}p.44 원문: "Imagine two thread: one producer and one consumer."
+{def}p.22 원문: "Imagine two thread: one producer and one consumer."
 * "The consumer acquire the mutex (line c0)"
 * "The consumer calls sem_wait() on the full semaphore (line c1)"
 * "The consumer is blocked and yield the CPU — '''The consumer still holds the mutex!'''"
@@ -229,11 +271,11 @@ p.37: Producer의 put() — "Wait for a buffer to become '''empty''' in order to
 * "The producer is now stuck waiting too"
 "This phenomenon is called a '''deadlock'''. More details will be covered in the next lecture." → [[데드락]]{/def}
 
-p.45의 요약 한 줄: "'''The producer sleeps until consumer posts mutex, while consumer sleeps until producer posts full → Both sleep forever! (Deadlock)'''"
+p.23의 요약 한 줄: "'''The producer sleeps until consumer posts mutex, while consumer sleeps until producer posts full → Both sleep forever! (Deadlock)'''"
 
-=== 5-5. Final Attempt: mutex를 안쪽으로 (p.46~47) — 정답, 2025F Problem 6 ⭐⭐⭐ ===
+=== 5-5. Final Attempt: mutex를 안쪽으로 (p.24~25) — 정답, 2025F Problem 6 ⭐⭐⭐ ===
 
-[[img:L10-46.png|p.46 Final Attempt: A Working Solution — sem_wait(&mutex)를 sem_wait(&empty) 안쪽(p1.5)으로, sem_post(&mutex)를 put() 직후(p2.5)로 옮겼다 ("MOVED MUTEX HERE... AND HERE")|large]]
+[[img:L11-24.png|p.24 Final Attempt: A Working Solution — sem_wait(&mutex)를 sem_wait(&empty) 안쪽(p1.5)으로, sem_post(&mutex)를 put() 직후(p2.5)로 옮겼다 ("MOVED MUTEX HERE... AND HERE")|large]]
 
 <pre class="c">
  1   sem_t empty;
@@ -282,17 +324,17 @@ p.45의 요약 한 줄: "'''The producer sleeps until consumer posts mutex, whil
 </pre>
 
 {exam}🎯 '''2025F Problem 6''' (16pts, 코드 빈칸): 세마포어 x/y/z 초기값 = '''MAX / 0 / 1''', 그리고 '''wait/post 순서'''. 기억법 세 가지:
-① "'''자원 세마포어(empty/full)가 바깥, mutex가 안쪽'''" — 뒤집으면 p.44~45 데드락.
+① "'''자원 세마포어(empty/full)가 바깥, mutex가 안쪽'''" — 뒤집으면 p.22~23 데드락.
 ② producer는 "'''빈 칸을 소비하고 찬 칸을 생산'''": `wait(&empty)` … `post(&full)`. consumer는 반대.
 ③ 초기값은 '''"처음에 뭐가 몇 개 있나"''': 빈 칸 MAX개, 찬 칸 0개, 락 1개.
 → 정답과 해설은 [[2025F 중간고사 족보]]. 교수님이 이 절을 다음 수업에서 다룰 때 무엇을 강조하는지 반드시 녹음할 것.{/exam}
 
-== 6. CV 버전과 나란히 (p.48~50) ==
+== 6. CV 버전과 나란히 (p.26~28) ==
 
 슬라이드는 세마포어 정답 바로 뒤에 '''같은 문제의 CV 버전'''(`count` 추가, `while (count == MAX)`, `empty`/`fill` 두 CV)을 붙여 두었다 — [[조건 변수]] §4-6과 [[bounded buffer]]에 정리. 두 버전을 나란히 놓고 보면:
 
 {|
-! || 세마포어 버전 (p.46) || CV 버전 (p.49~50)
+! || 세마포어 버전 (p.24) || CV 버전 (p.27~28)
 |-
 | "빈 칸 있나" || `sem_wait(&empty)` — 값이 상태 || `while (count == MAX) wait(&empty, &mutex)` — `count`가 상태
 |-
@@ -303,22 +345,44 @@ p.45의 요약 한 줄: "'''The producer sleeps until consumer posts mutex, whil
 | 재검사 || 불필요 || `while` 필수 (Mesa)
 |}
 
+== 🎙 실제 수업 기록 (9/30 수, 녹음본 기준) ==
+
+두 파일 합쳐 59분(`운체 260930_163639.m4a` 32분 + `운체 260930_170856.m4a` 27분, faster-whisper 전사). 11강 p.2에서 시작해 '''p.40 dining philosophers 해법까지 전부''' 나갔고, 남은 10분은 출석 체크. 학생 질문·시험 공지 없음. 녹음은 "This is the first snippet for initializing semaphore"로 시작하므로 p.1 표지 직후부터다.
+
+* '''p.2 sem_init 인자''': "두 번째 인자는 '''permission''' — 스레드 간 공유인지 프로세스 간 공유인지. 스레드는 주소 공간을 공유하지만 프로세스는 아니므로 세마포어를 '''공유 메모리에 둘지''' 정해야 한다. 우리는 거의 스레드 공유(0)만 쓴다. 세 번째 인자(초기값)는 '''자원의 개수''' — 자원이 3개면 3."
+* '''p.3~4''': wait = 값을 1 줄이고 음수면 '''자원이 없고 대기만 있다'''는 뜻이라 기다린다 — 그래서 이름이 wait. "값이 −3이면 대기 스레드 3개." post = 1 올리고 대기자가 있으면 '''하나''' 깨운다. "이 semantics가 '''대기자 수 = 세마포어 값'''을 유지한다."
+* '''p.5 X = 1인 이유''' ⭐: 0이면 첫 스레드가 바로 잠들어 semantics가 다르다. 더 높은 설명: "세마포어 = 공유 자원의 수. 락에서 자원은 '''critical section 접근 permission'''이고 한 번에 하나만 허용하니 1."
+* '''p.6~7 트레이스''': 단일 스레드는 wait에서 바로 리턴(1→0) → CS → post(0→1). 두 스레드는 T1이 wait에서 −1로 잠들고, T0의 post가 0으로 올리며 wake(T1), 타이머 인터럽트 후 T1이 리턴. "'''대기자 수를 값과 맞추려면 post는 정확히 하나만 깨워야''' 한다 — CV는 broadcast가 있지만 세마포어는 없다."
+* '''구현 여담''' ⭐ (슬라이드 없음): "spurious wakeup이 있으면 정수 하나로는 signal에 의한 wakeup인지 구분 못 한다. CV는 음수를 허용하지 않아서 구분이 되지만 세마포어는 값만 있다. 그래서 실제 구현은 '''resource count와 wait count를 따로''' 두고, 값 = resource − wait로 계산한다. '세마포어 값'은 '''자원 수와 대기자 수 두 개념'''을 하나로 표현한 것."
+* '''p.8 P/V''': "Dijkstra는 네덜란드 사람이라 P(prolaag: probeer+verlaag, try-decrease)/V(verhoog: increase). '''시험에서는 P/V를 쓰지 않겠다 — 쓴다면 정의를 먼저 주겠다.''' 하지만 남들이 P/V라고 하면 알아들어야 하니 기억하라. 리눅스 커널에서는 '''down/up'''. V가 아래 화살표처럼 생겼지만 up이라 헷갈린다."
+* '''p.9~13 Semaphore-based CV''' ⭐: "세마포어를 '정수 상태 + 락 + CV'로 만들 수도 있지만, 반대로 '''CV를 세마포어로''' 만들 수 있다. broadcast만 빼면 같은 semantics." join 예제에서 X는 0 또는 1 중 하나. "'''mutex와 방향이 반대'''다. mutex는 자원이 이미 있고 접근을 제어했다. 여기서는 시작 시 자원이 없다 — 자원은 '''자식의 end state'''. 자식이 끝나면 생산되고 부모가 소비한다. 그러니 0." Case 1(부모 먼저): 0→−1 sleep → 자식 post → wake. Case 2(자식 먼저): "세마포어가 '''wake-up 수를 기억'''한다. 부모가 기다리지 않아도 값이 올라가 있어 나중에 wait해도 안 잔다. mutual exclusion에도 signaling에도 쓰는 유연한 메커니즘."
+* '''p.14~15''': "bounded buffer의 semantics는 세마포어로 잘 표현된다 — '''빈 칸'''도 자원이고 '''들어 있는 item'''도 공유 자원." 10강은 한 칸짜리였지만 이제 '''여러 칸(counting buffer)'''이라 세마포어에 더 맞는다. put/get은 빈 칸·찬 칸 검사를 하지 않는다.
+* '''p.16~17 First Attempt''': 동기화도 signaling도 없다. 소비자는 데이터가 없는데 get하고, 생산자는 무한히 넣어 '''덮어쓴다'''(큐 5칸에 5개 넣고 또 넣으면 fill이 1로 돌아와 V#0 유실).
+* '''p.18~19 Second Attempt''' ⭐: "'''각 세마포어가 무엇을 뜻하는지가 중요하다.''' empty = 버퍼의 빈 칸 수, full = 버퍼 안 item 수. 그러면 초기값이 바로 나온다 — empty는 MAX, full은 0." 생산자는 empty에서 기다리고 넣은 뒤 full에 post, 소비자는 반대. (교수님이 p.19 그림의 "fill" 값이 5여야 한다고 슬라이드 오타를 지적.)
+* '''p.20 남은 문제''' ⭐: "세마포어는 '''자기 값'''에 대한 mutual exclusion은 제공하지만 '''버퍼 접근'''은 보호하지 않는다. producer 1이 put 안에서 context switch → producer 2가 같은 fill 칸에 쓴다 → 데이터 유실 = race condition. 그래서 버퍼 접근에 '''초기값 1인 세마포어(binary)'''를 추가."
+* '''p.21~23 Third Attempt = 데드락''' ⭐⭐⭐: "empty/full이 CV 비슷하니 mutex를 '''바깥'''에 두는 게 자연스러워 보인다. 그런데 CV는 wait에 들어가면 '''락을 놓는''' semantics가 있지만 세마포어 wait는 '''락을 놓지 않는다'''. 7번 줄에서 mutex를 잡은 채 empty/full에서 잠들면 다른 스레드가 못 들어온다." consumer가 먼저 c0(mutex 1→0), c1(full 0→−1) 잠듦 → producer p0(mutex 0→−1) 잠듦 → "producer는 consumer의 mutex post를, consumer는 producer의 full post를 기다리는 '''circular dependency''' = deadlock."
+* '''p.24~25 Final''' ⭐⭐⭐: "mutex가 empty/full을 보호할 필요는 없다 — 세마포어 값은 '''내부 락'''이 보호한다. mutex가 보호할 것은 '''버퍼 접근(put/get)뿐'''이니 put/get만 감싸도록 안쪽으로 옮긴다. 초기값은 '''MAX / 0 / 1''' — empty는 빈 칸, full은 item, mutex는 critical section 접근."
+* '''p.26~28 CV 버전''': "세마포어 버전은 값이 count 역할을 하지만 CV 버전은 '''count 변수'''가 따로 필요하다(fill, use, count). 한 칸 버전과의 차이는 조건을 '''count == MAX'''로 바꾸고 while을 쓰는 것. CV wait는 잠들 때 락을 놓으므로 락을 '''바깥'''에 둬도 된다 — '''CV는 자기 자신을 보호하지 않으니''' 락이 밖에 있어야 한다."
+* 이후 [[reader-writer lock]], [[dining philosophers]] — 각 문서의 🎙 절.
+
+{exam}🎯 '''9/30 수업에서 ⭐ 붙인 것''': ① 초기값 = "자원의 개수"(락은 permission 1, join은 end state 0, empty는 MAX, full은 0) ② post는 정확히 하나만 깨움, broadcast 없음 ③ 세마포어는 post를 '''기억'''한다(Case 2) ④ 세마포어 wait는 '''락을 놓지 않는다''' → mutex를 바깥에 두면 데드락, 안쪽(put/get만)으로 ⑤ 세마포어 값은 자기만 보호, 버퍼는 mutex가 보호 ⑥ P/V는 시험에 정의 제공, down/up은 리눅스. 공지: 없음.{/exam}
+
 == 7. 예상 문제 ==
 
 {quiz}(단답) `sem_init(&s, 0, 1)`에서 두 번째 인자 0의 의미는?{/quiz}
-{answer}세마포어가 '''같은 프로세스 안의 스레드들 사이'''에서 공유된다는 뜻. 0이 아니면 '''프로세스 사이''' 공유 (p.31).{/answer}
+{answer}세마포어가 '''같은 프로세스 안의 스레드들 사이'''에서 공유된다는 뜻. 0이 아니면 '''프로세스 사이''' 공유 (p.2).{/answer}
 
 {quiz}(단답) 세마포어 값이 −2라면 무슨 뜻인가? 이것은 POSIX 표준인가?{/quiz}
-{answer}'''대기 중인 스레드가 2개'''라는 뜻 (Linux 구현). '''POSIX 표준은 아니다''' — p.31 "Semaphore value can be negative value, but it is not a POSIX standard".{/answer}
+{answer}'''대기 중인 스레드가 2개'''라는 뜻 (Linux 구현). '''POSIX 표준은 아니다''' — p.2 "Semaphore value can be negative value, but it is not a POSIX standard".{/answer}
 
-{quiz}(서술) p.43 Third Attempt에서 데드락이 생기는 실행 순서를 쓰라. (producer 1, consumer 1, 버퍼 비어 있음){/quiz}
-{answer}consumer가 먼저 실행: c0 `sem_wait(&mutex)` (1→0, 획득) → c1 `sem_wait(&full)` (0→−1, '''mutex를 쥔 채 잠듦''') → producer: p0 `sem_wait(&mutex)` (0→−1, '''잠듦'''). producer는 consumer가 mutex를 post하기를, consumer는 producer가 full을 post하기를 기다린다 → 둘 다 영원히 잠듦. 해결: `sem_wait(&mutex)`를 `sem_wait(&empty)`/`sem_wait(&full)` '''뒤'''로 옮긴다 (p.46).{/answer}
+{quiz}(서술) p.21 Third Attempt에서 데드락이 생기는 실행 순서를 쓰라. (producer 1, consumer 1, 버퍼 비어 있음){/quiz}
+{answer}consumer가 먼저 실행: c0 `sem_wait(&mutex)` (1→0, 획득) → c1 `sem_wait(&full)` (0→−1, '''mutex를 쥔 채 잠듦''') → producer: p0 `sem_wait(&mutex)` (0→−1, '''잠듦'''). producer는 consumer가 mutex를 post하기를, consumer는 producer가 full을 post하기를 기다린다 → 둘 다 영원히 잠듦. 해결: `sem_wait(&mutex)`를 `sem_wait(&empty)`/`sem_wait(&full)` '''뒤'''로 옮긴다 (p.24).{/answer}
 
 {quiz}(빈칸) MAX=10인 bounded buffer. `sem_init(&empty, 0, __)`, `sem_init(&full, 0, __)`, `sem_init(&mutex, 0, __)`{/quiz}
 {answer}'''10 / 0 / 1'''. empty = 처음 빈 칸 수 = MAX, full = 처음 찬 칸 수 = 0, mutex = 락이므로 1.{/answer}
 
 {quiz}(계산) MAX=3, 초기 empty=3, full=0. producer가 put을 4번 시도하고 consumer는 아직 실행되지 않았다. 네 번째 `sem_wait(&empty)` 직후 empty, full 값과 producer 상태는?{/quiz}
-{answer}세 번 put 후 empty=0, full=3. 네 번째 `sem_wait(&empty)`에서 empty = '''−1''' → producer '''잠듦'''(대기자 1명). full은 그대로 '''3'''. consumer가 `sem_post(&empty)`로 −1→0을 만들면 깨어난다 (p.41).{/answer}
+{answer}세 번 put 후 empty=0, full=3. 네 번째 `sem_wait(&empty)`에서 empty = '''−1''' → producer '''잠듦'''(대기자 1명). full은 그대로 '''3'''. consumer가 `sem_post(&empty)`로 −1→0을 만들면 깨어난다 (p.19).{/answer}
 
 == 관련 문서 ==
 * [[조건 변수]] · [[producer-consumer]] · [[bounded buffer]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
