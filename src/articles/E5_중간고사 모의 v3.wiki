@@ -1,0 +1,572 @@
+key: 중간고사 모의 v3
+title: 중간고사 모의 v3 — 87문항 (정의→용어 · T/F · 객관식 · 서술·계산)
+category: 시험, 모의고사
+---
+2026-10-04 에 만든 '''중간고사 모의고사 v3'''. 문제는 영어(시험 언어), 해설은 한국어. 인쇄용 docx/PDF 는 `중간고사/문제풀이/중간고사_모의/중간고사_모의_v3.pdf`, 여기서는 정답이 접혀 있으니 '''먼저 답을 쓰고''' 펼친다. 틀린 문항은 해설의 링크로 바로 복습.
+
+{info}총 87문항  ·  Part A 정의→용어 21 (2 pt)  ·  Part B T/F 27 (2 pt)  ·  Part C MC 27 (3 pt)  ·  Part D 서술·계산·코드 12 (5 pt)  = 237 pt{/info}
+
+{analogy}🎭 '''모의고사는 체온계.''' 점수보다 어느 파트·어느 장에서 열이 나는지가 정보다. 틀린 문항의 출처 페이지를 모아 보면 약한 장이 보인다.{/analogy}
+
+== Part A. Definition → Term (21문항, 각 2점) ==
+슬라이드 영어 정의를 보고 용어를 답한다.
+
+=== A1 ===
+{quiz}“An undesirable situation that occurs when a device or system attempts to perform two or more operations at the same time.” (L8 p.42){/quiz}
+{answer}'''Race condition'''. 8강 p.42 (=9강 p.10) 정의 문장 그대로. 2025F 중간고사 Problem 2-e 에 똑같이 나온 기출. 같은 슬라이드 두 번째 줄 “it occurs when there exists a critical section(s) in the code” 도 함께 외울 것 — race condition 은 결과가 스케줄링 타이밍에 따라 달라지는(indeterminate) 상황이고, 그 원인이 되는 코드 조각이 critical section 이다.{/answer}
+
+=== A2 ===
+{quiz}“A piece of code that accesses a shared variable (or a shared resource) and must not be concurrently executed by more than one thread.” (L8 p.42){/quiz}
+{answer}'''Critical section'''. 8강 p.42 정의 그대로. counter 예제에서는 counter = counter + 1 한 줄(어셈블리 mov/add/mov 3개)이 여기에 해당. 핵심 단어는 shared variable 과 “must not be concurrently executed” — 이것을 보장하는 성질이 mutual exclusion, 보장하는 도구가 lock(mutex).{/answer}
+
+=== A3 ===
+{quiz}“The first basic lock-evaluation criterion, asking whether the lock works, i.e., whether it prevents multiple threads from entering the code region it protects at the same time.” (L9 p.14){/quiz}
+{answer}'''Mutual exclusion'''. 9강 p.14 “Evaluating Locks – Basic criteria” 의 첫 번째 기준: “Does the lock work, preventing multiple threads from entering a critical section?” 나머지 두 기준은 Fairness(락이 풀렸을 때 대기 스레드마다 공정한 기회가 있는가, starvation)와 Performance(락 사용의 overhead). critical section 에 한 번에 한 스레드만 들어가게 보장하는 성질이고, 이를 보장하는 도구가 lock(mutex). 평가표(p.24, p.29)의 Correctness 칸이 이 기준이다. flag 락(p.17)은 바로 이 기준에서 실패한다(Problem 1: No Mutual Exclusion).{/answer}
+
+=== A4 ===
+{quiz}“Test whether the value at the address (ptr) is equal to expected; if so, update the memory location pointed to by ptr with the new value; in either case, return the actual value at that memory location.” (L9 p.22){/quiz}
+{answer}'''Compare-and-swap (CAS)'''. 9강 p.22 정의 그대로. 같으면 바꾸고, 같든 다르든 actual(원래 값)을 반환. 락으로 쓸 때는 while (CompareAndSwap(&flag, 0, 1) == 1) ; 로 test-and-set 스핀 락과 똑같이 동작하지만(p.23 “identical to a simple spin lock”), expected 비교가 있어 lock-free synchronization 에도 쓸 수 있는 더 강력한 명령이다.{/answer}
+
+=== A5 ===
+{quiz}“In the queue-based lock, if the lock holder releases the lock and wakes a waiting thread just before that thread's call to park(), the waiting thread would sleep forever (potentially).” (L9 p.36){/quiz}
+{answer}'''Wakeup/waiting race'''. 9강 p.35 Limitation 2 “Sleep forever” 와 p.36 제목. 원인: queue_add → guard = 0 → park() 사이에 선점되면 unlock 쪽의 unpark 가 아직 잠들지 않은 스레드에 먼저 도착해 사라지고, 그 뒤 park() 에서 영원히 잠든다. 해결: setpark() (Solaris) 또는 futex_wait 의 value 검사 (Linux).{/answer}
+
+=== A6 ===
+{quiz}“A third system call added by Solaris: by calling this routine, a thread can indicate it is about to park.” (L9 p.37){/quiz}
+{answer}'''setpark()'''. 9강 p.37. lock() 안에서 queue_add → setpark() → m->guard = 0 → park() 순서로 넣는다. “unpark 를 미리 기록해 두는” 예고 장치. 교수(9/28): park 는 호출하면 다음 줄을 실행할 수 없으니 순서를 바꿔서는 못 고치고, unpark 를 기록하는 메커니즘을 더해 고친다.{/answer}
+
+=== A7 ===
+{quiz}“A Linux system call described on the slides as the “checked” and “queued” version of park(); it has a wait operation that takes (address, value) and a wake operation that takes an address.” (L9 p.39){/quiz}
+{answer}'''Futex (fast userspace mutex)'''. 9강 p.39. futex_wait(address, value) 는 커널 안에서 *address == value 를 다시 확인한 뒤에만 재운다(checked) → 그 사이 락이 풀렸으면 잠들지 않으므로 wakeup/waiting race 가 없다. 대기 큐는 커널이 관리(queued). 교수(9/28): “checked and queued version of park”.{/answer}
+
+=== A8 ===
+{quiz}“An explicit queue that threads can put themselves on when some state of execution is not as desired (by waiting on the condition); some other thread, when it changes that state, can then wake one of those waiting threads and allow them to continue.” (L10 p.9){/quiz}
+{answer}'''Condition variable (CV)'''. p.9 정의 그대로. 교수(9/28): CV는 혼자 쓰지 않고 'Three in a package' — condition variable c + state variable m + lock L(상태 변수 보호) 세 개가 한 세트. pthread_cond_t 로 선언하고 wait/signal 로 조작한다. 락이 '동시에 들어오지 마'(atomicity)라면 CV는 '~가 될 때까지 기다려'(ordering).{/answer}
+
+=== A9 ===
+{quiz}“The phenomenon in which the OS wakes up the sleeping thread, although the waiting condition is not satisfied.” (L10 p.22){/quiz}
+{answer}'''Spurious wakeup'''. 2025F 중간고사 Problem 2-f 실제 기출 문장(Hint: 2 words). p.22: cond_wait does not guarantee the condition count == 1 — OS can freely wake up the thread. 구현에 따라 signal 한 번에 두 스레드가 깨기도 한다. 대응: 깨어난 뒤 조건을 다시 검사하는 while 루프. 철자 Spurious Wakeup 주의.{/answer}
+
+=== A10 ===
+{quiz}“Signaling a thread only wakes it up; it is thus a hint that the state of the world has changed.” (L10 p.22 + OSTEP 30.2){/quiz}
+{answer}'''Mesa semantics'''. OSTEP 30장 원문. 교수(9/28): OS가 보장하는 것은 signal이 오면 최소 한 스레드는 깨어난다는 것뿐 — unique wakeup도, 그 signal 때문에 깨어났다는 것도 보장 안 함. 사실상 모든 실제 시스템이 Mesa semantics → if 대신 while. 반대말은 Hoare semantics(A4).{/answer}
+
+=== A11 ===
+{quiz}“A stronger signaling guarantee, harder to build, in which the woken thread runs immediately upon being woken.” (L10 p.22){/quiz}
+{answer}'''Hoare semantics'''. p.22: provides a stronger guarantee that the woken thread will run immediately upon being woken. 교수: 보장하기가 매우 어려워 실제 OS는 거의 지원하지 않는다. Mesa(A3, 힌트일 뿐)와 짝으로 외울 것 — 정의→용어에서 둘을 뒤바꾸는 것이 대표 함정.{/answer}
+
+=== A12 ===
+{quiz}“A condition used with the wake-everyone call so that every thread that might need to wake up is woken (conservatively); the cost is that too many threads might be woken.” (L10 p.27-29){/quiz}
+{answer}'''Covering condition'''. Lampson & Redell 의 용어(OSTEP 30.3). 메모리 할당기 예: 대기 스레드마다 기다리는 조건(필요 바이트 수)이 달라 signal 로는 누구를 깨울지 모른다 → broadcast 로 전부 깨워 깨어나야 할 스레드가 반드시 포함되게(cover) 한다. 대가: 조건이 안 맞는 스레드도 깨어나 재검사 후 다시 잔다.{/answer}
+
+=== A13 ===
+{quiz}“A fixed-size shared resource that sits in the kernel when you pipe the output of one program into another, e.g., grep foo file.txt | wc -l; because it is shared, synchronized access is required.” (L10 p.17){/quiz}
+{answer}'''Bounded buffer'''. p.17. grep 이 producer, wc 가 consumer, 둘 사이에 in-kernel bounded buffer. 교수(9/28, 슬라이드에 없음): 왜 bounded 인가 — producer/consumer 속도가 다르면(예: 10개/s vs 5개/s) 무한 버퍼는 메모리를 다 먹는다. bound 가 차면 producer 가 잠들어 producer 속도가 consumer 속도로 맞춰진다(rate matching). bound 크기 자체는 중요하지 않다.{/answer}
+
+=== A14 ===
+{quiz}“The POSIX call, suggested by Lampson and Redell as a replacement for signaling one thread, that wakes up all waiting threads; threads that should not be awake simply wake up, re-check the condition, and go back to sleep.” (L10 p.29){/quiz}
+{answer}'''pthread_cond_broadcast() (broadcast)'''. p.29 Solution. covering condition(A5)을 구현하는 도구. 교수(9/28): signal 은 하나 이상이 깨어남만, broadcast 는 모든 대기자가 깨어남을 보장. 단점은 대기자가 100개면 대부분 헛일(재검사 후 다시 잠). 대안: thread-level condition variable(스레드마다 CV)로 조건이 맞는 스레드에만 signal.{/answer}
+
+=== A15 ===
+{quiz}“An object with an integer value that we can manipulate with two routines, sem_wait() and sem_post(). When its value is negative, the value is equal to the number of waiting threads.” (L11 p.2–3){/quiz}
+{answer}'''Semaphore'''. 세마포어의 정의. 값이 음수면 |값| = 대기 스레드 수(Linux 구현 기준, POSIX 표준은 아님). 교수(9/30): "세 번째 인자(초기값)는 자원의 개수다 — 자원이 3개면 3."{/answer}
+
+=== A16 ===
+{quiz}“Used as a lock: initialized to the value 1, the thread calls sem_wait() before the code that touches the shared data and sem_post() after it, so only one thread can run that code at a time.” (L11 p.5){/quiz}
+{answer}'''Binary semaphore (= lock)'''. Binary Semaphores (= Locks). X = 1. 교수(9/30): "락에서 자원은 critical section 접근 permission이고 한 번에 하나만 허용하니 1. 0이면 첫 스레드가 바로 잠든다."{/answer}
+
+=== A17 ===
+{quiz}“Dijkstra's original one-letter name for the operation that decrements the counter by one and may put the caller to sleep; it comes from the Dutch words for 'try' and 'decrease'.” (L11 p.8){/quiz}
+{answer}'''P operation (= P(), prolaag)'''. P() = prolaag(probeer + verlaag, try + decrease) = sem_wait() = Linux kernel의 down(). 짝: V() = verhoog(increase) = sem_post() = up(). 교수(9/30): 시험에서 P/V를 쓰면 정의를 먼저 주겠다. 채점: P 또는 P() (prolaag 도 인정). sem_wait()·down() 은 같은 연산의 다른 이름이지만 이 문항은 다익스트라의 한 글자 이름을 묻으므로 ✗.{/answer}
+
+=== A18 ===
+{quiz}“The consumer acquires the mutex and blocks on full while still holding it; the producer then waits on the mutex. Both sleep forever. This phenomenon is called a ___.” (L11 p.22–23){/quiz}
+{answer}'''Deadlock'''. Third Attempt(mutex를 empty/full 바깥에 둔 버전)의 결과. 교수(9/30): "서로 상대의 post를 기다리는 circular dependency." 원인은 세마포어 wait가 CV wait와 달리 잡고 있는 락을 놓지 않는다는 것.{/answer}
+
+=== A19 ===
+{quiz}“A special type of lock that lets many lookups proceed concurrently as long as no insert is on-going; only a single writer can acquire it.” (L11 p.30–31){/quiz}
+{answer}'''Reader-writer lock (rwlock)'''. Lookup(reader)은 상태를 바꾸지 않으니 여럿이 동시에, insert(writer)는 혼자. 구조: sem_t lock(readers 카운터 보호) + sem_t writelock(ONE writer or MANY readers) + int readers.{/answer}
+
+=== A20 ===
+{quiz}“Five of them sit around a table with a single fork between each pair; to eat, each needs both the fork on the left and the fork on the right.” (L11 p.35){/quiz}
+{answer}'''Dining philosophers problem'''. Key challenges: no deadlock, no starvation, high concurrency (p.36). 교수(9/30): "포크가 5개뿐이라 동시에 먹을 수 있는 최대는 2명."{/answer}
+
+=== A21 ===
+{quiz}“Each thread in a chain holds at least one resource that is being requested by the next thread, and the last thread waits for a resource held by the first.” (2025F MidTermSolution p.7){/quiz}
+{answer}'''Circular wait'''. 데드락 4조건 중 하나: Mutual exclusion, Hold and wait, No preemption, Circular wait. dining philosophers에서 P4의 순서만 바꾸는 해법은 바로 이 circular wait를 깬다 (L11 p.39).{/answer}
+
+== Part B. True / False (27문항, 각 2점) ==
+
+=== B1 ===
+{quiz}(T / F) Even on a single-CPU system, two threads executing counter = counter + 1 can lose an update, because a timer interrupt may trigger a context switch between the mov, add, and mov instructions. (L8 p.39){/quiz}
+{answer}'''T'''. 참. 8강 p.39 “The context switch can happen at any point of time by the OS scheduler”. race 의 원인은 병렬 실행이 아니라 uncontrolled scheduling 이다. p.40 예: counter 50 에서 두 스레드가 각각 +1 했는데 51 이 됨(기대값 52). CPU 가 1개여도 생긴다.{/answer}
+
+=== B2 ===
+{quiz}(T / F) Because counter is declared static volatile int in the Lecture 8 example, each counter = counter + 1 executes atomically, so the program always prints 20000000. (L8 p.36){/quiz}
+{answer}'''F'''. 거짓 (함정). volatile 은 매번 메모리에서 읽고 쓰라고 컴파일러에 강제할 뿐, load-add-store 3개 명령의 원자성은 보장하지 않는다. p.38 실제 실행 결과도 매번 2천만보다 작고 실행마다 다르다. 맞는 문장: volatile 이어도 counter = counter + 1 은 원자적이지 않으므로 lock 으로 critical section 을 감싸야(p.44) 항상 20000000 이 나온다.{/answer}
+
+=== B3 ===
+{quiz}(T / F) Disabling interrupts on lock() and enabling them on unlock() provides mutual exclusion on a multiprocessor, because no timer interrupt can preempt the lock holder. (L9 p.15){/quiz}
+{answer}'''F'''. 거짓. 9강 p.15 문제점 3개: (1) 응용을 너무 믿어야 함 — greedy/malicious 프로그램이 CPU 독점, (2) 오래 끄면 인터럽트(예: disk I/O) 유실, (3) Do not work on multiprocessors. 다른 CPU 의 스레드는 인터럽트와 무관하게 동시에 critical section 에 들어올 수 있다. 맞는 문장: interrupt disable 은 single-processor 용으로 고안된 방법이고 멀티프로세서에서는 mutual exclusion 을 주지 못한다.{/answer}
+
+=== B4 ===
+{quiz}(T / F) For the first-attempt lock that uses a plain flag with load/store instructions, the main problem is wasted CPU time from spin-waiting; mutual exclusion itself is still guaranteed. (L9 p.17){/quiz}
+{answer}'''F'''. 거짓 (함정). 9강 p.17 Problem 1 이 “No Mutual Exclusion” — while (flag == 1) 검사(TEST)와 flag = 1 (SET) 사이에 context switch 가 나면 두 스레드 모두 flag = 1 로 들어간다(p.18 “Two threads obtain locks!”). spin 낭비는 Problem 2(부차적). 맞는 문장: 주된 문제는 mutual exclusion 실패이고, 그래서 TEST 와 SET 을 한 번에 하는 하드웨어 atomic 명령(test-and-set)이 필요하다.{/answer}
+
+=== B5 ===
+{quiz}(T / F) In the spin lock while (TestAndSet(&lock->flag, 1) == 1) ;, a thread that successfully acquires the lock sees TestAndSet return the newly stored value 1. (L9 p.19){/quiz}
+{answer}'''F'''. 거짓 (함정). test-and-set 은 OLD 값을 반환한다 (p.19 “return the old value”). 획득에 성공한 스레드는 원래 free 였으므로 0 을 받는다 (p.21 “TestAndSet() returns 0, flag becomes 1”). 1 을 받았다 = 이미 누가 잡고 있었다 = 계속 spin. 그래서 조건이 == 1 이다.{/answer}
+
+=== B6 ===
+{quiz}(T / F) Replacing the spin with yield() (p.31) also removes starvation, because every waiting thread gets the CPU in turn. (L9 p.32){/quiz}
+{answer}'''F'''. 거짓. p.32: The starvation problem still exists — There is a possibility that the thread 1 repeatedly gets the lock. yield 는 CPU 낭비만 줄일 뿐 획득 순서를 보장하지 않는다. 순서 보장(fairness)은 ticket lock(p.26). 맞는 문장: yield() 는 spin 으로 버리는 CPU 시간을 줄이지만 starvation 은 그대로 남는다.{/answer}
+
+=== B7 ===
+{quiz}(T / F) If the lock holder is blocked waiting for a long I/O, replacing the spin loop with yield() still wastes CPU: the N−1 waiting threads keep repeating run-and-yield, each causing a context switch. (L9 p.32){/quiz}
+{answer}'''T'''. 참. 교수(9/28): “if the lock is held by a process waiting for I/O … just use the yield is not the solution”. 9강 p.32: N 개 스레드 중 holder 가 잠들면 나머지 N−1 개가 yield 를 반복 → N−1 번의 context switch, 오래 잡고 있으면 비용이 커진다. 또 starvation 도 남는다 (thread 1 이 계속 다시 잡을 수 있음) → 교수: 그래서 대기 큐(queue)를 써서 기다린 스레드가 언젠가 반드시 차례를 얻게 한다.{/answer}
+
+=== B8 ===
+{quiz}(T / F) unpark(threadID) wakes whichever thread has waited longest in the lock's queue, regardless of the threadID argument. (L9 p.33){/quiz}
+{answer}'''F'''. 거짓. p.33: unpark(threadID) — Wake a particular thread as designated by threadID. 누구를 깨울지는 lock 코드가 queue_remove 로 골라 인자로 넘기고, unpark 는 지정된 그 스레드만 깨운다. 맞는 문장: unpark(threadID) 는 threadID 로 지정된 스레드 하나를 깨운다.{/answer}
+
+=== B9 ===
+{quiz}(T / F) In the queue-based lock's unlock(), when the wait queue is not empty, m->flag is left at 1 and the lock is handed directly to the thread removed from the queue by unpark(). (L9 p.35){/quiz}
+{answer}'''T'''. 참. 9강 p.35 line 28 주석 “hold lock (for next thread!)”. 대기자가 있으면 flag 를 0 으로 내리지 않고 unpark 만 한다 → 깨어난 스레드는 flag 를 다시 검사하지 않고 곧바로 락을 가진 상태로 lock() 에서 반환한다(hand-off). 큐가 비었을 때만 flag = 0.{/answer}
+
+=== B10 ===
+{quiz}(T / F) pthread_cond_signal() also takes the mutex as an argument. (L10 p.10){/quiz}
+{answer}'''F'''. p.10 시그니처: pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) / pthread_cond_signal(pthread_cond_t *c) — signal 은 CV 하나만 받는다. mutex 를 받는 것은 wait 뿐: 잠들면서 락을 원자적으로 풀고, 깨어나면 리턴 전에 다시 잡아야 하기 때문. 맞는 문장: 'pthread_cond_signal() takes only the condition variable; only pthread_cond_wait() takes the mutex.' (signal 은 보통 락을 쥔 채 호출하지만 인자로 넘기지는 않는다.){/answer}
+
+=== B11 ===
+{quiz}(T / F) If a thread calls pthread_cond_signal() while no thread is waiting on the condition variable, the signal is remembered, so the next thread that calls pthread_cond_wait() returns immediately. (L10 p.14){/quiz}
+{answer}'''F'''. 함정. CV 는 상태가 없다 — 대기자가 없을 때의 signal 은 그냥 사라진다(lost). 그래서 p.14(done 없는 join)에서 자식이 먼저 signal 하면 부모는 영원히 잔다. 맞는 문장: '...the signal is lost; that is why a state variable such as done must record that the event happened.' (값으로 post 를 기억하는 것은 semaphore 쪽.){/answer}
+
+=== B12 ===
+{quiz}(T / F) Under Mesa semantics, when a thread returns from pthread_cond_wait(), the condition it was waiting for is guaranteed to still be true. (L10 p.22){/quiz}
+{answer}'''F'''. Mesa 에서 signal 은 '상태가 바뀌었다는 힌트'일 뿐. 깨어난 스레드가 실제로 실행되기 전에 다른 스레드(예: 끼어든 consumer)가 상태를 바꿀 수 있고, spurious wakeup 도 있다. 맞는 문장: '...there is no guarantee that the condition still holds, so the thread must re-check it in a while loop.'{/answer}
+
+=== B13 ===
+{quiz}(T / F) Under Hoare semantics, a thread woken by signal may find that another thread has already changed the state before it runs. (L10 p.22){/quiz}
+{answer}'''F'''. Mesa 와 뒤바꾼 함정. 그런 일이 생기는 것은 Mesa semantics(signal 은 힌트일 뿐). Hoare 는 깨어난 스레드가 깨어나자마자 바로 실행되므로 그 사이에 다른 스레드가 끼어들어 상태를 바꿀 수 없다. 교수(9/28): Hoare 는 보장하기 매우 어려워 실제 OS 는 거의 Mesa 만 지원한다. 맞는 문장: 'Under Mesa semantics, ...' 또는 'Under Hoare semantics, the woken thread runs immediately, so the state cannot change before it runs.'{/answer}
+
+=== B14 ===
+{quiz}(T / F) In the producer/consumer code that uses a single condition variable with while loops, a consumer can wake up another consumer instead of the producer, and all threads may end up asleep. (L10 p.24){/quiz}
+{answer}'''T'''. p.24: 'this code still has a bug — Consumer can wake up another consumer instead of producer. Then, everyone goes to sleep.' 교수(9/28) 강조. while 은 '틀린 스레드가 진행하는 것'(assert 실패)을 막을 뿐, '누구를 깨우느냐'(signal 방향) 문제는 못 막는다 → CV 두 개(empty/fill).{/answer}
+
+=== B15 ===
+{quiz}(T / F) The single-buffer producer/consumer solution with two condition variables also needs two separate mutexes, one per condition variable. (L10 p.25){/quiz}
+{answer}'''F'''. p.25~26 코드는 cond_t empty, fill 두 개에 mutex_t mutex는 하나다. CV는 상태 변수(count)를 보호하는 락과 짝을 이루는데, 상태 변수가 하나이므로 락도 하나면 된다. 두 CV는 '누가 잠드는 큐인가'(생산자 큐 / 소비자 큐)를 나누는 것이지 보호 영역을 나누는 것이 아니다.{/answer}
+
+=== B16 ===
+{quiz}(T / F) According to slide p.21 (ignoring spurious wakeups), with exactly one producer and one consumer, the producer/consumer code that uses a single condition variable and an if statement works correctly. (L10 p.21){/quiz}
+{answer}'''T'''. p.21: With just a single producer and a single consumer, the code works. 문제는 consumer(또는 producer)가 둘 이상일 때 — 깨워진 Tc1 이 달리기 전에 Tc2 가 끼어들어 버퍼를 비우는 경우(p.22). 그래서 '이 코드는 항상 틀렸다'가 아니라 '스레드가 여러 개면 틀린다'가 정확한 표현.{/answer}
+
+=== B17 ===
+{quiz}(T / F) Replacing signal with the call that wakes every waiter solves the covering-condition problem at no extra cost, because the OS wakes only the threads whose condition is now satisfied. (L10 p.29){/quiz}
+{answer}'''F'''. broadcast 는 조건과 무관하게 모든 대기자를 깨운다(OS 는 각 스레드의 조건을 모른다). p.29 Cost: too many threads might be woken — 조건이 안 맞는 스레드는 재검사 후 다시 잔다. 맞는 문장: '...solves it at the cost of waking all waiting threads, many of which simply re-check and go back to sleep.'{/answer}
+
+=== B18 ===
+{quiz}(T / F) When the producer generates items faster than the consumer can process them, bounding the buffer makes the producer sleep when the buffer is full, so the producer is effectively slowed to the consumer's rate. (9/28 녹음 (L10 p.17 보충)){/quiz}
+{answer}'''T'''. 교수(9/28) 5분 설명, 슬라이드에는 없음: 속도 차가 있으면 무한 버퍼는 시간이 갈수록 쌓여 메모리를 다 먹고 시스템이 멈춘다. bound 를 두면 가득 찼을 때 producer 가 잠들어 정상 상태에서 두 속도가 같아진다. bound 의 크기 자체는 중요하지 않다.{/answer}
+
+=== B19 ===
+{quiz}(T / F) A semaphore's value may become negative, where its magnitude is the number of waiters; this negative-value behavior is required by the POSIX standard. (L11 p.2){/quiz}
+{answer}'''F'''. 함정: 음수 값 허용·대기자 수 의미는 Linux 구현이고 POSIX 표준이 아니다. 맞는 문장: "Semaphore value can be negative value, but it is not a POSIX standard; the negative value means the number of waiters in Linux."{/answer}
+
+=== B20 ===
+{quiz}(T / F) In sem_init(&s, 0, 1), the second argument 0 means the semaphore is shared between threads in the same process. (L11 p.2){/quiz}
+{answer}'''T'''. 두 번째 인자 0 = 같은 프로세스의 스레드끼리 공유, nonzero = 프로세스 사이 공유. 세 번째 인자 1이 초기값. 교수(9/30): 프로세스는 주소 공간을 공유하지 않으니 공유 메모리에 둘지를 정하는 permission 인자.{/answer}
+
+=== B21 ===
+{quiz}(T / F) Like the condition-variable call that wakes every waiter, sem_post() wakes up every thread that is waiting on the semaphore. (L11 p.4){/quiz}
+{answer}'''F'''. sem_post는 값을 1 올리고 대기자가 있으면 정확히 하나(one of them)만 깨운다. 세마포어에는 broadcast가 없다. 교수(9/30): "대기자 수 = 값을 유지하려면 post는 정확히 하나만 깨워야 한다."{/answer}
+
+=== B22 ===
+{quiz}(T / F) Dijkstra's V() corresponds to sem_post(), which the Linux kernel community calls down(). (L11 p.8){/quiz}
+{answer}'''F'''. 함정: V()(verhoog, increase) = sem_post = up(). P()(prolaag, try+decrease) = sem_wait = down(). 맞는 문장: "V() corresponds to sem_post(), which the Linux kernel community calls up()." 교수(9/30): 시험에서 P/V를 쓰면 정의를 먼저 주겠다.{/answer}
+
+=== B23 ===
+{quiz}(T / F) In the semaphore-based parent-waiting-for-child example (p.11), if the child calls sem_post() before the parent calls sem_wait(), the parent does not sleep at all. (L11 p.13){/quiz}
+{answer}'''T'''. Case 2: child post로 0→1(wake nobody), 이후 parent wait가 1→0 하고 바로 리턴. 교수(9/30): "세마포어는 wake-up 수를 기억한다" — CV signal은 기다리는 스레드가 없으면 사라지는 것과 대비.{/answer}
+
+=== B24 ===
+{quiz}(T / F) When a thread blocks in sem_wait(&full) while holding a binary-semaphore mutex, the mutex is released automatically, just as pthread_cond_wait() releases its mutex. (L11 p.22){/quiz}
+{answer}'''F'''. 함정: 세마포어 wait는 잡고 있는 락을 놓지 않는다("The consumer still holds the mutex!"). 그래서 mutex를 바깥에 두면 deadlock. 교수(9/30) ⭐⭐⭐: CV wait는 잠들 때 락을 놓는 semantics가 있지만 세마포어는 없다.{/answer}
+
+=== B25 ===
+{quiz}(T / F) In the slide's rwlock, rw->lock is held for the whole time a reader is reading. (L11 p.32){/quiz}
+{answer}'''F'''. 함정: rw->lock은 readers 카운터만 보호한다. acquire_readlock에서 sem_wait(&rw->lock) → readers++ → (readers == 1이면 writelock 획득) → 19번 줄에서 바로 sem_post(&rw->lock). 읽는 동안 쥐고 있는 것은 (첫 reader가 잡은) writelock이다. lock을 읽는 내내 쥐면 reader끼리도 직렬화되어 rwlock의 의미(many readers 동시)가 사라진다. 맞는 문장: "rw->lock is held only while the readers counter is updated."{/answer}
+
+=== B26 ===
+{quiz}(T / F) The basic reader-writer lock in the lecture tends to starve readers, because a waiting writer blocks newly arriving readers. (L11 p.33){/quiz}
+{answer}'''F'''. 함정: 방향이 반대. 이 구현은 reader가 writer를 starve시키기 쉽다("relatively easy for reader to starve writer"). writer가 기다리는 동안 새 reader를 막는 것은 개선 아이디어로 언급만 됨(not covered). 맞는 문장: "It is relatively easy for readers to starve a writer."{/answer}
+
+=== B27 ===
+{quiz}(T / F) With five philosophers and five forks, at most two philosophers can be eating at the same time. (L11 p.35){/quiz}
+{answer}'''T'''. 한 명이 포크 2개씩 필요하고 포크는 5개 → 최대 2명(예: P0과 P2). 교수(9/30): "그게 최대 concurrency."{/answer}
+
+== Part C. Multiple Choice (27문항, 각 3점) ==
+
+=== C1 ===
+{quiz}Two threads each run for (i = 0; i < 1e7; i++) counter = counter + 1; on a shared counter (initially 0) without any lock. Which statement about the final value printed by main is correct? (L8 p.38)<br>① It is always 20,000,000 because pthread_join waits until both loops finish.<br>② It can be less than 20,000,000 and may differ from run to run, because an update is lost when a thread is switched out between loading and storing counter.<br>③ It can be greater than 20,000,000 because an interrupted increment may be applied twice.<br>④ It can differ from 20,000,000 only on a multiprocessor; on a single CPU it is always exact.{/quiz}
+{answer}'''② It can be less than 20,000,000 and may differ from run to run, because an update is lost when a thread is switched out between loading and storing counter.'''. 정답 ②. 8강 p.38 실제 실행 두 번이 서로 다른, 2천만보다 작은 값을 출력했다. p.39~40: mov 로 읽은 뒤 저장 전에 전환되면 다른 스레드의 증가가 덮어써져 사라진다(lost update). ① join 은 끝나기를 기다릴 뿐 중간의 race 는 못 막는다. ③ 각 스레드는 자기 eax 에서 +1 한 값만 저장하므로 총 증가량이 시도 횟수를 넘을 수 없다 — 커지는 일은 없다. ④ CPU 1개여도 타이머 인터럽트로 생긴다(uncontrolled scheduling).{/answer}
+
+=== C2 ===
+{quiz}According to the lecture's lock evaluation slides, what is the (Correctness, Fairness, Performance) evaluation of the ticket lock built with fetch-and-add? (L9 p.29)<br>① (Yes, No, No)<br>② (Yes, Yes, Yes)<br>③ (Yes, Yes, No)<br>④ (No, Yes, No){/quiz}
+{answer}'''③ (Yes, Yes, No)'''. 정답 ③. 9강 p.29. Fairness Yes 의 근거: “Fetch-and-Add enable multiple threads to equally share the critical section” — 번호표 순서(FIFO). Performance 는 여전히 No: 대기 중 spin. ① 은 test-and-set/CAS spin lock 의 평가(p.24). ② 는 yield·sleeping 까지 쓴 최종 평가(p.42). ④ ticket lock 도 한 번에 한 스레드만 들어가므로 Correctness 는 Yes.{/answer}
+
+=== C3 ===
+{quiz}Which of the following is NOT listed in the lecture as a problem of implementing locks by disabling interrupts? (L9 p.15)<br>① A greedy or malicious program could monopolize the processor, so it requires too much trust in applications.<br>② Turning off interrupts for extended periods can cause interrupts (e.g., disk I/O completions) to be lost.<br>③ It does not work on multiprocessors.<br>④ It cannot provide mutual exclusion on a single-processor system even when every application is trusted.{/quiz}
+{answer}'''④ It cannot provide mutual exclusion on a single-processor system even when every application is trusted.'''. 정답 ④. 9강 p.15: interrupt disable 은 “Invented for single-processor systems” — 단일 프로세서에서는 holder 를 선점할 수단이 없어 mutual exclusion 이 성립한다. ①②③ 은 슬라이드에 적힌 Problem 그대로 (trust 문제, 인터럽트 유실, multiprocessor 에서 동작 안 함).{/answer}
+
+=== C4 ===
+{quiz}Using the C-style CompareAndSwap(int *ptr, int expected, int new) from the lecture, a thread calls CompareAndSwap(&x, 5, 9) while x = 7. What is returned, and what is x afterwards? (L9 p.22)<br>① Returns 7; x remains 7.<br>② Returns 5; x becomes 9.<br>③ Returns 7; x becomes 9.<br>④ Returns 0 (failure); x remains 7.{/quiz}
+{answer}'''① Returns 7; x remains 7.'''. 정답 ①. p.22: actual = *ptr (=7); actual ≠ expected(5) 이므로 쓰지 않음; “In either case, return the actual value” → 7 반환, x 는 7 그대로. ② expected 를 반환하는 게 아니다 (함정: 반환값은 항상 메모리의 실제 값). ③ 다르면 쓰지 않는다. ④ 성공/실패 플래그(0/1)를 반환하는 것은 p.23 의 x86 cmpxchg 버전(sete 로 ret 설정)이고, 문제의 C-style 버전은 actual 값을 돌려준다.{/answer}
+
+=== C5 ===
+{quiz}Why does Linux's checked version of park() take a value argument? (L9 p.39)<br>① It is the value written to *address before the thread goes to sleep.<br>② Inside the kernel, the thread is put to sleep only if *address still equals value, so a release that happened after the user-level check is not missed.<br>③ It specifies how many waiting threads the matching wake call should wake up later.<br>④ It is a timeout in ticks after which the sleeping thread is woken automatically.{/quiz}
+{answer}'''② Inside the kernel, the thread is put to sleep only if *address still equals value, so a release that happened after the user-level check is not missed.'''. 정답 ②. 교수(9/28): line 2 와 futex_wait 사이에 context switch 가 나서 mutex 가 바뀌었다면, futex_wait 이 값을 다시 검사하지 않으면 “it will just sleep although the mutex value is changed” — 그래서 시스템 콜 안에서 다시 확인하고, 다르면 자지 않고 돌아와 다시 시도한다. 이것이 “checked” 의 의미이고 queue 락에서 unpark 가 먼저 도착해 사라지는 문제(p.35 sleep forever)를 원천 차단한다. ① 아무것도 쓰지 않는다(검사만). ③ wake 대상은 address 로 정해진다. ④ 슬라이드의 futex_wait 에는 timeout 개념이 없다.{/answer}
+
+=== C6 ===
+{quiz}Thread A has called setpark(), but before A reaches park(), another thread calls unpark(A). What does A's subsequent park() do? (L9 p.37–38)<br>① It puts A to sleep until a second unpark(A) arrives.<br>② It puts A to sleep forever, because the unpark arrived before A was asleep.<br>③ It returns immediately without sleeping, because the earlier unpark was recorded.<br>④ It makes A spin on m->guard until the lock holder calls unlock() again.{/quiz}
+{answer}'''③ It returns immediately without sleeping, because the earlier unpark was recorded.'''. 정답 ③. 9강 p.37~38: setpark() 로 “곧 park 할 것” 을 예고해 두면, 그 뒤 park 전에 도착한 unpark 가 기록되고 “the subsequent park() is ignored” — 잠들지 않고 즉시 반환한다. queue 락에서는 hand-off 로 flag 가 1 인 채 넘어왔으므로 A 는 바로 락 소유자가 된다. ① 두 번째 unpark 를 기다리지 않는다. ② setpark 가 없을 때의 결과(p.35~36 sleep forever) — 이것을 막는 것이 setpark 의 목적. ④ park 는 guard 와 무관하며, guard 는 이미 0 으로 풀려 있다.{/answer}
+
+=== C7 ===
+{quiz}Which statement correctly compares park/unpark with the Linux mechanism of p.39–41, as presented in the lecture? (L9 p.41)<br>① With park/unpark the kernel manages the waiting queue, while the Linux mechanism is a purely scheduling primitive with minimal kernel state.<br>② The Linux mechanism removes the need for any atomic instruction in user space, because the kernel performs all lock-state updates.<br>③ Park/unpark lets the kernel detect that a lock owner has died, while the Linux mechanism cannot.<br>④ With the Linux mechanism the user owns only the lock state while the kernel manages the waiting queue, which enables fair wakeup and robust mutexes (owner-death detection).{/quiz}
+{answer}'''④ With the Linux mechanism the user owns only the lock state while the kernel manages the waiting queue, which enables fair wakeup and robust mutexes (owner-death detection).'''. 정답 ④. 9강 p.41: Park/unpark = “Purely scheduling primitive, kernel maintains a minimal state” / Futex = “User only owns the lock state, the kernel manages the waiting queue” → Why? Fair wakeup (priority inheritance), Robust mutexes (owner-death detection). 교수(9/28): spin lock 이나 park 방식은 락을 잡은 스레드가 죽으면 아무도 락을 못 얻어 시스템이 멈추지만, futex 는 커널이 대기자와 주소를 알고 있어 owner 가 죽은 것을 감지할 수 있다. ① 둘을 뒤바꾼 서술. ② p.40 구현은 user 공간에서 atomic_bit_test_set, atomic_increment 등을 쓴다 (빠른 경로는 시스템 콜 없이 user 에서 끝남). ③ 반대.{/answer}
+
+=== C8 ===
+{quiz}A lock is built as while (TestAndSet(&flag, 1) == 1) yield();. When a waiting thread calls yield(), which state transition does it make? (L9 p.31)<br>① Running → Ready: it gives up the CPU but stays schedulable, so it will run again and re-check the flag.<br>② Running → Blocked: it sleeps until unlock() wakes it up.<br>③ Ready → Running: it is immediately rescheduled ahead of the lock holder.<br>④ No transition: it stays Running and only its priority is lowered for the next tick.{/quiz}
+{answer}'''① Running → Ready: it gives up the CPU but stays schedulable, so it will run again and re-check the flag.'''. 정답 ①. 9강 p.31: yield() 는 “moves the caller from the running state to the ready state” — 스스로 CPU 를 내놓지만 Ready 큐에 남아 다시 스케줄되면 또 TestAndSet 으로 검사한다. 그래서 holder 가 오래 잡고 있으면 run-and-yield 가 반복된다(p.32). ② Blocked 로 재우고 unlock 쪽이 깨우는 것은 park/unpark(p.33). ③ yield 는 CPU 를 넘기는 것이지 먼저 실행되는 것이 아니다. ④ yield 는 우선순위 조정이 아니라 상태 전이(descheduling)다.{/answer}
+
+=== C9 ===
+{quiz}In the queue-based lock (flag, guard, queue), which statement about m->guard is correct? (L9 p.35)<br>① It is held while the waiting thread sleeps in park(), so that unlock() cannot run too early.<br>② It is itself a spin lock protecting flag and the queue, so spin-waiting is not avoided entirely, but the time spent spinning is limited to a few instructions.<br>③ It replaces flag: a thread owns the sleeping lock exactly when guard is 1.<br>④ It is needed only on multiprocessors; on a single CPU, queue_add and flag updates are atomic by themselves.{/quiz}
+{answer}'''② It is itself a spin lock protecting flag and the queue, so spin-waiting is not avoided entirely, but the time spent spinning is limited to a few instructions.'''. 정답 ②. p.35 Limitations 1: “m->guard is used as a spin-lock around the flag and queue … the time spent spinning is quite limited”. p.34 주석: guard 는 lock 함수가 여러 스레드에서 동시에 실행되는 것을 막는다. ① guard 를 잡은 채 잠들면 나머지가 guard 에서 무한 spin — 교수(9/28)가 지적한 문제. 그래서 park 전에 guard = 0 을 한다. ③ 락 소유는 flag(sleeping lock), guard 는 그 자료구조를 지키는 짧은 spin lock — 별개. ④ 단일 CPU 에서도 queue_add 중간에 선점될 수 있다.{/answer}
+
+=== C10 ===
+{quiz}Slide p.9 says a condition variable comes as 'three in a package'. Which of the following is NOT one of the three? (L10 p.9)<br>① The condition variable c itself<br>② A state variable m that records the condition threads care about<br>③ A lock L that protects the state variable<br>④ A counter initialized to 0 that remembers signals sent while no thread is waiting{/quiz}
+{answer}'''④ A counter initialized to 0 that remembers signals sent while no thread is waiting'''. 정답 ④. CV 에는 signal 을 기억하는 카운터가 없다 — 그 역할을 하는 것이 state variable(예: done, count)이고, 값으로 post 를 기억하는 것은 semaphore 다. ①②③ 은 p.9 의 세 요소 그대로(condition variable c, state variable m, lock L to protect state variable). 교수(9/28): 이 세 개가 항상 한 세트.{/answer}
+
+=== C11 ===
+{quiz}Why does pthread_cond_wait() take a mutex as its second argument? (L10 p.10)<br>① Sleeping while holding the lock would keep every other thread from changing the state and signaling, so wait() releases the lock as it goes to sleep and re-acquires it on wakeup<br>② So that the OS can pick which waiter to wake according to which thread last owned the mutex<br>③ Because the mutex itself stores the queue of sleeping threads, so wait() needs it to enqueue the caller<br>④ So that the sleeping thread keeps holding the lock and no other thread can modify the state variable until it wakes{/quiz}
+{answer}'''① Sleeping while holding the lock would keep every other thread from changing the state and signaling, so wait() releases the lock as it goes to sleep and re-acquires it on wakeup'''. 정답 ①. 교수(9/28): 락을 쥐고 잠들면 다른 스레드가 아무것도 못 하는 deadlock — 그래서 wait 가 락을 넘겨받아 풀고 자고, 깨어나면 다시 잡고 리턴. ② OS 의 깨우기 선택은 락 소유 이력과 무관(Mesa: 최소 하나만 보장). ③ 대기 큐는 CV(p.9: CV = an explicit queue)가 가지며, mutex 는 상태 변수를 보호할 뿐이다. ④ 정반대 — 그대로 쥐고 자면 deadlock.{/answer}
+
+=== C12 ===
+{quiz}Slide p.8 makes the parent wait for the child by spinning: while (done == 0) ; with the child setting done = 1. What is the problem with this approach? (L10 p.8)<br>① It can print parent: end before child, because the spin loop does not see done = 1<br>② It deadlocks, because the parent holds a lock while spinning and the child can never set done<br>③ It works, but the parent burns CPU time while spinning, which is hugely inefficient<br>④ It is impossible to write in C, because done must be a pthread_cond_t{/quiz}
+{answer}'''③ It works, but the parent burns CPU time while spinning, which is hugely inefficient'''. 정답 ③. p.8: 동작은 하지만 parent 가 spin 하며 CPU 시간을 낭비 — 'hugely inefficient'. 9강 spin lock 과 같은 문제 — 기다리는 동안 CPU 를 태우지 말고 잠들어야(sleep) 하며, 그러려면 누가 깨워 주는 메커니즘(= condition variable)이 필요하다. ① volatile done 이라 결국 1 을 보고 빠져나오므로 출력 순서는 맞다. ② 이 코드에는 락이 없다. ④ done 은 평범한 int(volatile) 변수다 — CV 는 대기 큐이고 상태 변수가 아니다.{/answer}
+
+=== C13 ===
+{quiz}Slide p.4 ('Limitation of Lock') motivates condition variables. What can a lock alone NOT express? (L10 p.4)<br>① Allowing only one thread at a time inside a critical section<br>② Making a thread wait until some condition becomes true, e.g., the parent proceeding only after the child has finished<br>③ Making a sequence of operations on shared data appear atomic to other threads<br>④ Forbidding other threads from accessing shared data during an update{/quiz}
+{answer}'''② Making a thread wait until some condition becomes true, e.g., the parent proceeding only after the child has finished'''. 정답 ②. p.4: 락이 해 주는 것은 mutual exclusion = critical section 의 atomicity(공유 데이터 접근을 '막는' 것). 'How about enforcing the operations during shared data access?' — 어떤 순서·조건이 될 때까지 '기다리게' 만드는 것(ordering)은 락으로 표현할 수 없고, 이것이 CV·semaphore 의 몫이다. ①③④ 는 모두 락이 제공하는 atomicity/mutual exclusion 의 다른 표현.{/answer}
+
+=== C14 ===
+{quiz}Under Mesa semantics (p.22), which of the following may the OS do? (L10 p.22)<br>① Guarantee that the woken thread runs immediately, before any other thread can acquire the mutex<br>② Return from pthread_cond_wait() without re-acquiring the mutex<br>③ Wake a thread that is sleeping on a different condition variable from the one signaled<br>④ Wake more than one waiting thread in response to a single pthread_cond_signal(){/quiz}
+{answer}'''④ Wake more than one waiting thread in response to a single pthread_cond_signal()'''. 정답 ④. p.22: cond_wait 는 조건이 참이라는 것을 보장하지 않는다 — OS 는 스레드를 자유롭게 깨울 수 있고, 구현에 따라 signal 한 번에 둘 이상이 깨기도 한다. 교수(9/28): 보장되는 것은 '최소 한 스레드는 깨어난다'뿐(unique wakeup 아님). 그래서 깨어난 뒤 while 로 재검사. ① 즉시 실행 보장은 Hoare semantics. ② wait 는 어떤 경우에도 리턴 전에 락을 다시 잡는다(p.10). ③ signal 은 지정한 CV 의 대기자만 깨운다.{/answer}
+
+=== C15 ===
+{quiz}The Version 1 producer/consumer (p.18–19) calls put() and get() with no lock and no condition variable. With one producer and one consumer, what can happen? (L10 p.18–19)<br>① The consumer may call get() while count == 0, so assert(count == 1) fails<br>② Nothing goes wrong: with only one producer and one consumer, no synchronization is needed<br>③ The producer deadlocks, because put() waits forever for count to become 0<br>④ get() may return the same item twice, but no assertion can fail{/quiz}
+{answer}'''① The consumer may call get() while count == 0, so assert(count == 1) fails'''. 정답 ①. p.18 put/get 은 count 를 assert 만 할 뿐 기다리지 않는다. consumer 가 먼저 돌면 count == 0 에서 get() → assert 실패, producer 가 두 번 연속 돌면 assert(count == 0) 실패. 그래서 p.20 부터 CV + lock 을 붙인다. ② 1P1C 함정 — 1P1C 에서도 동기화가 필요하다(B16 의 'CV + if 는 1P1C 에서 동작'과 구별: 그쪽은 CV 와 lock 이 있을 때 이야기). ③ put() 에는 기다리는 코드가 없다 — assert 로 바로 실패할 뿐 deadlock 이 아니다. ④ assert 가 있으므로 잘못된 순서는 assertion 실패로 드러난다.{/answer}
+
+=== C16 ===
+{quiz}Slide p.16 gives a real-world example of the producer/consumer problem. Which one? (L10 p.16)<br>① A scheduler that moves processes between the ready queue and the run queue<br>② Two threads that increment a shared counter<br>③ A multi-threaded web server in which a producer puts HTTP requests into a work queue and consumer threads take them out and process them<br>④ A parent thread that waits for its child to finish{/quiz}
+{answer}'''③ A multi-threaded web server in which a producer puts HTTP requests into a work queue and consumer threads take them out and process them'''. 정답 ③. p.16: multi-threaded web server — producer 가 HTTP 요청을 work queue(bounded buffer)에 넣고, consumer 스레드들이 꺼내 처리한다. ① 스케줄링(5강) 이야기로 producer/consumer 구조가 아니다. ② 공유 카운터는 8강의 race condition 예(락 문제). ④ 부모-자식 join 은 p.6-15 의 CV 동기 예(ordering)이지 producer/consumer 가 아니다.{/answer}
+
+=== C17 ===
+{quiz}Zero bytes are free. Thread A calls allocate(100) and Thread B calls allocate(10); both sleep on the same CV. Thread C then calls free(50), which calls pthread_cond_signal(). What can go wrong? (L10 p.27-28)<br>① B is woken and takes 10 bytes, so A starves forever; this is why signal must be replaced<br>② The signal may wake A, which re-checks 50 < 100 and goes back to sleep, while B, which could proceed, stays asleep<br>③ Both A and B are woken by the single signal and together allocate 110 bytes, making bytesLeft negative<br>④ C deadlocks, because A is sleeping while holding the mutex m that free() needs{/quiz}
+{answer}'''② The signal may wake A, which re-checks 50 < 100 and goes back to sleep, while B, which could proceed, stays asleep'''. 정답 ②. p.27 'Which waiting thread should be woken up?' — 교수(9/28): 조건이 스레드마다 다르면 signal 은 A 와 B 를 구분할 수 없다. A 가 깨면 다시 자고, C 는 끝났으니 진행할 active thread 가 없다. ① B 가 깨는 경우는 정상 진행이며, A 는 메모리가 더 풀리면 진행 가능(굶주림이 핵심 아님). ③ 둘이 깨더라도 while 재검사가 bytesLeft 를 지킨다(A 는 50<100 이라 다시 잠). ④ wait 는 잠들 때 락을 풀므로 free() 는 m 을 얻을 수 있다.{/answer}
+
+=== C18 ===
+{quiz}Besides waking every waiter, which alternative did the professor mention for waking only the right thread under a covering condition? (9/28 녹음 (L10 p.29 보충))<br>① Change while to if so that woken threads proceed without re-checking<br>② Make the waiters spin on bytesLeft instead of sleeping<br>③ Give each waiting thread its own condition variable (a thread-level CV) and signal only the thread whose condition is now satisfied<br>④ Have free() call pthread_cond_signal() twice in a row{/quiz}
+{answer}'''③ Give each waiting thread its own condition variable (a thread-level CV) and signal only the thread whose condition is now satisfied'''. 정답 ③. 교수(9/28): broadcast 는 대기자 대부분이 재검사 후 다시 자는 헛일을 만든다 → thread-level condition variable 로 조건이 맞는 스레드에만 signal 하는 접근도 있다. ① if 로 바꾸면 조건이 안 맞는 스레드가 할당을 진행 — 정확성이 깨진다. ② spin 은 CPU 낭비(p.8 hugely inefficient 의 반복). ④ 두 번 signal 해도 누가 깨어날지 여전히 모른다(대기자가 셋 이상이면 맞는 스레드가 빠질 수 있다).{/answer}
+
+=== C19 ===
+{quiz}In the Second Attempt (p.18–19) with MAX = 5, the producer has put five values and the consumer has taken none. The producer now calls sem_wait(&empty). What happens? (L11 p.19)<br>① empty stays 0 and sem_wait() returns, so V#5 overwrites V#0<br>② full becomes −1 and the consumer is woken<br>③ empty becomes −1 and the producer sleeps until the consumer calls sem_post(&empty)<br>④ empty is reset to 5 because fill wraps around to 0{/quiz}
+{answer}'''③ empty becomes −1 and the producer sleeps until the consumer calls sem_post(&empty)'''. 정답 ③. empty 는 빈 칸 수로 MAX(5)에서 시작해 put 다섯 번 동안 sem_wait(&empty) 로 5→0 이 되었다. 여섯 번째 sem_wait(&empty) 는 0→−1 이고 음수이므로 producer 가 잠든다. consumer 가 get 후 sem_post(&empty) 로 −1→0 을 만들면서 producer 를 깨운다 — 빈 칸이 생길 때까지 덮어쓰기가 일어나지 않는 이유. ① sem_wait 는 값을 줄이고 음수면 잠든다 — 0 에서 그냥 리턴하지 않는다(그래서 덮어쓰기 없음). ② producer 의 sem_wait(&empty) 는 full 을 건드리지 않는다. full 은 이때 5. ④ fill 인덱스가 0 으로 돌아가는 것(fill = (fill + 1) % MAX)과 세마포어 값은 무관하다.{/answer}
+
+=== C20 ===
+{quiz}A parent creates a child and calls sem_wait(&s) to wait for it; the child calls sem_post(&s) when done. What should X be in sem_init(&s, 0, X), and why? (L11 p.11)<br>① 1, because the semaphore behaves as a lock<br>② 0, because the resource (the child's end state) does not exist yet at the start<br>③ -1, because the parent is going to wait for exactly one child<br>④ MAX, because any number of children may finish{/quiz}
+{answer}'''② 0, because the resource (the child's end state) does not exist yet at the start'''. 정답 ②. 교수(9/30): "mutex와 방향이 반대 — 시작 시 자원이 없다. 자원은 자식의 end state, 자식이 생산하고 부모가 소비." ① 1이면 부모의 wait가 바로 리턴해 자식을 기다리지 않음. ③ sem_init 초기값으로 음수를 주지 않는다; 음수는 대기자가 생겨서 되는 값. ④ 자식은 하나뿐이고 시작 시 끝난 자식은 0명.{/answer}
+
+=== C21 ===
+{quiz}In the Final Attempt (MAX = 10), the buffer is empty and one consumer is already sleeping inside the consumer code. Which call made by a producer wakes that consumer up? (L11 p.24–25)<br>① sem_post(&mutex) after put()<br>② sem_wait(&empty) before put()<br>③ sem_post(&empty) after put()<br>④ sem_post(&full) after put(){/quiz}
+{answer}'''④ sem_post(&full) after put()'''. 정답 ④. 빈 버퍼에서 consumer는 sem_wait(&full)에서 full 0→−1로 잠든다(Final Attempt는 mutex보다 full을 먼저 기다림). producer: wait(empty) 10→9, wait(mutex), put, post(mutex), post(full) −1→0 → 대기자 하나를 깨움. ① consumer는 mutex가 아니라 full에서 잠들어 있다 — mutex post는 mutex 대기자만 깨운다. ② sem_wait는 값을 줄일 뿐 누구도 깨우지 않는다(empty 10→9). ③ sem_post(&empty)는 consumer가 get 후에 하는 호출이다(빈 칸 하나 생김).{/answer}
+
+=== C22 ===
+{quiz}Why does the slide's reader-writer lock implement writelock as a semaphore instead of a pthread mutex? (L11 p.31–32)<br>① A mutex can only be unlocked by its owner, but the first reader takes writelock and the last reader gives it back<br>② A semaphore is needed to count how many readers are currently reading<br>③ A mutex cannot be shared between threads of the same process<br>④ Semaphores spin instead of sleeping, which is faster for short reads{/quiz}
+{answer}'''① A mutex can only be unlocked by its owner, but the first reader takes writelock and the last reader gives it back'''. 정답 ①. 교수(9/30): "mutex에는 owner가 있어 잡은 스레드만 놓을 수 있다. 세마포어는 다른 스레드가 값을 올려도 된다" → 소유권이 reader들 사이에서 이전. ② reader 수는 int readers 카운터가 센다; lock·writelock 둘 다 binary semaphore. ③ mutex는 원래 스레드 간 공유용. ④ 세마포어 wait는 sleep한다(spin 아님).{/answer}
+
+=== C23 ===
+{quiz}In rwlock_acquire_readlock(), which reader calls sem_wait(&rw->writelock)? (L11 p.32)<br>① Every reader, so that each reader holds its own copy of writelock<br>② The last reader that arrives before a writer<br>③ Only the reader that makes rw->readers equal to 1<br>④ No reader; only writers ever touch writelock{/quiz}
+{answer}'''③ Only the reader that makes rw->readers equal to 1'''. 정답 ③. 17–18번 줄: if (rw->readers == 1) sem_wait(&rw->writelock) — first reader acquires writelock. ① 두 번째 reader가 또 잡으면 writelock(=1)이 −1이 되어 reader끼리 잠든다. ② "last reader"는 release 쪽(readers == 0에서 post). ④ reader가 writelock을 잡아야 writer가 못 들어온다.{/answer}
+
+=== C24 ===
+{quiz}Which one is NOT a condition of deadlock? (2025F MidTermSolution p.7 (Deadlock Characterization))<br>① Hold and wait<br>② Busy wait<br>③ No preemption<br>④ Mutual exclusion{/quiz}
+{answer}'''② Busy wait'''. 정답 ②. 11강 슬라이드 밖, 2025F 기출 근거(L11 p.22는 "More details will be covered in the next lecture"까지만). 2025F 실제 기출(5지선다에서 ⑤ Busy wait). deadlock 4조건은 Mutual exclusion, Hold and wait, No preemption, Circular wait — 넷이 모두 성립해야 deadlock 이 생긴다. Busy wait는 spin lock의 대기 방식일 뿐 deadlock 조건이 아니다. ①③④는 모두 4조건에 포함.{/answer}
+
+=== C25 ===
+{quiz}In the fixed dining-philosophers getforks() (left(p) = p, right(p) = (p+1) % 5), how does philosopher 4 acquire forks? (L11 p.39)<br>① sem_wait(forks[0]) first, then sem_wait(forks[4])<br>② sem_wait(forks[4]) first, then sem_wait(forks[0])<br>③ sem_wait(forks[3]) first, then sem_wait(forks[4])<br>④ It acquires only forks[4] and eats with one fork{/quiz}
+{answer}'''① sem_wait(forks[0]) first, then sem_wait(forks[4])'''. 정답 ①. p == 4이면 right(4) = (4+1)%5 = 0을 먼저, 그다음 left(4) = 4. ② 이것은 고치기 전(broken) 순서 — 모두 left 먼저면 cycle. ③ f3은 P3의 왼쪽 포크, P4와 무관. ④ 먹으려면 포크가 반드시 두 개 필요.{/answer}
+
+=== C26 ===
+{quiz}A semaphore is initialized to 2. Threads T0, T1, T2, T3 each call sem_wait() in that order and no thread has called sem_post() yet. What is the semaphore value, and how many threads are sleeping? Assume the lecture's sem_wait() (p.3): decrement the value first, then sleep if it is negative. (L11 p.2–3)<br>① 0, and two threads are sleeping<br>② 2, and no thread is sleeping<br>③ -2, and four threads are sleeping<br>④ -2, and two threads are sleeping{/quiz}
+{answer}'''④ -2, and two threads are sleeping'''. 정답 ④. 2 →(T0) 1 리턴 →(T1) 0 리턴 →(T2) −1 잠듦 →(T3) −2 잠듦. 음수일 때 |값| = 대기 스레드 수 = 2. ① 값이 0에서 멈추는 것은 POSIX식 구현이다 — 문제의 가정(먼저 감소, 음수면 잠듦)에서는 무조건 1씩 감소. ② wait 네 번이면 값은 2 − 4 = −2이고, 처음 두 명(T0, T1)만 바로 통과한다. ③ T0, T1은 값이 1, 0으로 음수가 아니어서 잠들지 않는다 — 잠든 수는 |−2| = 2.{/answer}
+
+=== C27 ===
+{quiz}The Second Attempt (empty/full only, no mutex) works for one producer and one consumer. What goes wrong with multiple producers and MAX = 10? (L11 p.20)<br>① The producers deadlock because empty starts at MAX<br>② The consumer can no longer be woken because full never changes<br>③ Two producers can run put() at the same time and write the same buffer[fill] slot, losing data<br>④ Nothing; empty and full already make put() a critical section{/quiz}
+{answer}'''③ Two producers can run put() at the same time and write the same buffer[fill] slot, losing data'''. 정답 ③. line f1 buffer[fill] = value에서 producer 1이 쓰고 fill을 올리기 전에 context switch → producer 2가 같은 칸에 덮어씀. 교수(9/30): "세마포어는 자기 값에 대한 mutual exclusion만 제공하고 버퍼 접근은 보호하지 않는다." ① empty = MAX라 처음엔 여러 producer가 통과한다 — 그게 오히려 race의 원인. ② 각 producer가 sem_post(&full)을 한다. ④ empty/full은 개수 제한일 뿐 상호 배제가 아니다(MAX > 1이면 여러 명이 동시에 통과).{/answer}
+
+== Part D. 서술 · 계산 (12문항, 각 5점) ==
+
+=== D1 ===
+{quiz}'''Lost updates with three threads''' (L8 p.39)<br>counter = counter + 1 compiles to:  L: mov counter, %eax   A: add $0x1, %eax   S: mov %eax, counter.<br>counter starts at 100. Threads T1, T2, T3 each execute counter = counter + 1 exactly once on a single CPU.<br>Each thread has its own %eax (saved/restored on a context switch). The scheduler produces this order:<br>T1:L  T1:A  | T2:L  T2:A  T2:S | T3:L | T1:S | T3:A  T3:S<br>(a) Trace counter and each thread's %eax after every instruction. What is the final value of counter?<br>(b) How many updates were lost compared with the expected value?<br>(c) Over all possible interleavings of these 9 instructions, what are the minimum and maximum possible final values?<br>(d) Mark the critical section and show where lock()/unlock() must be placed to guarantee 103.{/quiz}
+{answer}'''답: (a) 102  (b) 1 lost (expected 103)  (c) min 101, max 103  (d) lock() before L, unlock() after S'''
+<pre class="txt">
+(a) T1:L → T1.eax = 100 (counter 100). T1:A → T1.eax = 101. 여기서 전환 — counter 는 아직 100.
+T2:L → T2.eax = 100. T2:A → 101. T2:S → counter = 101.
+T3:L → T3.eax = 101 (T2 의 결과는 읽음).
+T1:S → counter = 101. T1 은 100 을 읽어 만든 101 을 저장하므로 T2 의 증가를 덮어씀.
+T3:A → T3.eax = 102. T3:S → counter = 102. 최종 102.
+(b) 기대값 100 + 3 = 103, 실제 102 → lost update 1개 (T1 과 T2 가 같은 100 을 읽어 둘 다 101 을 저장).
+(c) 최대 103: 세 스레드가 L-A-S 를 끊기지 않고 순서대로 실행할 때. 최소 101: 세 스레드가 모두 S 전에 100 을 읽으면 셋 다 101 을 저장.
+   (9개 명령의 모든 인터리빙을 Python 으로 전수 탐색해 가능한 값이 101, 102, 103 뿐임을 확인.)
+(d) critical section = L, A, S 세 명령(= counter = counter + 1). 8강 p.44 처럼 lock(&mutex) 를 L 앞에, unlock(&mutex) 를 S 뒤에 둔다.
+   그러면 한 스레드의 L~S 사이에 전환이 일어나도 다른 스레드는 lock() 에서 막혀 counter 를 읽지 못함 → 항상 103.
+포인트: CPU 가 하나여도 race 가 생긴다. 원인은 uncontrolled scheduling (p.39 “The context switch can happen at any point of time”).
+</pre>
+{/answer}
+
+=== D2 ===
+{quiz}'''Fetch-and-add based lock (2025F Problem 7 style)''' (L9 p.25, 2025F 족보 (Problem 7))<br>FetchAdd(int *ptr, int v) atomically does: old = *ptr; *ptr = old + v; return old;.  lock->flag is initialized to 0.<br>Fill in blanks (a)–(d) so that lock() provides mutual exclusion. (Braces omitted; indentation shows blocks.)<br>void lock(lock_t *lock)<br>    do<br>        int old = ___(a)___;<br>        if (___(b)___)<br>            return;<br>        else<br>            ___(c)___;<br>    while (___(d)___);<br>void unlock(lock_t *lock)<br>    FetchAdd(&lock->flag, -1);<br>(e) In one sentence, why must the condition test the returned old value against 0 instead of reading lock->flag again?<br>(f) Thread A holds the lock. Thread B executes (a) and is preempted before (c); then A calls unlock(). Give flag after each of: B's (a), A's unlock, B's (c), B's retry of (a). Does B acquire the lock?{/quiz}
+{answer}'''답: (a) FetchAdd(&lock->flag, 1)  (b) old == 0  (c) FetchAdd(&lock->flag, -1)  (d) 1  (f) 2 → 1 → 0 → 1, B acquires'''
+<pre class="txt">
+(a) int old = FetchAdd(&lock->flag, 1);  — 들어가겠다고 flag 를 원자적으로 +1 하고, 그 직전 값(old)을 받는다.
+(b) if (old == 0) — 내가 +1 하기 전에 아무도 없었다(flag 0) = 내가 유일한 소유자 → return (획득).
+(c) FetchAdd(&lock->flag, -1); — 이미 누가 있었으면 방금 더한 1 을 되돌려 놓고 다시 시도.
+(d) while (1); — 성공해서 return 할 때까지 계속 반복 (spin). unlock 은 소유자의 +1 을 -1 로 되돌린다.
+   (2025F 기출에서 교수님 의도 답이 바로 이것. 시험지 코드가 이상하면 의도를 추정해 풀고 가정을 답안에 적을 것.)
+(e) 검사와 증가가 한 atomic 명령 안에서 함께 일어나야 하기 때문 — flag 를 따로 다시 읽으면 읽기와 쓰기 사이에 전환이 끼어 flag 락(9강 p.17)처럼 두 스레드가 동시에 들어갈 수 있다. old 는 “내가 증가시킨 그 순간의 값” 이라 나 말고 누가 있었는지를 정확히 알려 준다 (test-and-set 이 old 를 반환하는 것과 같은 원리).
+(f) 시작: A 소유 → flag = 1.
+   B 의 (a): old = 1, flag = 2.  (old ≠ 0 이므로 B 는 (c) 로 갈 예정)
+   A 의 unlock: flag = 2 − 1 = 1.  (B 의 +1 이 아직 남아 있어 0 이 아님 — 그래도 문제 없음)
+   B 의 (c): flag = 1 − 1 = 0.
+   B 의 재시도 (a): old = 0, flag = 1 → (b) 참 → B 획득.
+   Python 으로 두 스레드의 모든 실행 순서를 상태공간 탐색해 동시에 critical section 에 있는 상태가 없음(mutual exclusion 성립)과 끝나면 flag = 0 임을 확인.
+평가: Correctness Yes, 그러나 순서 보장이 없어 Fairness No, spin 하므로 Performance No (9강 p.24 의 spin lock 과 같은 등급).
+</pre>
+{/answer}
+
+=== D3 ===
+{quiz}'''Ticket lock trace''' (L9 p.26)<br>The ticket lock from the lecture: lock(): myturn = FetchAndAdd(&lock->ticket); while (lock->turn != myturn) ; unlock(): FetchAndAdd(&lock->turn);.<br>The lock has been used before, so currently ticket = 5 and turn = 5 (lock free). On a single CPU the following happens:<br>1) B calls lock().  2) A calls lock().  3) C calls lock().  4) the holder calls unlock().  5) the next holder calls unlock().  6) the last holder calls unlock().<br>(a) Give each thread's myturn and the values of ticket and turn after steps 1–3.<br>(b) Give ticket and turn after each unlock (steps 4–6) and who acquires the lock each time. What is the acquisition order?<br>(c) After step 6, how can you tell from ticket and turn that the lock is free?<br>(d) Suppose after step 3, B (the holder) is preempted inside the critical section for its whole time slice. What do A and C do, and which lock-evaluation criterion does this hurt?{/quiz}
+{answer}'''답: (a) B=5, A=6, C=7; ticket 8, turn 5  (b) turn 6→A, 7→C, 8→none; order B, A, C  (c) ticket = turn = 8  (d) spin a full slice each; Performance'''
+<pre class="txt">
+(a) 1) B: myturn = FetchAndAdd(&ticket) = 5, ticket = 6. turn = 5 = myturn → B 즉시 획득.
+   2) A: myturn = 6, ticket = 7. turn 5 ≠ 6 → spin.
+   3) C: myturn = 7, ticket = 8. turn 5 ≠ 7 → spin.  (ticket = 8, turn = 5)
+(b) 4) B unlock: turn = 6 → myturn 6 인 A 가 while 을 빠져나와 획득. (ticket 8, turn 6)
+   5) A unlock: turn = 7 → C 획득. (ticket 8, turn 7)
+   6) C unlock: turn = 8 → myturn 8 인 스레드가 없으므로 아무도 획득하지 않음. (ticket 8, turn 8)
+   획득 순서 B → A → C = lock() 을 부른 순서(번호표 순서). 이것이 ticket lock 의 fairness 근거: “Ensure progress for all threads” (p.26).
+(c) ticket == turn (8 == 8) 이면 발급된 번호표가 모두 처리되어 대기자도 소유자도 없다. 다음 lock() 은 myturn = 8 을 받아 바로 들어간다.
+(d) A, C 는 while (turn != myturn) 에서 각자 자기 time slice 를 통째로 spin 하며 낭비 → Performance No (p.29 “every other threads will spin for a given time slice”).
+   fairness 는 지켜지지만 spin 은 그대로 → 이것을 줄이려고 yield(p.31) → queue + park(p.33) → futex(p.39) 로 넘어간다.
+검증: Python 으로 FetchAndAdd 를 그대로 추적해 위 값(5/6/7, turn 6→7→8)을 확인.
+</pre>
+{/answer}
+
+=== D4 ===
+{quiz}'''Queue lock: a lost unpark() and setpark()''' (L9 p.36)<br>Queue lock from the lecture (flag, guard, queue). Thread B currently holds the lock (flag = 1), guard = 0, the queue is empty.<br>Interleaving on one CPU:<br>A: lock(): TestAndSet(&m->guard, 1) succeeds; flag == 1, so else-branch: queue_add(m->q, A); m->guard = 0;   — context switch before park()<br>B: unlock(): TestAndSet(&m->guard, 1) succeeds; queue not empty → unpark(queue_remove(m->q)); m->guard = 0;<br>A: park();<br>(a) What happens to A? What are flag and the queue now, and what happens to any thread that calls lock() later?<br>(b) A classmate proposes swapping the last two lines of the else-branch (park() first, then m->guard = 0). Explain why this does not work.<br>(c) The fix adds setpark() to the else-branch. Write the corrected else-branch, and explain what would go wrong if setpark() were placed after m->guard = 0 instead of before it.{/quiz}
+{answer}'''답: (a) A sleeps forever; flag = 1, queue empty → later lockers all queue and sleep forever  (b) guard never released → everyone spins on guard  (c) queue_add; setpark(); m->guard = 0; park(); — if setpark() came after guard = 0, a switch between guard = 0 and setpark() lets B's unpark(A) arrive unrecorded again, so A sleeps forever'''
+<pre class="txt">
+(a) B 의 unpark(A) 는 A 가 아직 park 하기 전에 도착 → park/unpark 에는 이를 기록하는 장치가 없어 신호가 사라진다 (교수(9/28): “there is no mechanism to record the unpark”).
+   이후 A 가 park() → 깨워 줄 스레드가 더 없으므로 영원히 잠든다 (p.36 “Thread A wakes up but starts to sleep immediately”).
+   B 는 대기자가 있었으므로 flag 를 0 으로 내리지 않고 1 로 둔 채 넘겨줌(hand-off). 큐는 비었음. → 상태: flag = 1, queue 빈 상태, 소유자 A 는 잠듦.
+   이후 lock() 을 부르는 스레드는 flag == 1 을 보고 큐에 들어가 park — unlock 할 소유자가 깨어나지 않으므로 모두 영원히 잠든다.
+(b) park() 는 호출하면 그 스레드가 잠들어 다음 줄을 실행하지 못한다. 그래서 guard = 0 이 실행되지 않고 guard 가 1 로 남음 →
+   unlock() 을 포함해 guard 를 잡으려는 모든 스레드가 TestAndSet(&m->guard) 에서 무한 spin. 교수(9/28): “the order between guard and park cannot be changed”.
+(c) 수정 코드: queue_add(m->q, A); setpark(); m->guard = 0; park();  (p.37)
+   A: guard 획득 → queue_add → setpark() (곧 park 할 것을 커널에 예고) → guard = 0 → 전환.
+   B: guard 획득 → unpark(A) — A 가 setpark 상태이므로 이 unpark 가 기록된다 → guard = 0.
+   A: park() → 이미 받은 unpark 가 있으므로 잠들지 않고 즉시 반환 (p.38 “subsequent park() is ignored”).
+   A 는 lock() 에서 반환 = 락 소유. flag 는 hand-off 로 계속 1, 큐는 빈 상태.
+   setpark 를 guard = 0 뒤에 두면: A guard = 0 → 전환 → B unpark(A) (아직 예고 전이라 기록 안 됨) → A setpark → park → 영원히 잠듦. 그래서 guard 를 놓기 전에 예고해야 한다.
+검증: park/unpark/setpark 를 상태(잠듦·예고·기록된 unpark)로 모델링한 Python 시뮬레이션으로 setpark 없음 → A 잠듦(flag 1), 있음 → A 즉시 반환·소유 를 확인.
+참고: Linux futex 는 같은 문제를 futex_wait(address, value) 가 커널 안에서 값을 다시 검사하는 방식으로 해결한다 (p.39, checked park).
+</pre>
+{/answer}
+
+=== D5 ===
+{quiz}'''Code fill-in: multi-slot producer/consumer with two condition variables''' (L10 p.48-50, p.25-26)<br>The buffer has MAX slots; put() and get() update fill, use and count (count++ / count--) as on p.48. Fill in blanks (a)-(g) using the slide names.<br>cond_t empty, fill;   mutex_t mutex;<br>producer:  for (i = 0; i < loops; i++)<br>    Pthread_mutex_lock(&mutex);<br>    __(a)__ (__(b)__)<br>        Pthread_cond_wait(__(c)__, &mutex);<br>    put(i);<br>    Pthread_cond_signal(__(d)__);<br>    Pthread_mutex_unlock(&mutex);<br>consumer:  for (i = 0; i < loops; i++)<br>    Pthread_mutex_lock(&mutex);<br>    while (__(e)__)<br>        Pthread_cond_wait(__(f)__, &mutex);<br>    int tmp = get();<br>    Pthread_cond_signal(__(g)__);<br>    Pthread_mutex_unlock(&mutex);<br>(h) MAX = 1, one producer Tp, two consumers Tc1 and Tc2. A student writes (g) as &fill. Give an execution in which all three threads end up asleep.<br>(i) MAX = 1, two producers Tp1 and Tp2, one consumer. Another student writes (a) as if. Give an execution in which an item that has not been consumed is overwritten.{/quiz}
+{answer}'''답: (a) while (b) count == MAX (c) &empty (d) &fill (e) count == 0 (f) &fill (g) &empty; (h) consumer wakes consumer -> all sleep; (i) woken producer does not re-check -> count = 2, overwrite'''
+<pre class="txt">
+(a) while   (b) count == MAX   (c) &empty   (d) &fill
+(e) count == 0   (f) &fill   (g) &empty
+규칙: producer 는 empty 에서 기다리고 fill 을 signal, consumer 는 fill 에서 기다리고 empty 를 signal (p.25). 조건은 항상 while (Mesa semantics).
+
+(h) (g) = &fill 이면 consumer 가 '다른 consumer' 를 깨운다.
+  1. Tc1, Tc2 실행: count = 0 -> 둘 다 fill 에서 wait (Sleep).
+  2. Tp: put -> count = 1, signal(&fill) -> Tc1 Ready. 다음 반복: count == MAX(1) -> empty 에서 wait (Sleep).
+  3. Tc1: get -> count = 0, signal(&fill)  <-- 잘못된 대상. fill 에는 Tc2 만 자고 있으므로 Tc2 Ready. Tp 는 empty 에서 계속 잠.
+     Tc1 다음 반복: count == 0 -> fill 에서 wait (Sleep).
+  4. Tc2: while 재검사 count == 0 -> 다시 fill 에서 wait (Sleep).
+  => Tp(empty), Tc1(fill), Tc2(fill) 모두 Sleep. 깨워 줄 스레드가 없다 = CV 1개 버전(p.24)과 같은 '모두 잠듦'.
+
+(i) (a) = if 이면 깨어난 producer 가 count 를 재검사하지 않는다.
+  1. Tp1: put -> count = 1. 다음 반복: count == 1 -> empty 에서 wait (Sleep).
+  2. Tp2 는 lock 직전에 preempt 되어 Ready 상태로 대기 중이라고 하자.
+  3. Consumer: get -> count = 0, signal(&empty) -> Tp1 Ready. unlock.
+  4. Tp2 가 먼저 락을 잡음: if (count == MAX)? 0 이므로 통과 -> put -> count = 1, signal(&fill), unlock.
+  5. Tp1 이 wait 에서 리턴(락 재획득), if 라서 재검사 없이 put -> 같은 칸(MAX = 1)에 덮어씀, count = 2 (> MAX).
+  => Tp2 가 넣은 아이템이 소비되기 전에 사라진다. while 이면 5단계에서 count == MAX 를 다시 보고 잠들었을 것.
+
+교수(9/28): wait 에 들어갈 CV 이름(empty/fill)과 while 이 이 코드의 빈칸 1순위. signal 대상과 wait 대상을 반대로 쓰는 실수가 가장 흔하다.
+</pre>
+{/answer}
+
+=== D6 ===
+{quiz}'''Thread trace: single CV + if with Tp running first''' (L10 p.20-24)<br>Code of p.20-21 with labels. Producer: p1 lock, p2 if (count == 1), p3 wait(&cond), p4 put (assert(count == 0); count = 1), p5 signal(&cond), p6 unlock.<br>Consumer: c1 lock, c2 if (count == 0), c3 wait(&cond), c4 get (assert(count == 1); count = 0), c5 signal(&cond), c6 unlock.<br>Initially count = 0; threads Tp, Tc1, Tc2 are all Ready. Mesa semantics: signal moves one sleeper on cond to Ready (if there is none, it does nothing).<br>Phase 1: Tp runs p1 p2 p4 p5 p6, then loops and runs p1 p2 p3.<br>Phase 2: Tc1 runs c1 c2 c4 c5 c6, then loops and runs c1 c2 c3.<br>Phase 3: Tp returns from p3 and runs p4 p5 p6, then loops and runs p1 p2 p3.<br>Phase 4: Tc2 runs c1 c2 c4 c5 c6, then loops and runs c1 c2 c3.<br>Phase 5: Tc1 returns from c3.<br>(a) After each of Phases 1-4, give count and the state (Running / Ready / Sleep) of Tp, Tc1 and Tc2.<br>(b) At which step does an assertion fail, and why? (c) What one-word change fixes this failure, and what does Tc1 do in Phase 5 after that change?{/quiz}
+{answer}'''답: P1: count 1, Tp Sleep; P2: count 0, Tc1 Sleep, Tp Ready; P3: count 1, Tp Sleep, Tc1 Ready; P4: count 0, Tc2 Sleep, Tp Ready, Tc1 Ready; P5: Tc1 c4 assert(count == 1) fails; fix if -> while: Tc1 re-checks count == 0 and sleeps again'''
+<pre class="txt">
+(a) 각 Phase 끝 상태
+Phase | count | Tp    | Tc1   | Tc2   | 설명
+  1   |   1   | Sleep | Ready | Ready | p4 put -> count 1, p5 signal (대기자 없음 -> 사라짐), 다음 반복 p2 count==1 -> p3 wait
+  2   |   0   | Ready | Sleep | Ready | c4 get -> count 0, c5 signal -> cond 의 유일한 대기자 Tp 깨움, 다음 반복 c2 count==0 -> c3 wait
+  3   |   1   | Sleep | Ready | Ready | Tp: p3 리턴(락 재획득) -> p4 put count 1 -> p5 signal -> 대기자 Tc1 깨움 -> 다음 반복 p3 wait
+  4   |   0   | Ready | Ready | Sleep | Tc2 가 Tc1 보다 먼저 락을 잡음(sneak in): c2 count==1 통과 -> c4 get count 0 -> c5 signal -> 대기자 Tp 깨움 -> 다음 반복 c3 wait
+
+(b) Phase 5, Tc1 의 c4. Tc1 은 c3 에서 리턴(락 재획득)한 뒤 if 라서 count 를 다시 보지 않고 바로 get() -> assert(count == 1) 실패 (count = 0).
+    Tc1 이 깨워진 시점(Phase 3)에는 count = 1 이었지만, 실제로 달리기 전에 Tc2 가 끼어들어 비웠다.
+    Mesa semantics: signal 은 '상태가 바뀌었다'는 힌트일 뿐, 깨어난 스레드가 달릴 때 그 상태가 유지된다는 보장이 없다 (p.22).
+
+(c) if -> while (c2, p2 둘 다). Tc1 은 c3 에서 리턴(락 재획득)한 뒤 c2 로 돌아가 count == 0 을 보고 다시 c3 wait (Sleep) -> assert 까지 가지 않는다. Ready 인 Tp 가 진행한다.
+    규칙(p.23): Mesa semantics 에서는 CV 와 함께 항상 while 을 쓴다 — 깨어난 뒤 조건을 반드시 재검사.
+
+Fig 30.9(Tc1 이 먼저 잠드는 순서)와 결론은 같다: '깨워진 스레드와 실제 실행 사이의 틈'에 다른 consumer 가 끼어드는 것이 원인.
+</pre>
+{/answer}
+
+=== D7 ===
+{quiz}'''join: failing orders without done and without the lock''' (L10 p.11-15)<br>Version X (p.14, no state variable):<br>  1 void thr_exit()   :  2 Pthread_mutex_lock(&m);  3 Pthread_cond_signal(&c);  4 Pthread_mutex_unlock(&m);<br>  7 void thr_join()   :  8 Pthread_mutex_lock(&m);  9 Pthread_cond_wait(&c, &m);  10 Pthread_mutex_unlock(&m);<br>Version Y (p.15, done kept but no lock):<br>  1 void thr_exit()   :  2 done = 1;  3 Pthread_cond_signal(&c);<br>  6 void thr_join()   :  7 if (done == 0)  8 Pthread_cond_wait(&c);<br>main() calls Pthread_create(child) and then thr_join(); the child prints child and calls thr_exit().<br>(a) For Version X, write an execution order (with line numbers) in which the parent never returns.<br>(b) For Version Y, give the exact point at which the parent must be interrupted for it to sleep forever, and the order of events after that.<br>(c) Explain, in terms of what each piece records or protects, why the correct version (p.11) needs both done and the lock.{/quiz}
+{answer}'''답: (a) child runs thr_exit (2-3-4) before parent's 8-9: signal lost, parent waits forever; (b) interrupt between line 7 (done == 0 seen) and line 8; child 2-3, then parent 8 sleeps forever; (c) done remembers that exit happened, lock makes check-and-sleep atomic w.r.t. done = 1 + signal'''
+<pre class="txt">
+(a) Version X 실패 순서:
+  부모 Pthread_create -> (스케줄러가 자식을 먼저 실행) 자식 printf child -> thr_exit: 2 lock, 3 signal (c 에서 자는 스레드 없음 -> signal 사라짐), 4 unlock -> 자식 종료
+  -> 부모 thr_join: 8 lock, 9 wait -> 잠듦. 이후 signal 을 보낼 스레드가 없으므로 영원히 잠.
+  교수(9/28): exit 와 join 사이에는 순서 보장이 없다. CV 는 signal 을 기억하지 않으므로, 이미 일어난 일을 기록할 상태 변수 done 이 필요하다.
+
+(b) Version Y 실패 지점: 부모가 7번 줄에서 done == 0 을 확인한 직후, 8번 줄 wait 를 호출하기 직전에 interrupt.
+  이후 순서: 자식 실행 -> 2 done = 1 -> 3 signal (아직 아무도 안 잠 -> 사라짐) -> 자식 종료
+  -> 부모 재개: 7번의 판단(done == 0)은 이미 끝났으므로 8 wait 로 잠듦 -> 영원히 잠. (done 이 1인데도!)
+  p.15: 'Just before it calls wait to go to sleep, the parent is interrupted and the child runs.'
+
+(c) 정답 코드(p.11)의 역할 분담:
+  done : 자식이 이미 exit 했는지(= signal 을 보냈는지) 기록. 부모는 while (done == 0) 일 때만 잔다 -> (a) 해결.
+  lock : 부모의 'done 검사 -> wait(잠듦)' 과 자식의 'done = 1 -> signal' 이 서로 끼어들지 못하게 함.
+         부모가 락을 쥔 채 검사하고, wait 가 락을 '원자적으로' 풀며 잠들기 때문에 그 틈에 자식의 done = 1 이 들어올 수 없다 -> (b) 해결.
+  교수(9/28): signal/wait 자체에 락이 필요한 것이 아니라, done 을 보호하고 조건 변경과 signal 사이(그리고 검사와 wait 사이)의 atomicity 를 위해 락이 필요하다.
+  => p.9 'Three in a package': condition variable c + state variable done + lock m.
+</pre>
+{/answer}
+
+=== D8 ===
+{quiz}'''Memory allocator: waking one vs. waking all, with numbers''' (L10 p.27-29)<br>Allocator of p.28: allocate(size) does lock; while (bytesLeft < size) wait(&c, &m); bytesLeft -= size; unlock. free(size) does lock; bytesLeft += size; wake; unlock.<br>Initially bytesLeft = 0. Events in order: (1) A calls allocate(60) (2) B calls allocate(30) (3) C calls free(40) (4) D calls free(30).<br>Assume the wait queue is FIFO, a woken thread that goes back to sleep is appended to the tail, and woken threads acquire the lock in queue order before any new event.<br>(a) If free() uses pthread_cond_signal(): after events (3) and (4), who is woken, who proceeds, and what is bytesLeft?<br>(b) If free() instead uses the p.29 fix that wakes every waiting thread: the same questions.<br>(c) Count the total number of wakeups and the number of wasted wakeups (woken but went back to sleep) in (a) and (b).{/quiz}
+{answer}'''답: (a) C: A woken, sleeps again (40 < 60); D: B woken, takes 30, bytesLeft 40, A sleeping. (b) C: A sleeps again, B proceeds -> bytesLeft 10; D: A woken, 40 < 60, sleeps; bytesLeft 40. (c) signal 2 wakeups (1 wasted), broadcast 3 wakeups (2 wasted)'''
+<pre class="txt">
+대기 큐 상태를 앞 -> 뒤 순서로 표기.
+(1)(2) A: 0 < 60 -> wait.  B: 0 < 30 -> wait.  큐 = A, B   bytesLeft = 0
+
+(a) signal
+  (3) C free(40): bytesLeft = 40, signal -> 큐 맨 앞 A 깨움. A: while 재검사 40 < 60 -> 다시 wait. 큐 = B, A
+  (4) D free(30): bytesLeft = 70, signal -> 큐 맨 앞 B 깨움. B: 70 >= 30 -> 할당, bytesLeft = 40. 큐 = A
+  결과: B 는 (4) 이후에야 진행, A 는 대기, bytesLeft = 40.
+
+(b) broadcast
+  (3) C free(40): bytesLeft = 40, broadcast -> A, B 모두 깨움.
+      A 먼저 락: 40 < 60 -> 다시 wait.  B: 40 >= 30 -> 할당, bytesLeft = 10. 큐 = A
+  (4) D free(30): bytesLeft = 40, broadcast -> A 깨움. A: 40 < 60 -> 다시 wait. 큐 = A
+  결과: B 는 (3) 직후 진행, A 는 대기, bytesLeft = 40.
+
+(c) wakeup 수
+  signal   : 2번 (A@3 헛일, B@4 유효) -> 헛일 1
+  broadcast: 3번 (A@3 헛일, B@3 유효, A@4 헛일) -> 헛일 2
+
+정리: broadcast 는 깨어나야 할 스레드를 반드시 포함(cover)하지만 대가로 헛 wakeup 이 늘어난다 (p.29 Cost: too many threads might be woken).
+교수(9/28) 대안: thread-level condition variable — 스레드마다 CV 를 두고 free() 가 조건(size <= bytesLeft)이 맞는 스레드에만 signal.
+</pre>
+{/answer}
+
+=== D9 ===
+{quiz}'''Producer/consumer with semaphores x, y, z (2025F Problem 6 style)''' (L11 p.21–25, 2025F 족보 (Problem 6))<br>put(i) and get() do not assume concurrent access. The queue has MAX entries. Three semaphores x, y, z are used.<br>(a) Give the initial values and meanings of x, y, z, and fill in the producer and consumer loop bodies<br>    (order of sem_wait / put / get / sem_post).<br>(b) A student instead writes the producer as  sem_wait(&z); sem_wait(&x); put(i); sem_post(&y); sem_post(&z);<br>    and the consumer as  sem_wait(&z); sem_wait(&y); tmp = get(); sem_post(&x); sem_post(&z);<br>    With MAX = 1, one producer, one consumer, and the CONSUMER running first, start from your initial values in (a),<br>    trace the values of y and z step by step, and give the final values of x, y, z and which thread sleeps on which semaphore.{/quiz}
+{answer}'''답: x = MAX (empty), y = 0 (full), z = 1 (mutex). Producer: wait(x) wait(z) put post(z) post(y). Consumer: wait(y) wait(z) get post(z) post(x). (b) z 1→0, y 0→−1 (consumer sleeps on y holding z), z 0→−1 (producer sleeps on z) → deadlock; final x = 1, y = −1, z = −1'''
+<pre class="txt">
+(a) 초기값 = 자원의 개수(교수 9/30): x = MAX → empty(빈 칸 수, 처음엔 전부 비어 있음), y = 0 → full(찬 칸 수, 처음엔 item 없음), z = 1 → mutex(lock, critical section permission은 한 번에 하나).
+Producer: sem_wait(&x); sem_wait(&z); put(i); sem_post(&z); sem_post(&y);
+Consumer: sem_wait(&y); sem_wait(&z); tmp = get(); sem_post(&z); sem_post(&x);
+핵심: mutex(z)는 put/get만 감싼다(안쪽). 세마포어 값은 내부 락이 보호하므로 empty/full까지 mutex로 감쌀 필요가 없다.
+(b) 트레이스 (MAX = 1이므로 x = 1, y = 0, z = 1에서 시작):
+  1. consumer c0 sem_wait(&z): z 1 → 0, 리턴(mutex 획득)
+  2. consumer c1 sem_wait(&y): y 0 → −1, 잠듦 — mutex z를 쥔 채로 잠든다 (세마포어 wait는 락을 놓지 않음)
+  3. producer p0 sem_wait(&z): z 0 → −1, 잠듦
+  4. producer는 consumer의 sem_post(&z)를, consumer는 producer의 sem_post(&y)를 기다림 → 둘 다 영원히 잠듦 = deadlock (x는 1 그대로)
+  최종 값: x = 1 (아무도 건드리지 않음), y = −1 (consumer가 y에서 잠듦), z = −1 (producer가 z에서 잠듦). 음수 값의 크기 1 = 각 세마포어의 대기자 1명.
+결론: mutex를 바깥에 두면 deadlock. 해결은 sem_wait(&z)를 sem_wait(&x)/sem_wait(&y) 뒤로 옮기는 것(Final Attempt, p.24).
+</pre>
+{/answer}
+
+=== D10 ===
+{quiz}'''Three threads and one semaphore (trace like p.7)''' (L11 p.3–4, p.6–7)<br>sem_init(&m, 0, 1). Each thread runs: sem_wait(&m); critical section; sem_post(&m).<br>Interleaving: T0 calls sem_wait and enters the CS; interrupt → T1 calls sem_wait; interrupt → T2 calls sem_wait;<br>→ T0 finishes the CS and calls sem_post; → T1 runs its CS and calls sem_post; → T2 runs its CS and calls sem_post.<br>Assume the lecture's sem_wait() (p.3): decrement the value first, then sleep if it is negative.<br>Waiters are woken in FIFO order. Fill in a table with columns Value | event | T0 state | T1 state | T2 state,<br>and say which thread each sem_post wakes.{/quiz}
+{answer}'''답: Value: 1 → 0 (T0) → −1 (T1 sleeps) → −2 (T2 sleeps) → −1 (T0 post, wake T1) → 0 (T1 post, wake T2) → 1 (T2 post, wake nobody)'''
+<pre class="txt">
+규칙: sem_wait = 값 1 감소 후 음수면 잠듦, sem_post = 값 1 증가 후 대기자가 있으면 하나만 깨움.
+  Value 1  : 시작. T0 Running, T1·T2 Ready
+  Value 0  : T0 sem_wait → 1→0, 바로 리턴, CS 진입
+  Value −1 : (switch) T1 sem_wait → 0→−1, T1 Sleeping
+  Value −2 : (switch) T2 sem_wait → −1→−2, T2 Sleeping  (대기자 2 = |−2|)
+  Value −1 : (switch to T0) T0 CS 끝, sem_post → −2→−1, wake(T1) → T1 Ready
+  Value −1 : T1 sem_wait 리턴, CS 실행 (값은 그대로 −1 — 깨어날 때 다시 감소하지 않음)
+  Value 0  : T1 sem_post → −1→0, wake(T2) → T2 Ready
+  Value 1  : T2 CS 후 sem_post → 0→1, wake(nobody)
+각 post가 깨우는 스레드: T0의 post → T1, T1의 post → T2, T2의 post → 아무도 없음.
+교수(9/30): post는 정확히 하나만 깨운다 — 그래야 "음수 값 = 대기자 수"가 유지된다. 최저값 −2.
+</pre>
+{/answer}
+
+=== D11 ===
+{quiz}'''Reader-writer lock completion times (2025F Problem 5 style)''' (L11 p.31–33, 2025F 족보 (Problem 5))<br>Requests are given as R(arrival, length) or W(arrival, length):<br>R1(0,4)  R2(1,2)  W1(2,3)  R3(3,2)  R4(6,1)  W2(7,2)<br>Rules (slide implementation): at most 2 readers may be inside at once; a writer waits until all readers are finished;<br>readers may still enter while a writer is waiting (but not while a writer is writing). Ignore lock overhead.<br>(a) Give the finish time of every request.<br>(b) When the lock becomes free and both a reader and a writer are waiting, either may win. Give the best and worst<br>    finish time of W2.{/quiz}
+{answer}'''답: R1 4, R2 3, R3 5, W1 8; then R4 9 & W2 11 (reader wins) or W2 10 & R4 11 (writer wins). W2 best 10 / worst 11'''
+<pre class="txt">
+시간 순 시뮬레이션 (Python으로 모든 tie-breaking을 열거해 검증):
+  t=0 : R1 진입 (readers 1, writelock은 첫 reader가 잡음) → 4에 끝
+  t=1 : R2 진입 (readers 2 = 한도) → 3에 끝
+  t=2 : W1 도착 — reader가 있으므로 writelock에서 대기
+  t=3 : R2 종료(readers 1)와 동시에 R3 도착 → 한도 안이고 writer는 대기 중이어도 reader는 들어올 수 있음 → R3 진입, 5에 끝
+  t=4 : R1 종료 (readers 1)
+  t=5 : R3 종료 → readers 0 → 마지막 reader가 writelock post → W1 시작, 8에 끝
+  t=6 : R4 도착 — writer가 쓰는 중이라 대기.  t=7 : W2 도착 — 대기
+  t=8 : W1 종료. R4와 W2가 동시에 대기 → tie-breaking
+     · reader 승: R4 8→9, W2 9→11
+     · writer 승: W2 8→10, R4 10→11
+(a) R1 = 4, R2 = 3, R3 = 5, W1 = 8, R4 = 9 또는 11, W2 = 11 또는 10
+(b) W2 best = 10, worst = 11. 전체 마지막 완료 시각은 어느 쪽이든 11.
+포인트: W1은 2에 도착했지만 R3가 끼어들어 5까지 밀렸다 → "relatively easy for reader to starve writer"(p.33).
+</pre>
+{/answer}
+
+=== D12 ===
+{quiz}'''Dining philosophers: broken vs. fixed getforks()''' (L11 p.37–40)<br>left(p) = p, right(p) = (p+1) % 5, one semaphore per fork (initial value 1). All five philosophers call getforks() at the same time.<br>(a) Broken version (everyone: left then right). Each philosopher completes exactly one sem_wait before anyone completes a second.<br>    Who holds which fork, and who waits for which fork? Explain in one sentence why no philosopher can ever make progress.<br>(b) Fixed version (philosopher 4: right then left). Same simultaneous start: P0–P3 each grab their left fork first and P4 tries its<br>    first fork. Who holds what? In which order do the philosophers get to eat (each puts both forks down after eating)?<br>(c) In one line: why is f4 guaranteed to be available to P3 in (b)?{/quiz}
+{answer}'''답: (a) Pi holds fi, waits for f(i+1)%5 → nobody can get a second fork and nobody releases → deadlock. (b) P0..P3 hold f0..f3, P4 waits for f0 holding nothing; eat order P3 → P2 → P1 → P0 → P4. (c) f4 is only ever taken as someone's second fork'''
+<pre class="txt">
+(a) Broken: P0 holds f0, P1 holds f1, P2 holds f2, P3 holds f3, P4 holds f4.
+    각자 오른쪽을 기다림: P0→f1(P1), P1→f2(P2), P2→f3(P3), P3→f4(P4), P4→f0(P0).
+    P0 → P1 → P2 → P3 → P4 → P0 고리 = circular wait. 나머지 조건도 성립: 포크는 한 명만(mutual exclusion), 든 채로 기다림(hold and wait), 뺏지 못함(no preemption) → deadlock.
+(b) Fixed: P0~P3는 왼쪽 f0~f3을 쥐고, P4는 첫 포크로 f0(= right(4))을 기다리며 아무것도 안 쥠 (p.40 그림: "Waiting for the right fork").
+    f4가 비어 있으므로 P3이 f4를 잡아 먼저 먹음 → f3, f4 내려놓음
+    → P2가 f3을 잡아 먹음 → f2 해제 → P1이 f2를 잡아 먹음 → f1 해제 → P0이 f1을 잡아 먹음 → f0 해제
+    → P4가 f0, f4를 잡아 먹음.  순서: P3 → P2 → P1 → P0 → P4 (교수(9/30)가 말한 순서와 같음)
+(c) f4는 P3(오른쪽, 두 번째)과 P4(왼쪽, 두 번째) 모두에게 "두 번째로 잡는 포크"라서, f4를 쥔 사람은 이미 포크 둘을 가진(먹는) 사람뿐이다 → 한 개만 쥐고 기다리는 고리에 f4가 들어갈 수 없다.
+교수(9/30): "f4는 P3이 두 개를 다 잡지 않는 한 항상 비어 있다. P0→P4 사이의 cyclic dependency가 없다." 단, 이 해법은 deadlock 방지일 뿐 concurrency 최대화는 아님.
+</pre>
+{/answer}
+
+== 관련 문서 ==
+* [[락]] · [[조건 변수]] · [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
+* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]] · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[시험 정보]]
