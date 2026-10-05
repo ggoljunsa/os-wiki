@@ -254,6 +254,42 @@ signal할 때 락을 쥐는 것은 "strictly not necessary in all cases"지만 "
 
 == 4. Producer/Consumer (Bounded Buffer) 문제 (p.16~26, 30.2) ⭐⭐⭐ ==
 
+{tip}🧭 '''여기서 왜 갑자기 producer/consumer가 나오나 — §3에서 §4로 넘어가는 다리'''
+
+§3까지는 CV의 '''첫 번째 용례'''였다: join = "'''한 번만''' 일어나는 사건(자식 종료)을 '''한 명'''이 기다린다." 거기서 배운 재료 세 개(상태 변수 `done` + 락 `m` + CV `c`)와 규칙 두 개("상태 변수를 검사하고 잠들어라", "검사·wait·signal은 락 안에서")는 '''그대로 들고 간다.''' 새로 배우는 재료는 없다.
+
+§4는 같은 재료로 '''더 어려운 용례'''를 푸는 것이다. join과 달리 세 가지가 복잡해진다:
+
+{|
+! || join (§3) || producer/consumer (§4)
+|-
+| 조건이 바뀌는 횟수 || `done`은 0→1로 '''한 번''' 바뀌고 끝 || `count`는 0↔1(나중엔 0~MAX)로 '''계속 왔다 갔다'''
+|-
+| 기다리는 쪽 || 부모 '''한 명'''만 기다림 || producer도 기다리고 consumer도 기다림 — '''두 종류''', 각각 '''여러 명'''
+|-
+| 깨우는 방향 || 자식 → 부모 '''한 방향''' || producer→consumer, consumer→producer '''양방향'''
+|}
+
+재료 대응표 — §3의 무엇이 §4의 무엇이 되는지:
+
+{|
+! §3 join || §4 producer/consumer || 역할
+|-
+| `done` || `count` || 상태 변수 (버퍼에 몇 개 들었나)
+|-
+| `m` || `mutex` || `count`와 버퍼를 보호하는 락
+|-
+| `c` || `cond` → 나중에 `empty`, `fill` 두 개로 분리 || 대기 queue
+|-
+| `thr_join()`의 "lock → while(done==0) wait → unlock" || producer의 "lock → while(count==1) wait → put → signal → unlock" || 기다리는 쪽 패턴
+|-
+| `thr_exit()`의 "lock → done=1 → signal → unlock" || consumer의 "lock → get → signal → unlock" (동시에 자기도 기다리는 쪽) || 깨우는 쪽 패턴
+|}
+
+그래서 §4에서 나올 '''버그 두 개(§4-2, §4-4)는 "재료가 빠져서"가 아니라''' — 재료는 다 있다 — '''"조건이 계속 바뀌고 기다리는 사람이 여럿"이라서 생기는 새 종류의 버그'''다: ① 깨어났는데 그 사이 조건이 또 바뀜(→ `if`가 아니라 `while`), ② signal이 엉뚱한 종류의 thread를 깨움(→ CV를 두 개로). §3의 버그(②③ 상태 변수·락 없음)와 §4의 버그(④⑤ if·CV 하나)가 '''서로 다른 층'''이라는 것을 §7 종합표에서 다시 확인하라.
+
+읽는 순서 제안: §4의 코드가 길게 느껴지면 '''producer 함수 하나만''' `thr_join()`과 나란히 놓고 보라. `while (count == 1) wait(&cond, &mutex)`는 `while (done == 0) wait(&c, &m)`와 글자만 다르다.{/tip}
+
 {def}p.16 원문: "Assumes a '''bounded buffer'''" · Producer: "Produce data items, wish to place data items in a buffer" · Consumer: "Grab data items out of the buffer, consume them in some way"
 Example: '''Multi-threaded web server''' — "A producer puts HTTP requests in to a work queue; consumer threads take requests out of this queue and process them"
 p.17: `grep foo file.txt | wc -l` — "The grep process is the producer. The wc process is the consumer. Between them is an '''in-kernel bounded buffer'''." "Bounded buffer is '''Shared resource''' → Synchronized access is required."{/def}
