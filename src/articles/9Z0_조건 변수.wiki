@@ -430,6 +430,10 @@ p.17: `grep foo file.txt | wc -l` — "The grep process is the producer. The wc 
 {warn}🔥 '''무엇이 고장나는가''': Tp가 Tc1을 깨운 뒤(Ready로 옮긴 뒤) '''Tc1이 실제로 실행되기 전에''' Tc2가 끼어들어(sneaks in) 하나뿐인 값을 가져갔다. Tc1이 락을 다시 잡고 wait에서 돌아오면 `if`라서 '''조건을 다시 보지 않고''' 바로 c4 `get()` → '''`assert(count == 1)` 실패'''.
 원인 한 줄: "'''after the producer woke Tc1, but before Tc1 ever ran, the state of the bounded buffer changed''' (thanks to Tc2)."{/warn}
 
+위 표를 '''한 줄씩 디버거처럼 밟아 보려면''' 아래 시뮬레이터. 기본 선택 "if + CV 1개 (Fig 30.8 → trace 30.9)"가 바로 이 표다. 각 스텝에서 `count`, `cv cond 대기 큐`, 세 스레드의 상태를 보면서 '''Tc1이 Ready가 된 뒤 Tc2가 먼저 get하는 순간'''을 확인하라. 드롭다운을 "while + CV 1개"로 바꾸면 §4-4의 Fig 30.11(셋 다 잠듦), "while + CV 2개"로 바꾸면 §4-5의 정답이 된다.
+
+[[sim:producer_consumer]]
+
 === 4-3. Spurious wakeup — Mesa vs Hoare semantics (p.22) ⭐⭐⭐ ===
 
 [[img:L10-22.png|p.22 Thread Trace: Broken Solution (Version 1) — 교수님 슬라이드는 이 현상을 "Spurious wakeup" 제목 아래 Mesa semantics로 설명한다. 2025F 기출 용어|large]]
