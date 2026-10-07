@@ -1,0 +1,98 @@
+key: 데드락 avoidance
+title: Deadlock avoidance (스케줄링으로 피하기)
+category: 12강 Deadlock, 용어
+---
+'''Deadlock avoidance'''는 코드를 고치는 대신, '''어떤 스레드가 어떤 락을 잡을지 미리 알고''' 그 정보로 스레드를 CPU에 배치(스케줄)해서 데드락이 생길 수 없는 실행 순서만 고르는 방법이다. prevention(정적, static)과 함께 "애초에 데드락 상태에 들어가지 않게 하는" Method 1의 한 갈래(동적, dynamic)이다. '''12강 p.25~28''' 기준.
+
+{def}p.25 원문: "Deadlock '''prevention''' provides '''strong guarantees''': No possibility of deadlock"
+"Deadlock '''avoidance''' provides '''mild guarantee''': Assign resource in a way that guarantees we will never get into a deadlock situation / Require some '''global knowledge of which locks various threads might grab''' during their execution"
+p.28: "Deadlock avoidance often results in '''performance penalty'''" · "Avoidance of deadlock via scheduling is '''not a widely-used general-purpose solution'''"{/def}
+
+{analogy}🎭 '''주방장의 화구 배정'''. 요리사마다 어떤 냄비(락)를 쓸지 주방장이 '''미리 메뉴판을 보고''' 안다. "파스타와 리조또는 둘 다 큰 냄비·작은 냄비가 필요하니 '''같은 화구에서 차례로''' 하고, 샐러드는 냄비가 필요 없으니 옆 화구에서 하라." 이렇게 배정하면 냄비 쟁탈전은 안 생긴다. 하지만 큰 냄비를 쓰는 메뉴가 셋이면 셋이 '''한 줄로''' 서야 해서 주방이 느려진다(performance penalty). 그리고 메뉴판이 없는 손님(전역 정보 없음)에게는 쓸 수 없다.{/analogy}
+
+== 1. Prevention vs Avoidance (p.25) ==
+
+{|
+! || Deadlock prevention (p.14~24) || Deadlock avoidance (p.25~28)
+|-
+| 성격 || static — 코드/규칙을 바꿔 4조건 중 하나를 깸 || dynamic — 실행 시 스케줄링으로 위험한 동시 실행을 피함
+|-
+| 보장 || '''strong''': "No possibility of deadlock" || '''mild''': 자원 배정이 데드락 상황에 들어가지 않게 함
+|-
+| 필요한 것 || 프로그래머의 규율 ("Mostly done by programmers") || '''전역 정보''': 각 스레드가 어떤 락을 잡는지
+|-
+| 누가 || 프로그래머 || [[스케줄러]]
+|}
+
+== 2. Example-1 (p.26) ⭐⭐ ==
+
+[[img:L12-26.png|p.26 Example-1 — 락 사용 표(T1·T2: L1·L2, T3: L2만, T4: 없음)와 deadlock-free 스케줄: CPU 1 = T3 → T4, CPU 2 = T1 → T2|large]]
+
+"Four threads running on two CPUs":
+{|
+! || T1 || T2 || T3 || T4
+|-
+| L1 || yes || yes || no || no
+|-
+| L2 || yes || yes || yes || no
+|}
+
+* T1과 T2는 L1·L2를 "in some order"로 잡는다 → '''둘이 동시에 돌면''' p.10처럼 데드락이 날 수 있다.
+* 그래서 스케줄러는 '''T1과 T2를 같은 CPU에서 차례로''' 돌린다. 둘이 동시에 실행되지 않으면 서로 엇갈려 잡을 수 없다.
+* T3는 L2 하나만 잡는다. 락이 하나뿐이면 hold and wait가 없으므로 T1·T2와 '''겹쳐 돌아도''' 데드락이 생기지 않는다(잠깐 기다릴 수는 있어도). T4는 락이 없다.
+
+<pre class="ascii">
+ Example-1 deadlock-free schedule (p.26)
+           lock L2 ↓   ↓ unlock L2
+ CPU 1 │ [===== T3 =====][==== T4 ====]
+ CPU 2 │ [======= T1 =======][========= T2 =========]
+          ↑lock L1 ↑lock L2   ↑lock L2 ↑lock L1
+             unlock L2·L1 ↑      unlock L1·L2 ↑
+ → T1 과 T2 는 절대 '''겹치지 않는다''' (같은 CPU 에서 직렬)
+</pre>
+
+== 3. Example-2 (p.27) ⭐⭐ ==
+
+"T1, T2, T3 grab locks L1 and L2 in some order / T4 grabs no locks at all":
+{|
+! || T1 || T2 || T3 || T4
+|-
+| L1 || yes || yes || yes || no
+|-
+| L2 || yes || yes || yes || no
+|}
+
+<pre class="ascii">
+ Example-2 deadlock-free schedule (p.27)
+ CPU 1 │ [=== T4 ===]                (나머지는 놀고 있음)
+ CPU 2 │ [===== T1 =====][===== T2 =====][===== T3 =====]
+          L1→L2           L2→L1           L2→L1
+ → 락을 둘 다 잡는 T1·T2·T3 는 '''전부 CPU 2 에서 한 줄로'''
+</pre>
+
+L1·L2를 둘 다 잡는 스레드가 셋이나 되니, 어떤 둘을 겹쳐도 위험하다. 그래서 '''셋을 모두 CPU 2에 몰아 직렬로''' 돌리고, CPU 1은 락이 없는 T4만 돌린 뒤 논다.
+
+== 4. 성능 문제 (p.28) ⭐⭐⭐ ==
+
+[[img:L12-28.png|p.28 Example-2를 모든 스레드가 L1 → L2 순서(빨간 글씨)로 잡도록 고쳐도, avoidance 스케줄러는 T1·T2·T3를 여전히 CPU 2에서 직렬로 돌린다|large]]
+
+p.28 원문: "In the previous example-2, '''assume that all the threads guarantee no deadlock'''" — 즉 T1·T2·T3가 모두 [[lock ordering]]을 지켜 L1 → L2로 잡도록 '''이미 안전하게 작성'''되어 있다 해도,
+* "'''T1, T2, and T3 cannot run concurrently'''" — avoidance 스케줄러는 "L1·L2를 둘 다 잡는다"는 정보만 보고 여전히 셋을 직렬화한다.
+* 결과: CPU 1은 T4가 끝나면 '''놀고''', 전체 완료 시간은 T1+T2+T3. 병렬성을 통째로 잃는다.
+* 그래서 "Avoidance of deadlock via scheduling is '''not a widely-used general-purpose solution'''." — 임베디드처럼 실행할 작업과 락을 '''미리 완전히 아는''' 제한된 환경에서만 쓰인다.
+
+{tip}💡 OSTEP 32장은 Dijkstra의 '''Banker's Algorithm'''을 이런 스케줄링 기반 avoidance의 고전 예로 소개한다. 핵심 전제는 동일하다 — 각 작업이 필요로 할 자원을 미리 알아야 한다.{/tip}
+
+{quiz}(서술) p.26 Example-1에서 T3를 T1·T2와 다른 CPU에서 동시에 돌려도 되는 이유는?{/quiz}
+{answer}T3는 L2 '''하나만''' 잡으므로, 락을 쥔 채 다른 락을 기다리는 일(hold and wait)이 없다. 따라서 T3를 포함한 고리(circular wait)가 생길 수 없다. 데드락 위험은 L1·L2를 둘 다 잡는 T1과 T2가 '''동시에''' 실행될 때뿐이므로, 그 둘만 같은 CPU에서 차례로 돌리면 된다.{/answer}
+
+{quiz}(단답) prevention과 avoidance가 제공하는 보장의 강도를 슬라이드 표현으로 쓰고, avoidance가 널리 쓰이지 않는 이유를 쓰라.{/quiz}
+{answer}Prevention: '''strong guarantees''' (No possibility of deadlock). Avoidance: '''mild guarantee'''. Avoidance는 ① 각 스레드가 잡을 락에 대한 '''global knowledge'''가 필요하고 ② 안전하게 작성된 스레드도 동시에 못 돌리는 등 '''performance penalty'''가 커서 general-purpose 해법이 아니다.{/answer}
+
+== 🎙 10/7 수업 (녹음본 기준) ==
+
+{exam}🎯 교수(10/7): "prevention은 조건을 없애 '''강한 보장'''. avoidance는 4조건이 다 성립해도 '''문제되는 순서(schedule)만''' 시스템에서 뺀다 — 데드락은 락 획득 순서에 달렸고 그것은 스케줄의 문제. '''약한 보장'''이고, 각 스레드가 어떤 락을 잡는지 '''global knowledge'''가 필요하다. Example-1: T1·T2가 충돌 가능 → 둘은 '''직렬''', T3·T4는 동시 가능 → CPU1에 T3→T4, CPU2에 T1→T2. Example-2: T3도 L1·L2를 쓰면 T1·T2·T3 전부 직렬 → 성능 손해(T3가 짧다면 T1 직후에 끼워 넣을 수도 있었는데 못 한다). 요구 사항이 너무 많아 현실적이지 않지만 '''유명하니 알아 둘 것'''."{/exam}
+
+== 관련 문서 ==
+* [[데드락]] · [[데드락 4조건]] · [[데드락 detection]] · [[lock ordering]]
+* [[스케줄러]] · [[멀티프로세서 스케줄링]] · [[락]]

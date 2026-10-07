@@ -1,0 +1,78 @@
+key: 데드락 4조건
+title: 데드락 4조건 (Deadlock Characterization)
+category: 12강 Deadlock, 용어, 기출
+---
+'''데드락 4조건'''은 "어떤 상황에서 [[데드락]]이 생길 수 있는가"를 네 개의 필요조건으로 정리한 것이다. '''네 조건이 동시에(simultaneously) 성립할 때만''' 데드락이 생길 수 있으므로, 거꾸로 '''하나만 깨도''' 데드락은 생기지 않는다 — 12강 p.14~24의 deadlock prevention 기법 네 가지가 바로 이 네 조건을 하나씩 깨는 방법이다. '''12강 p.10~12, p.14''' 기준.
+
+{def}p.12 원문: "Deadlock can arise if '''four conditions hold simultaneously'''"
+# '''Mutual exclusion''': Threads claim exclusive control of resources that they require (e.g., a thread grabs a lock)
+# '''Hold and wait''': Threads hold resources allocated to them (e.g., locks that they have already acquired) while waiting for additional resources (e.g., locks that they wish to acquire)
+# '''No preemption''': Resources (e.g., locks) cannot be forcibly removed from threads that are holding them
+# '''Circular wait''': There exists a circular chain of threads such that each thread holds one or more resources (e.g., locks) that are being requested by the next thread in the chain{/def}
+
+{analogy}🎭 '''좁은 외나무다리 위의 두 사람'''. ① 다리 한 칸에는 한 사람만 설 수 있고(mutual exclusion) ② 둘 다 이미 선 자리를 지킨 채 앞 칸을 기다리며(hold and wait) ③ 남을 밀어서 떨어뜨릴 수 없고(no preemption) ④ A는 B가 선 칸을, B는 A가 선 칸을 원한다(circular wait). 넷 중 하나라도 없으면 — 한 칸에 둘이 설 수 있거나, 한 명이 뒤로 물러나거나, 밀어낼 수 있거나, 애초에 같은 방향으로 걷는다면 — 둘은 빠져나간다.{/analogy}
+
+== 1. 예: 두 락을 반대 순서로 잡기 (p.10~11) ==
+
+<pre class="c">
+              T0                              T1
+1 pthread_mutex_lock(L1);        1 pthread_mutex_lock(L2);
+2 pthread_mutex_lock(L2);        2 pthread_mutex_lock(L1);
+3                                3
+4 ...                            4 ...
+5                                5
+6 pthread_mutex_unlock(L2);      6 pthread_mutex_unlock(L1);
+7 pthread_mutex_unlock(L1);      7 pthread_mutex_unlock(L2);
+</pre>
+
+T0가 1번 줄에서 L1을 잡은 직후 [[컨텍스트 스위치]]가 일어나 T1이 1번 줄에서 L2를 잡으면, 두 스레드 모두 2번 줄에서 상대가 쥔 락을 영원히 기다린다. p.10: "Mutexes, L1 and L2, are '''also shared resources''' here" — 락 자체도 경쟁 대상인 자원이다.
+
+[[img:L12-11.png|p.11 Holds / Wanted by 그래프 — T0 → L1 → T1 → L2 → T0 의 고리가 바로 circular wait|large]]
+
+{info}p.11 원문: "T0 is holding a lock L1 and waiting for another one, L2 / T1 that holds L2 is waiting for L1 to be release". 그래프에서 '''스레드 → 락''' 화살표는 Holds, '''락 → 스레드''' 화살표는 Wanted by. 화살표를 따라가다 출발점으로 돌아오면 고리(cycle)다.{/info}
+
+== 2. 네 조건과 깨는 방법 (p.12, p.14~24) ⭐⭐⭐ ==
+
+p.14 원문: "A deadlock cannot occur if '''any of the four conditions are not met''' … Preventing one of the four conditions is a way of handling the deadlock problem! — '''Mostly done by programmers'''"
+
+{|
+! 조건 || 위 예(락)에서 || 깨는 방법 (deadlock prevention) || 슬라이드 · 문서
+|-
+| '''Mutual exclusion''' || L1·L2는 한 번에 한 스레드만 잡는다 || 락 자체를 없앤다 — 강력한 HW 명령(CompareAndSwap)으로 lock-free 자료구조 || p.22~24 · [[lock-free]]
+|-
+| '''Hold and wait''' || T0는 L1을 쥔 채 L2를 기다린다 || 모든 락을 '''한 번에, atomic 하게''' 잡는다 (전역 `prevention` 락) || p.17 · [[hold and wait 방지]]
+|-
+| '''No preemption''' || T1이 쥔 L2를 T0가 뺏을 수 없다 || `pthread_mutex_trylock()` 실패 시 '''이미 쥔 락을 스스로 놓는다''' || p.18~21 · [[trylock]] (부작용 [[livelock]])
+|-
+| '''Circular wait''' || T0: L1→L2, T1: L2→L1 로 고리 || 락 획득에 '''total ordering''' — 항상 L1 다음 L2 || p.15~16 · [[lock ordering]]
+|}
+
+슬라이드의 prevention 소제목 번호는 '''p.12 조건 번호의 역순'''이다: 1. Circular Wait(p.15) → 2. Hold and Wait(p.17) → 3. No Preemption(p.18) → 4. Mutual Exclusion(p.22). "조건 1번 = mutual exclusion"과 "prevention 1번 = circular wait"를 헷갈리지 말 것.
+
+{tip}💡 실전에서 가장 많이 쓰는 것은 '''circular wait 깨기([[lock ordering]])'''다. [[dining philosophers]]에서 철학자 4만 포크 순서를 바꾼 것, [[sloppy counter]]에서 모든 락을 "in a specified order"로 잡는 것이 모두 이 방법이다.{/tip}
+
+== 3. 기출: 2025F Problem 1-c ==
+
+{exam}🎯 '''2025F 중간고사 Problem 1-c''' (5지선다): "Which one is '''not''' a condition of deadlock?"
+① Mutual exclusion ② Hold and wait ③ No preemption ④ Circular wait ⑤ '''Busy wait''' → 정답 '''⑤'''
+'''Busy wait'''는 [[spin lock]]이 락을 기다리는 '''방식'''(CPU를 돌리며 계속 검사)일 뿐, 데드락의 조건이 아니다. 오히려 busy wait 하는 스레드는 데드락이 아니어도 CPU를 낭비한다. → [[2025F 중간고사 족보]]{/exam}
+
+{warn}⚠️ 함정 후보: "Starvation", "Busy wait", "Priority inversion", "Race condition"은 모두 동시성 문제이지만 '''데드락 4조건이 아니다'''. 4조건 이름은 영어 그대로 — '''M'''utual exclusion · '''H'''old and wait · '''N'''o preemption · '''C'''ircular wait — 외울 것.{/warn}
+
+{quiz}(T/F) 네 조건 중 세 가지만 성립해도 데드락이 생길 수 있다.{/quiz}
+{answer}'''False'''. p.12: "Deadlock can arise if four conditions hold '''simultaneously'''." 하나라도 성립하지 않으면 데드락은 생기지 않는다 (p.14).{/answer}
+
+{quiz}(정의→용어) "There exists a circular chain of threads such that each thread holds one or more resources that are being requested by the next thread in the chain"은 무엇인가? (2 words){/quiz}
+{answer}'''Circular wait'''.{/answer}
+
+{quiz}(서술) p.10의 T0·T1 코드에서 네 조건이 각각 어떻게 성립하는지 한 줄씩 쓰라.{/quiz}
+{answer}Mutual exclusion: L1·L2는 mutex라 한 스레드만 쥔다. Hold and wait: T0는 L1을 쥔 채 L2를, T1은 L2를 쥔 채 L1을 기다린다. No preemption: 상대가 쥔 락을 강제로 빼앗을 수 없다. Circular wait: T0 → (L2를 쥔) T1 → (L1을 쥔) T0 의 고리.{/answer}
+
+== 🎙 10/7 수업 ==
+
+녹음이 p.15부터라 p.12 설명은 없지만, 뒷부분에서 교수님이 조건을 깨는 네 방법을 하나씩 다루며 "'''4조건 중 하나만 없애면 데드락은 불가능하다'''"(prevention = 강한 보장)와 "avoidance는 '''조건을 다 남긴 채''' 위험한 순서만 피한다"(약한 보장)를 대비시켰다. → [[데드락]] 🎙 절.
+
+== 관련 문서 ==
+* [[데드락]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[lock-free]]
+* [[livelock]] · [[데드락 avoidance]] · [[데드락 detection]]
+* [[mutual exclusion]] · [[spin lock]] · [[dining philosophers]] · [[2025F 중간고사 족보]]

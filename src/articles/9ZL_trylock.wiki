@@ -1,0 +1,100 @@
+key: trylock
+title: trylock (pthread_mutex_trylock, no preemption 방지)
+category: 12강 Deadlock, 용어
+---
+'''`pthread_mutex_trylock()`'''은 락을 '''기다리지 않고 한 번만 시도'''하는 함수다. 비어 있으면 잡고 0을 돌려주고, 누가 쥐고 있으면 즉시 실패를 돌려준다. 이것으로 "다음 락을 못 잡으면 '''이미 쥔 락을 스스로 놓고''' 처음부터 다시"라는 back-off를 만들면 [[데드락 4조건]] 중 '''no preemption'''이 깨진다 — 남이 빼앗는 대신 '''스스로 내놓는''' 방식의 preemption이다. 12강 prevention의 세 번째("3. No Preemption"), '''12강 p.18~21''' 기준.
+
+{def}p.18 원문: "If a thread T0 holding resources asks another resource that cannot be immediately allocated to it, '''all the resources currently being held by T0 are released'''"
+"pthread_mutex_trylock(): Grab the lock, if it is available (i.e., trylock() '''returns 0''') / Or, '''return -1''': you should try again later"{/def}
+
+{analogy}🎭 '''양손에 짐 들고 문 열기'''. 왼손에 상자(L1)를 든 채 오른손으로 문고리(L2)를 돌려 봤는데 잠겨 있다. 그 자리에 서서 기다리면 반대편에서 같은 일을 하는 사람과 영원히 마주 선다. 그래서 '''상자를 일단 내려놓고(unlock L1) 처음부터 다시''' 한다. 내려놓는 순간 상대가 상자를 가져가 일을 마칠 수 있다.{/analogy}
+
+== 1. 기본 패턴 (p.18) ⭐⭐ ==
+
+<pre class="c">
+1 top:
+2   pthread_mutex_lock(L1);
+3   if (pthread_mutex_trylock(L2) == -1) {
+4       pthread_mutex_unlock(L1);
+5       goto top;
+6   }
+</pre>
+
+* '''2번 줄''': 첫 락 L1은 보통 lock으로 (기다려도 됨 — 아무것도 쥐지 않았으니).
+* '''3번 줄''': 두 번째 락 L2는 '''trylock'''. 성공(0)이면 if를 건너뛰고 둘 다 쥔 채 진행.
+* '''4번 줄''': 실패(−1)면 '''쥐고 있던 L1을 놓는다''' — 이 줄이 "all the resources currently being held by T0 are released"다.
+* '''5번 줄''': `goto top`으로 처음부터 다시.
+
+{info}슬라이드 표기: 반환값을 −1로 쓴 것은 슬라이드(OSTEP 32장) 관례다. 실제 POSIX `pthread_mutex_trylock()`은 실패 시 '''`EBUSY`''' 같은 0이 아닌 에러 코드를 돌려준다. 시험에서는 슬라이드대로 "성공 0 / 실패 −1"로 답하면 된다.{/info}
+
+== 2. 두 스레드 예 (p.19) ==
+
+[[img:L12-19.png|p.19 No Preemption Example — T0은 L1 → trylock(L2), T1은 L2 → trylock(L1). 실패하면 쥔 락을 release 하고 top으로|large]]
+
+<pre class="c">
+              T0                                       T1
+1 top:                                    1 top:
+2 pthread_mutex_lock(L1);                 2 pthread_mutex_lock(L2);
+3 if (pthread_mutex_trylock(L2) == -1) {  3 if (pthread_mutex_trylock(L1) == -1) {
+4     pthread_mutex_unlock(L1); // release 4     pthread_mutex_unlock(L2); // release
+5     goto top;                           5     goto top;
+6 }                                       6 }
+4 ...                                     4 ...
+5 pthread_mutex_unlock(L2);               5 pthread_mutex_unlock(L1);
+6 pthread_mutex_unlock(L1);               6 pthread_mutex_unlock(L2);
+</pre>
+
+T0와 T1은 [[lock ordering]]과 달리 '''반대 순서'''(L1→L2 / L2→L1)로 잡는다. 그래도 '''데드락은 없다''': 둘이 각각 L1·L2를 쥔 순간이 와도, 3번 줄의 trylock이 '''막히지 않고''' −1을 돌려주므로 둘 다 자기 락을 놓고 물러난다. 기다리며 쥐고 있는(hold and wait + no preemption) 상태가 오래 유지되지 않는다.
+
+{warn}⚠️ 그런데 둘이 '''계속 똑같은 박자로''' 잡고·실패하고·놓기를 반복하면 아무도 진행하지 못한다 → '''[[livelock]]''' (p.20, 2025F 기출). 해결은 "'''Add a random delay''' before looping back".{/warn}
+
+== 3. 함정: 중간에 얻은 다른 자원도 놓아야 한다 (p.21) ⭐ ==
+
+p.21 원문: "This type of approach could work well in '''limited circumstances'''. If the code had acquired some resources (other than L1) along the way, it must make sure to '''carefully release them as well'''. For example, if after acquiring L1, the code had allocated some memory, it would have to release that memory upon failure to acquire L2."
+
+<pre class="c">
+ 1 top:
+ 2   pthread_mutex_lock(L1);
+ 3     ...
+ 4   /* computation */
+ 5     ptr = malloc(4096);
+ 6   /* computation */
+ 7     ...
+ 8   if (pthread_mutex_trylock(L2) == -1) {
+ 9       free(ptr);
+10       pthread_mutex_unlock(L1);
+11       goto top;
+12   }
+</pre>
+
+* '''5번 줄''': L1을 쥔 뒤 [[힙]]에 4096바이트를 할당했다.
+* '''9번 줄''': L2 획득에 실패해 돌아갈 때 '''`free(ptr)`도 해야''' 한다. 빼먹으면 `goto top`을 돌 때마다 4096바이트씩 '''memory leak'''.
+* 즉 "처음부터 다시"가 가능하려면 L1 이후에 한 '''모든 일을 되돌릴 수 있어야''' 한다 → 그래서 "limited circumstances"에서만 잘 동작한다.
+
+== 4. 정리 ==
+
+{|
+! || 내용
+|-
+| 깨는 조건 || '''No preemption''' (스스로 내놓기)
+|-
+| 핵심 API || `pthread_mutex_trylock()` — 성공 0, 실패 −1 (기다리지 않음)
+|-
+| 장점 || 락 순서가 제각각이어도 데드락이 없다
+|-
+| 단점 || [[livelock]] 가능 (→ random delay), 중간에 얻은 자원(메모리 등)도 되돌려야 함, 재시도 비용
+|}
+
+{quiz}(단답) `pthread_mutex_trylock()`의 반환값 의미를 슬라이드 기준으로 쓰라.{/quiz}
+{answer}락이 비어 있으면 잡고 '''0''', 이미 잡혀 있으면 '''−1'''을 돌려준다(기다리지 않음). −1이면 "you should try again later".{/answer}
+
+{quiz}(코드 버그) p.21 코드에서 9번 줄 `free(ptr);`를 빼면 어떤 문제가 생기는가?{/quiz}
+{answer}trylock이 실패해 `goto top`으로 돌아갈 때마다 5번 줄에서 새로 `malloc`하므로, 이전 할당이 해제되지 않고 쌓인다 → '''memory leak'''. 획득 실패 시에는 L1뿐 아니라 그 사이에 얻은 '''모든 자원'''을 놓아야 한다.{/answer}
+
+== 🎙 10/7 수업 (녹음본 기준) ==
+
+{exam}🎯 교수(10/7): "L2를 못 잡으면 L1을 놓는다 — L2를 쥔 쪽에게 L1을 '''양보'''하는 것이라 no preemption을 깬다. 6번 줄을 지나면 두 락을 다 쥔 것이 보장되고, 못 쥐면 놓는 것도 보장된다. T1은 L2를 쥔 채 L1을 기다리지 않으니 '''항상 진행'''이 있다. 단점 둘: ① [[livelock]] ② L1과 L2 사이에서 한 계산·malloc을 놓을 때 '''전부 되돌려야''' 해서 코드가 커진다 — 그래서 널리 못 쓴다."{/exam}
+
+== 관련 문서 ==
+* [[데드락]] · [[데드락 4조건]] · [[livelock]] · [[lock ordering]] · [[hold and wait 방지]] · [[lock-free]]
+* [[락]] · [[힙]] · [[spin lock]]

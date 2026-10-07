@@ -1,0 +1,73 @@
+key: lock ordering
+title: Lock ordering (circular wait 방지)
+category: 12강 Deadlock, 용어
+---
+'''Lock ordering'''은 모든 스레드가 락을 '''같은 전역 순서(total ordering)'''로만 잡도록 정해 [[데드락 4조건]] 중 '''circular wait'''를 깨는 deadlock prevention 기법이다. 12강 prevention 네 가지 중 첫 번째("1. Circular Wait")이며, 실전에서 가장 널리 쓰인다. '''12강 p.15~16''' 기준.
+
+{def}p.15 원문: "Provide a '''total ordering on lock acquisition'''"
+"This approach requires '''careful design of global locking strategies'''"
+"There are two locks in the system (L1 and L2) — We can prevent deadlock by '''always acquiring L1 before L2'''"
+p.16: "Circular wait does not exist after the code change"{/def}
+
+{analogy}🎭 '''회의실 예약 규칙'''. 회의실이 A동·B동 두 곳 필요한 팀들이 제각각 "B부터 잡고 A"와 "A부터 잡고 B"로 예약하면, 한 팀은 A를 쥐고 B를, 다른 팀은 B를 쥐고 A를 기다리며 둘 다 회의를 못 연다. 총무팀이 "'''무조건 A동 먼저'''"라는 규칙 하나만 정하면, A를 놓친 팀은 B에 손도 대지 않고 기다리므로 서로 물고 늘어지는 고리가 생길 수 없다.{/analogy}
+
+== 1. 코드: 둘 다 L1 → L2 (p.15) ⭐⭐ ==
+
+<pre class="c">
+              T0                              T1
+1 pthread_mutex_lock(L1);        1 pthread_mutex_lock(L1);
+2 pthread_mutex_lock(L2);        2 pthread_mutex_lock(L2);
+3                                3
+4 ...                            4 ...
+5                                5
+6 pthread_mutex_unlock(L2);      6 pthread_mutex_unlock(L2);
+7 pthread_mutex_unlock(L1);      7 pthread_mutex_unlock(L1);
+</pre>
+
+* p.10의 데드락 예에서는 T1이 '''L2 → L1''' 순서였다. 이를 T0와 같은 '''L1 → L2'''로 바꾼 것이 전부다.
+* 1번 줄: 둘 중 '''먼저 L1을 잡은 스레드만''' 2번 줄로 간다. 다른 스레드는 1번 줄에서 '''아무 락도 쥐지 않은 채''' 기다린다.
+* 그래서 "L2를 쥔 채 L1을 기다리는" 스레드가 존재할 수 없다 → 고리가 생기지 않는다.
+* 6~7번 줄의 unlock 순서(L2 → L1)는 데드락과 무관하다. 놓는 동작은 기다림을 만들지 않기 때문이다.
+
+== 2. 그래프로 보기 (p.16) ==
+
+[[img:L12-16.png|p.16 왼쪽: T0 → L1 → T1 → L2 → T0 "Circle". 오른쪽(코드 변경 후): T0가 L1·L2를 모두 Holds, T1은 L1을 Wanted by — 고리 없음|large]]
+
+<pre class="ascii">
+ 변경 전 (p.10)                       변경 후 (p.15)
+ T0 ──Holds──▶ L1                     T0 ──Holds──▶ L1
+ ▲              │ Wanted by           │              │ Wanted by
+ Wanted by      ▼                     Holds          ▼
+ L2 ◀──Holds── T1    '''Circle!'''          ▼              T1   (아무것도 안 쥐고 대기)
+                                      L2
+</pre>
+
+{tip}💡 왜 "total" ordering인가: 락이 L1, L2, L3 … 여러 개면 '''모든 쌍'''에 대해 순서가 정해져 있어야 한다. 고리가 생기려면 누군가는 "순서상 뒤의 락을 쥔 채 앞의 락을 기다려야" 하는데, 모두가 앞의 락부터 잡으면 그런 스레드가 없다.{/tip}
+
+== 3. 다른 곳에서 본 lock ordering ==
+
+{|
+! 어디 || 무엇을 || 정한 순서
+|-
+| [[dining philosophers]] (11강 p.39~40) || 포크 = 세마포어 5개 || P4만 '''right(f0) → left(f4)'''. 포크 번호로 보면 다섯 명 모두 "작은 번호 → 큰 번호"가 되어 total ordering이 된다 — 같은 아이디어
+|-
+| [[sloppy counter]] (OSTEP 29장) || 모든 local 락 + global 락 || 정확한 값을 읽으려면 "acquire all the local locks and the global lock (in a specified order, to avoid deadlock)"
+|-
+| 실전 (OSTEP 32장) || 락 두 개를 인자로 받는 함수 || 락 '''주소''' 크기로 순서를 고정 (`if (m1 > m2)` 면 m1 먼저)
+|}
+
+{warn}⚠️ 한계: p.15 "This approach '''requires careful design of global locking strategies'''." 순서는 '''모든 코드가''' 지켜야 의미가 있다. 한 곳이라도 역순으로 잡으면 고리가 다시 생긴다. 락이 많고 모듈이 여러 사람 손을 거치면 지키기 어렵다.{/warn}
+
+{quiz}(코드) p.10의 데드락 코드를 lock ordering으로 고쳐라.{/quiz}
+{answer}T1의 1·2번 줄을 `pthread_mutex_lock(L1); pthread_mutex_lock(L2);`로 바꿔 T0와 '''같은 순서(L1 → L2)'''로 잡는다. unlock 순서는 상관없다.{/answer}
+
+{quiz}(단답) lock ordering이 깨는 데드락 조건은?{/quiz}
+{answer}'''Circular wait'''. 나머지 세 조건(mutual exclusion, hold and wait, no preemption)은 여전히 성립하지만 고리가 없으니 데드락은 생기지 않는다.{/answer}
+
+== 🎙 10/7 수업 (녹음본 기준) ==
+
+{exam}🎯 교수(10/7): "total ordering을 주면 모두 L1을 먼저 쥐어야 L2를 쥘 수 있으니 '''circular dependency를 만들 수 없다'''. 매우 효과적이지만 '''항상 가능한 것은 아니다'''. 락은 공유 자원을 보호하는데, 스레드 1은 자원 A를 봐야 B에 접근할지 알고 스레드 2는 B를 봐야 A에 접근할지 안다면 '''자원 사이에 자연스러운 의존 관계'''가 있어서 semantics상 순서를 정할 수 없다. 그럴 땐 다른 prevention을 쓴다." → "lock ordering이 불가능한 경우를 설명하라"에 대비.{/exam}
+
+== 관련 문서 ==
+* [[데드락]] · [[데드락 4조건]] · [[hold and wait 방지]] · [[trylock]] · [[lock-free]]
+* [[dining philosophers]] · [[sloppy counter]] · [[락]]

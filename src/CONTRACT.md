@@ -93,6 +93,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 락 · 락 평가 기준 · flag 락 · 인터럽트 비활성화 · test-and-set · spin lock · compare-and-swap · load-linked store-conditional · fetch-and-add · ticket lock · yield 락 · queue 락 · park와 unpark · setpark · futex · two-phase lock · guard · priority inversion
 ### 10강 Condition Variable / 11강 Semaphore (+ OSTEP 29장 락 기반 자료구조) — 파일 접두어 `9Z0_`~`9ZH_` (9강 뒤·과제 앞에 정렬되도록). 슬라이드 `10-CondVar_Semaphore.pdf` 64쪽 = `_slides/L10-{pp}.png`(9/28 수업 p.1~29). `11-Semaphore.pdf` 42쪽 = `_slides/L11-{pp}.png`(9/30 수업 전부; 10강 p.30~62를 떼어 낸 덱 + 새 페이지 p.6~7, p.9~13. 10강 p.N = 11강 p.N−22 (N≥36), p.31~34→2~5, p.35→8). 세마포어·rwlock·dining philosophers·데드락 문서는 11강 번호를 쓴다
 조건 변수 · wait와 signal · Mesa semantics · spurious wakeup · producer-consumer · bounded buffer · covering condition · broadcast · done flag 예제 · 락 기반 자료구조 · sloppy counter · concurrent linked list · concurrent queue · concurrent hash table · 세마포어 · reader-writer lock · 데드락 · dining philosophers
+### 12강 Deadlock — 파일 접두어 `9ZG_`(허브)·`9ZI_`~`9ZP_`. 슬라이드 `12-Deadlock.pdf` 54쪽 = `_slides/L12-{pp}.png`(2026-10-07 수업; p.2~8 dining philosophers 복습, p.9~29 데드락, p.30~52 8~11강 Summary). 녹음은 p.15부터
+데드락 4조건 · lock ordering · hold and wait 방지 · trylock · livelock · lock-free · 데드락 avoidance · 데드락 detection
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -121,6 +123,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | cv_join | OSTEP 30장 부모-자식 join: done flag + lock + cv. 옵션 bug = none / no_state(flag 없이 cv만 → 자식이 먼저 signal 하면 부모 영원히 잠듦) / no_lock(락 없이 → flag 검사와 wait 사이 race) | 조건 변수, done flag 예제, wait와 signal |
 | producer_consumer | bounded buffer. 옵션 variant = if_1cv(소비자 2명 + if → 빈 버퍼 get, Mesa 버그) / while_1cv(while + cv 하나 → 셋 다 잠듦) / while_2cv(정답) , buffer = 1 / 3 | producer-consumer, bounded buffer, Mesa semantics, spurious wakeup |
 | sloppy_counter | 29장 approximate counter: CPU별 local 카운터가 threshold S 마다 global 로 flush. 옵션 S = 1 / 5 / 1024 | 락 기반 자료구조, sloppy counter |
+| deadlock_prevention | 12강 p.10/15/19/20/24: 옵션 variant = deadlock(반대 순서 → 둘 다 blocked, circular wait) / ordered(둘 다 L1→L2) / trylock(goto top 으로 진행) / livelock(같은 리듬 반복 → random delay 로 탈출) / atomic_increment(CAS 재시도, value 0→5→10) | 데드락, lock ordering, trylock, livelock, lock-free |
 | sem_trace | 11강 p.7/p.12/p.13 Thread Trace 표를 한 행씩: 옵션 trace = two_threads(binary semaphore, T1이 −1로 잠들고 wake) / join_case1(부모가 먼저 wait) / join_case2(자식이 먼저 post, 값 1로 기억) | 세마포어 |
 | sem_producer_consumer | 10강 p.37~47 세마포어 producer/consumer 네 시도. 옵션 attempt = none(동기화 없음, V#0 덮어쓰기) / empty_full(empty=MAX·full=0, 6번째 put 에서 empty −1 로 잠듦) / mutex_outside(mutex 를 empty/full 바깥에 → consumer 가 mutex 쥔 채 잠듦 → deadlock, p.45) / final(정답, mutex 안쪽) | 세마포어, producer-consumer |
 
@@ -215,5 +218,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | alarm_tick | sigalarm(3, handler): which_dev==2 tick 마다 alarm_elapsed 1·2·3 → alarm_saved=*trapframe → alarm_active=1, elapsed=0, epc=handler → sret 로 handler → handler 중 tick 안 셈 → sigreturn: *trapframe=alarm_saved, active=0, a0 반환(42) → 0x1234 재개 | 과제1 xv6 alarm, sigalarm |
 | cv_wait_signal | wait() 가 락을 놓고 잠들었다가 signal 로 깨어나 락을 다시 잡고 돌아오는 10초 — Mesa 라 깨어난 뒤 조건 재검사(while) | 조건 변수, wait와 signal, Mesa semantics |
 | bounded_buffer | 생산자 2·소비자 2, 버퍼 3칸: fill/use 포인터, count, empty/fill 두 cv 에서 자고 깨는 흐름 | producer-consumer, bounded buffer |
+| deadlock_cycle | 12강 p.10~16: T0·T1 이 L1·L2 를 반대 순서로 잡아 Holds/Wanted-by 화살표가 붉은 고리(circular wait) → lock ordering 으로 둘 다 L1→L2 → 고리 없음 | 데드락, lock ordering |
 | dining_philosophers | 다섯 철학자·포크 5개 원탁: ① 모두 왼쪽 포크 sem_wait → 오른쪽 대기 → 붉은 고리(circular wait → deadlock) ② p.61 해법: P4 만 right→left → P4 가 포크 0개로 대기 → f4 가 남아 P3 → P2 → P1 순으로 먹음 | dining philosophers, 데드락 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

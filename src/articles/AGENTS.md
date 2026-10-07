@@ -4,7 +4,7 @@
 # articles
 
 ## Purpose
-The 162 wiki articles, one per file. File name = `{정렬번호}_{key}.wiki`; the sort prefix groups them into nav sections (00 안내, 10 1–2강, 30 3강, 40 4강, 50 5강, 60 6강, 70 7강, 80 8강, 90 9강, 9Z 10강, A0 과제1, E0 시험/족보, Z0 용어사전).
+The 171 wiki articles, one per file. File name = `{정렬번호}_{key}.wiki`; the sort prefix groups them into nav sections (00 안내, 10 1–2강, 30 3강, 40 4강, 50 5강, 60 6강, 70 7강, 80 8강, 90 9강, 9Z 10강, A0 과제1, E0 시험/족보, Z0 용어사전).
 
 ## Key Files
 | File | Description |

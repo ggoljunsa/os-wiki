@@ -43,7 +43,8 @@ category: 안내
 # [[조건 변수]] — 9/28 수업 그대로. 시뮬레이터 두 개(cv_join 의 버그 변형 둘, producer_consumer 의 if→while→2cv 순서)를 반드시 돌려 볼 것. "왜 while 인가"를 [[Mesa semantics]] 한 줄로, "왜 bounded 인가"를 rate 한 줄로 말할 수 있으면 통과. 맨 끝 🎙 절의 ⭐ 8개가 시험 포인트.
 # [[세마포어]] — 9/30 수업 그대로(11강). 먼저 sem_trace 시뮬레이터로 p.7·p.12·p.13 표를 한 행씩 따라가고, sem_producer_consumer 시뮬레이터로 네 번의 시도(덮어쓰기 → empty/full → mutex 바깥 = [[데드락]] → 정답)를 돌려 보면 2025F Problem 6 이 풀린다.
 # [[reader-writer lock]] · [[dining philosophers]] — 슬라이드 코드 그대로. 애니메이션으로 circular wait 가 끊기는 순간을 볼 것.
-# 작년 시험에 나온 [[spurious wakeup]] · [[데드락]] 4조건. [[락 기반 자료구조]]는 참고만.
+# [[데드락]] — 12강(10/7, 중간 전 마지막). deadlock_prevention 시뮬레이터로 반대 순서 → lock ordering → trylock → livelock → CAS 다섯 변형을 돌려 보고, [[데드락 4조건]]을 영어로 외우면 통과. 마지막 §8 표가 교수님이 추린 동시성 복습 목록.
+# 작년 시험에 나온 [[spurious wakeup]] · [[livelock]]. [[락 기반 자료구조]]는 참고만.
 
 == 7단계 — 마무리 (1시간) ==
 # [[2025F 중간고사 족보]] — 작년 문제 유형과 이 위키의 어느 문서가 대응되는지.

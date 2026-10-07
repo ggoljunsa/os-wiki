@@ -1,0 +1,76 @@
+key: hold and wait 방지
+title: Hold and wait 방지 (모든 락을 한 번에)
+category: 12강 Deadlock, 용어
+---
+'''Hold and wait 방지'''는 필요한 락을 '''전부 한 번에, atomic 하게''' 잡도록 해서 "락 몇 개를 쥔 채 나머지를 기다리는" 상태를 없애는 deadlock prevention 기법이다. 방법은 단순하다: 락 획득 구간 전체를 '''전역 락 `prevention`''' 하나로 감싼다. [[데드락 4조건]] 중 '''hold and wait'''를 깬다. 12강 prevention의 두 번째("2. Hold and Wait"), '''12강 p.17''' 기준.
+
+{def}p.17 원문: "Acquire '''all''' locks at once, atomically"
+"This code guarantees that '''no untimely thread switch can occur in the midst of lock acquisition'''; Useful for debugging!"
+"Problems: When calling a routine, it requires us to '''know exactly which locks must be held and to acquire them ahead of time''' / '''Decrease concurrency'''!"{/def}
+
+{analogy}🎭 '''뷔페 접시 담기 줄'''. 접시·수저·컵을 각자 따로 집으러 다니면, 누구는 접시를 쥐고 수저를, 누구는 수저를 쥐고 접시를 기다릴 수 있다. 그래서 "'''입구 회전문(prevention)을 통과한 한 사람만''' 접시·수저·컵을 한꺼번에 집는다"고 정한다. 회전문 안에 있는 동안 아무도 끼어들지 못하니 엇갈려 집을 일이 없다. 대신 수저만 필요한 사람도 회전문 앞에서 줄을 서야 한다(concurrency 감소), 그리고 들어가기 전에 무엇이 필요한지 '''미리 다 알아야''' 한다.{/analogy}
+
+== 1. 코드 (p.17) ⭐⭐ ==
+
+[[img:L12-17.png|p.17 2. Hold and Wait — T0·T1이 1번 줄에서 prevention을 먼저 잡고 L1·L2를 잡는다. T1의 8번 줄은 슬라이드 오타(lock → unlock)|large]]
+
+<pre class="c">
+              T0                                    T1
+1 pthread_mutex_lock(prevention);      1 pthread_mutex_lock(prevention);
+2 pthread_mutex_lock(L1);              2 pthread_mutex_lock(L2);
+3 pthread_mutex_lock(L2);              3 pthread_mutex_lock(L1);
+4                                      4
+4 ...                                  4 ...
+5                                      5
+6 pthread_mutex_unlock(L2);            6 pthread_mutex_unlock(L1);
+7 pthread_mutex_unlock(L1);            7 pthread_mutex_unlock(L2);
+8 pthread_mutex_unlock(prevention);    8 pthread_mutex_lock(prevention);   // ← 슬라이드 오타
+</pre>
+
+* '''1번 줄''': 락을 잡기 전에 먼저 전역 락 `prevention`을 잡는다. 동시에 1번 줄을 통과하는 스레드는 하나뿐이다.
+* '''2~3번 줄''': T0는 L1 → L2, T1은 L2 → L1로 '''순서가 반대'''인데도 데드락이 안 난다. `prevention`을 쥔 동안에는 다른 스레드가 락 획득을 시작조차 못 하므로, "T0가 L1만 쥔 순간 T1이 L2를 잡는" 끼어들기가 불가능하다.
+* '''6~8번 줄''': 다 쓰고 L1·L2를 놓은 뒤 `prevention`을 놓는다(슬라이드 그대로의 구성).
+
+{warn}⚠️ '''알려진 오타''': 슬라이드 T1의 8번 줄은 `pthread_mutex_lock(prevention);`으로 적혀 있지만 T0의 8번 줄처럼 '''`pthread_mutex_unlock(prevention);`'''이 맞다. 그대로라면 T1이 이미 쥔 `prevention`을 다시 잡으려다 '''자기 자신과 데드락'''(non-recursive mutex)에 빠지고, 다른 스레드는 영원히 1번 줄에서 막힌다. 줄 번호 4가 두 번 나오는 것도 슬라이드 그대로다.{/warn}
+
+{tip}💡 OSTEP 32장 원문은 `prevention`을 '''락 획득 직후 바로''' 놓는다(`lock(prevention); lock(L1); lock(L2); unlock(prevention);`). 이것만으로 충분하다 — 보호해야 하는 것은 '''획득하는 순간'''뿐이기 때문이다. 슬라이드처럼 끝까지 쥐고 있으면 L1·L2가 필요 없는 스레드까지 사실상 직렬화되어 concurrency가 더 떨어진다.{/tip}
+
+== 2. 왜 hold and wait가 사라지는가 ==
+
+<pre class="ascii">
+ prevention 없이 (p.10)                 prevention 있음 (p.17)
+ T0: lock(L1) ✓                         T0: lock(prevention) ✓
+ ── context switch ──                   T0: lock(L1) ✓
+ T1: lock(L2) ✓                         ── context switch ──
+ T1: lock(L1) ✗ 대기  (L2 '''hold''')        T1: lock(prevention) ✗ 대기  (아무것도 hold 안 함)
+ T0: lock(L2) ✗ 대기  (L1 '''hold''')        T0: lock(L2) ✓ → 작업 → unlock 들
+     → '''deadlock'''                             T1: prevention 획득 → L2, L1 순서로 획득 ✓
+</pre>
+
+"Untimely thread switch"(때를 잘못 맞춘 [[컨텍스트 스위치]])가 락 획득 '''도중'''에 일어나도, 다른 스레드는 `prevention`에서 막혀 아무것도 쥐지 못한다. 그래서 "쥔 채로 기다리는" 스레드가 생기지 않는다.
+
+== 3. 문제점 (p.17) ==
+
+{|
+! 문제 || 설명
+|-
+| '''락을 미리 다 알아야 함''' || "When calling a routine, it requires us to know exactly which locks must be held and to acquire them ahead of time." 함수가 내부에서 어떤 락을 잡는지 호출 전에 알아야 한다 → '''캡슐화(encapsulation)와 충돌'''
+|-
+| '''Concurrency 감소''' || 락이 실제로 필요한 순간보다 '''일찍''' 전부 잡고, 전역 락 하나로 모든 획득이 '''직렬화'''된다
+|-
+| 장점 || "Useful for debugging!" — 락 획득 순서 문제를 일단 배제하고 다른 버그를 찾을 때 유용
+|}
+
+{quiz}(서술) p.17 코드에서 T0와 T1이 L1·L2를 '''반대 순서'''로 잡는데도 데드락이 생기지 않는 이유를 쓰라.{/quiz}
+{answer}두 스레드 모두 L1·L2를 잡기 전에 전역 락 `prevention`을 먼저 잡기 때문에, 락 획득 구간에는 한 스레드만 들어갈 수 있다. 따라서 한 스레드가 락 일부만 쥔 채 다른 스레드가 나머지를 잡는 상황(hold and wait)이 생기지 않는다.{/answer}
+
+{quiz}(단답) 이 기법의 두 가지 문제점은?{/quiz}
+{answer}① 필요한 락을 '''미리 정확히 알고''' 한꺼번에 잡아야 한다. ② '''Concurrency가 떨어진다'''.{/answer}
+
+== 🎙 10/7 수업 (녹음본 기준) ==
+
+{exam}🎯 교수(10/7): "prevention 락을 잡으면 L1·L2를 즉시 다 얻는 것이 보장된다. 그런데 잘 보면 '''L1·L2를 따로 쓸 이유가 없다''' — prevention 락이 곧 '''global lock'''이다. 동시성이 줄어든다. '''디버깅에는 쓸 수 있지만 실제 시스템에서는 못 쓴다.''' 불가피하면 global lock을 고르는 셈이지만 매우 단순한 해법이다."{/exam}
+
+== 관련 문서 ==
+* [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[trylock]] · [[lock-free]]
+* [[락]] · [[atomic]] · [[컨텍스트 스위치]]

@@ -1,0 +1,74 @@
+key: 데드락 detection
+title: Deadlock detection & recovery (그리고 무시하기)
+category: 12강 Deadlock, 용어
+---
+'''Deadlock detection & recovery'''는 데드락을 막으려 애쓰지 않고 '''가끔 생기도록 허용한 뒤''', 생긴 것을 '''탐지해서 복구'''하는 방법이다. 12강 p.13은 데드락 처리 방법을 세 가지(Method 1: 예방·회피, Method 2: 탐지·복구, Method 3: 무시)로 나누는데, 이 문서는 그 전체 지도와 Method 2·3을 다룬다. '''12강 p.13, p.29''' 기준.
+
+{def}p.13 원문 "Methods for Handling Deadlocks":
+* Method 1: '''ensure that a system never enters a deadlock state''' — Deadlock prevention (static) / Deadlock avoidance (dynamic)
+* Method 2: '''allow to enter a deadlock state and then recover''' — Deadlock detection & recovery
+* Method 3: '''ignore the problem and pretend that deadlocks never occur''' — Used by most operating systems, including Windows, Linux, and Solaris
+p.29: "'''Allow deadlocks to occasionally occur, and then take some action once such a deadlock has been detected'''"{/def}
+
+{analogy}🎭 '''교차로 관리 세 가지 철학'''. ① 신호등·회전교차로를 설치해 애초에 엉키지 않게 한다(prevention/avoidance). ② 엉키도록 두되, 순찰차가 '''주기적으로 돌며''' 꽉 막힌 교차로를 찾으면 차 한 대를 견인해 푼다(detection & recovery). ③ 거의 안 막히는 시골 교차로라면 아무것도 안 하고, 혹시 막히면 운전자들이 알아서 후진한다(ignore — "그냥 재부팅"). 비용 대비 효과로 고르는 것이다.{/analogy}
+
+== 1. 세 가지 방법 한눈에 (p.13) ⭐⭐⭐ ==
+
+{|
+! Method || 이름 || 성격 || 누가 하나 || 보장 강도 || 문서
+|-
+| 1 || '''Deadlock prevention''' || static — 4조건 중 하나를 코드에서 깸 || 프로그래머 ("Mostly done by programmers", p.14) || '''strong''' — No possibility of deadlock || [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[lock-free]]
+|-
+| 1 || '''Deadlock avoidance''' || dynamic — 락 사용 정보로 스케줄링 || [[스케줄러]] (global knowledge 필요) || '''mild''' || [[데드락 avoidance]]
+|-
+| 2 || '''Detection & recovery''' || 생기게 두고 사후 처리 || 주기적으로 도는 '''deadlock detector''' || 보장 없음 — 생기면 '''복구''' || 이 문서
+|-
+| 3 || '''Ignore''' || "pretend that deadlocks never occur" || 아무도 (대부분의 OS: '''Windows, Linux, Solaris''') || 보장 없음 || 이 문서
+|}
+
+{exam}🎯 출제 포인트 후보: "Method 3(무시)을 쓰는 OS의 예" → '''Windows, Linux, Solaris'''. "prevention은 static, avoidance는 dynamic"이라는 짝, "prevention = strong / avoidance = mild guarantee"의 짝은 단답·T/F로 내기 좋은 문장이다. (수업 녹음 반영 전 — 교수 강조는 추후 보강){/exam}
+
+== 2. Detection & recovery (p.29) ⭐⭐ ==
+
+p.29 원문 Examples:
+* "If an OS froze once a year, you would just '''reboot''' it → If deadlocks are rare, such a non-solution is indeed quite '''pragmatic'''"
+* "In '''database systems''', a deadlock detector runs '''periodically''', building a '''resource graph''' and '''checking it for cycles'''. In the event of a cycle (deadlock), the system needs to be '''restarted'''"
+
+=== resource graph와 cycle 검사 ===
+
+탐지기는 p.11·p.16과 같은 '''Holds / Wanted by 그래프'''를 만들어 고리가 있는지 본다. 고리 = [[데드락 4조건]]의 '''circular wait'''가 실제로 성립했다는 뜻이다.
+
+<pre class="ascii">
+ deadlock detector (주기적으로 실행)
+   ① 현재 상태로 resource graph 생성
+        T0 ──Holds──▶ L1 ──Wanted by──▶ T1
+        ▲                                │
+        └──Wanted by── L2 ◀──Holds───────┘
+   ② cycle 검사 (그래프 탐색)  →  T0 → L1 → T1 → L2 → T0  '''cycle 발견!'''
+   ③ recovery: 관련 트랜잭션/스레드를 abort·restart 해서 락을 놓게 함
+</pre>
+
+[[img:L12-11.png|p.11 Holds / Wanted by 그래프 — detector가 찾는 cycle이 바로 이 모양|medium]]
+
+* '''데이터베이스'''가 이 방식을 쓰는 이유: 트랜잭션은 원래 '''abort하고 다시 실행(rollback)'''할 수 있게 설계되어 있어 복구가 자연스럽다.
+* 일반 프로그램의 스레드는 중간에 죽이고 되돌리기가 어렵다 → 그래서 OS는 대체로 Method 3을 택한다.
+
+{tip}💡 "Non-solution"이라는 표현에 주목: 1년에 한 번 멈추는 데드락을 막으려고 모든 락 코드에 무거운 규칙이나 스케줄링 제약을 거는 것보다, 생기면 재부팅하는 편이 '''전체 비용이 더 싸다'''는 실용적 판단이다. OSTEP 32장도 "Not everything worth doing is worth doing well"(Tom West)을 인용한다.{/tip}
+
+{quiz}(단답) p.13의 Method 3을 쓰는 대표적인 운영체제 세 개는?{/quiz}
+{answer}'''Windows, Linux, Solaris''' — "ignore the problem and pretend that deadlocks never occur".{/answer}
+
+{quiz}(서술) 데이터베이스의 deadlock detector가 하는 일을 순서대로 쓰라.{/quiz}
+{answer}주기적으로(periodically) 실행되어 ① 현재 누가 어떤 자원을 쥐고 무엇을 기다리는지로 '''resource graph'''를 만들고 ② 그래프에 '''cycle'''이 있는지 검사하고 ③ cycle(= deadlock)이 있으면 시스템(관련 트랜잭션)을 '''restart'''한다.{/answer}
+
+{quiz}(T/F) Deadlock detection & recovery는 데드락이 절대 생기지 않음을 보장한다.{/quiz}
+{answer}'''False'''. "Allow deadlocks to occasionally occur" — 데드락을 '''허용'''하고, 생긴 뒤 탐지해서 복구한다. 데드락 상태에 절대 들어가지 않게 하는 것은 Method 1(prevention·avoidance)이다.{/answer}
+
+== 🎙 10/7 수업 (녹음본 기준) ==
+
+{exam}🎯 교수(10/7): "락 획득 구간은 실행 중 아주 짧아 T1·T2의 구간이 '''겹칠 때만''' 데드락이 난다 — 구현이 틀려도 보통은 안 난다. 그래서 '''낙관적(optimistic)'''으로: 생기게 두고 탐지되면 조치. '''탐지는 어렵지 않다''' — 락마다 holder와 waiter 목록이 있으니 그래프를 만들어 cycle을 찾는다(스캔 비용은 있음). '''진짜 비용은 recovery''' — 안전한 상태(checkpoint)로 되돌려야 한다. DB는 영속성 때문에 checkpoint가 원래 있어 쉽다. 실시간 게임은 재시작이 곧 recovery라 못 쓰지만, 턴제·싱글 게임은 save/load가 checkpoint라 가능하다." → "detection과 recovery 중 어느 쪽이 비싼가, 왜 DB에서 쓰는가"에 대비.{/exam}
+
+== 관련 문서 ==
+* [[데드락]] · [[데드락 4조건]] · [[데드락 avoidance]]
+* [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[lock-free]] · [[livelock]]
+* [[스케줄러]] · [[운영체제란]]
