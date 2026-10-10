@@ -48,6 +48,8 @@ T0이 1번 줄로 L1을 잡은 직후 context switch → T1이 1번 줄로 L2를
 
 §1의 예제에 네 조건을 대응시키면: 락은 한 스레드만 쥔다(①), L1을 쥔 채 L2를 기다린다(②), 쥔 락을 커널이 뺏지 않는다(③), T0→L2→T1→L1→T0 고리(④). 자세한 것은 [[데드락 4조건]].
 
+{tip}🎙 '''교수님의 조건별 해석 (10/7, 음성 001 03:29~06:00)''' — "①이 없으면 '''기다릴 이유가 없으니''' 데드락도 없다. ②의 핵심은 '기다린다'가 아니라 '''무언가를 쥔 채''' 기다린다는 것. ③ preemption이 허용되면(남의 자원을 '''뺏을 수''' 있으면) 쥔 채 기다리는 상황이 안 생기니 ②와 연결된다. ④ 쥔 채 기다려도 순환이 없으면 어떤 스레드는 진행한다 — 데드락은 '''progress가 멈추는 것'''이라, progress가 있으면 데드락이 아니다. '''조건 ②와 ④가 데드락의 핵심이다.''' 네 조건 중 하나만 없애도 데드락은 사라진다." → prevention(§4)의 출발점.{/tip}
+
 == 3. 처리 방법 세 가지 (p.13) ⭐⭐ ==
 
 {def}p.13 원문 — '''Methods for Handling Deadlocks'''
@@ -66,6 +68,13 @@ T0이 1번 줄로 L1을 잡은 직후 context switch → T1이 1번 줄로 L2를
 |-
 | '''무시''' (p.13) || — || — || 없음 || 없음 — 대부분의 OS가 선택
 |}
+
+{tip}🎙 '''교수님 (10/7, 음성 001 07:00~15:30)'''
+* static = '''코드를 바꿔''' 조건을 없앰(prevention), dynamic = 실행 시 '''스케줄을 바꿔''' 피함(avoidance). "데드락은 스케줄에 달려 있다."
+* Method 2: "'''재시작은 소프트웨어의 모든 문제에 대한 해법'''이다 — fault가 나면 process가 죽고 재시작하면 된다." detection & recovery는 이걸 '''자동화'''한 것.
+* Method 3: "Method 2보다 '''훨씬 나쁘다'''. 데드락이 안 난다고 가정하고, 멈추면 '''사용자가''' 재시작한다." 그런데도 대부분의 OS가 택하는 이유 = '''세 방법 모두 오버헤드가 크다'''(prevention은 프로그래머 부담, avoidance는 정보가 너무 많이 필요, detection은 주기 실행 + recovery 비용) → OS는 지원하지 않고 필요한 '''작은 워크로드(서버 앱)가 각자''' 구현한다.
+* Method 3의 '''실제 증상''' ⭐: 데드락 난 스레드는 자원을 쥔 채 영원히 안 끝남 → '''resource leak'''. CPU 사용률로는 못 찾고(안 돌아가니까) '''메모리 사용량이 서서히 느는''' 것으로 발견된다. 상용 시스템에서 흔하고, 개발 중이 아니라 '''운영 중''' profiling·auditing으로 잡힌다 — "완벽한 소프트웨어는 없다, 그래서 유지보수 인력이 필요하다."
+* 한 줄 비교: Method 2는 '''해결을 보장''', Method 3은 운영 중 누군가 발견한다고 '''가정'''.{/tip}
 
 == 4. Deadlock Prevention — 4조건을 하나씩 깨기 (p.14~24) ⭐⭐⭐ ==
 
@@ -190,7 +199,13 @@ p.28: "Avoidance of deadlock via scheduling is '''not a widely-used general-purp
 
 == 🎙 실제 수업 기록 (10/7 수, 녹음본 기준) ==
 
-49분 녹음(`음성 261007_165800.m4a`, faster-whisper 전사). '''p.15 lock ordering 설명 도중부터''' 시작한다(앞부분 — dining philosophers 복습 p.2~8, 정의·예·4조건·처리 방법 p.9~14 — 는 녹음에 없음). 끝은 중간고사 공지.
+녹음 두 개: `음성 001.m4a`(65분, '''p.9 데드락 정의부터 수업 끝까지 전체''', whisper.cpp 전사 2026-10-10) + `음성 261007_165800.m4a`(49분, p.15 lock ordering부터 — 앞 파일 16:18 이후와 같은 구간). dining philosophers 복습 p.2~8은 둘 다 없음. 끝은 중간고사 공지.
+
+* '''p.9 정의''': "데드락은 '''아주 흔하다'''. thread를 쓰는 이유 자체가 shared resource이고, 성능을 위해 자원을 최대로 쓰고 thread 수를 늘리니 '''자원은 늘 한정적'''이다. critical section 안의 자원은 mutex 하나뿐이라 더 그렇다."
+* '''p.10~11 예제''': "순서만 바꾸면 되지 않나 싶겠지만 '''항상 바꿀 수 있다는 보장은 없다''' — 뒤에서."
+* '''p.12 4조건''': §2의 🎙 상자 — "②와 ④가 핵심", "하나만 없애도 사라진다".
+* '''p.13 처리 방법''': §3의 🎙 상자 — static/dynamic, "재시작은 만능 해법", Method 3의 증상은 '''메모리 누수처럼 보인다''', OS가 지원 안 하는 이유는 오버헤드.
+* '''p.14 prevention''': "컴파일러·언어가 잡아 주기 어려워 '''프로그래머가''' 해야 한다. '''항상 가능한 건 아니다''' — 오버헤드 때문에 못 쓰는 경우가 있다."
 
 * '''p.15~16 lock ordering''': "락에 total ordering을 주면 circular dependency를 만들 수 없다 — 모두 L1을 먼저 쥐어야 L2를 쥘 수 있으니까. 매우 효과적이지만 '''항상 가능한 건 아니다'''. 락은 공유 자원을 보호하는데, 스레드 1은 자원 A를 봐야 B에 접근할지 알고 스레드 2는 B를 봐야 A에 접근할지 안다면 '''자원 사이에 자연스러운 의존 관계'''가 있어서 semantics상 순서를 줄 수 없다. 그럴 땐 다른 prevention을 쓴다."
 * '''p.17 hold and wait''': "prevention 락을 잡으면 L1·L2를 즉시 다 얻는 게 보장된다. 그런데 보면 '''L1·L2를 쓸 이유가 없다''' — 사실상 global lock이다. 동시성이 줄어 '''디버깅엔 쓰지만 실제 시스템엔 못 쓴다'''."
@@ -203,7 +218,7 @@ p.28: "Avoidance of deadlock via scheduling is '''not a widely-used general-purp
 * '''p.30~52 Summary''': 위 §8 표. "CV는 mailbox 같아서 조건을 모른다 — '''signaling variable'''이라 불러야 할지도." "empty = 빈 칸이라는 자원, full = item이라는 자원, mutex = critical section에 몇 명 들어가나 → 1."
 * '''공지''' ⭐⭐⭐: "'''이 수업이 중간고사 전 마지막 수업'''이고 중간고사 범위는 다 다뤘다. network 부분은 오늘 안 하고 넘어간다. '''중간고사는 다음 주 수요일, 같은 강의실, 1시간 30분.''' 질문은 찾아오라."
 
-{exam}🎯 '''10/7 수업 ⭐ 모음''': ① lock ordering이 불가능한 경우(자원 간 자연 의존) ② hold and wait 방지 = 사실상 global lock, 디버깅용 ③ trylock → livelock → random delay("분산에선 random이 최선") ④ lock-free: CAS 재시도, mutual exclusion은 하드웨어로 이동 ⑤ prevention(강함) vs avoidance(약함, global knowledge) ⑥ detection은 쉽고 recovery가 비싸다(checkpoint; DB는 쉽고 게임은 어렵다) ⑦ 중간고사 10/14(수) 90분, 범위 = 1~12강 p.29.{/exam}
+{exam}🎯 '''10/7 수업 ⭐ 모음''': ⓪ 4조건 중 ②④가 핵심 · Method 3의 증상 = 메모리 사용량 증가(resource leak) ① lock ordering이 불가능한 경우(자원 간 자연 의존) ② hold and wait 방지 = 사실상 global lock, 디버깅용 ③ trylock → livelock → random delay("분산에선 random이 최선") ④ lock-free: CAS 재시도, mutual exclusion은 하드웨어로 이동 ⑤ prevention(강함) vs avoidance(약함, global knowledge) ⑥ detection은 쉽고 recovery가 비싸다(checkpoint; DB는 쉽고 게임은 어렵다) ⑦ 중간고사 10/14(수) 90분, 범위 = 1~12강 p.29.{/exam}
 
 == 시험 대비 핵심 요약 ==
 
