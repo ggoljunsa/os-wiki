@@ -4,7 +4,7 @@
 # sims
 
 ## Purpose
-Step-through simulators — "a C debugger for the slide's code": code panels with a current-line marker, a variable table that highlights diffs, a description per step, optional SVG per step. 16 sims; the catalogue with their target articles is in `CONTRACT.md` §6.
+Step-through simulators — "a C debugger for the slide's code": code panels with a current-line marker, a variable table that highlights diffs, a description per step, optional SVG per step. 23 sims (lockfree_cas3 added 2026-10-10 for 문제집 u11 ③-08); the catalogue with their target articles is in `CONTRACT.md` §6.
 
 ## Key Files
 | File | Description |
