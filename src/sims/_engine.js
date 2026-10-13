@@ -218,7 +218,8 @@
     this.lineNodes = {};
     this.panelNodes = {};
     // 패널이 3개 이상이면 좁게 나란히 (세로로 길어지는 것 방지)
-    this.panelsBox.className = "sim-panels" + (this.trace.panels.length >= 3 ? " many" : "");
+    var np = this.trace.panels.length;
+    this.panelsBox.className = "sim-panels" + (np >= 3 ? " many" : "") + (np === 4 ? " p4" : "");
     this.trace.panels.forEach(function (p) {
       var wrap = el("div", "sim-panel");
       var ph = el("div", "sim-panel-head");

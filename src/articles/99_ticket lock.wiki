@@ -117,6 +117,41 @@ T1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1
 {quiz}ticket lock에서 starvation이 불가능한 이유를 한 문장으로 쓰시오.{/quiz}
 {answer}각 스레드가 [[fetch-and-add]]로 '''고유한 번호'''를 받고 `turn`이 '''1씩 순서대로''' 올라가므로, 어떤 스레드 앞에 있는 대기자 수는 유한하고 계속 줄어들어 '''반드시 자기 차례가 온다'''(FIFO).{/answer}
 
+== 문제집 ④-02 디버깅 — H·P·Q·R 이벤트 추적 (2026-10-13 추가) ⭐⭐⭐ ==
+
+문제: 락이 사용 중이다 — '''ticket = 3, turn = 2, H 가 쥐고 있다(myturn 2)'''. 한 CPU에서 이벤트가 1) P lock 2) Q lock 3) H unlock 4) R lock 5) P unlock 6) Q unlock 7) R unlock 순으로 일어난다. (a) 각 이벤트 후 myturn·ticket·turn·owner·spinning (b) 획득 순서 (c) TAS 스핀락과 비교해 무엇이 좋아졌고 무엇이 여전히 No인가.
+
+{analogy}🎭 '''은행 번호표'''. `ticket` = 발급기에서 '''다음에 나올''' 번호, `turn` = 전광판에 뜬 '''지금 처리 중인''' 번호. 손님이 오면(lock) 번호표를 한 장 뽑고(발급기 +1) 자기 번호가 전광판에 뜰 때까지 서서 기다린다(spin). 창구 일이 끝나면(unlock) 전광판만 다음 번호로 넘긴다(전광판 +1). '''번호표 뽑기와 전광판 넘기기는 서로 다른 숫자를 건드린다''' — 이것만 지키면 표가 저절로 채워진다.{/analogy}
+
+{|
+! 이벤트 || 무엇이 바뀌나 || myturn || ticket || turn || owner || spinning
+|-
+| 시작 || — || H=2 || 3 || 2 || H || —
+|-
+| 1) P lock || P 가 번호표 '''3''' (옛 값) || P=3 || '''4''' || 2 || H || P
+|-
+| 2) Q lock || Q 가 번호표 '''4''' || Q=4 || '''5''' || 2 || H || P, Q
+|-
+| 3) H unlock || 전광판 2 → '''3''' = P 의 번호 || — || 5 || '''3''' || '''P''' || Q
+|-
+| 4) R lock || R 이 번호표 '''5''' || R=5 || '''6''' || 3 || P || Q, R
+|-
+| 5) P unlock || 전광판 → '''4''' = Q || — || 6 || '''4''' || '''Q''' || R
+|-
+| 6) Q unlock || 전광판 → '''5''' = R || — || 6 || '''5''' || '''R''' || —
+|-
+| 7) R unlock || 전광판 → '''6''' = ticket || — || 6 || '''6''' || '''free''' || —
+|}
+
+* '''(b)''' 획득 순서 '''H → P → Q → R''' — lock()을 부른 순서(번호표 순서) 그대로.
+* '''(c)''' '''Fairness: No → Yes''' — FetchAndAdd가 각자에게 고유 번호를 주니 새치기·굶주림이 없다. '''Performance: 여전히 No''' — 대기자는 여전히 spin하고, 주인이 CS 안에서 preempt되면 대기자 전원이 time slice를 통째로 태운다(p.29).
+
+{tip}💡 '''푸는 요령''': ① lock 이벤트에선 '''ticket만''' +1, myturn = 올리기 '''전''' 값. ② unlock 이벤트에선 '''turn만''' +1, 그 값과 같은 myturn을 가진 스레드가 새 owner. ③ 검산: 대기자 수 = ticket − turn − 1 (이벤트 4 직후 6 − 3 − 1 = 2: Q, R). ticket == turn이면 free. 흔한 실수는 unlock에서 ticket을 줄이거나, myturn에 올린 '''뒤''' 값을 적는 것.{/tip}
+
+시뮬레이터 ①은 위 표를 한 줄씩 밟는다 — 변수표의 ticket·turn·owner·spinning이 표의 한 행이다. ②는 2) 직후 H가 CS 안에서 쫓겨나는 경우로, P와 Q가 time slice를 하나씩 태우는 것("spin 으로 버린 time slice" 카운터)을 보여 준다 — (c)의 Performance 'No' 근거.
+
+[[sim:ticket_trace4]]
+
 == 시험 대비 핵심 요약 ==
 # `myturn = FetchAndAdd(&ticket)` — 번호표 뽑기, '''원자적'''이라 고유
 # `while (turn != myturn) ;` — 내 차례까지 spin

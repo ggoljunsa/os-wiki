@@ -124,6 +124,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | producer_consumer | bounded buffer. 옵션 variant = if_1cv(소비자 2명 + if → 빈 버퍼 get, Mesa 버그) / while_1cv(while + cv 하나 → 셋 다 잠듦) / while_2cv(정답) , buffer = 1 / 3 | producer-consumer, bounded buffer, Mesa semantics, spurious wakeup |
 | sloppy_counter | 29장 approximate counter: CPU별 local 카운터가 threshold S 마다 global 로 flush. 옵션 S = 1 / 5 / 1024 | 락 기반 자료구조, sloppy counter |
 | deadlock_prevention | 12강 p.10/15/19/20/24: 옵션 variant = deadlock(반대 순서 → 둘 다 blocked, circular wait) / ordered(둘 다 L1→L2) / trylock(goto top 으로 진행) / livelock(같은 리듬 반복 → random delay 로 탈출) / atomic_increment(CAS 재시도, value 0→5→10) | 데드락, lock ordering, trylock, livelock, lock-free |
+| cas_two_versions | 문제집 u8 ④-01 (g): 같은 CAS 스핀락을 ① 9강 CAS(옛 값, while == 1) ② 12강 CAS(1/0, while == 0) ③ 함정(12강 CAS + == 1 → T1·T2 동시 CS) 로 비교 | compare-and-swap |
+| ticket_trace4 | 문제집 u8 ④-02: ticket=3·turn=2·H 보유에서 P·Q·R lock/unlock 7 이벤트 표, 옵션 ② H preempt 시 spin 낭비 | ticket lock |
 | sem_trace | 11강 p.7/p.12/p.13 Thread Trace 표를 한 행씩: 옵션 trace = two_threads(binary semaphore, T1이 −1로 잠들고 wake) / join_case1(부모가 먼저 wait) / join_case2(자식이 먼저 post, 값 1로 기억) | 세마포어 |
 | sem_producer_consumer | 10강 p.37~47 세마포어 producer/consumer 네 시도. 옵션 attempt = none(동기화 없음, V#0 덮어쓰기) / empty_full(empty=MAX·full=0, 6번째 put 에서 empty −1 로 잠듦) / mutex_outside(mutex 를 empty/full 바깥에 → consumer 가 mutex 쥔 채 잠듦 → deadlock, p.45) / final(정답, mutex 안쪽) | 세마포어, producer-consumer |
 | lockfree_cas3 | 12강 p.23~24 AtomicIncrement 를 스레드 3개로 — 문제집 u11 ③-08 스케줄(value 10, +3/+4/+5, CAS 실패 3번·호출 6회) 한 단계씩, 타임라인 SVG. 옵션 sched = workbook / serial(끼어들기 없음, 비교) | lock-free |

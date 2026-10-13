@@ -466,6 +466,7 @@
     min-width: 0;
   }
   .sim .sim-panels.many .sim-panel { flex: 1 1 180px; }
+  .sim .sim-panels.p4 .sim-panel { flex: 1 1 calc(50% - 10px); }
   .sim .sim-panels.many .sim-code { font-size: 11px; }
   .sim .sim-panels.many .sim-line .sim-ln { width: 1.7em; }
   .sim .sim-panels.many .sim-line .sim-mark { width: 0.9em; }
@@ -1507,7 +1508,7 @@ const ARTICLES = {
    "9강 Lock",
    "용어"
   ],
-  "body": "'''Compare-And-Swap'''(CAS)은 [[test-and-set]]보다 '''강력한''' 하드웨어 [[atomic|원자]] 명령이다. 차이는 한 단어 — '''조건부'''다. 9강 p.22~23.\n\n[[img:L9-22.png|Compare-And-Swap (CAS)와 이를 이용한 spin lock|large]]\n\n<pre class=\"c\">\n1   int CompareAndSwap(int *ptr, int expected, int new) {\n2       int actual = *ptr;\n3       if (actual == expected)   // 기대값과 같을 때만\n4                *ptr = new;      // 갱신\n5       return actual;            // 어느 쪽이든 '실제' 값을 반환\n6   }\n<\/pre>\n\n{def}\"Test whether the value at the address (`ptr`) is equal to `expected`\n* If so, '''update''' the memory location pointed to by `ptr` with the `new` value\n* '''In either case, return the actual value''' at that memory location\"{/def}\n\n{warn}⭐ 반환값은 '''성공/실패가 아니라 \"그 자리에 실제로 있던 값\"'''이다. [[test-and-set]]이 \"옛 값\"을 돌려주는 것과 같은 철학. 호출자가 반환값을 `expected`와 비교해서 성공 여부를 판단한다.{/warn}\n\n== 이걸로 만든 스핀락 ==\n\n<pre class=\"c\">\n1   void lock(lock_t *lock) {\n2       while (CompareAndSwap(&lock->flag, 0, 1) == 1)\n3                ; // spin\n4   }\n<\/pre>\n\n읽는 법: \"'''flag가 0이길 기대하고, 맞으면 1로 바꿔라.'''\"\n\n{|\n! 락 상태 || 반환값 || 갱신되나 || 결과\n|-\n| free (flag=0) || '''0''' (= expected) || '''O''' — 0 → 1 || while 탈출 → '''획득'''\n|-\n| held (flag=1) || '''1''' || X — 기대값과 다르므로 '''건드리지 않음''' || 계속 spin\n|}\n\n{info}[[test-and-set]]과의 미묘한 차이: TAS는 held일 때도 '''1을 1로 덮어쓴다'''(무해하지만 쓰기는 한다). CAS는 '''아예 쓰지 않는다'''. 멀티코어에서 캐시 라인을 더럽히지 않는다는 실질적 이점이 있다.{/info}\n\n[[sim:cas_llsc]]\n\n== x86 실제 구현 (p.23) ==\n\n<pre class=\"c\">\n 1   char CompareAndSwap(int *ptr, int old, int new) {\n 2       unsigned char ret;\n 3\n 4       // Note that sete sets a 'byte' not the word\n 5       __asm__ __volatile__ (\n 6                \" lock\\n\"\n 7                \" cmpxchgl %2,%1\\n\"\n 8                \" sete %0\\n\"\n 9                : \"=q\" (ret), \"=m\" (*ptr)\n10                : \"r\" (new), \"m\" (*ptr), \"a\" (old)\n11                : \"memory\");\n12       return ret;\n13   }\n<\/pre>\n\n어셈블리 자체를 외울 필요는 없다. 포인트는 두 개:\n* '''`lock` prefix'''가 원자성을 보장한다 (버스/캐시 라인 잠금)\n* 슬라이드가 강조한 두 줄:\n** \"Compare-and-swap is '''identical to a simple spin lock''' (test-and-swap)\" — 락을 만드는 용도로는 [[test-and-set]]과 똑같다\n** \"A '''more powerful''' instruction than test-and-swap in that it can be used for implementing a '''lock-free synchronization'''\"\n\n== 왜 \"더 강력한가\" — lock-free ==\n\n[[test-and-set]]은 \"무조건 새 값으로 바꾼다\"라서 '''플래그 세우기'''밖에 못 한다. CAS는 \"'''내가 읽은 값이 아직 그대로면''' 바꿔라\"라고 말할 수 있어서, 락 없이 자료구조를 갱신하는 데 쓸 수 있다.\n\n<pre class=\"c\">\n// lock-free 스택 push — 락이 전혀 없다\nvoid push(node_t *n) {\n    node_t *old;\n    do {\n        old = head;            // 현재 head를 읽고\n        n->next = old;         // 내 노드를 그 앞에 붙일 준비\n    } while (CompareAndSwap((int *)&head, (int)old, (int)n) != (int)old);\n    // head가 그동안 안 바뀌었을 때만 성공. 바뀌었으면 처음부터 다시.\n}\n<\/pre>\n\n{analogy}🎭 [[test-and-set]]이 '''\"무조건 팻말을 사용중으로 뒤집고, 원래 뭐였는지 알려줘\"'''라면, CAS는 '''\"팻말이 아직 '비어 있음'이면 그때만 뒤집어\"'''다.\n이 조건부 성격 덕분에 위키 편집에 비유할 수 있다 — \"내가 읽은 판본이 아직 최신이면 저장, 그사이 누가 고쳤으면 저장 취소하고 다시 읽기\". 이게 lock-free 알고리즘의 기본 패턴이다.{/analogy}\n\n{warn}CAS의 알려진 약점은 '''ABA 문제'''다 — 내가 읽은 뒤 값이 A→B→A로 돌아오면 CAS는 \"안 바뀌었다\"고 착각한다. 값이 아니라 '''변경 여부'''를 보는 [[load-linked store-conditional|LL/SC]]는 이 문제가 없다.{/warn}\n\n== 평가 ==\n\nCAS로 만든 스핀락의 채점표는 [[test-and-set]] 스핀락과 '''완전히 동일'''하다:\n\n{|\n! Correctness || Fairness || Performance\n|-\n| Yes || '''No''' (starvation) || '''No''' (spin 낭비)\n|}\n\nCAS의 추가 가치는 '''락 바깥'''(lock-free 자료구조)에 있지, 락 자체를 개선하지는 않는다.\n\n{exam}🎯 \"test-and-set과 compare-and-swap의 차이를 쓰시오\"는 서술형 단골 후보다. 답의 두 축: ① '''조건부 갱신'''(expected와 같을 때만) ② '''lock-free synchronization에 쓸 수 있다'''. 락으로 쓰는 한에서는 동작이 같다는 점도 함께 적을 것.{/exam}\n\n{quiz}`CompareAndSwap(&flag, 0, 1)`이 '''1'''을 반환했다. `flag`의 현재 값과, 내가 락을 얻었는지 답하시오.{/quiz}\n{answer}반환값은 '''그 자리에 실제로 있던 값'''이므로 `flag`는 '''1'''(held)이었고, 기대값 0과 다르므로 '''갱신되지 않았다'''. 따라서 나는 '''락을 얻지 못했고''' 계속 spin해야 한다.{/answer}\n\n{quiz}CAS가 [[test-and-set]]보다 \"more powerful\"하다고 말하는 근거는 무엇인가?{/quiz}\n{answer}'''lock-free synchronization'''을 구현할 수 있기 때문이다. \"내가 읽은 값이 그대로일 때만 갱신\"이라는 조건부 의미 덕분에, 락 없이 공유 자료구조(스택·큐 등)를 안전하게 갱신하는 retry 루프를 만들 수 있다. (p.23){/answer}\n\n== 관련 문서 ==\n* [[test-and-set]] · [[fetch-and-add]] · [[load-linked store-conditional]] · [[atomic]]\n* [[spin lock]] · [[락]] · [[락 평가 기준]]"
+  "body": "'''Compare-And-Swap'''(CAS)은 [[test-and-set]]보다 '''강력한''' 하드웨어 [[atomic|원자]] 명령이다. 차이는 한 단어 — '''조건부'''다. 9강 p.22~23.\n\n[[img:L9-22.png|Compare-And-Swap (CAS)와 이를 이용한 spin lock|large]]\n\n<pre class=\"c\">\n1   int CompareAndSwap(int *ptr, int expected, int new) {\n2       int actual = *ptr;\n3       if (actual == expected)   // 기대값과 같을 때만\n4                *ptr = new;      // 갱신\n5       return actual;            // 어느 쪽이든 '실제' 값을 반환\n6   }\n<\/pre>\n\n{def}\"Test whether the value at the address (`ptr`) is equal to `expected`\n* If so, '''update''' the memory location pointed to by `ptr` with the `new` value\n* '''In either case, return the actual value''' at that memory location\"{/def}\n\n{warn}⭐ 반환값은 '''성공/실패가 아니라 \"그 자리에 실제로 있던 값\"'''이다. [[test-and-set]]이 \"옛 값\"을 돌려주는 것과 같은 철학. 호출자가 반환값을 `expected`와 비교해서 성공 여부를 판단한다.{/warn}\n\n== 이걸로 만든 스핀락 ==\n\n<pre class=\"c\">\n1   void lock(lock_t *lock) {\n2       while (CompareAndSwap(&lock->flag, 0, 1) == 1)\n3                ; // spin\n4   }\n<\/pre>\n\n읽는 법: \"'''flag가 0이길 기대하고, 맞으면 1로 바꿔라.'''\"\n\n{|\n! 락 상태 || 반환값 || 갱신되나 || 결과\n|-\n| free (flag=0) || '''0''' (= expected) || '''O''' — 0 → 1 || while 탈출 → '''획득'''\n|-\n| held (flag=1) || '''1''' || X — 기대값과 다르므로 '''건드리지 않음''' || 계속 spin\n|}\n\n{info}[[test-and-set]]과의 미묘한 차이: TAS는 held일 때도 '''1을 1로 덮어쓴다'''(무해하지만 쓰기는 한다). CAS는 '''아예 쓰지 않는다'''. 멀티코어에서 캐시 라인을 더럽히지 않는다는 실질적 이점이 있다.{/info}\n\n[[sim:cas_llsc]]\n\n== 문제집 ④-01 디버깅 — CAS 반환값이 바뀌면 while 조건이 뒤집힌다 (2026-10-13 추가) ⭐⭐⭐ ==\n\n문제집 u8 ④-01(2025F P7 유형)은 위 스핀락의 빈칸 채우기다. 정답은 (a) `&l->flag` (b) `0` (c) `1` (d) `== 1` (e) `CompareAndSwap(&l->flag, 0, 1) == 0` (f) `l->flag = 0` (g) `while (CompareAndSwap(&l->flag, 0, 1) == 0) ;` (h) Yes / No / No. 헷갈리는 곳은 (g) — \"12강 CAS(성공 1 / 실패 0)로 바꾸면 while 줄을 어떻게 쓰나\"이다.\n\n'''핵심: (g)는 새 락이 아니다. CAS가 하는 일(비었으면 내가 잡는다)은 똑같고, 결과를 알려 주는 방식만 다르다.''' while은 \"실패했으면 다시 시도\"라는 뜻이어야 하므로, 조건에는 '''실패를 뜻하는 반환값'''이 들어간다.\n\n<pre class=\"c\">\n// 9강 p.22: 옛 값을 돌려준다              // 12강 p.22: 성공 여부를 돌려준다\nint CAS(int *p, int exp, int new) {        int CAS(int *p, int exp, int new) {\n    int old = *p;                              if (*p == exp) {\n    if (old == exp) *p = new;                      *p = new;  return 1;   // 성공\n    return old;                                }\n}                                              return 0;                  // 실패\n                                           }\n<\/pre>\n\n{|\n! 상황 || 9강 CAS 반환값 || 12강 CAS 반환값\n|-\n| flag 가 0 이었음 → 1 로 바꿈 ('''잡음 = 성공''') || 0 (옛 값) || 1\n|-\n| flag 가 1 이었음 → 안 바꿈 ('''남이 쥠 = 실패''') || '''1''' || '''0'''\n|-\n| 그래서 while 조건(실패면 다시) || `== 1` || `== 0`\n|}\n\n{analogy}🎭 같은 질문 \"문 잠갔어?\"에 두 사람이 다르게 대답한다. 9강 CAS는 \"아까 문은 '열림(0)'이었어 / '잠김(1)'이었어\"라고 '''원래 상태'''를 알려 주고, 12강 CAS는 \"응 잠갔어(1) / 아니 이미 잠겨 있어서 못 했어(0)\"라고 '''결과'''를 알려 준다. 원하는 것은 똑같이 \"내가 잠갔다\"인데 대답 형식이 다르니, \"다시 해야 하나\"를 판단하는 숫자가 반대가 된다.{/analogy}\n\n{warn}🔥 '''함정''': 12강 CAS에 9강 조건 `== 1`을 그대로 쓰면? 12강의 1은 '''성공'''이다. T1은 잡는 데 성공해 놓고 \"1이니 다시 돌자\" → 두 번째 CAS는 자기가 건 1 때문에 실패(0) → 그제야 빠져나온다(우연히 락은 쥐고 있음). 문제는 T2: T1이 쥐고 있어 CAS가 '''실패(0)'''했는데 `0 == 1`이 거짓이라 while을 빠져나와 '''T1과 같이 CS에 들어간다''' → mutual exclusion 붕괴. 아래 시뮬레이터 ③.{/warn}\n\n{tip}💡 '''푸는 요령''': 코드에 CAS 정의가 주어지면 먼저 '''`return` 줄을 보고 실패일 때 무엇을 돌려주는지''' 확인한다. while 조건에는 그 \"실패값\"을 쓴다. (e) trylock은 반대로 '''성공했는지'''를 물으므로 9강 CAS에서 `== 0`(옛 값이 0 = 비어 있었음 = 성공)이다 — 12강 CAS였다면 `== 1`.{/tip}\n\n시뮬레이터: 드롭다운 ①(9강 정답) → ②(12강 정답 g) → ③(함정)을 차례로 돌려 보라. 변수표의 \"CAS 반환값\"과 \"critical section 안에 있는 스레드\"만 보면 된다. ①②는 결과가 같고 반환값 숫자만 반대이며, ③은 마지막 step에서 \"T1, T2 ← 둘이 동시에!\"가 된다.\n\n[[sim:cas_two_versions]]\n\n== x86 실제 구현 (p.23) ==\n\n<pre class=\"c\">\n 1   char CompareAndSwap(int *ptr, int old, int new) {\n 2       unsigned char ret;\n 3\n 4       // Note that sete sets a 'byte' not the word\n 5       __asm__ __volatile__ (\n 6                \" lock\\n\"\n 7                \" cmpxchgl %2,%1\\n\"\n 8                \" sete %0\\n\"\n 9                : \"=q\" (ret), \"=m\" (*ptr)\n10                : \"r\" (new), \"m\" (*ptr), \"a\" (old)\n11                : \"memory\");\n12       return ret;\n13   }\n<\/pre>\n\n어셈블리 자체를 외울 필요는 없다. 포인트는 두 개:\n* '''`lock` prefix'''가 원자성을 보장한다 (버스/캐시 라인 잠금)\n* 슬라이드가 강조한 두 줄:\n** \"Compare-and-swap is '''identical to a simple spin lock''' (test-and-swap)\" — 락을 만드는 용도로는 [[test-and-set]]과 똑같다\n** \"A '''more powerful''' instruction than test-and-swap in that it can be used for implementing a '''lock-free synchronization'''\"\n\n== 왜 \"더 강력한가\" — lock-free ==\n\n[[test-and-set]]은 \"무조건 새 값으로 바꾼다\"라서 '''플래그 세우기'''밖에 못 한다. CAS는 \"'''내가 읽은 값이 아직 그대로면''' 바꿔라\"라고 말할 수 있어서, 락 없이 자료구조를 갱신하는 데 쓸 수 있다.\n\n<pre class=\"c\">\n// lock-free 스택 push — 락이 전혀 없다\nvoid push(node_t *n) {\n    node_t *old;\n    do {\n        old = head;            // 현재 head를 읽고\n        n->next = old;         // 내 노드를 그 앞에 붙일 준비\n    } while (CompareAndSwap((int *)&head, (int)old, (int)n) != (int)old);\n    // head가 그동안 안 바뀌었을 때만 성공. 바뀌었으면 처음부터 다시.\n}\n<\/pre>\n\n{analogy}🎭 [[test-and-set]]이 '''\"무조건 팻말을 사용중으로 뒤집고, 원래 뭐였는지 알려줘\"'''라면, CAS는 '''\"팻말이 아직 '비어 있음'이면 그때만 뒤집어\"'''다.\n이 조건부 성격 덕분에 위키 편집에 비유할 수 있다 — \"내가 읽은 판본이 아직 최신이면 저장, 그사이 누가 고쳤으면 저장 취소하고 다시 읽기\". 이게 lock-free 알고리즘의 기본 패턴이다.{/analogy}\n\n{warn}CAS의 알려진 약점은 '''ABA 문제'''다 — 내가 읽은 뒤 값이 A→B→A로 돌아오면 CAS는 \"안 바뀌었다\"고 착각한다. 값이 아니라 '''변경 여부'''를 보는 [[load-linked store-conditional|LL/SC]]는 이 문제가 없다.{/warn}\n\n== 평가 ==\n\nCAS로 만든 스핀락의 채점표는 [[test-and-set]] 스핀락과 '''완전히 동일'''하다:\n\n{|\n! Correctness || Fairness || Performance\n|-\n| Yes || '''No''' (starvation) || '''No''' (spin 낭비)\n|}\n\nCAS의 추가 가치는 '''락 바깥'''(lock-free 자료구조)에 있지, 락 자체를 개선하지는 않는다.\n\n{exam}🎯 \"test-and-set과 compare-and-swap의 차이를 쓰시오\"는 서술형 단골 후보다. 답의 두 축: ① '''조건부 갱신'''(expected와 같을 때만) ② '''lock-free synchronization에 쓸 수 있다'''. 락으로 쓰는 한에서는 동작이 같다는 점도 함께 적을 것.{/exam}\n\n{quiz}`CompareAndSwap(&flag, 0, 1)`이 '''1'''을 반환했다. `flag`의 현재 값과, 내가 락을 얻었는지 답하시오.{/quiz}\n{answer}반환값은 '''그 자리에 실제로 있던 값'''이므로 `flag`는 '''1'''(held)이었고, 기대값 0과 다르므로 '''갱신되지 않았다'''. 따라서 나는 '''락을 얻지 못했고''' 계속 spin해야 한다.{/answer}\n\n{quiz}CAS가 [[test-and-set]]보다 \"more powerful\"하다고 말하는 근거는 무엇인가?{/quiz}\n{answer}'''lock-free synchronization'''을 구현할 수 있기 때문이다. \"내가 읽은 값이 그대로일 때만 갱신\"이라는 조건부 의미 덕분에, 락 없이 공유 자료구조(스택·큐 등)를 안전하게 갱신하는 retry 루프를 만들 수 있다. (p.23){/answer}\n\n== 관련 문서 ==\n* [[test-and-set]] · [[fetch-and-add]] · [[load-linked store-conditional]] · [[atomic]]\n* [[spin lock]] · [[락]] · [[락 평가 기준]]"
  },
  "load-linked store-conditional": {
   "title": "Load-Linked / Store-Conditional (LL/SC)",
@@ -1531,7 +1532,7 @@ const ARTICLES = {
    "9강 Lock",
    "핵심"
   ],
-  "body": "'''Ticket lock'''은 [[fetch-and-add]]로 만든, '''fairness를 보장하는''' 최초의 락이다. 9강 p.26~29. 은행 번호표 시스템과 구조가 완전히 같다.\n\n{exam}⭐⭐⭐ '''2025F 중간고사 기출 영역.''' 교수님은 \"fetch-and-add 기반 락 코드의 빈칸\"을 마지막 문제로 냈다. (myturn, ticket, turn) 세 값을 '''손으로 추적'''하는 연습이 필수다. → [[2025F 중간고사 족보]]{/exam}\n\n[[img:L9-26.png|Ticket Lock — ticket과 turn 두 필드로 구현|large]]\n\n<pre class=\"c\">\n 1   typedef struct __lock_t {\n 2       int ticket;                                  // 다음에 발급될 번호표\n 3       int turn;                                    // 지금 서비스 중인 번호\n 4   } lock_t;\n 5\n 6   void lock_init(lock_t *lock) {\n 7       lock->ticket = 0;\n 8       lock->turn = 0;\n 9   }\n10\n11   void lock(lock_t *lock) {\n12       int myturn = FetchAndAdd(&lock->ticket);     // (1) 번호표 뽑기 (원자적)\n13       while (lock->turn != myturn)                 // (2) 내 차례 기다리기\n14                ; // spin\n15   }\n16   void unlock(lock_t *lock) {\n17       FetchAndAdd(&lock->turn);                    // (3) \"다음 손님!\"\n18   }\n<\/pre>\n\n== 변수 세 개 ==\n\n{|\n! 변수 || 정체 || 누가 바꾸나\n|-\n| '''`ticket`''' || 다음에 '''발급될''' 번호표 (번호표 발급기의 현재 숫자) || `lock()`이 [[fetch-and-add]]로 증가\n|-\n| '''`turn`''' || 지금 '''서비스 중인''' 번호 (전광판) || `unlock()`이 [[fetch-and-add]]로 증가\n|-\n| '''`myturn`''' || '''내가 뽑은''' 번호표 — '''스레드마다 다른 [[스레드 스택|스택]]의 지역 변수''' || 자기 자신만\n|}\n\n{warn}⭐ `myturn`이 '''공유 변수가 아니라 지역 변수'''라는 점이 중요하다. 각 스레드가 자기 번호표를 손에 쥐고 있고, 그 번호는 [[fetch-and-add]] 덕에 '''절대 겹치지 않는다'''.{/warn}\n\n== 동작 추적 (p.27~28) ==\n\n[[img:L9-27.png|Ticket Lock (Cont.) 그림 1 — ①~⑤. T1은 즉시 획득, T2는 myturn=1로 spinning|large]]\n\n{|\n! 마커 || 무슨 일 || myturn || ticket || turn\n|-\n| ① || `lock_init` — 초기 상태 || — || '''0''' || '''0'''\n|-\n| ② || '''Thread1 & Context Switch''' — T1이 `FetchAndAdd(&ticket)` 호출 → myturn=0을 받고 ticket은 1이 됨 || T1: '''0''' || '''1''' || 0\n|-\n| ③ || Thread2 진입 || || ||\n|-\n| ④ || '''Thread2 & Spinning''' — T2가 번호표를 뽑아 myturn=1, ticket은 2로. `turn(0) != myturn(1)` → '''spin''' || T2: '''1''' || '''2''' || 0\n|-\n| ⑤ || T1 복귀: `turn(0) == myturn(0)` → '''obtain the lock!''' || || 2 || 0\n|}\n\n[[img:L9-28.png|Ticket Lock (Cont.) 그림 2 — ⑥⑦. unlock이 turn을 1로 올리자 T2가 정확히 다음 차례로 들어간다|large]]\n\n{|\n! 마커 || 무슨 일 || ticket || turn\n|-\n| ⑥ || T1이 `unlock()` → `FetchAndAdd(&turn)` → turn이 1이 됨 || 2 || '''1'''\n|-\n| ⑦ || spin 중이던 T2: `turn(1) == myturn(1)` → '''obtain the lock!''' || 2 || 1\n|}\n\n[[anim:ticket_turn|ticket(발급기)과 turn(전광판) 숫자가 언제 오르는지, 세 스레드가 번호표 순서대로만 들어가는지 본 뒤 시뮬레이터로 값을 확인하라]]\n\n[[sim:ticket_lock]]\n\n{analogy}🎭 '''은행 번호표.''' `ticket` = 입구의 발급기, `turn` = 벽의 전광판, `myturn` = 내 손의 종이.\n① 들어오면서 번호표를 뽑고(12번 줄) ② 전광판에 내 번호가 뜰 때까지 앉아서 기다리고(13번 줄) ③ 볼일이 끝나면 전광판을 1 올린다(17번 줄).\n'''발급기가 원자적'''이라 두 사람이 같은 번호를 받을 수 없고, 전광판이 '''1씩만''' 올라가므로 '''순서를 건너뛸 수 없다'''. 이게 fairness의 전부다.{/analogy}\n\n== 왜 fairness가 보장되나 (p.29) ==\n\n{def}\"'''Ensure progress for all threads''' → '''fairness'''\"\n* '''Correctness: Yes'''\n* '''Fairness: Yes''' — \"Fetch-and-Add enable multiple threads to '''equally share''' the critical section\"\n* '''Performance: No''' — \"In the single CPU, performance overheads can be quite painful… every other thread will spin for a given time slice\"{/def}\n\n논리 사슬:\n# [[fetch-and-add]]가 각 스레드에게 '''고유한''' `myturn`을 준다\n# `turn`은 `unlock()`마다 '''정확히 1씩''' 올라간다\n# 따라서 번호표를 먼저 뽑은 스레드가 '''반드시 먼저''' 들어간다 = '''FIFO'''\n# FIFO면 '''starvation이 불가능'''하다 — 앞에 있는 사람 수는 유한하고 계속 줄어든다\n\n[[spin lock]](TAS)과의 본질적 차이가 여기다. TAS는 락이 풀릴 때 '''모두가 다시 경쟁'''하지만, ticket lock은 '''순서가 이미 정해져 있다'''.\n\n{warn}⭐ '''남은 문제는 performance뿐이다.''' 자기 차례를 기다리는 스레드는 여전히 `while (turn != myturn)`을 돌며 [[time slice]]를 태운다. 락 보유자가 preempt되면 나머지가 전부 낭비한다. 이 문제는 [[yield 락]] → [[queue 락]]에서 해결된다.{/warn}\n\n== 채점표 변화 ==\n\n{|\n! || Correctness || Fairness || Performance\n|-\n| [[spin lock]] (p.24) || Yes || '''No''' || No\n|-\n| '''ticket lock''' (p.29) || Yes || '''Yes''' ← 바뀐 칸 || No\n|}\n\n{quiz}ticket=0, turn=0인 상태에서 T1, T2, T3가 순서대로 `lock()`을 호출했다. 각자의 `myturn`과 이때의 `ticket`, `turn` 값을 쓰시오. 그리고 T1이 `unlock()`한 뒤 누가 들어가는가?{/quiz}\n{answer}T1: myturn=0, T2: myturn=1, T3: myturn=2. 호출이 모두 끝난 시점에 '''ticket=3, turn=0'''이다.\n`turn(0) == myturn(0)`이므로 '''T1만 진입'''하고 T2·T3는 spin한다.\nT1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1인 '''T2가 진입'''한다. 번호표 순서 그대로다.{/answer}\n\n{quiz}`unlock()`에서 `turn++` 대신 `FetchAndAdd(&turn)`을 쓰는 이유는?{/quiz}\n{answer}형식적 일관성과 안전을 위해서다. 사실 락을 '''쥔 스레드는 하나뿐'''이라 `turn++`로도 대개 문제가 없지만, `turn`은 다른 스레드들이 '''동시에 읽고 있는''' 공유 변수이므로 원자 명령으로 갱신하는 편이 안전하다. 슬라이드는 [[fetch-and-add]]로 통일해 보여 준다.{/answer}\n\n{quiz}ticket lock에서 starvation이 불가능한 이유를 한 문장으로 쓰시오.{/quiz}\n{answer}각 스레드가 [[fetch-and-add]]로 '''고유한 번호'''를 받고 `turn`이 '''1씩 순서대로''' 올라가므로, 어떤 스레드 앞에 있는 대기자 수는 유한하고 계속 줄어들어 '''반드시 자기 차례가 온다'''(FIFO).{/answer}\n\n== 시험 대비 핵심 요약 ==\n# `myturn = FetchAndAdd(&ticket)` — 번호표 뽑기, '''원자적'''이라 고유\n# `while (turn != myturn) ;` — 내 차례까지 spin\n# `unlock`은 `FetchAndAdd(&turn)` — \"다음 손님\"\n# '''Correctness Yes / Fairness Yes / Performance No'''\n# fairness의 근거 = '''고유한 번호 + 1씩 증가하는 turn = FIFO'''\n# 남은 문제 = spin 낭비 → [[yield 락]], [[queue 락]]으로\n\n== 관련 문서 ==\n* [[fetch-and-add]] · [[락]] · [[락 평가 기준]] · [[spin lock]]\n* [[yield 락]] · [[queue 락]] · [[fairness]] · [[time slice]]\n* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]"
+  "body": "'''Ticket lock'''은 [[fetch-and-add]]로 만든, '''fairness를 보장하는''' 최초의 락이다. 9강 p.26~29. 은행 번호표 시스템과 구조가 완전히 같다.\n\n{exam}⭐⭐⭐ '''2025F 중간고사 기출 영역.''' 교수님은 \"fetch-and-add 기반 락 코드의 빈칸\"을 마지막 문제로 냈다. (myturn, ticket, turn) 세 값을 '''손으로 추적'''하는 연습이 필수다. → [[2025F 중간고사 족보]]{/exam}\n\n[[img:L9-26.png|Ticket Lock — ticket과 turn 두 필드로 구현|large]]\n\n<pre class=\"c\">\n 1   typedef struct __lock_t {\n 2       int ticket;                                  // 다음에 발급될 번호표\n 3       int turn;                                    // 지금 서비스 중인 번호\n 4   } lock_t;\n 5\n 6   void lock_init(lock_t *lock) {\n 7       lock->ticket = 0;\n 8       lock->turn = 0;\n 9   }\n10\n11   void lock(lock_t *lock) {\n12       int myturn = FetchAndAdd(&lock->ticket);     // (1) 번호표 뽑기 (원자적)\n13       while (lock->turn != myturn)                 // (2) 내 차례 기다리기\n14                ; // spin\n15   }\n16   void unlock(lock_t *lock) {\n17       FetchAndAdd(&lock->turn);                    // (3) \"다음 손님!\"\n18   }\n<\/pre>\n\n== 변수 세 개 ==\n\n{|\n! 변수 || 정체 || 누가 바꾸나\n|-\n| '''`ticket`''' || 다음에 '''발급될''' 번호표 (번호표 발급기의 현재 숫자) || `lock()`이 [[fetch-and-add]]로 증가\n|-\n| '''`turn`''' || 지금 '''서비스 중인''' 번호 (전광판) || `unlock()`이 [[fetch-and-add]]로 증가\n|-\n| '''`myturn`''' || '''내가 뽑은''' 번호표 — '''스레드마다 다른 [[스레드 스택|스택]]의 지역 변수''' || 자기 자신만\n|}\n\n{warn}⭐ `myturn`이 '''공유 변수가 아니라 지역 변수'''라는 점이 중요하다. 각 스레드가 자기 번호표를 손에 쥐고 있고, 그 번호는 [[fetch-and-add]] 덕에 '''절대 겹치지 않는다'''.{/warn}\n\n== 동작 추적 (p.27~28) ==\n\n[[img:L9-27.png|Ticket Lock (Cont.) 그림 1 — ①~⑤. T1은 즉시 획득, T2는 myturn=1로 spinning|large]]\n\n{|\n! 마커 || 무슨 일 || myturn || ticket || turn\n|-\n| ① || `lock_init` — 초기 상태 || — || '''0''' || '''0'''\n|-\n| ② || '''Thread1 & Context Switch''' — T1이 `FetchAndAdd(&ticket)` 호출 → myturn=0을 받고 ticket은 1이 됨 || T1: '''0''' || '''1''' || 0\n|-\n| ③ || Thread2 진입 || || ||\n|-\n| ④ || '''Thread2 & Spinning''' — T2가 번호표를 뽑아 myturn=1, ticket은 2로. `turn(0) != myturn(1)` → '''spin''' || T2: '''1''' || '''2''' || 0\n|-\n| ⑤ || T1 복귀: `turn(0) == myturn(0)` → '''obtain the lock!''' || || 2 || 0\n|}\n\n[[img:L9-28.png|Ticket Lock (Cont.) 그림 2 — ⑥⑦. unlock이 turn을 1로 올리자 T2가 정확히 다음 차례로 들어간다|large]]\n\n{|\n! 마커 || 무슨 일 || ticket || turn\n|-\n| ⑥ || T1이 `unlock()` → `FetchAndAdd(&turn)` → turn이 1이 됨 || 2 || '''1'''\n|-\n| ⑦ || spin 중이던 T2: `turn(1) == myturn(1)` → '''obtain the lock!''' || 2 || 1\n|}\n\n[[anim:ticket_turn|ticket(발급기)과 turn(전광판) 숫자가 언제 오르는지, 세 스레드가 번호표 순서대로만 들어가는지 본 뒤 시뮬레이터로 값을 확인하라]]\n\n[[sim:ticket_lock]]\n\n{analogy}🎭 '''은행 번호표.''' `ticket` = 입구의 발급기, `turn` = 벽의 전광판, `myturn` = 내 손의 종이.\n① 들어오면서 번호표를 뽑고(12번 줄) ② 전광판에 내 번호가 뜰 때까지 앉아서 기다리고(13번 줄) ③ 볼일이 끝나면 전광판을 1 올린다(17번 줄).\n'''발급기가 원자적'''이라 두 사람이 같은 번호를 받을 수 없고, 전광판이 '''1씩만''' 올라가므로 '''순서를 건너뛸 수 없다'''. 이게 fairness의 전부다.{/analogy}\n\n== 왜 fairness가 보장되나 (p.29) ==\n\n{def}\"'''Ensure progress for all threads''' → '''fairness'''\"\n* '''Correctness: Yes'''\n* '''Fairness: Yes''' — \"Fetch-and-Add enable multiple threads to '''equally share''' the critical section\"\n* '''Performance: No''' — \"In the single CPU, performance overheads can be quite painful… every other thread will spin for a given time slice\"{/def}\n\n논리 사슬:\n# [[fetch-and-add]]가 각 스레드에게 '''고유한''' `myturn`을 준다\n# `turn`은 `unlock()`마다 '''정확히 1씩''' 올라간다\n# 따라서 번호표를 먼저 뽑은 스레드가 '''반드시 먼저''' 들어간다 = '''FIFO'''\n# FIFO면 '''starvation이 불가능'''하다 — 앞에 있는 사람 수는 유한하고 계속 줄어든다\n\n[[spin lock]](TAS)과의 본질적 차이가 여기다. TAS는 락이 풀릴 때 '''모두가 다시 경쟁'''하지만, ticket lock은 '''순서가 이미 정해져 있다'''.\n\n{warn}⭐ '''남은 문제는 performance뿐이다.''' 자기 차례를 기다리는 스레드는 여전히 `while (turn != myturn)`을 돌며 [[time slice]]를 태운다. 락 보유자가 preempt되면 나머지가 전부 낭비한다. 이 문제는 [[yield 락]] → [[queue 락]]에서 해결된다.{/warn}\n\n== 채점표 변화 ==\n\n{|\n! || Correctness || Fairness || Performance\n|-\n| [[spin lock]] (p.24) || Yes || '''No''' || No\n|-\n| '''ticket lock''' (p.29) || Yes || '''Yes''' ← 바뀐 칸 || No\n|}\n\n{quiz}ticket=0, turn=0인 상태에서 T1, T2, T3가 순서대로 `lock()`을 호출했다. 각자의 `myturn`과 이때의 `ticket`, `turn` 값을 쓰시오. 그리고 T1이 `unlock()`한 뒤 누가 들어가는가?{/quiz}\n{answer}T1: myturn=0, T2: myturn=1, T3: myturn=2. 호출이 모두 끝난 시점에 '''ticket=3, turn=0'''이다.\n`turn(0) == myturn(0)`이므로 '''T1만 진입'''하고 T2·T3는 spin한다.\nT1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1인 '''T2가 진입'''한다. 번호표 순서 그대로다.{/answer}\n\n{quiz}`unlock()`에서 `turn++` 대신 `FetchAndAdd(&turn)`을 쓰는 이유는?{/quiz}\n{answer}형식적 일관성과 안전을 위해서다. 사실 락을 '''쥔 스레드는 하나뿐'''이라 `turn++`로도 대개 문제가 없지만, `turn`은 다른 스레드들이 '''동시에 읽고 있는''' 공유 변수이므로 원자 명령으로 갱신하는 편이 안전하다. 슬라이드는 [[fetch-and-add]]로 통일해 보여 준다.{/answer}\n\n{quiz}ticket lock에서 starvation이 불가능한 이유를 한 문장으로 쓰시오.{/quiz}\n{answer}각 스레드가 [[fetch-and-add]]로 '''고유한 번호'''를 받고 `turn`이 '''1씩 순서대로''' 올라가므로, 어떤 스레드 앞에 있는 대기자 수는 유한하고 계속 줄어들어 '''반드시 자기 차례가 온다'''(FIFO).{/answer}\n\n== 문제집 ④-02 디버깅 — H·P·Q·R 이벤트 추적 (2026-10-13 추가) ⭐⭐⭐ ==\n\n문제: 락이 사용 중이다 — '''ticket = 3, turn = 2, H 가 쥐고 있다(myturn 2)'''. 한 CPU에서 이벤트가 1) P lock 2) Q lock 3) H unlock 4) R lock 5) P unlock 6) Q unlock 7) R unlock 순으로 일어난다. (a) 각 이벤트 후 myturn·ticket·turn·owner·spinning (b) 획득 순서 (c) TAS 스핀락과 비교해 무엇이 좋아졌고 무엇이 여전히 No인가.\n\n{analogy}🎭 '''은행 번호표'''. `ticket` = 발급기에서 '''다음에 나올''' 번호, `turn` = 전광판에 뜬 '''지금 처리 중인''' 번호. 손님이 오면(lock) 번호표를 한 장 뽑고(발급기 +1) 자기 번호가 전광판에 뜰 때까지 서서 기다린다(spin). 창구 일이 끝나면(unlock) 전광판만 다음 번호로 넘긴다(전광판 +1). '''번호표 뽑기와 전광판 넘기기는 서로 다른 숫자를 건드린다''' — 이것만 지키면 표가 저절로 채워진다.{/analogy}\n\n{|\n! 이벤트 || 무엇이 바뀌나 || myturn || ticket || turn || owner || spinning\n|-\n| 시작 || — || H=2 || 3 || 2 || H || —\n|-\n| 1) P lock || P 가 번호표 '''3''' (옛 값) || P=3 || '''4''' || 2 || H || P\n|-\n| 2) Q lock || Q 가 번호표 '''4''' || Q=4 || '''5''' || 2 || H || P, Q\n|-\n| 3) H unlock || 전광판 2 → '''3''' = P 의 번호 || — || 5 || '''3''' || '''P''' || Q\n|-\n| 4) R lock || R 이 번호표 '''5''' || R=5 || '''6''' || 3 || P || Q, R\n|-\n| 5) P unlock || 전광판 → '''4''' = Q || — || 6 || '''4''' || '''Q''' || R\n|-\n| 6) Q unlock || 전광판 → '''5''' = R || — || 6 || '''5''' || '''R''' || —\n|-\n| 7) R unlock || 전광판 → '''6''' = ticket || — || 6 || '''6''' || '''free''' || —\n|}\n\n* '''(b)''' 획득 순서 '''H → P → Q → R''' — lock()을 부른 순서(번호표 순서) 그대로.\n* '''(c)''' '''Fairness: No → Yes''' — FetchAndAdd가 각자에게 고유 번호를 주니 새치기·굶주림이 없다. '''Performance: 여전히 No''' — 대기자는 여전히 spin하고, 주인이 CS 안에서 preempt되면 대기자 전원이 time slice를 통째로 태운다(p.29).\n\n{tip}💡 '''푸는 요령''': ① lock 이벤트에선 '''ticket만''' +1, myturn = 올리기 '''전''' 값. ② unlock 이벤트에선 '''turn만''' +1, 그 값과 같은 myturn을 가진 스레드가 새 owner. ③ 검산: 대기자 수 = ticket − turn − 1 (이벤트 4 직후 6 − 3 − 1 = 2: Q, R). ticket == turn이면 free. 흔한 실수는 unlock에서 ticket을 줄이거나, myturn에 올린 '''뒤''' 값을 적는 것.{/tip}\n\n시뮬레이터 ①은 위 표를 한 줄씩 밟는다 — 변수표의 ticket·turn·owner·spinning이 표의 한 행이다. ②는 2) 직후 H가 CS 안에서 쫓겨나는 경우로, P와 Q가 time slice를 하나씩 태우는 것(\"spin 으로 버린 time slice\" 카운터)을 보여 준다 — (c)의 Performance 'No' 근거.\n\n[[sim:ticket_trace4]]\n\n== 시험 대비 핵심 요약 ==\n# `myturn = FetchAndAdd(&ticket)` — 번호표 뽑기, '''원자적'''이라 고유\n# `while (turn != myturn) ;` — 내 차례까지 spin\n# `unlock`은 `FetchAndAdd(&turn)` — \"다음 손님\"\n# '''Correctness Yes / Fairness Yes / Performance No'''\n# fairness의 근거 = '''고유한 번호 + 1씩 증가하는 turn = FIFO'''\n# 남은 문제 = spin 낭비 → [[yield 락]], [[queue 락]]으로\n\n== 관련 문서 ==\n* [[fetch-and-add]] · [[락]] · [[락 평가 기준]] · [[spin lock]]\n* [[yield 락]] · [[queue 락]] · [[fairness]] · [[time slice]]\n* [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]"
  },
  "yield 락": {
   "title": "yield 락 (A Simple Approach: Just Yield)",
@@ -2557,7 +2558,8 @@ const NAV_ORDER = [
     this.lineNodes = {};
     this.panelNodes = {};
     // 패널이 3개 이상이면 좁게 나란히 (세로로 길어지는 것 방지)
-    this.panelsBox.className = "sim-panels" + (this.trace.panels.length >= 3 ? " many" : "");
+    var np = this.trace.panels.length;
+    this.panelsBox.className = "sim-panels" + (np >= 3 ? " many" : "") + (np === 4 ? " p4" : "");
     this.trace.panels.forEach(function (p) {
       var wrap = el("div", "sim-panel");
       var ph = el("div", "sim-panel-head");
@@ -3423,6 +3425,164 @@ window.SIMS = window.SIMS || {};
       steps: steps
     };
   }
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/cas_two_versions.js =====
+// cas_two_versions — 문제집 u8 ④-01 (g): 같은 CAS 스핀락인데 CAS 의 '반환값 규칙' 이 9강(옛 값) / 12강(성공 1·실패 0) 으로
+// 다르면 while 조건이 뒤집힌다. 12강 CAS 에 9강 조건(== 1)을 그대로 쓰면 mutual exclusion 이 깨지는 것까지 보여 준다.
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var CAS9 = [
+    "/* 9강 p.22 — '옛 값' 을 돌려준다 */",
+    "int CAS(int *p, int expected, int new) {",
+    "    int old = *p;",
+    "    if (old == expected)",
+    "        *p = new;",
+    "    return old;      // 0 = 비어 있었음(성공)",
+    "}                    // 1 = 이미 잡혀 있었음(실패)"
+  ];
+  var CAS12 = [
+    "/* 12강 p.22 — '성공 여부' 를 돌려준다 */",
+    "int CAS(int *p, int expected, int new) {",
+    "    if (*p == expected) {",
+    "        *p = new;",
+    "        return 1;    // 1 = 성공",
+    "    }",
+    "    return 0;        // 0 = 실패",
+    "}"
+  ];
+  function thCode(cond) {
+    return [
+      "lock(l):",
+      "  while (CAS(&l->flag, 0, 1) " + cond + ")",
+      "      ;            // spin",
+      "  /* critical section */",
+      "unlock(l):",
+      "  l->flag = 0;"
+    ];
+  }
+
+  global.SIMS["cas_two_versions"] = {
+    title: "CAS 스핀락 — 반환값 규칙이 바뀌면 while 조건이 뒤집힌다 (문제집 ④-01 g)",
+    desc: "flag: 0 = 비었음, 1 = 누가 쥠. CAS(&flag, 0, 1) 은 '비어 있으면 내가 잡는다' 를 한 번에 한다. while 은 '''실패했으면 다시''' 라는 뜻이어야 하므로, 조건에는 '''실패를 뜻하는 반환값'''을 쓴다 — 9강 CAS 는 실패 = 1, 12강 CAS 는 실패 = 0. [[compare-and-swap]] · [[spin lock]] · [[lock-free]]",
+    options: [
+      {
+        key: "ver",
+        label: "버전",
+        values: [
+          { value: "v9", label: "① 9강 CAS (옛 값 반환) + while (… == 1)  — 정답 (a)~(d)" },
+          { value: "v12", label: "② 12강 CAS (1/0 반환) + while (… == 0)  — 정답 (g)" },
+          { value: "wrong", label: "③ 함정: 12강 CAS 에 9강 조건 (… == 1) 을 그대로" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      var ver = opts.ver || "v9";
+      var ret9 = ver === "v9";
+      var cond = ver === "v12" ? "== 0" : "== 1";
+      var failVal = ret9 ? 1 : 0;           // '실패' 를 뜻하는 반환값
+      var st = { flag: 0, T1: "ready", T2: "ready", ret1: "-", ret2: "-", inCS: [] };
+      var pc = { CAS: null, T1: null, T2: null };
+      var steps = [];
+
+      function snap() {
+        return {
+          flag: st.flag + (st.flag ? " (잡혀 있음)" : " (비었음)"),
+          "T1.ret": st.ret1, "T2.ret": st.ret2,
+          "T1": st.T1, "T2": st.T2,
+          "CS 안": st.inCS.length ? st.inCS.join(", ") + (st.inCS.length > 1 ? "  ← 둘이 동시에!" : "") : "(없음)"
+        };
+      }
+      function push(desc, note) {
+        steps.push({
+          desc: desc, pc: { CAS: pc.CAS, T1: pc.T1, T2: pc.T2 }, vars: snap(),
+          status: { T1: st.T1, T2: st.T2 }, note: note || null
+        });
+      }
+      // CAS 한 번 실행: 반환값과 while 판정까지 한 step
+      function cas(t) {
+        var before = st.flag, ok = before === 0, ret;
+        if (ok) st.flag = 1;
+        ret = ret9 ? before : (ok ? 1 : 0);
+        if (t === "T1") st.ret1 = ret; else st.ret2 = ret;
+        var loop = (cond === "== 1") ? (ret === 1) : (ret === 0);
+        pc[t] = 2; pc.CAS = ret9 ? 6 : (ok ? 5 : 7);   // 반환하는 줄
+        st[t] = "running";
+        var other = t === "T1" ? "T2" : "T1"; if (st[other] === "running") st[other] = "ready";
+        var what = "'''" + t + "''' — `CAS(&flag, 0, 1)`: flag 가 " + before + " → " +
+          (ok ? "expected(0) 와 같으니 '''1 로 바꿈'''(내가 잡음)" : "expected(0) 와 달라서 '''안 바꿈'''(남이 쥐고 있음)") +
+          ". 반환값 = '''" + ret + "''' (" + (ret9 ? "옛 값" : (ok ? "성공" : "실패")) + "). " +
+          "while 조건 `" + ret + " " + cond + "` → '''" + (loop ? "참 → 다시 돈다(spin)" : "거짓 → while 탈출") + "'''.";
+        return { loop: loop, ok: ok, what: what };
+      }
+      function enter(t, extra, note) {
+        pc[t] = 4; pc.CAS = null;
+        st.inCS.push(t); st[t] = "running";
+        push("'''" + t + "''' 가 while 을 빠져나와 critical section 에 들어간다." + (extra || ""), note);
+      }
+
+      push("시작: flag = 0 (비었음). T1 이 먼저 lock() 을 부르고, T1 이 CS 에 있는 동안 T2 가 lock() 을 부른다. " +
+        (ret9 ? "이 CAS 는 '''옛 값'''을 돌려준다: 0 이면 비어 있었으니 내가 잡은 것(성공), 1 이면 이미 잡혀 있었던 것(실패). 실패 = 1 → while 조건은 `== 1`."
+              : "이 CAS 는 '''성공 1 / 실패 0'''을 돌려준다. " +
+                (ver === "v12" ? "실패 = 0 → while 조건은 `== 0`." : "그런데 while 조건은 9강 것(`== 1`)을 그대로 썼다. `== 1` 은 이 CAS 에서 '''성공'''을 뜻한다 — 무슨 일이 생기는지 보라.")));
+
+      // ---- T1 lock
+      var r = cas("T1");
+      push(r.what + (ver === "wrong" ? " — 잡는 데 '''성공'''했는데 조건이 참이라 다시 돈다. 방향이 거꾸로다." : ""));
+      if (r.loop) {
+        r = cas("T1");
+        push(r.what + " — 두 번째 시도는 flag 가 이미 1(자기가 걸어 둔 것)이라 실패하고, '''실패해서''' while 을 빠져나온다. T1 은 우연히 락을 쥐고 있긴 하다.");
+      }
+      enter("T1");
+
+      // ---- T2 lock while T1 in CS
+      st.T1 = "ready";
+      r = cas("T2");
+      if (ver === "wrong") {
+        push(r.what + " — T1 이 쥐고 있어 CAS 는 '''실패(0)''' 했는데, 조건 `0 == 1` 이 거짓이라 T2 가 '''while 을 빠져나온다'''.");
+        enter("T2", "", "③ 함정의 결과: T1 이 아직 CS 안에 있는데 T2 도 들어갔다 — '''mutual exclusion 이 깨졌다'''. 12강 CAS 의 1 은 '성공' 인데 9강 조건 `== 1` 은 그걸 '실패' 로 읽었다. 반환값의 뜻이 반대이므로 조건도 `== 0` 으로 뒤집어야 한다(정답 g).");
+        return { panels: panels(), vars: vars(), steps: steps };
+      }
+      st.T2 = "spinning";
+      push(r.what + " — T2 는 T1 이 놓을 때까지 돈다.");
+      r = cas("T2"); st.T2 = "spinning";
+      push(r.what + " — 아직 1. 계속 spin (CPU 를 태운다 = performance 'No').");
+
+      // ---- T1 unlock
+      pc.T1 = 6; pc.CAS = null; st.inCS = []; st.flag = 0; st.T1 = "running"; if (st.T2 === "spinning") st.T2 = "ready";
+      push("'''T1''' — `unlock`: `flag = 0`. 락을 쥔 스레드만 unlock 을 부르므로 평범한 대입으로 충분하다(정답 f).");
+      st.T1 = "done";
+
+      // ---- T2 acquires
+      r = cas("T2");
+      push(r.what + " — 이번엔 비어 있었으니 T2 가 잡았다.");
+      enter("T2", "", "결과: 정상. 두 스레드가 한 번에 하나씩 CS 에 들어갔다. " +
+        (ret9 ? "9강 CAS: 반환값 0 = 성공, 1 = 실패 → `while (CAS(...) == 1)`. 같은 락을 12강 CAS 로 쓰려면 드롭다운 ② 를 보라."
+              : "12강 CAS: 반환값 1 = 성공, 0 = 실패 → `while (CAS(...) == 0)` (정답 g). 9강과 '''락의 동작은 같고 조건만 뒤집혔다'''."));
+
+      return { panels: panels(), vars: vars(), steps: steps };
+
+      function panels() {
+        return [
+          { id: "CAS", title: ret9 ? "CAS — 9강 버전" : "CAS — 12강 버전", lang: "c", lines: ret9 ? CAS9 : CAS12 },
+          { id: "T1", title: "T1", lang: "c", lines: thCode(cond) },
+          { id: "T2", title: "T2", lang: "c", lines: thCode(cond) }
+        ];
+      }
+      function vars() {
+        return [
+          { name: "flag", label: "flag", group: "공유 메모리" },
+          { name: "T1.ret", label: "T1 의 마지막 CAS 반환값", group: "CAS 반환값" },
+          { name: "T2.ret", label: "T2 의 마지막 CAS 반환값", group: "CAS 반환값" },
+          { name: "T1", label: "T1 상태", group: "스레드" },
+          { name: "T2", label: "T2 상태", group: "스레드" },
+          { name: "CS 안", label: "critical section 안에 있는 스레드", group: "스레드" }
+        ];
+      }
+    }
+  };
 })(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/cfs_eevdf.js =====
@@ -8933,6 +9093,123 @@ window.SIMS = window.SIMS || {};
         vars.push({ name: id + ".state", label: "상태", group: id });
       });
       return { panels: panels, vars: vars, steps: steps };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/ticket_trace4.js =====
+// ticket_trace4 — 문제집 u8 ④-02: ticket = 3, turn = 2, H 가 락을 쥔 상태에서 P·Q·R 이 차례로 lock/unlock.
+// 매 lock() 은 ticket 만, 매 unlock() 은 turn 만 1 올린다. 번호표 순서 = 획득 순서(fairness). 옵션 ② 는 performance 'No' 의 이유.
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  function code(name) {
+    return [
+      name + ".lock():",
+      "  myturn = FetchAndAdd(&ticket);  // 뽑기",
+      "  while (turn != myturn) ;  // spin",
+      "  /* critical section */",
+      name + ".unlock():",
+      "  FetchAndAdd(&turn);  // 전광판 +1"
+    ];
+  }
+
+  global.SIMS["ticket_trace4"] = {
+    title: "ticket lock 추적 — 문제집 ④-02 (H·P·Q·R)",
+    desc: "은행 번호표: `ticket` = 발급기에 다음에 나올 번호, `turn` = 전광판의 '지금 몇 번 손님'. lock() 은 번호표를 뽑기만 하고(ticket +1), unlock() 은 전광판만 넘긴다(turn +1). 자기 번호가 전광판에 뜰 때까지 돈다(spin). [[ticket lock]] · [[fetch-and-add]]",
+    options: [
+      {
+        key: "sc",
+        label: "시나리오",
+        values: [
+          { value: "events", label: "① 문제의 이벤트 1)~7) — 표 (a)·(b) 답" },
+          { value: "preempt", label: "② H 가 CS 안에서 preempt 되면 — (c) performance 'No' 의 이유" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      var sc = opts.sc || "events";
+      var S = { ticket: 3, turn: 2, owner: "H", my: { H: 2, P: "-", Q: "-", R: "-" }, spin: [], order: ["H"], wasted: 0 };
+      var stt = { H: "running", P: "ready", Q: "ready", R: "ready" };
+      var pc = { H: 4, P: null, Q: null, R: null };
+      var steps = [];
+
+      function snap() {
+        return {
+          ticket: S.ticket, turn: S.turn,
+          owner: S.owner || "(없음 — free)",
+          spinning: S.spin.length ? S.spin.join(", ") : "(없음)",
+          "myturn.H": S.my.H, "myturn.P": S.my.P, "myturn.Q": S.my.Q, "myturn.R": S.my.R,
+          "획득 순서": S.order.join(" → "),
+          "spin 으로 버린 time slice": S.wasted
+        };
+      }
+      function push(desc, note) {
+        steps.push({ desc: desc, pc: { H: pc.H, P: pc.P, Q: pc.Q, R: pc.R }, vars: snap(),
+          status: { H: stt.H, P: stt.P, Q: stt.Q, R: stt.R }, note: note || null });
+      }
+      function lock(t, n) {
+        var my = S.ticket; S.my[t] = my; S.ticket++;
+        S.spin.push(t); stt[t] = "spinning"; pc[t] = 3;
+        push("'''" + n + ") " + t + " 가 lock()''' — `FetchAndAdd(&ticket)` 이 '''옛 값 " + my + "''' 을 돌려주고 ticket 은 " + S.ticket + " 이 된다 → myturn[" + t + "] = " + my +
+          ". 전광판 turn = " + S.turn + " ≠ " + my + " 이라 '''spin'''. (turn 은 건드리지 않는다.)");
+      }
+      function unlock(t, n) {
+        S.turn++; S.owner = null; stt[t] = "done"; pc[t] = 6;
+        var next = null;
+        for (var i = 0; i < S.spin.length; i++) if (S.my[S.spin[i]] === S.turn) next = S.spin[i];
+        var d = "'''" + n + ") " + t + " 가 unlock()''' — `FetchAndAdd(&turn)`: turn " + (S.turn - 1) + " → '''" + S.turn + "'''. (ticket 은 그대로 " + S.ticket + ".) ";
+        if (next) {
+          S.spin.splice(S.spin.indexOf(next), 1); S.owner = next; S.order.push(next); stt[next] = "running"; pc[next] = 4;
+          d += "myturn 이 " + S.turn + " 인 '''" + next + "''' 의 while 조건 `turn != myturn` 이 거짓이 되어 빠져나온다 → " + next + " 가 락을 잡는다.";
+        } else {
+          d += "turn = " + S.turn + " = ticket 이므로 기다리는 사람이 없다 → '''락이 비었다(free)'''.";
+        }
+        push(d);
+      }
+
+      push("시작: ticket = 3, turn = 2, '''H 가 락을 쥐고 CS 안'''에 있다(H 의 myturn = 2). 규칙 두 개만 기억하라: '''lock() 은 ticket 만 +1, unlock() 은 turn 만 +1'''. 그리고 `turn == myturn` 인 스레드가 주인이다.");
+
+      if (sc === "events") {
+        lock("P", 1);
+        lock("Q", 2);
+        unlock("H", 3);
+        lock("R", 4);
+        unlock("P", 5);
+        unlock("Q", 6);
+        unlock("R", 7);
+        steps[steps.length - 1].note = "답 (b): 획득 순서 = '''H → P → Q → R''' — lock() 을 부른 순서(번호표 순서) 그대로다. 이것이 test-and-set 스핀락에 없던 '''Fairness: Yes''' 의 이유(FetchAndAdd 가 각자에게 고유 번호를 주므로 누구도 새치기당해 굶지 않는다). 확인 공식: 대기자 수 = ticket − turn − 1 (4) 직후 6 − 3 − 1 = 2). 마지막에 ticket == turn (6 == 6) 이면 free.";
+      } else {
+        lock("P", 1);
+        lock("Q", 2);
+        stt.H = "ready";
+        stt.P = "spinning"; S.wasted++;
+        push("'''timer interrupt''' — H 가 '''CS 안에서''' 쫓겨났다(preempt). 스케줄러가 P 를 고른다. P 는 time slice 내내 `while (turn != 3)` 만 확인한다 — turn 을 올릴 수 있는 건 H 의 unlock 뿐인데 H 는 실행 중이 아니다. '''time slice 1개를 통째로 낭비'''.");
+        stt.P = "ready"; stt.Q = "spinning"; S.wasted++;
+        push("Q 차례 — Q 도 time slice 내내 spin. '''또 1개 낭비'''. 대기자가 N 명이면 H 가 돌아오기 전까지 N 개의 time slice 가 버려진다.");
+        stt.Q = "ready"; stt.H = "running";
+        push("드디어 H 가 다시 CPU 를 받아 CS 를 마저 실행한다.");
+        unlock("H", 3);
+        steps[steps.length - 1].note = "답 (c): ticket lock 은 Fairness 를 No → Yes 로 고쳤지만 '''Performance 는 여전히 No''' — 대기자는 여전히 spin 하고, 주인이 preempt 되면 모든 대기자가 자기 time slice 를 통째로 태운다(9강 p.29 'the thread holding the lock is preempted …'). 해결은 spin 대신 잠들기 → yield / [[queue 락]](park·unpark).";
+      }
+
+      return {
+        panels: ["H", "P", "Q", "R"].map(function (t) { return { id: t, title: t, lang: "c", lines: code(t) }; }),
+        vars: [
+          { name: "ticket", label: "ticket (발급기: 다음 번호)", group: "락" },
+          { name: "turn", label: "turn (전광판: 지금 번호)", group: "락" },
+          { name: "owner", label: "owner (turn == myturn 인 스레드)", group: "락" },
+          { name: "spinning", label: "spinning (기다리며 도는 스레드)", group: "락" },
+          { name: "myturn.H", label: "H 의 myturn", group: "번호표" },
+          { name: "myturn.P", label: "P 의 myturn", group: "번호표" },
+          { name: "myturn.Q", label: "Q 의 myturn", group: "번호표" },
+          { name: "myturn.R", label: "R 의 myturn", group: "번호표" },
+          { name: "획득 순서", label: "획득 순서", group: "결과" },
+          { name: "spin 으로 버린 time slice", label: "spin 으로 버린 time slice", group: "결과" }
+        ],
+        steps: steps
+      };
     }
   };
 })(typeof window !== "undefined" ? window : globalThis);
