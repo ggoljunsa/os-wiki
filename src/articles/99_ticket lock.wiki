@@ -117,6 +117,8 @@ T1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1
 {quiz}ticket lock에서 starvation이 불가능한 이유를 한 문장으로 쓰시오.{/quiz}
 {answer}각 스레드가 [[fetch-and-add]]로 '''고유한 번호'''를 받고 `turn`이 '''1씩 순서대로''' 올라가므로, 어떤 스레드 앞에 있는 대기자 수는 유한하고 계속 줄어들어 '''반드시 자기 차례가 온다'''(FIFO).{/answer}
 
+{tip}😵 그림으로 먼저 보려면 → [[락 그림 요약]]{/tip}
+
 == 문제집 ④-02 디버깅 — H·P·Q·R 이벤트 추적 (2026-10-13 추가) ⭐⭐⭐ ==
 
 문제: 락이 사용 중이다 — '''ticket = 3, turn = 2, H 가 쥐고 있다(myturn 2)'''. 한 CPU에서 이벤트가 1) P lock 2) Q lock 3) H unlock 4) R lock 5) P unlock 6) Q unlock 7) R unlock 순으로 일어난다. (a) 각 이벤트 후 myturn·ticket·turn·owner·spinning (b) 획득 순서 (c) TAS 스핀락과 비교해 무엇이 좋아졌고 무엇이 여전히 No인가.

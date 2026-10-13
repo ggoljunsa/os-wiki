@@ -2,6 +2,8 @@ key: 락
 title: 락 (Lock)
 category: 9강 Lock, 핵심
 ---
+{tip}😵 '''헷갈리면 먼저 [[락 그림 요약]]부터''' — 움직이는 그림 세 개(화장실 팻말 · CAS 두 버전 · 은행 번호표)로 시험에 나오는 핵심만 봅니다.{/tip}
+
 8강은 "[[race condition]]을 막으려면 [[critical section]]을 [[atomic|atomic]]하게 만들어야 한다"까지 왔다. 9강의 질문은 하나다:
 
 > "'''But how should we build a lock?'''" (p.13)

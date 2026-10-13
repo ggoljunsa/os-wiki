@@ -90,7 +90,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 ### 8강 Concurrency
 스레드 · TCB · 스레드 스택 · pthread_create · pthread_join · TLS · 스레드와 프로세스 비교 · race condition · critical section · mutual exclusion · atomic · counter 예제 · 스레드 컨텍스트 스위치
 ### 9강 Lock
-락 · 락 평가 기준 · flag 락 · 인터럽트 비활성화 · test-and-set · spin lock · compare-and-swap · load-linked store-conditional · fetch-and-add · ticket lock · yield 락 · queue 락 · park와 unpark · setpark · futex · two-phase lock · guard · priority inversion
+락 그림 요약 · 락 · 락 평가 기준 · flag 락 · 인터럽트 비활성화 · test-and-set · spin lock · compare-and-swap · load-linked store-conditional · fetch-and-add · ticket lock · yield 락 · queue 락 · park와 unpark · setpark · futex · two-phase lock · guard · priority inversion
 ### 10강 Condition Variable / 11강 Semaphore (+ OSTEP 29장 락 기반 자료구조) — 파일 접두어 `9Z0_`~`9ZH_` (9강 뒤·과제 앞에 정렬되도록). 슬라이드 `10-CondVar_Semaphore.pdf` 64쪽 = `_slides/L10-{pp}.png`(9/28 수업 p.1~29). `11-Semaphore.pdf` 42쪽 = `_slides/L11-{pp}.png`(9/30 수업 전부; 10강 p.30~62를 떼어 낸 덱 + 새 페이지 p.6~7, p.9~13. 10강 p.N = 11강 p.N−22 (N≥36), p.31~34→2~5, p.35→8). 세마포어·rwlock·dining philosophers·데드락 문서는 11강 번호를 쓴다
 조건 변수 · wait와 signal · Mesa semantics · spurious wakeup · producer-consumer · bounded buffer · covering condition · broadcast · done flag 예제 · 락 기반 자료구조 · sloppy counter · concurrent linked list · concurrent queue · concurrent hash table · 세마포어 · reader-writer lock · 데드락 · dining philosophers
 ### 12강 Deadlock — 파일 접두어 `9ZG_`(허브)·`9ZI_`~`9ZP_`. 슬라이드 `12-Deadlock.pdf` 54쪽 = `_slides/L12-{pp}.png`(2026-10-07 수업; p.2~8 dining philosophers 복습, p.9~29 데드락, p.30~52 8~11강 Summary). 녹음은 p.15부터
@@ -222,5 +222,8 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | cv_wait_signal | wait() 가 락을 놓고 잠들었다가 signal 로 깨어나 락을 다시 잡고 돌아오는 10초 — Mesa 라 깨어난 뒤 조건 재검사(while) | 조건 변수, wait와 signal, Mesa semantics |
 | bounded_buffer | 생산자 2·소비자 2, 버퍼 3칸: fill/use 포인터, count, empty/fill 두 cv 에서 자고 깨는 흐름 | producer-consumer, bounded buffer |
 | deadlock_cycle | 12강 p.10~16: T0·T1 이 L1·L2 를 반대 순서로 잡아 Holds/Wanted-by 화살표가 붉은 고리(circular wait) → lock ordering 으로 둘 다 L1→L2 → 고리 없음 | 데드락, lock ordering |
+| lock_door | 락 그림 요약 ①: 화장실 문 팻말(flag) — T1이 '비었네'를 본 뒤 interrupt로 멈춤 → T2가 팻말 걸고 들어감 → T1도 들어감 → 둘이 동시에. 글 거의 없음 | 락 그림 요약 |
+| cas_two_answers | 락 그림 요약 ②: 9강 CAS(원래 값)·12강 CAS(성공 여부)가 성공/실패 때 내는 숫자 비교 → while 에는 실패 숫자(==1 / ==0) | 락 그림 요약 |
+| ticket_bank | 락 그림 요약 ③: 은행 번호표 — 발급기(ticket)·전광판(turn)·창구(락)로 문제집 ④-02 이벤트 7개 | 락 그림 요약 |
 | dining_philosophers | 다섯 철학자·포크 5개 원탁: ① 모두 왼쪽 포크 sem_wait → 오른쪽 대기 → 붉은 고리(circular wait → deadlock) ② p.61 해법: P4 만 right→left → P4 가 포크 0개로 대기 → f4 가 남아 P3 → P2 → P1 순으로 먹음 | dining philosophers, 데드락 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

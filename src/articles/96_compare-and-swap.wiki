@@ -44,6 +44,8 @@ category: 9강 Lock, 용어
 
 [[sim:cas_llsc]]
 
+{tip}😵 그림으로 먼저 보려면 → [[락 그림 요약]]{/tip}
+
 == 문제집 ④-01 디버깅 — CAS 반환값이 바뀌면 while 조건이 뒤집힌다 (2026-10-13 추가) ⭐⭐⭐ ==
 
 문제집 u8 ④-01(2025F P7 유형)은 위 스핀락의 빈칸 채우기다. 정답은 (a) `&l->flag` (b) `0` (c) `1` (d) `== 1` (e) `CompareAndSwap(&l->flag, 0, 1) == 0` (f) `l->flag = 0` (g) `while (CompareAndSwap(&l->flag, 0, 1) == 0) ;` (h) Yes / No / No. 헷갈리는 곳은 (g) — "12강 CAS(성공 1 / 실패 0)로 바꾸면 while 줄을 어떻게 쓰나"이다.

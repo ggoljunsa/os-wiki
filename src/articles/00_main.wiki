@@ -25,6 +25,8 @@ category: 안내
 # [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]
 # [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위
 
+{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}
+
 {info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
 
 [[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]

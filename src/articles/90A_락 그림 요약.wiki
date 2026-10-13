@@ -1,0 +1,46 @@
+key: 락 그림 요약
+title: 락, 그림 세 장으로 끝내기 (시험 전날용)
+category: 9강 Lock, 핵심
+---
+{info}📌 '''글 읽지 말고 그림만 보세요.''' 그림 세 개를 순서대로 ▶ 재생하고, 각 그림 아래 '''한 줄'''만 읽으면 됩니다. 9강 락 단원에서 시험에 나오는 건 결국 이 세 가지입니다.{/info}
+
+== ① 왜 락이 깨지나 — 화장실 문 팻말 ==
+
+[[anim:lock_door|T1이 팻말을 '보고' 멈춘 사이 T2가 들어가는 장면에 집중하세요]]
+
+{tip}💡 '''한 줄''': flag 락은 "팻말 보기"와 "팻말 걸기"가 따로라서 그 사이에 남이 끼어든다. 그래서 둘을 '''한 동작'''으로 묶은 [[test-and-set]]이 필요하다.{/tip}
+
+{exam}🎯 시험 답 쓰는 법: "T1이 flag를 0으로 확인 → 전환 → T2가 확인·설정·진입 → 전환 → T1이 설정·진입 → 둘 다 CS. 원인: test와 set이 atomic하지 않다."{/exam}
+
+----
+
+== ② CAS 9강 vs 12강 — 같은 일, 대답만 다르다 ==
+
+[[anim:cas_two_answers|성공일 때와 실패일 때 두 사람이 내는 숫자가 반대인 것만 보세요]]
+
+{tip}💡 '''한 줄''': while 에는 '''실패할 때 나오는 숫자'''를 쓴다. 9강 CAS(원래 값을 말함)는 실패가 1 → `== 1`, 12강 CAS(성공했는지 말함)는 실패가 0 → `== 0`.{/tip}
+
+{exam}🎯 문제에 CAS 코드가 주어지면 '''`return` 줄부터''' 본다. `return old`면 9강식(`== 1`), `return 1 / return 0`이면 12강식(`== 0`). → 문제집 ④-01 (g). 더 보기: [[compare-and-swap]]{/exam}
+
+----
+
+== ③ ticket lock — 은행 번호표 ==
+
+[[anim:ticket_bank|발급기 숫자는 lock 할 때만, 전광판 숫자는 unlock 할 때만 바뀌는 것을 보세요]]
+
+{tip}💡 '''한 줄''': lock() = 번호표만 뽑는다(ticket +1). unlock() = 전광판만 넘긴다(turn +1). 전광판 번호 = 내 번호인 사람이 들어간다. 그래서 '''온 순서대로''' 들어간다(fairness Yes). 기다리는 동안은 여전히 제자리 뛰기(spin)라 performance는 No.{/tip}
+
+{exam}🎯 표 채우는 문제(문제집 ④-02)는 이것만: lock 줄에선 '''ticket만''' 올리고 myturn은 '''올리기 전 값''', unlock 줄에선 '''turn만''' 올리고 그 번호를 가진 사람이 주인. 더 보기: [[ticket lock]]{/exam}
+
+----
+
+== 세 줄 요약 ==
+
+# flag 락: 보기·걸기 사이 틈 → 둘 다 들어감 → [[test-and-set]]으로 한 동작
+# CAS: while 에는 실패 숫자 (9강 `== 1`, 12강 `== 0`)
+# ticket lock: lock은 발급기만, unlock은 전광판만 → 온 순서대로 (Fairness Yes, Performance No)
+
+{analogy}🎭 세 그림의 공통점: 락은 결국 '''"내가 들어가도 되나?"를 확인하고 들어가는 일을 끼어들 틈 없이 하는 것'''이다. 팻말(flag)은 틈이 있어서 실패했고, test-and-set·CAS는 하드웨어가 틈을 없애 줬고, ticket lock은 거기에 '''줄 서기'''까지 더해 공평하게 만들었다.{/analogy}
+
+== 관련 문서 ==
+* [[락]] · [[flag 락]] · [[test-and-set]] · [[compare-and-swap]] · [[ticket lock]] · [[spin lock]] · [[락 평가 기준]]
