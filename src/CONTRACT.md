@@ -131,6 +131,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | lockfree_cas3 | 12강 p.23~24 AtomicIncrement 를 스레드 3개로 — 문제집 u11 ③-08 스케줄(value 10, +3/+4/+5, CAS 실패 3번·호출 6회) 한 단계씩, 타임라인 SVG. 옵션 sched = workbook / serial(끼어들기 없음, 비교) | lock-free |
 | rwlock_trace | 11강 p.31~33 rwlock 을 reader/writer 코드 줄 단위로 실행(세마포어 값·대기 줄·방 안 SVG). 옵션 scenario = basic(R1·R2 동시 읽기 → W 대기 → 마지막 reader 가 깨움) / writer_first(첫 reader 가 lock 쥔 채 writelock 에서 잠듦, 둘째는 lock 에서) / starvation(R1·R2·R3 겹쳐 W 굶음) | reader-writer lock |
 | dining_trace | 11강 p.37/p.39 dining philosophers 를 같은 최악의 순서로 줄 단위 실행(포크 세마포어 값·주인·기다림 화살표 원탁 SVG). 옵션 version = broken(전원 −1, deadlock) / fixed(P4 만 f0 먼저 → P3→P2→P1→P0→P4) | dining philosophers |
+| p6_xyz | 2025F P6 / 문제집 u12 ④-11·12: x(empty)/y(full)/z(mutex) producer-consumer MAX=3 줄 단위, 버퍼·세마포어 SVG. 옵션 order = correct((−1,3,1)→(0,2,1)→(0,3,1)) / swapped((a)(b) 바꿔 데드락) | 2025F 중간고사 족보 |
+| p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
