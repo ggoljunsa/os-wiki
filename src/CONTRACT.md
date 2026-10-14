@@ -130,6 +130,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | sem_producer_consumer | 10강 p.37~47 세마포어 producer/consumer 네 시도. 옵션 attempt = none(동기화 없음, V#0 덮어쓰기) / empty_full(empty=MAX·full=0, 6번째 put 에서 empty −1 로 잠듦) / mutex_outside(mutex 를 empty/full 바깥에 → consumer 가 mutex 쥔 채 잠듦 → deadlock, p.45) / final(정답, mutex 안쪽) | 세마포어, producer-consumer |
 | lockfree_cas3 | 12강 p.23~24 AtomicIncrement 를 스레드 3개로 — 문제집 u11 ③-08 스케줄(value 10, +3/+4/+5, CAS 실패 3번·호출 6회) 한 단계씩, 타임라인 SVG. 옵션 sched = workbook / serial(끼어들기 없음, 비교) | lock-free |
 | rwlock_trace | 11강 p.31~33 rwlock 을 reader/writer 코드 줄 단위로 실행(세마포어 값·대기 줄·방 안 SVG). 옵션 scenario = basic(R1·R2 동시 읽기 → W 대기 → 마지막 reader 가 깨움) / writer_first(첫 reader 가 lock 쥔 채 writelock 에서 잠듦, 둘째는 lock 에서) / starvation(R1·R2·R3 겹쳐 W 굶음) | reader-writer lock |
+| dining_trace | 11강 p.37/p.39 dining philosophers 를 같은 최악의 순서로 줄 단위 실행(포크 세마포어 값·주인·기다림 화살표 원탁 SVG). 옵션 version = broken(전원 −1, deadlock) / fixed(P4 만 f0 먼저 → P3→P2→P1→P0→P4) | dining philosophers |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
