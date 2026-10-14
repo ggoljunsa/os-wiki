@@ -1,0 +1,545 @@
+key: 실전 문제 ② condition variable
+title: 실전 문제 ② — condition variable (10강 p.4~29)
+category: 시험, 실전 문제
+---
+10강 p.4~29(+ p.48~50 여러 칸 버퍼)의 '''condition variable(CV)'''만 모은 실전 문제. 문제는 영어(시험 언어), 정답은 접혀 있다 — '''먼저 종이에 답을 쓰고''' 펼칠 것. 트레이스(Part E)는 표를 직접 그려 보는 것이 핵심이다. 모든 트레이스는 Python 으로 한 단계씩 재현해 검산했다(`문제풀이/실전문제_검산/_check_E7.txt`).
+같은 시리즈: [[실전 문제 ① park·futex]] · [[실전 문제 ③ 세마포어]] · [[실전 문제 ④ 데드락]]  ·  개념 복습: [[조건 변수]] §7 종합표
+
+{info}구성: Part A 정의→용어 9 · Part B T/F 10 · Part C 객관식 7 · Part D 코드 빈칸 3 · Part E 트레이스 4 · Part F 서술 4 = 37문항.
+'''줄 이름 규약''' (p.49~50 주석 그대로): producer `p1` lock → `p2` 조건 검사(while/if) → `p3` wait → `p4` put → `p5` signal → `p6` unlock, consumer `c1`~`c6` 도 같은 순서(`c4` = get). p.21·p.24 슬라이드는 주석 번호가 줄과 어긋나 인쇄돼 있으므로 이 문서는 p.49~50 기준으로 통일한다.
+'''트레이스 가정''' (Mesa semantics): signal 은 그 CV 큐(FIFO)의 '''맨 앞 한 명'''을 Ready 로 옮길 뿐이고(대기자가 없으면 아무 일도 없음), 깨어난 스레드는 '''mutex 를 다시 잡은 뒤에''' wait 에서 리턴한다. 리턴 후 `while` 이면 조건을 재검사하고, `if` 면 바로 다음 줄로 간다. 모든 스레드는 loop 를 충분히 많이 돈다.{/info}
+
+== Part A. Definition → Term ==
+2025F 는 정의 문장을 주고 용어를 쓰게 했다(Problem 2). 괄호 안은 단어 수 힌트.
+
+=== A1 ===
+{quiz}“A synchronization object that is essentially a queue of threads: a thread puts itself on it when some state of execution is not as desired, and another thread that later changes that state can wake one of the queued threads.” (2 words){/quiz}
+{answer}'''Condition variable'''
+풀이: p.9 "Condition variable — '''Queue of threads''' / Waiting on the condition: an explicit queue that threads can put themselves on when some state of execution is not as desired / Signaling on the condition: some other thread, when it changes its state, can wake one of those waiting threads". 핵심은 '''queue''' — CV 는 값(조건)을 저장하지 않는다. 교수님 12강 복습 표현으로는 "CV 는 '''mailbox''' 같은 것, '''signaling variable'''이라 조건을 모른다".
+채점 포인트: "condition variable" 두 단어. "semaphore"(정수 값을 가짐), "lock"(mutual exclusion 용) 은 오답.
+(L10 p.9) → [[조건 변수]]{/answer}
+
+=== A2 ===
+{quiz}“The shared variable, protected by the lock, that actually records whether the event a thread waits for has happened (for example, done in join or count in the bounded buffer). Without it, a signal sent while nobody is waiting is simply lost.” (2 words){/quiz}
+{answer}'''State variable''' (상태 변수)
+풀이: p.9 "Three in a package — condition variable c / '''state variable m''' / lock L; // to protect state variable". CV 가 아무것도 기억하지 않으므로 "무슨 일이 이미 일어났는가"는 상태 변수가 기억해야 한다. p.14 처럼 `done` 을 빼면 자식이 먼저 signal 했을 때 부모가 영원히 잠든다.
+채점 포인트: "state variable". "condition"·"flag" 만 쓰면 부분 점수 정도.
+(L10 p.9, p.14) → [[done flag 예제]]{/answer}
+
+=== A3 ===
+{quiz}“The signaling semantics, supported by virtually every real system, in which a signal only moves a waiting thread to the ready state; there is no guarantee that the condition still holds when the woken thread actually runs, so it must re-check the condition.” (2 words){/quiz}
+{answer}'''Mesa semantics'''
+풀이: p.22 "OS can freely wake up the thread ('''Mesa semantics''')". 교수님(9/28): "OS 가 보장하는 것은 signal 이 오면 '''최소 한 스레드'''가 깨어난다는 것뿐 — 매우 약한 semantics, 실제 OS 는 대부분 Mesa 만 지원." 결과 규칙이 "always use while loops"(p.24).
+채점 포인트: "Mesa". Hoare 와 뒤바꾸면 0점.
+(L10 p.22) → [[Mesa semantics]]{/answer}
+
+=== A4 ===
+{quiz}“The stronger signaling semantics, hard to implement, that guarantees the thread woken by a signal runs immediately upon being woken, so no other thread can change the state in between.” (2 words){/quiz}
+{answer}'''Hoare semantics'''
+풀이: p.22 마지막 줄 원문 "Hoare semantics provides a stronger guarantee that the woken thread will '''run immediately''' upon being woken." 이 보장이 있으면 `if` 로도 충분하지만, 구현이 어려워 실제로는 쓰이지 않는다.
+채점 포인트: "Hoare".
+(L10 p.22) → [[Mesa semantics]]{/answer}
+
+=== A5 ===
+{quiz}“A thread returns from a condition wait although the condition it was waiting for is not satisfied — for instance, two waiting threads both wake up in response to a single signal.” (2 words){/quiz}
+{answer}'''Spurious wakeup'''
+풀이: 2025F Problem 2-f 기출("the OS wakes up the sleeping thread, although the waiting condition is not satisfied")과 같은 개념을 다른 말로 쓴 것. p.22 는 바로 이 현상을 "Spurious wakeup" 제목 아래 "It can decide to wake up '''multiple threads''' from cond_signal" 로 설명한다. 처방은 하나 — 깨어난 뒤 '''while 로 재검사'''.
+채점 포인트: "spurious wakeup". "Mesa semantics" 는 원인이 되는 '규칙'이지 '현상'의 이름이 아니므로 오답.
+(L10 p.22, 2025F P2-f) → [[spurious wakeup]] · [[2025F 중간고사 족보]]{/answer}
+
+=== A6 ===
+{quiz}“A condition for which the signaler cannot tell which waiting thread should proceed (each waiter needs a different amount), so it conservatively wakes every waiter; the term is due to Lampson and Redell.” (2 words){/quiz}
+{answer}'''Covering condition'''
+풀이: p.27~29 메모리 할당기. A 는 100 bytes, B 는 10 bytes 를 기다리는데 free(50) 의 signal 은 둘을 구분하지 못한다 → broadcast 로 "깨어나야 할 모든 경우를 덮는(cover)" 조건.
+채점 포인트: "covering condition". "broadcast" 는 '해법(호출)'이므로 오답.
+(L10 p.27~29) → [[covering condition]]{/answer}
+
+=== A7 ===
+{quiz}“The POSIX call that wakes up all threads currently waiting on a condition variable; its cost is that threads which should not be awake wake up, re-check the condition, and go back to sleep.” (function name){/quiz}
+{answer}'''pthread_cond_broadcast()'''
+풀이: p.29 "Replace pthread_cond_signal() with '''pthread_cond_broadcast()'''. — Wake up all waiting threads. — Cost: too many threads might be woken."
+채점 포인트: 정확한 함수 이름. `pthread_cond_signal` 은 한 명만 깨우므로 오답.
+(L10 p.29) → [[broadcast]]{/answer}
+
+=== A8 ===
+{quiz}“The fixed-size, shared in-kernel queue that sits between grep and wc in the shell command grep foo file.txt | wc -l, where grep is the producer and wc the consumer.” (2 words){/quiz}
+{answer}'''Bounded buffer'''
+풀이: p.17 원문 "A bounded buffer is used when you pipe the output of one program into another … Between them is an '''in-kernel bounded buffer'''." bound 를 두는 이유(교수님 9/28): producer 가 consumer 보다 빠르면 버퍼가 무한히 커져 메모리가 고갈되므로, 가득 차면 producer 를 재워 consumer 속도에 맞춘다.
+채점 포인트: "bounded buffer". "pipe" 는 메커니즘 이름이지 버퍼 이름이 아님.
+(L10 p.16~17) → [[bounded buffer]]{/answer}
+
+=== A9 ===
+{quiz}“The operation in which a parent thread waits until its child thread has completed; it is the first example the lecture uses to motivate condition variables.” (1 word){/quiz}
+{answer}'''join''' (`pthread_join` / 슬라이드의 `thr_join()`)
+풀이: p.6 "A parent thread might wish to check whether a child thread has completed. This is often called a '''join()'''." 8강의 [[pthread_join]] 이 내부적으로 하는 일이 바로 "done 상태 변수 + lock + CV" 이다.
+채점 포인트: "join".
+(L10 p.6) → [[done flag 예제]]{/answer}
+
+{tip}정의→용어는 '''짝'''으로 외우면 실수가 줄어든다: Mesa ↔ Hoare, signal ↔ broadcast, condition variable(큐, 기억 없음) ↔ state variable(기억함), spurious wakeup(현상) ↔ while(처방).{/tip}
+
+== Part B. True / False ==
+False 이면 맞게 고친 문장을 쓴다 (2025F 도 "이유"를 함께 요구한 문항이 많았다).
+
+=== B1 ===
+{quiz}A thread must hold the mutex when it calls pthread_cond_wait(c, m), and when pthread_cond_wait() returns, the thread again holds that mutex.{/quiz}
+{answer}'''True'''
+풀이: p.10 "The wait() call takes a mutex as a parameter. — The wait() call '''releases the lock''' and puts the calling thread to sleep. — When the thread wakes up, it must '''re-acquire the lock'''." 호출 전 = 락 보유, 잠든 동안 = 락 없음, 리턴 후 = 락 보유. 그래서 p.11 `thr_join()` 은 wait 다음에 `Pthread_mutex_unlock(&m)` 을 또 부른다.
+채점 포인트: True + "release on sleep, re-acquire before return".
+(L10 p.10~11) → [[wait와 signal]]{/answer}
+
+=== B2 ===
+{quiz}If pthread_cond_signal() is called while no thread is waiting on the condition variable, the condition variable remembers it, so the next call to pthread_cond_wait() returns immediately.{/quiz}
+{answer}'''False'''
+고친 문장: "If no thread is waiting, pthread_cond_signal() '''has no effect''' (the signal is lost); that is why a '''state variable''' such as done must record that the event happened."
+풀이: CV 는 스레드 큐일 뿐 값이 없다 — 교수님 비유로 "CV 는 mailbox, 조건을 모른다". p.14 버전이 바로 이 때문에 부모가 영원히 잠든다. 신호를 '''기억'''하는 것은 11강 [[세마포어]](정수 값) 쪽이다.
+채점 포인트: False + "signal is lost / CV has no memory" + state variable 언급.
+(L10 p.14) → [[조건 변수]]{/answer}
+
+=== B3 ===
+{quiz}Under Mesa semantics, the thread that calls signal immediately hands the CPU and the mutex to the woken thread, which runs before any other thread.{/quiz}
+{answer}'''False'''
+고친 문장: "Under '''Hoare''' semantics the woken thread runs immediately; under Mesa semantics the woken thread is only moved to the '''ready''' state, and the signaler keeps running (still holding the mutex), so another thread may run first and change the state."
+풀이: p.22. Mesa = 힌트, Hoare = 즉시 실행 보장.
+채점 포인트: False + Mesa/Hoare 를 바로 짝지음.
+(L10 p.22) → [[Mesa semantics]]{/answer}
+
+=== B4 ===
+{quiz}With one producer and two consumers sharing a one-slot buffer, the producer/consumer code that uses a single condition variable is correct as long as both p2 and c2 use while instead of if.{/quiz}
+{answer}'''False'''
+고친 문장: "With a single condition variable, even with while loops, '''a consumer can wake up another consumer''' instead of the producer, and then '''all three threads can go to sleep'''; two condition variables (empty and fill) are needed."
+풀이: p.24 "However, this code still has a bug — Consumer can wake up another consumer instead of producer — Then, everyone goes to sleep." `while` 은 '틀린 값을 쓰는' 버그(assert 실패)를 없애지만 '엉뚱한 상대를 깨우는' 버그는 못 없앤다. 실제 순서는 Part E 의 E1(d)·E2.
+채점 포인트: False + "wrong thread is woken → everyone asleep" + "two CVs".
+(L10 p.23~25) → [[producer-consumer]]{/answer}
+
+=== B5 ===
+{quiz}In the two-condition-variable solution, a consumer waits on fill and, after get(), signals empty.{/quiz}
+{answer}'''True'''
+풀이: p.25 "Producer threads wait on the condition '''empty''', and signals '''fill'''. Consumer threads wait on '''fill''' and signal '''empty'''." 외우는 법: '''기다리는 것 = 내가 필요한 것'''(consumer 는 채워진 칸이 필요 → fill), '''깨우는 것 = 내가 만든 것'''(consumer 는 빈 칸을 만듦 → empty).
+채점 포인트: True.
+(L10 p.25~26) → [[producer-consumer]]{/answer}
+
+=== B6 ===
+{quiz}Once two condition variables (empty and fill) are used, the while loops can safely be replaced by if, because a consumer can now only be woken by a producer that has just put an item.{/quiz}
+{answer}'''False'''
+고친 문장: "Even with two condition variables, '''while is still required''': under Mesa semantics another consumer may take the item before the woken consumer re-acquires the mutex, and spurious wakeups can also occur."
+풀이: CV 를 둘로 나눈 것은 "누구를 깨우는가"를 고친 것이고, "깨어난 뒤 조건이 아직 참인가"는 여전히 보장되지 않는다. Part E 의 E3 이 정확히 이 경우(두 CV + MAX=2 에서 C2 가 빈 버퍼를 보고 다시 잠듦; `if` 였다면 빈 버퍼에서 get).
+채점 포인트: False + "Mesa: state can change before woken thread runs" 또는 "spurious wakeup".
+(L10 p.22, p.25~26) → [[spurious wakeup]]{/answer}
+
+=== B7 ===
+{quiz}In the multi-slot solution (MAX slots), the producer sleeps only when all buffers are full, i.e., while (count == MAX), and the consumer sleeps only when all buffers are empty, i.e., while (count == 0).{/quiz}
+{answer}'''True'''
+풀이: p.50 하단 원문 "p2: A producer only sleeps if all buffers are currently filled. c2: A consumer only sleeps if all buffers are currently empty." 한 칸짜리(p.25)의 `count == 1` 이 `count == MAX` 로 바뀐 것뿐이다.
+채점 포인트: True.
+(L10 p.48~50) → [[bounded buffer]]{/answer}
+
+=== B8 ===
+{quiz}In the memory allocator of p.28, replacing pthread_cond_signal() with pthread_cond_broadcast() in free() can make the allocator incorrect, because several woken threads may all allocate and drive bytesLeft below zero.{/quiz}
+{answer}'''False'''
+고친 문장: "Broadcast does '''not''' break correctness: each woken thread re-acquires the mutex one at a time and '''re-checks while (bytesLeft < size)''', so threads whose request no longer fits go back to sleep; the only cost is performance (too many threads woken)."
+풀이: p.29 "Threads that shouldn't be awake will simply wake up, re-check the condition, and then go back to sleep." 정확성은 while + mutex 가 지키고, broadcast 의 대가는 '헛걸음'이다.
+채점 포인트: False + "re-check under the mutex" + "cost = performance".
+(L10 p.28~29) → [[covering condition]]{/answer}
+
+=== B9 ===
+{quiz}Ignoring spurious wakeups, the p.14 version of thr_join()/thr_exit() (lock and condition variable, but no done variable) works correctly if the parent happens to call wait before the child calls signal.{/quiz}
+{answer}'''True'''
+풀이: p.14 의 버그는 '''순서 의존적'''이다. 부모가 먼저 잠들면 자식의 signal 이 부모를 깨운다 → 정상. 문제는 "Imagine the case where the child runs immediately" — 자식이 먼저 signal 하면 받을 스레드가 없어 신호가 사라지고, 나중에 wait 한 부모는 영원히 잠든다. 교수님(9/28): "'''exit 와 join 의 순서 보장이 없다.'''" → 그래서 done 이 필요.
+채점 포인트: True + "fails only when the child signals first".
+(L10 p.14) → [[done flag 예제]]{/answer}
+
+=== B10 ===
+{quiz}A lock alone can enforce that one thread's operation happens after another thread's operation (for example, "parent: end" is printed only after the child finishes).{/quiz}
+{answer}'''False'''
+고친 문장: "A lock only guarantees '''mutual exclusion / atomicity''' of a critical section; enforcing an '''execution condition or order''' requires a condition variable (with a state variable and a lock)."
+풀이: p.4 "Limitation of Lock — Atomicity: forbid access to the shared data during the operations. How about '''enforcing''' the operations during shared data access?" 12강 Summary 에서 교수님: "'''mutex 는 critical section 을, CV 는 실행 조건을''' 지킨다." p.7 의 코드는 락이 있어도 "parent: end" 가 먼저 찍힐 수 있다.
+채점 포인트: False + "lock = atomicity, CV = condition/order".
+(L10 p.4, 12강 p.43~46 Summary) → [[락]] · [[조건 변수]]{/answer}
+
+{tip}T/F 의 단골 함정 세 개: ① "CV 가 signal 을 기억한다"(✗, 세마포어와 혼동) ② "두 CV 면 while 불필요"(✗) ③ "broadcast 는 정확성을 깬다"(✗, 성능만 손해).{/tip}
+
+== Part C. Multiple choice (5지선다) ==
+대부분 '''NOT''' 형식이다. 정답 해설에서 오답 선지 하나하나가 왜 맞는/틀린 문장인지 확인할 것.
+
+=== C1 ===
+{quiz}Which statement about pthread_cond_wait(c, m) is NOT correct? (L10 p.10)<br>① The caller must hold the mutex m when it calls wait.<br>② wait releases m and puts the caller to sleep as one atomic step.<br>③ When the sleeping thread is woken, it re-acquires m before wait returns.<br>④ wait reads the state variable for the caller and returns immediately, without sleeping, if the condition is already true.<br>⑤ If wait slept while still holding m, no other thread could acquire m to change the state and signal, so the program would deadlock.{/quiz}
+{answer}'''정답 ④'''
+풀이: CV 는 "signaling variable" — '''조건을 모른다'''(교수님 12강 복습: mailbox 비유). 조건 검사는 호출자의 `while (done == 0)` 이 하는 일이고, wait 는 무조건 잠든다. 그래서 상태 변수가 따로 필요하다.
+* ① 맞음 — p.10, 9/28 녹음 "wait/signal 부를 때 락을 쥐고 있어야".
+* ② 맞음 — 놓기와 잠들기 사이가 끊기면 그 틈에 온 signal 이 사라진다(p.15 와 같은 race).
+* ③ 맞음 — "When the thread wakes up, it must re-acquire the lock."
+* ⑤ 맞음 — 교수님: "락을 쥔 채 자면 deadlock. 그래서 wait 에 락을 넘겨 자동으로 풀게 한다."
+채점 포인트: ④ 선택 + "CV doesn't know/check the condition".
+(L10 p.10) → [[wait와 signal]]{/answer}
+
+=== C2 ===
+{quiz}Under Mesa semantics, which of the following can NOT happen? (L10 p.22)<br>① After calling signal, the signaling thread keeps running and still holds the mutex.<br>② A woken consumer is placed on the ready queue, and before it runs another consumer acquires the mutex and empties the buffer.<br>③ A single call to pthread_cond_signal() causes two waiting threads to wake up.<br>④ A woken thread returns from pthread_cond_wait() while a different thread is still holding the mutex.<br>⑤ A thread returns from pthread_cond_wait() and finds that the condition it waited for is false.{/quiz}
+{answer}'''정답 ④'''
+풀이: Mesa 가 약하게 만든 것은 "'''언제''' 실행되는가"와 "'''조건이 아직 참인가'''"이지, mutual exclusion 이 아니다. wait 는 반드시 '''mutex 를 다시 잡은 뒤에''' 리턴하므로 다른 스레드가 mutex 를 쥔 동안에는 리턴할 수 없다(Ready 상태로 mutex 를 기다림).
+* ① 가능 — signal 은 힌트일 뿐, signaler 는 계속 실행(Hoare 와의 차이).
+* ② 가능 — Fig 30.9 의 Tc2 sneaks in.
+* ③ 가능 — p.22 "It can decide to wake up multiple threads from cond_signal" (spurious wakeup).
+* ⑤ 가능 — ②·③ 의 결과. 그래서 while.
+채점 포인트: ④.
+(L10 p.10, p.22) → [[Mesa semantics]]{/answer}
+
+=== C3 ===
+{quiz}One producer and two consumers use the single-CV producer/consumer code with while loops (p.23–24), and all three threads can end up asleep. Which change does NOT by itself prevent this everyone-asleep state? (L10 p.24–25, p.29)<br>① Use two condition variables: producers wait on empty and signal fill; consumers wait on fill and signal empty.<br>② Keep one condition variable but replace every pthread_cond_signal() with pthread_cond_broadcast().<br>③ Change both while loops back to if statements.<br>④ Run only one consumer thread instead of two (still one producer).<br>⑤ Give each thread its own condition variable and have the signaler wake a specific thread of the other role.{/quiz}
+{answer}'''정답 ③'''
+풀이: `if` 로 되돌리면 '엉뚱한 상대를 깨우는' 문제는 그대로이고 재검사까지 사라진다 → 깨어난 consumer 가 빈 버퍼에서 `get()` → '''assert(count == 1) 실패'''(Part E 의 E1). 고장이 바뀔 뿐 고쳐지지 않는다.
+* ① 막음 — p.25 정답. consumer 의 signal 은 empty 큐(producer 만 있음)로만 간다.
+* ② 막음 — 모두 깨우면 producer 도 반드시 깨어나 재검사 후 진행. 단 불필요한 깨움 비용이 있어 정답 해법으로는 ① 이 선호된다 (OSTEP: "signal 을 broadcast 로 바꿔야만 동작한다면 아마 버그").
+* ④ 막음 — p.21 "With just a single producer and a single consumer, the code works." consumer 가 하나면 consumer 가 consumer 를 깨울 일이 없다.
+* ⑤ 막음 — 교수님이 covering condition 대안으로 언급한 '''thread-level condition variable'''. 깨울 대상을 정확히 고른다.
+채점 포인트: ③ + "if 는 assert 실패로 바뀔 뿐".
+(L10 p.21~25, p.29) → [[producer-consumer]]{/answer}
+
+=== C4 ===
+{quiz}In the allocator of p.28 with broadcast in free(), bytesLeft = 0 and three threads are asleep on the CV: T1 in allocate(60), T2 in allocate(30), T3 in allocate(20). Then T4 calls free(50). Which statement is NOT correct, regardless of the order in which the woken threads re-acquire the mutex? (L10 p.28–29)<br>① T1 re-checks bytesLeft &lt; 60 and goes back to sleep.<br>② T2 and T3 both complete their allocations.<br>③ bytesLeft is 0 after all woken threads have run.<br>④ Exactly two of the three woken threads wake up in vain (re-check and sleep again).<br>⑤ If free() used signal and the signal woke T1, no thread would make progress until another free().{/quiz}
+{answer}'''정답 ④''' — 헛걸음은 '''T1 한 명'''뿐이다.
+풀이: 깨어나는 순서 6가지를 모두 따져 보면(검산 스크립트), T1 은 언제 실행되든 bytesLeft ≤ 50 < 60 이라 다시 잠들고, T2·T3 는 30 + 20 = 50 이라 어떤 순서든 둘 다 성공 → bytesLeft 0, 헛걸음 1회.
+* ① 맞음 — bytesLeft 는 50 에서 줄기만 하므로 T1 은 절대 통과 못 함.
+* ② 맞음 — 30 + 20 = 50 ≤ 50.
+* ③ 맞음 — 50 − 30 − 20 = 0.
+* ⑤ 맞음 — p.27 시나리오 그대로: T1 만 깨면 재검사 후 다시 잠들고, T4 는 끝났고, T2·T3 는 계속 잔다(교수님: "active thread 가 없다 — 또 죽었다").
+채점 포인트: ④ + "wasted = 1".
+(L10 p.27~29) → [[covering condition]] · [[broadcast]]{/answer}
+
+=== C5 ===
+{quiz}Consider the p.15 version (no lock): thr_exit() runs C2: done = 1; C3: signal(&c); and thr_join() runs P7: if (done == 0) P8: wait(&c);. Assume wait simply sleeps until a later signal. Which interleaving leaves the parent sleeping forever? (L10 p.15)<br>① C2 → C3 → P7 → (P8 skipped)<br>② C2 → P7 → (P8 skipped) → C3<br>③ P7 → C2 → C3 → P8<br>④ P7 → C2 → P8 → C3<br>⑤ P7 → P8 → C2 → C3{/quiz}
+{answer}'''정답 ③'''
+풀이: 부모가 P7 에서 `done == 0` 을 '''본 뒤''' P8 에서 잠들기 '''전에''' 자식의 C2·C3 가 모두 끝나면, signal 은 대기자 없이 사라지고 부모는 그 뒤에 잠들어 깨워 줄 스레드가 없다. p.15 "Just before it calls wait to go to sleep, the parent is interrupted and the child runs."
+* ①② — 부모가 검사할 때 이미 done = 1 → wait 를 안 함 → 정상.
+* ④ — 부모가 먼저 잠들고 C3 이 깨움 → 정상.
+* ⑤ — 같은 이유로 정상.
+가능한 순서 6가지 중 고장은 ③ 하나(검산 스크립트로 전수 확인). 해결: 검사·wait·signal 을 모두 '''같은 락 안'''에 넣고, wait 가 락을 '''원자적으로''' 놓으며 잠들게 한다(p.11).
+채점 포인트: ③.
+(L10 p.15) → [[done flag 예제]] · [[race condition]]{/answer}
+
+=== C6 ===
+{quiz}Which statement about the roles of the mutex, the condition variable, and the state variable is NOT correct? (L10 p.4, p.9; 12강 Summary)<br>① The mutex protects the critical section, including reads and writes of the state variable.<br>② The condition variable is used to enforce an execution condition (wait until something becomes true).<br>③ A condition variable is like a mailbox: it delivers a wake-up but does not itself know whether the condition is true.<br>④ Because the state variable records what happened, a parent that checks it can skip waiting when the child has already finished.<br>⑤ When exactly one signal is ever sent, the state variable is unnecessary, because the condition variable counts the signals it has received.{/quiz}
+{answer}'''정답 ⑤'''
+풀이: CV 는 '''아무것도 세지 않는다''' — 신호 한 번이라도 대기자가 없을 때 오면 사라진다. p.14 의 join 이 바로 "signal 은 딱 한 번" 인 상황인데도 done 없이 실패한다. 신호를 세는 것은 세마포어다.
+* ① 맞음 — p.9 "lock L; // to protect state variable".
+* ② 맞음 — 12강 Summary: "mutex 는 critical section, CV 는 '''실행 조건'''".
+* ③ 맞음 — 교수님 복습 표현 그대로("signaling variable").
+* ④ 맞음 — `while (done == 0)` 이 거짓이면 wait 를 건너뜀.
+채점 포인트: ⑤.
+(L10 p.9, p.14; L12 p.43~46) → [[조건 변수]]{/answer}
+
+=== C7 ===
+{quiz}Which pairing for the final multi-slot solution (p.49–50) is NOT correct? (L10 p.48–50)<br>① Producer, before put(): while (count == MAX) wait(&empty, &mutex);<br>② Consumer, before get(): while (count == 0) wait(&fill, &mutex);<br>③ Producer, after put(): signal(&fill);<br>④ Consumer, after get(): signal(&empty);<br>⑤ Because there are MAX slots, a producer may call put() without holding the mutex whenever count &lt; MAX.{/quiz}
+{answer}'''정답 ⑤'''
+풀이: 슬롯이 여러 개라도 `put()` 은 `buffer[fill_ptr]`, `fill_ptr`, `count` 를 고치는 '''critical section'''이다. 두 producer 가 락 없이 동시에 put 하면 같은 칸에 덮어쓰거나 count++ 가 유실된다(8강 counter race 와 같은 이유). 또 검사(p2)와 put(p4) 사이에 다른 스레드가 count 를 바꿀 수 있다.
+* ①②③④ — p.49~50 코드 그대로. "wait 은 필요한 것(producer→empty, consumer→fill), signal 은 만든 것(producer→fill, consumer→empty)".
+채점 포인트: ⑤ + "put/get 은 critical section".
+(L10 p.48~50) → [[bounded buffer]] · [[critical section]]{/answer}
+
+{tip}NOT 문제는 선지마다 "슬라이드의 어느 문장인가"를 붙여 보면 남는 하나가 답이다. CV 문제에서 틀린 선지는 거의 항상 '''"CV 가 조건/신호를 기억한다"''' 또는 '''"Mesa 가 즉시 실행을 보장한다"''' 둘 중 하나다.{/tip}
+
+== Part D. Code fill-in ==
+
+=== D1 ===
+{quiz}'''Waiting for three workers''' (L10 p.11, p.14–15)<br>A parent creates three worker threads and must continue only after all three have finished. Fill in (a)–(e).
+<pre class="c">
+int remaining = 3;                         // workers still running
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  c = PTHREAD_COND_INITIALIZER;
+
+void worker_exit() {                       // called by each worker at the end
+    Pthread_mutex_lock(&m);
+    ____(a)____;
+    if (remaining == 0)
+        Pthread_cond_signal(____(b)____);
+    Pthread_mutex_unlock(&m);
+}
+
+void join_all() {                          // called once by the parent
+    Pthread_mutex_lock(&m);
+    ____(c)____ (____(d)____)
+        Pthread_cond_wait(____(e)____);
+    Pthread_mutex_unlock(&m);
+}
+</pre>
+(f) A student deletes the line "if (remaining == 0)" (so every worker signals) and also changes (c) to if. What can go wrong?<br>(g) All three workers finish before the parent calls join_all(). Their signal is sent while nobody waits. Does the parent hang? Why or why not?{/quiz}
+{answer}'''정답: (a) `remaining--`  (b) `&c`  (c) `while`  (d) `remaining > 0`  (e) `&c, &m`'''
+풀이:
+* (a) 상태 변수 갱신은 '''락 안에서''' — p.11 `done = 1` 의 일반화. 세 worker 가 동시에 `remaining--` 하면 락 없이는 lost update(8강 counter race).
+* (b) signal 은 CV 의 주소만 받는다(mutex 인자 없음, p.10).
+* (c)(d) "남은 worker 가 있는 동안 잔다" — `while` 이어야 spurious wakeup·Mesa 에도 안전.
+* (e) wait 는 CV 와 '''mutex''' 를 함께 받는다(p.10).
+* (f) worker 1 의 signal 이 부모를 깨우면, `if` 는 재검사하지 않으므로 '''remaining = 2''' 인데 join_all 에서 리턴 → 아직 두 worker 가 실행 중인데 부모가 진행. (`while` 이었다면 매 signal 마다 재검사하고 다시 잠들어 안전 — 그래서 '모든 exit 가 signal' 버전도 while 만 있으면 맞다.)
+* (g) '''안 걸린다.''' signal 자체는 사라졌지만, 부모는 락을 잡고 `remaining > 0` 을 검사해 거짓(0)이므로 wait 를 아예 하지 않는다. 이것이 p.14 가 말한 '''상태 변수의 존재 이유'''. (검산: 부모 검사 시점 4가지 모두 멈춤 0회.)
+채점 포인트: (a)~(e) 각 1점, (f) "remaining 이 0 이 아닌데 리턴" (g) "state variable 덕분에 wait 생략".
+(L10 p.10~15) → [[done flag 예제]] · [[wait와 signal]]{/answer}
+
+=== D2 ===
+{quiz}'''Multi-slot bounded buffer with two CVs''' (L10 p.48–50)<br>The slide names both the int index and a CV "fill"; here the indices are renamed fill_ptr and use_ptr. Fill in (a)–(g).
+<pre class="c">
+int buffer[MAX];
+int fill_ptr = 0, use_ptr = 0, count = 0;
+cond_t empty, fill;
+mutex_t mutex;
+
+void put(int value) {
+    buffer[fill_ptr] = value;
+    fill_ptr = ____(a)____;
+    count++;
+}
+int get() {
+    int tmp = buffer[use_ptr];
+    use_ptr = (use_ptr + 1) % MAX;
+    ____(b)____;
+    return tmp;
+}
+void *producer(void *arg) {
+    for (int i = 0; i < loops; i++) {
+        Pthread_mutex_lock(&mutex);                 // p1
+        ____(c)____ (count == MAX)                  // p2
+            Pthread_cond_wait(____(d)____, &mutex); // p3
+        put(i);                                     // p4
+        Pthread_cond_signal(____(e)____);           // p5
+        Pthread_mutex_unlock(&mutex);               // p6
+    }
+}
+void *consumer(void *arg) {
+    for (int i = 0; i < loops; i++) {
+        Pthread_mutex_lock(&mutex);                 // c1
+        while (____(f)____)                         // c2
+            Pthread_cond_wait(&fill, &mutex);       // c3
+        int tmp = get();                            // c4
+        Pthread_cond_signal(____(g)____);           // c5
+        Pthread_mutex_unlock(&mutex);               // c6
+        printf("%d\n", tmp);
+    }
+}
+</pre>
+(h) MAX = 4. The producer runs alone from the initial state and executes put() four times, then starts its fifth iteration. Give fill_ptr, use_ptr, count, and where the producer is.<br>(i) A consumer then runs exactly one full iteration (c1–c6). Give use_ptr and count, and the state of the producer.{/quiz}
+{answer}'''정답: (a) `(fill_ptr + 1) % MAX`  (b) `count--`  (c) `while`  (d) `&empty`  (e) `&fill`  (f) `count == 0`  (g) `&empty`'''
+풀이:
+* (a)(b) p.48 원형 버퍼 — 포인터는 `% MAX` 로 돌고, count 가 "몇 칸 찼는가"를 센다. CV 는 count 를 모르므로 이 count 가 상태 변수다.
+* (c) while — 두 CV 여도 Mesa·spurious wakeup 때문에 필요(B6).
+* (d)(e) producer: '''빈 칸'''을 기다리고(empty), '''채운 칸'''을 알린다(fill).
+* (f)(g) consumer: 모두 비었을 때만 잔다(p.50 "only sleeps if all buffers are currently empty"), 빈 칸을 만들었으니 empty 에 signal.
+* (h) put 4번 → fill_ptr = 4 % 4 = '''0''', use_ptr = '''0''', count = '''4''' (= MAX). 다섯 번째 반복: p1 lock → p2 `count == MAX` 참 → p3 '''empty 큐에서 잠듦''' (mutex 놓음).
+* (i) consumer: c1 → c2 (4 ≠ 0) → c4 get: buffer[0] 꺼냄, use_ptr = '''1''', count = '''3''' → c5 signal(&empty) → producer '''Ready''' (아직 실행 아님) → c6 unlock. producer 가 다음에 실행되면 mutex 재획득 → p2 재검사(3 ≠ 4) → buffer[0] 에 put, fill_ptr = 1, count = 4.
+채점 포인트: (a)~(g) 각 1점. (d)(e)(g) 뒤바꾸기가 최다 오답. (h)(i) 에서 "signal 받은 producer 는 Ready 일 뿐 즉시 실행 아님".
+(L10 p.48~50) → [[bounded buffer]] · [[producer-consumer]]{/answer}
+
+=== D3 ===
+{quiz}'''Allocator with a covering condition''' (L10 p.28–29). Fill in (a)–(e).
+<pre class="c">
+int bytesLeft = MAX_HEAP_SIZE;
+cond_t c;
+mutex_t m;
+
+void *allocate(int size) {
+    Pthread_mutex_lock(&m);
+    ____(a)____ (____(b)____)
+        Pthread_cond_wait(&c, &m);
+    void *ptr = ...;             // get mem from heap
+    ____(c)____;
+    Pthread_mutex_unlock(&m);
+    return ptr;
+}
+
+void free(void *ptr, int size) {
+    Pthread_mutex_lock(&m);
+    ____(d)____;
+    ____(e)____;                 // wake the right thread(s)
+    Pthread_mutex_unlock(&m);
+}
+</pre>
+(f) Suppose every thread always calls allocate(10) (all requests are the same size). Is pthread_cond_signal() now enough in free()? Consider bytesLeft = 0 with two threads waiting and a call to free(ptr, 20).{/quiz}
+{answer}'''정답: (a) `while`  (b) `bytesLeft < size`  (c) `bytesLeft -= size`  (d) `bytesLeft += size`  (e) `Pthread_cond_broadcast(&c)`'''
+풀이:
+* (a)(b) 필요한 만큼 남을 때까지 잔다. broadcast 로 깨어난 스레드 대부분은 이 while 에서 다시 잠든다(정확성은 while 이 지킴).
+* (c)(d) 상태 변수 bytesLeft 갱신은 락 안에서.
+* (e) p.29 Lampson & Redell: signal → '''broadcast'''. signal 은 "누구를" 깨울지 몰라 p.27 처럼 100 bytes 기다리는 A 를 깨우면 10 bytes 인 B 가 계속 잔다.
+* (f) '''충분하지 않다.''' free(20) 은 10 bytes 짜리 두 요청을 '''둘 다''' 만족시킬 수 있는데, signal 은 '''한 명'''(W1)만 깨운다 → W1 성공(bytesLeft 10), W2 는 메모리가 남아 있는데도 다음 free 까지 계속 잔다(진행 손실; 검산 결과 bytesLeft 10, W2 sleep). broadcast 면 둘 다 성공(bytesLeft 0). 크기가 같아도 "free 한 양이 몇 명분인가"를 signal 이 모르므로 covering condition 이 된다. (대안: free 한 양 / 10 만큼 signal 을 반복하는 식으로 '정확히 필요한 수'를 깨우는 것도 가능하지만, 슬라이드의 해법은 broadcast.)
+채점 포인트: (a)~(e) 각 1점, (f) "No + free(20) 은 두 명분인데 signal 은 한 명만".
+(L10 p.27~29) → [[covering condition]] · [[broadcast]]{/answer}
+
+{tip}코드 빈칸에서 CV 를 고를 때 한 줄 규칙: '''wait(내가 필요한 것) · signal(내가 만든 것).''' producer 는 빈 칸이 필요하고 찬 칸을 만든다 → wait(empty), signal(fill).{/tip}
+
+== Part E. Trace ==
+모든 문항의 공통 가정은 맨 위 {info} 박스(Mesa, FIFO CV 큐, signal 받은 스레드는 Ready, mutex 재획득 후 리턴). 표의 상태: '''Run''' = 실행 중/실행 가능, '''Ready(woken)''' = signal 받고 mutex 재획득을 기다림, '''Sleep(cv)''' = 그 CV 큐에서 잠듦. 검산 원본: `문제풀이/실전문제_검산/_check_E7.txt`. 직접 돌려 보려면 [[조건 변수]] 문서 §4-2 의 시뮬레이터(옵션 if_1cv / while_1cv / while_2cv)를 쓰되, 시뮬레이터의 스케줄은 슬라이드 Fig 30.9·30.11 이고 아래 문제는 '''다른 스케줄'''이다.
+
+=== E1 ===
+{quiz}'''Single CV + if: a consumer wakes a consumer''' (L10 p.20–22)<br>One-slot buffer (count initially 0), one CV cond, code of p.20–21 (if). Threads P (producer), C1, C2 (consumers). Schedule:<br>1. C1 runs c1–c3. 2. C2 runs c1–c3. 3. P runs p1, p2, p4. 4. P runs p5. 5. P runs p6, p1, p2, p3. 6. C1 returns from wait and runs c4. 7. C1 runs c5. 8. C1 runs c6. 9. C2 returns from wait and runs c4.<br>(a) After each step give count, the mutex holder, the cond queue, and the state of P, C1, C2.<br>(b) What happens at step 9, and why?<br>(c) How is the cause of this failure different from the slide's Fig 30.9 trace?<br>(d) If both if statements were while, what would C2 do at step 9, and what state would the system reach if C1 then runs c1–c3?{/quiz}
+{answer}'''정답: (b) step 9 에서 C2 가 count = 0 인 빈 버퍼에서 get() → assert(count == 1) 실패  (d) 셋 다 잠듦'''
+(a) 표
+{|
+! step || 실행 || 동작 || count || mutex || cond 큐 || P || C1 || C2
+|-
+| 0 || — || 초기 || 0 || — || [] || Run || Run || Run
+|-
+| 1 || C1 c1–c3 || 0 이라 wait → mutex 놓고 잠듦 || 0 || — || [C1] || Run || Sleep(cond) || Run
+|-
+| 2 || C2 c1–c3 || 같은 이유로 잠듦 || 0 || — || [C1, C2] || Run || Sleep(cond) || Sleep(cond)
+|-
+| 3 || P p1 p2 p4 || 0 ≠ 1 이라 put || 1 || P || [C1, C2] || Run || Sleep(cond) || Sleep(cond)
+|-
+| 4 || P p5 || signal → 큐 맨 앞 '''C1''' Ready || 1 || P || [C2] || Run || Ready(woken) || Sleep(cond)
+|-
+| 5 || P p6 p1 p2 p3 || 다음 반복: count == 1 → wait, 잠듦 || 1 || — || [C2, P] || Sleep(cond) || Ready(woken) || Sleep(cond)
+|-
+| 6 || C1 리턴 + c4 || mutex 재획득, if 라 재검사 없이 get || 0 || C1 || [C2, P] || Sleep(cond) || Run || Sleep(cond)
+|-
+| 7 || C1 c5 || signal → 큐 맨 앞은 '''C2''' (consumer!) || 0 || C1 || [P] || Sleep(cond) || Run || Ready(woken)
+|-
+| 8 || C1 c6 || unlock || 0 || — || [P] || Sleep(cond) || Run || Ready(woken)
+|-
+| 9 || C2 리턴 + c4 || mutex 재획득, if → '''get() with count 0''' || 0 → ✗ || C2 || [P] || Sleep(cond) || Run || '''assert 실패'''
+|}
+(b) C2 는 step 2 에서 `if (count == 0)` 을 한 번 검사하고 잠들었다. step 7 의 signal 로 깨어나 step 9 에 리턴하지만 `if` 는 '''다시 검사하지 않으므로''' 버퍼가 빈 상태(count 0)에서 `get()` 을 호출 → `assert(count == 1)` 실패. 깨운 쪽(C1)은 버퍼를 '''비운''' consumer 였으니 C2 를 깨울 이유가 전혀 없었다.
+(c) Fig 30.9 는 signal 은 맞는 상대(consumer)에게 갔지만 깨어난 Tc1 이 실행되기 '''전에''' 다른 consumer Tc2 가 '''끼어들어'''(sneak in) 값을 가져간 경우다 — Mesa 의 "깨어남 ≠ 즉시 실행". E1 은 끼어든 스레드가 '''없다'''. CV 가 하나라 consumer 의 signal 이 '''같은 consumer 에게''' 간 것이 원인 — "누구를 깨우는가"의 문제다. 원인은 달라도 증상(빈 버퍼 get)은 같다.
+(d) `while` 이면 C2 는 step 9 에서 count == 0 을 재검사 → 다시 wait (cond 큐 [P, C2]). 이어서 C1 이 c1–c3 → count == 0 → 잠듦 (큐 [P, C2, C1]). '''P·C1·C2 모두 Sleep, 깨울 스레드 없음''' — p.24 "everyone goes to sleep". 즉 while 은 (b)의 assert 를 막지만 (c)의 '엉뚱한 상대' 문제는 못 막는다 → 두 CV.
+채점 포인트: step 4·7 에서 '''누가''' 깨어나는지(FIFO 맨 앞), step 6·9 에서 if 라 재검사 없음, 결론 assert 실패. (d) 셋 다 Sleep.
+(L10 p.20~24) → [[producer-consumer]] · [[Mesa semantics]]{/answer}
+
+=== E2 ===
+{quiz}'''Single CV + while: a producer wakes a producer''' (L10 p.23–24)<br>One-slot buffer (count initially 0), one CV cond, code of p.23–24 (while). Two producers P1, P2 and one consumer C. Schedule:<br>1. P1 runs p1, p2, p4, p5, p6. 2. P1 runs p1, p2, p3. 3. P2 runs p1, p2, p3. 4. C runs c1, c2, c4. 5. C runs c5. 6. C runs c6, c1, c2, c3. 7. P1 returns from wait and runs p2, p4. 8. P1 runs p5. 9. P1 runs p6, p1, p2, p3. 10. P2 returns from wait and runs p2, p3.<br>(a) After each step give count, the cond queue, and the state of P1, P2, C.<br>(b) Which threads can run after step 10? Is any assert violated?<br>(c) Whose signal went to the wrong kind of thread? Compare with the slide's Fig 30.11, where the roles are reversed.<br>(d) With two CVs (empty/fill), where would C sleep at step 6, and whom would P1's signal at step 8 wake?{/quiz}
+{answer}'''정답: (b) 아무도 실행할 수 없다 — P1·P2·C 모두 Sleep(cond), count = 1. assert 위반은 없다.'''
+(a) 표
+{|
+! step || 실행 || 동작 || count || cond 큐 || P1 || P2 || C
+|-
+| 0 || — || 초기 || 0 || [] || Run || Run || Run
+|-
+| 1 || P1 p1 p2 p4 p5 p6 || put; signal 은 대기자 없음 → 효과 없음 || 1 || [] || Run || Run || Run
+|-
+| 2 || P1 p1 p2 p3 || count == 1 → 잠듦 || 1 || [P1] || Sleep(cond) || Run || Run
+|-
+| 3 || P2 p1 p2 p3 || count == 1 → 잠듦 || 1 || [P1, P2] || Sleep(cond) || Sleep(cond) || Run
+|-
+| 4 || C c1 c2 c4 || 1 ≠ 0 → get || 0 || [P1, P2] || Sleep(cond) || Sleep(cond) || Run
+|-
+| 5 || C c5 || signal → 맨 앞 '''P1''' Ready || 0 || [P2] || Ready(woken) || Sleep(cond) || Run
+|-
+| 6 || C c6 c1 c2 c3 || 다음 반복: count == 0 → 잠듦 || 0 || [P2, C] || Ready(woken) || Sleep(cond) || Sleep(cond)
+|-
+| 7 || P1 리턴 + p2 p4 || mutex 재획득, while 재검사(0 ≠ 1) → put || 1 || [P2, C] || Run || Sleep(cond) || Sleep(cond)
+|-
+| 8 || P1 p5 || signal → 맨 앞은 '''P2''' (producer!) || 1 || [C] || Run || Ready(woken) || Sleep(cond)
+|-
+| 9 || P1 p6 p1 p2 p3 || 다음 반복: count == 1 → 잠듦 || 1 || [C, P1] || Sleep(cond) || Ready(woken) || Sleep(cond)
+|-
+| 10 || P2 리턴 + p2 p3 || while 재검사: count == 1 → 다시 잠듦 || 1 || [C, P1, P2] || Sleep(cond) || Sleep(cond) || Sleep(cond)
+|}
+(b) 셋 다 Sleep → '''실행 가능한 스레드 없음'''(시스템 정지). P2 는 while 로 재검사했기 때문에 가득 찬 버퍼에 put 하지 않았다 → assert(count == 0) 위반은 '''없다'''. 버퍼에는 item 이 하나 있고, 그것을 꺼낼 consumer C 는 깨워 줄 사람이 없다.
+(c) step 8 의 '''P1(producer)의 signal 이 P2(producer)에게''' 갔다. 버퍼를 채운 producer 가 깨워야 할 것은 consumer 인데, CV 가 하나라 큐 맨 앞의 producer 가 깨어났다. 슬라이드 Fig 30.11 은 반대로 '''consumer 가 consumer 를''' 깨운다(Tc1 이 버퍼를 비우고 Tc2 를 깨움). 역할만 바뀌었을 뿐 원인은 같다 — '''CV 하나에 두 종류의 대기자가 섞여 있다.'''
+(d) 두 CV 면 step 6 의 C 는 '''fill''' 큐에서, P2 는 '''empty''' 큐에서 잔다. step 8 에서 P1 은 `signal(&fill)` → fill 큐에는 C 만 있으므로 '''C 가 깨어남''' → C 가 get 하고 `signal(&empty)` 로 P2 를 깨운다 → 정지 없음. (검산: 같은 앞부분을 두 CV 로 돌리면 마지막에 P1·C 가 실행 가능.)
+채점 포인트: step 5·8 의 깨어나는 대상, step 7·10 의 while 재검사 결과, 결론 "everyone asleep, count = 1".
+(L10 p.23~26) → [[producer-consumer]] · [[조건 변수]]{/answer}
+
+=== E3 ===
+{quiz}'''Two CVs, MAX = 2: why while is still needed''' (L10 p.25–26, p.48–50)<br>Buffer with MAX = 2 (count initially 0), CVs empty and fill, code of p.49–50 (while). Threads P, C1, C2. Schedule:<br>1. C1 runs c1–c3. 2. C2 runs c1–c3. 3. P runs p1, p2, p4, p5, p6. 4. P runs p1, p2, p4, p5, p6. 5. P runs p1, p2, p3. 6. C1 returns from wait and runs c2, c4, c5, c6. 7. C1 runs c1, c2, c4, c5, c6. 8. C1 runs c1, c2, c3. 9. C2 returns from wait and runs c2 (and what follows). 10. P returns from wait and runs p2, p4, p5, p6.<br>(a) After each step give count, the empty and fill queues, and the state of P, C1, C2.<br>(b) What does C2 do at step 9? What would happen at step 9 if c2 were if?<br>(c) At step 7, C1's signal(&empty) finds no waiter. Is any wake-up lost in a harmful way? Explain.{/quiz}
+{answer}'''정답: (b) C2 는 재검사에서 count == 0 을 보고 fill 큐에서 다시 잠든다. if 였다면 빈 버퍼에서 get() → 오류.  (c) 해롭지 않다.'''
+(a) 표
+{|
+! step || 실행 || 동작 || count || empty 큐 || fill 큐 || P || C1 || C2
+|-
+| 0 || — || 초기 || 0 || [] || [] || Run || Run || Run
+|-
+| 1 || C1 c1–c3 || 0 → fill 에서 잠듦 || 0 || [] || [C1] || Run || Sleep(fill) || Run
+|-
+| 2 || C2 c1–c3 || 0 → fill 에서 잠듦 || 0 || [] || [C1, C2] || Run || Sleep(fill) || Sleep(fill)
+|-
+| 3 || P p1 p2 p4 p5 p6 || put, signal(fill) → '''C1''' Ready || 1 || [] || [C2] || Run || Ready(woken) || Sleep(fill)
+|-
+| 4 || P p1 p2 p4 p5 p6 || put, signal(fill) → '''C2''' Ready || 2 || [] || [] || Run || Ready(woken) || Ready(woken)
+|-
+| 5 || P p1 p2 p3 || count == MAX → empty 에서 잠듦 || 2 || [P] || [] || Sleep(empty) || Ready(woken) || Ready(woken)
+|-
+| 6 || C1 리턴 + c2 c4 c5 c6 || 재검사 2 ≠ 0 → get, signal(empty) → '''P''' Ready || 1 || [] || [] || Ready(woken) || Run || Ready(woken)
+|-
+| 7 || C1 c1 c2 c4 c5 c6 || 1 ≠ 0 → get, signal(empty) → 대기자 없음 || 0 || [] || [] || Ready(woken) || Run || Ready(woken)
+|-
+| 8 || C1 c1 c2 c3 || 0 → fill 에서 잠듦 || 0 || [] || [C1] || Ready(woken) || Sleep(fill) || Ready(woken)
+|-
+| 9 || C2 리턴 + c2 c3 || mutex 재획득, '''재검사 count == 0''' → 다시 fill 에서 잠듦 || 0 || [] || [C1, C2] || Ready(woken) || Sleep(fill) || Sleep(fill)
+|-
+| 10 || P 리턴 + p2 p4 p5 p6 || 재검사 0 ≠ 2 → put, signal(fill) → '''C1''' Ready || 1 || [] || [C2] || Run || Ready(woken) || Sleep(fill)
+|}
+(b) C2 는 step 4 에서 producer 의 '''올바른''' signal 로 깨어났지만, 실제로 mutex 를 잡기(step 9) 전에 C1 이 두 개를 모두 가져갔다(step 6·7 — C1 이 C2 보다 먼저 스케줄됨, Mesa). while 이라 재검사 → count 0 → 다시 잠듦. '''if 였다면''' 재검사 없이 c4 `get()` 을 count 0 에서 호출 → 빈 칸을 읽고 count 가 −1 이 됨(assert 가 있으면 실패). → '''CV 를 둘로 나눠도 while 은 필요하다'''(B6). 검산 스크립트에서 같은 스케줄을 if 로 돌리면 step 9 에서 get with count 0.
+(c) 해롭지 않다. P 는 step 6 의 signal 로 '''이미''' Ready 상태라 empty 큐가 비어 있었을 뿐이다. step 10 에서 P 는 mutex 를 잡고 재검사(count 0 < 2)해 진행한다. 상태(count)가 진실을 들고 있으므로 "대기자 없는 signal" 은 단지 효과가 없을 뿐 정보가 사라지지 않는다 — 상태 변수 + while 조합의 힘.
+채점 포인트: step 3·4 에서 fill 의 대기자가 순서대로 깨어남, step 6 의 P 깨움, step 9 의 재검사 → 재수면, if 면 빈 버퍼 get.
+(L10 p.25~26, p.48~50) → [[bounded buffer]] · [[spurious wakeup]]{/answer}
+
+=== E4 ===
+{quiz}'''Covering condition: signal vs broadcast''' (L10 p.27–29)<br>Allocator of p.28. bytesLeft = 0. Threads went to sleep on c in this order: T1 = allocate(40), T2 = allocate(25), T3 = allocate(15). Then T4 calls free(ptr, 30) and returns.<br>(a) free() uses signal (FIFO). Trace each waiter's state and bytesLeft. Is anyone able to proceed?<br>(b) free() uses broadcast, and woken threads re-acquire the mutex in order T1, T2, T3. Trace bytesLeft and each thread's result.<br>(c) Same as (b) but the order is T3, T1, T2. Which thread succeeds now?<br>(d) In (b), how many wake-ups were wasted? Explain the cost the slide mentions.{/quiz}
+{answer}'''정답: (a) 진행 불가 — T1 만 깨어나 40 > 30 이라 다시 잠듦, bytesLeft 30 남은 채 셋 다 Sleep  (b) T2 성공, bytesLeft 5, T1·T3 다시 잠듦  (c) T3 성공, bytesLeft 15, T1·T2 다시 잠듦  (d) 2회'''
+(a) signal
+{|
+! 단계 || 동작 || bytesLeft || T1 || T2 || T3
+|-
+| 0 || 초기 (세 명 대기, 큐 [T1, T2, T3]) || 0 || Sleep || Sleep || Sleep
+|-
+| 1 || T4 free: bytesLeft += 30, signal → 맨 앞 T1 Ready || 30 || Ready(woken) || Sleep || Sleep
+|-
+| 2 || T1 재획득, while: 30 &lt; 40 → 다시 wait || 30 || Sleep || Sleep || Sleep
+|}
+T2(25)·T3(15)는 각각 혼자라면 통과할 수 있는데 깨어나지 못했다. T4 는 끝났으므로 '''실행 가능한 스레드가 없다''' — 다음 free 가 올 때까지 정지(p.27 "Which waiting thread should be woken up?").
+(b) broadcast, 순서 T1 → T2 → T3
+{|
+! 단계 || 동작 || bytesLeft || T1 || T2 || T3
+|-
+| 1 || T4 free: += 30, broadcast → 세 명 모두 Ready || 30 || Ready || Ready || Ready
+|-
+| 2 || T1: 30 &lt; 40 → 다시 잠듦 || 30 || Sleep || Ready || Ready
+|-
+| 3 || T2: 30 ≥ 25 → 할당, −25 || 5 || Sleep || '''성공''' || Ready
+|-
+| 4 || T3: 5 &lt; 15 → 다시 잠듦 || 5 || Sleep || 성공 || Sleep
+|}
+(c) 순서 T3 → T1 → T2: T3 30 ≥ 15 → '''성공''', bytesLeft 15 → T1 15 < 40 잠듦 → T2 15 < 25 잠듦. 최종 bytesLeft 15. 누가 성공하는지는 '''mutex 를 먼저 잡는 순서'''에 달려 있다 — broadcast 는 "조건이 맞는 누군가는 반드시 재검사 기회를 얻는다"만 보장한다. (검산: 6가지 순서 모두에서 정확히 한 명 성공, 헛걸음 2회.)
+(d) '''2회'''(T1, T3). p.29 "Cost: '''too many threads might be woken.''' Threads that shouldn't be awake will simply wake up, re-check the condition, and then go back to sleep." 교수님: 대기자가 100명이면 대부분이 context switch + 재검사만 하고 다시 잔다 → 성능 손해. 대안으로 '''thread-level CV'''(스레드마다 CV, 조건 맞는 스레드에만 signal)를 언급했다.
+채점 포인트: (a) "T1 만 깨어나 재수면 → 진행 불가" (b)(c) bytesLeft 5 / 15 와 성공자 (d) 2 + 비용 설명.
+(L10 p.27~29) → [[covering condition]] · [[broadcast]]{/answer}
+
+{tip}트레이스 표는 '''열을 먼저 그린다''': step · 실행 · count · (CV 별) 큐 · 스레드별 상태. signal 칸에서는 "큐 맨 앞이 '''누구'''인가"를, 리턴 칸에서는 "if 인가 while 인가"를 매번 소리 내어 확인하면 실수가 없다.{/tip}
+
+== Part F. Short answer / 서술 ==
+영어 답안 뼈대(model skeleton) → 한국어 설명 → 채점 포인트. 2025F 평균 52점, 부분 점수를 위해 '''이유'''를 반드시 쓸 것.
+
+=== F1 ===
+{quiz}Why does pthread_cond_wait() take a mutex as an argument? Why must "release the mutex" and "go to sleep" happen atomically? (L10 p.10, p.15){/quiz}
+{answer}'''Model answer (skeleton)'''
+"The caller must check the state variable and decide to sleep while holding the mutex, so that no other thread can change the state in between. But if the thread slept while still holding the mutex, no other thread could acquire it to change the state and signal, so the program would deadlock. Therefore wait() takes the mutex, '''releases it and puts the caller to sleep atomically''', and '''re-acquires it before returning'''. If releasing and sleeping were separate steps, another thread could change the state and signal in the gap; that signal would find no waiter and be lost, and the caller would then sleep forever (the p.15 race)."
+풀이: 세 문장으로 정리하면 ① 검사는 락 안에서(상태 변수 보호) ② 락 쥔 채 자면 deadlock(교수님 9/28) → wait 가 락을 놓아 준다 ③ 놓기와 잠들기 사이 틈이 있으면 p.15 와 같은 lost wakeup → 원자적으로. 9강 [[setpark]]·[[futex]] 가 해결하려던 wakeup/waiting race 와 같은 문제를 CV 는 API 차원에서 해결한 것이다(교수님: "이 구현은 futex 와 매우 비슷하다").
+채점 포인트: (1) 락을 쥔 채 자면 deadlock (2) wait 가 놓고 잠들기를 atomic 하게 (3) 리턴 전 재획득 (4) 틈이 있으면 signal 유실 → 영원히 잠듦. 각 1~2점.
+(L10 p.10~15) → [[wait와 signal]]{/answer}
+
+=== F2 ===
+{quiz}"Always use while loops" (p.24). Give two different reasons why a thread returning from pthread_cond_wait() must re-check its condition, and state whether the two-CV solution removes the need. (L10 p.22, p.24–26){/quiz}
+{answer}'''Model answer (skeleton)'''
+"(1) '''Mesa semantics''': a signal only moves the waiter to the ready state; before it re-acquires the mutex, another thread may run and change the state (e.g., another consumer takes the item). (2) '''Spurious wakeup''': the OS may wake a thread although the condition is not satisfied, e.g., several threads for one signal. In both cases the condition may be false when wait returns, so the thread must re-check it with while and go back to sleep if needed. Two CVs only fix '''who''' is woken (a consumer is never woken by a consumer); they do not guarantee the condition still holds, so while is still required."
+풀이: p.22 슬라이드 자체가 "cond_wait does not guarantee the condition count == 1 / OS can freely wake up the thread (Mesa semantics)" 로 두 원인을 한 제목 아래 묶었다. 처방은 같다 — while. E3 이 "두 CV 인데 while 이 필요한" 구체적 순서.
+채점 포인트: (1) Mesa: woken ≠ run immediately, 다른 스레드 끼어들기 (2) spurious wakeup (3) 두 CV 여도 필요(이유 포함). Hoare 였다면 if 로 충분하다는 비교를 쓰면 가산.
+(L10 p.22~26) → [[Mesa semantics]] · [[spurious wakeup]]{/answer}
+
+=== F3 ===
+{quiz}Compare pthread_cond_signal() and pthread_cond_broadcast(): when is signal insufficient, what does broadcast cost, and why is broadcast still correct? Use the allocator of p.27–28 as the example. (L10 p.27–29){/quiz}
+{answer}'''Model answer (skeleton)'''
+"signal wakes one waiter, broadcast wakes all waiters. Signal is enough when every waiter waits for the same condition, so any one of them can use the change. It is insufficient when waiters wait for different conditions (a '''covering condition'''): with 0 bytes free, A waits for 100 bytes and B for 10; free(50) signals and may wake A, which re-checks, fails and sleeps again, while B, which could proceed, stays asleep. Broadcast wakes everyone; each re-acquires the mutex in turn and re-checks bytesLeft < size in a while loop, so only threads whose request fits proceed — correctness is kept. The cost is performance: too many threads are woken, context-switch, re-check and go back to sleep."
+풀이: 교수님 보충(9/28) 두 가지를 쓰면 만점 근처: ① 대기자가 많을수록 헛걸음이 많아진다(100명 중 대부분) ② 대안 '''thread-level CV'''. 그리고 OSTEP 경고 — "signal 을 broadcast 로 바꿔야만 동작한다면 아마 버그"(p.24 의 CV 하나 버전은 broadcast 로 땜질하기보다 CV 두 개가 정답).
+채점 포인트: (1) signal = 1명, broadcast = 전부 (2) 조건이 스레드마다 다를 때 signal 은 누구를 깨울지 모름 + 예시 (3) while 재검사로 정확성 유지 (4) 비용 = 불필요한 깨움.
+(L10 p.27~29) → [[covering condition]] · [[broadcast]]{/answer}
+
+=== F4 ===
+{quiz}Slide p.9 says a condition variable comes "three in a package". Name the three, state what each one is responsible for, and give the failure that occurs when the state variable is missing and when the lock is missing. (L10 p.9, p.14–15){/quiz}
+{answer}'''Model answer (skeleton)'''
+"(1) The '''condition variable''' c — a queue where threads sleep and from which they are woken; it does not know the condition. (2) The '''state variable''' (e.g., done) — records whether the awaited event has happened. (3) The '''lock''' L — protects the state variable and makes 'check the state then sleep' and 'change the state then signal' atomic. Without the state variable (p.14), if the child runs first its signal finds no waiter and is lost; the parent then waits and is never woken. Without the lock (p.15), the parent may see done == 0 and be interrupted just before wait; the child sets done = 1 and signals nobody; the parent then sleeps forever."
+풀이: 12강 Summary 의 교수님 정리 — "mutex 는 critical section 을 지키고 CV 는 실행 조건을 지킨다. CV 는 mailbox 같아 조건을 모르므로 state variable 과 lock 이 함께 필요하다." 두 고장 모두 결과는 "부모가 영원히 잠듦"이지만 원인이 다르다: p.14 는 '''기억할 곳이 없음''', p.15 는 '''검사와 잠들기 사이의 틈'''.
+채점 포인트: 세 요소 이름 + 역할(각 1점), p.14 실패 순서, p.15 실패 순서(각 2점).
+(L10 p.9, p.14~15; L12 Summary) → [[조건 변수]] · [[done flag 예제]]{/answer}
+
+{tip}서술형은 '''"원인 → 결과 → 처방"''' 3문장 틀로 쓰면 채점 포인트를 대부분 밟는다. 예: "CV 가 하나라 consumer 가 consumer 를 깨운다 → 셋 다 잠든다 → empty/fill 두 CV."{/tip}
+
+== 관련 문서 ==
+* 개념: [[조건 변수]] (§7 버그 버전 종합표) · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[done flag 예제]]
+* Producer/consumer: [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]]
+* 앞뒤 강의: [[futex]] · [[setpark]] · [[세마포어]] · [[critical section]] · [[race condition]]
+* 실전 문제 시리즈: [[실전 문제 ① park·futex]] · [[실전 문제 ③ 세마포어]] · [[실전 문제 ④ 데드락]]
+* 시험: [[2025F 중간고사 족보]] · [[중간고사 모의 v3]] · [[자주 틀리는 함정 모음]] · [[시험 정보]]

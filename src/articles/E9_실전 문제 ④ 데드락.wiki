@@ -1,0 +1,641 @@
+key: 실전 문제 ④ 데드락
+title: 실전 문제 ④ — 데드락 (12강 p.9~29)
+category: 시험, 실전 문제
+---
+12강 '''데드락(p.9~29)''' 만 모은 실전 문제 35문항. 문제는 영어(시험 언어), 해설은 한국어. 정답은 접혀 있으니 '''먼저 답을 쓰고''' 펼칠 것. 추적·그래프·스케줄 문제는 전부 Python 으로 모든 경우를 돌려 검산했다(`중간고사/문제풀이/실전문제_검산/_check_E9.txt`).
+같은 시리즈: [[실전 문제 ① park·futex]] · [[실전 문제 ② condition variable]] · [[실전 문제 ③ 세마포어]]. 개념 복습은 [[데드락]] 허브 문서부터.
+
+{info}Part A 정의→용어 7 · Part B T/F 9 · Part C 객관식(NOT) 6 · Part D 코드 빈칸 4 · Part E 추적·그래프 5 · Part F 서술 4 = 35문항. 2025F 에서 데드락은 P1-c(“not a condition” = Busy wait), P2-g(정의→Livelock)로 나왔다 — [[2025F 중간고사 족보]].{/info}
+
+== Part A. Definition → Term ==
+영어 정의를 보고 용어(영어)를 쓴다. 슬라이드 원문과 표현을 일부러 바꿨으니 키워드로 판단할 것.
+
+=== A1 ===
+{quiz}“A state in which two or more competing threads (or processes) are each waiting for another one of them to finish, so that none of them ever does.”{/quiz}
+{answer}'''Deadlock'''.
+풀이: p.9 정의 “two or more competing threads or processes are each waiting for the other to finish, and thus neither ever does”. 핵심 단어는 '''each waiting for the other''' + '''neither ever does'''(아무도 끝나지 않음 = progress 0). p.9 아래 설명: 스레드가 유한한 자원을 두고 경쟁 → 자원이 없으면 waiting state → 그 자원을 '''다른 기다리는 스레드'''가 쥐고 있으면 영원히 상태가 안 바뀐다.
+🎙 10/7: “데드락은 아주 흔하다 — 스레드를 쓰는 이유가 shared resource 이고, 성능 때문에 자원은 늘 한정적이다.”
+채점 포인트: Deadlock 만 정답. Livelock(계속 실행은 함) · Starvation(일부만 못 감)과 혼동하면 ✗.
+(L12 p.9) → [[데드락]]{/answer}
+
+=== A2 ===
+{quiz}“The deadlock condition in which a thread keeps the resources already allocated to it (for example, locks it has acquired) while it is waiting to obtain additional resources.”{/quiz}
+{answer}'''Hold and wait'''.
+풀이: p.12 조건 2 “Threads hold resources allocated to them … while waiting for additional resources”. 🎙 교수님: “핵심은 '기다린다'가 아니라 '''무언가를 쥔 채''' 기다린다는 것” — 그래서 mutual exclusion(조건 1)과 다르다. 이 조건을 깨는 prevention 은 p.17 의 `prevention` 전역 락(모든 락을 한 번에 atomically).
+채점 포인트: “Hold and wait” 두 단어. “Waiting”, “Blocking” 만 쓰면 ✗.
+(L12 p.12, p.17) → [[데드락 4조건]] · [[hold and wait 방지]]{/answer}
+
+=== A3 ===
+{quiz}“The deadlock condition stating that a resource such as a lock cannot be forcibly taken away from the thread currently holding it.”{/quiz}
+{answer}'''No preemption'''.
+풀이: p.12 조건 3 “Resources (e.g., locks) cannot be forcibly removed from threads that are holding them”. 🎙 “남이 쥔 자원을 '''뺏을 수''' 있으면 쥔 채 기다리는 상황 자체가 안 생긴다.” 깨는 방법은 p.18~19 trylock: 못 잡으면 '''자기가 쥔 것을 스스로 내놓는다'''(= 스스로 preempt 당해 줌).
+채점 포인트: No preemption. 5강 스케줄링의 “preemption(선점)”과 같은 단어지만 여기선 '''자원'''을 뺏는 것.
+(L12 p.12, p.18) → [[데드락 4조건]] · [[trylock]]{/answer}
+
+=== A4 ===
+{quiz}“A situation in which two threads keep running — each repeatedly grabs one lock, fails a non-blocking attempt on the other lock, releases what it holds and starts over — yet neither ever makes progress.”{/quiz}
+{answer}'''Livelock'''.
+풀이: p.20 “Two threads could both be repeatedly attempting this sequence and repeatedly failing to acquire both locks → No progress is made”. 2025F P2-g 기출(“try-lock sequence and repeatedly failing”). 데드락과 달리 스레드는 '''blocked 가 아니라 계속 실행 중'''(CPU 를 쓰고 있음)인데 결과가 없다. 해결: p.20 “Add a '''random delay''' before looping back”.
+채점 포인트: Livelock. Deadlock(잠들어 멈춤) ✗, Starvation(다른 스레드는 진행) ✗, Spin(락 하나를 기다림) ✗.
+(L12 p.20, 2025F P2-g) → [[livelock]]{/answer}
+
+=== A5 ===
+{quiz}“A deadlock-handling approach that offers only a mild guarantee: the system assigns resources (schedules threads) so that it never gets into a deadlock, which requires global knowledge of which locks each thread might grab during its execution.”{/quiz}
+{answer}'''Deadlock avoidance''' (avoidance via scheduling).
+풀이: p.25 “Deadlock prevention provides strong guarantees … Deadlock avoidance provides '''mild''' guarantee … Require some '''global knowledge''' of which locks various threads might grab”. p.13 분류로는 Method 1 의 '''dynamic''' 쪽(prevention 은 static). 🎙 “조건은 다 남긴 채 문제되는 순서(schedule)만 뺀다.”
+채점 포인트: avoidance. prevention 이라 쓰면 ✗ (prevention = strong, 코드를 바꿈).
+(L12 p.13, p.25) → [[데드락 avoidance]]{/answer}
+
+=== A6 ===
+{quiz}“The deadlock-handling approach that lets deadlocks occasionally occur; a periodically running component builds a resource graph, checks it for cycles, and restarts the system when one is found (common in database systems).”{/quiz}
+{answer}'''Deadlock detection & recovery''' (Method 2).
+풀이: p.29 “Allow deadlocks to occasionally occur, and then take some action once such a deadlock has been detected … In database systems, a deadlock detector runs periodically, building a resource graph and checking it for '''cycles'''.” 🎙 “탐지는 쉽다(holder/waiter 그래프의 cycle), '''recovery 가 비싸다'''(checkpoint 필요). DB 는 checkpoint 가 원래 있어 쉽다.”
+채점 포인트: detection (& recovery). Avoidance ✗(데드락을 아예 안 들어가게 함), Ignore ✗(아무것도 안 함).
+(L12 p.29) → [[데드락 detection]]{/answer}
+
+=== A7 ===
+{quiz}“The deadlock-handling method, used by most operating systems including Windows, Linux and Solaris, that simply pretends deadlocks never occur.”{/quiz}
+{answer}'''Ignoring the problem''' (Method 3, ignore / “pretend that deadlocks never occur”).
+풀이: p.13 “Method 3: ignore the problem and pretend that deadlocks never occur — Used by most operating systems, including Windows, Linux, and Solaris”. 🎙 이유: 세 방법(prevention·avoidance·detection) 모두 '''오버헤드가 크다''' → OS 는 지원하지 않고, 필요한 응용(서버 등)이 각자 구현. 실제 증상은 데드락 난 스레드가 자원을 쥔 채 안 끝나는 '''resource leak''' — CPU 사용률로는 안 보이고 '''메모리 사용량이 서서히 증가'''해서 운영 중에 발견된다.
+채점 포인트: ignore(무시). “prevention”이라 쓰는 게 대표 오답.
+(L12 p.13, 🎙 10/7) → [[데드락]]{/answer}
+
+{tip}정의→용어 구분 키워드: '''each waiting for the other''' = deadlock / '''repeatedly … failing, no progress''' = livelock / '''strong''' = prevention / '''mild + global knowledge''' = avoidance / '''resource graph + cycle''' = detection / '''most OSes''' = ignore.{/tip}
+
+== Part B. True / False ==
+F 이면 맞는 문장으로 고쳐 쓸 것.
+
+=== B1 ===
+{quiz}(T / F) Busy waiting is one of the four necessary conditions for deadlock; if threads sleep instead of spinning, deadlock cannot happen.{/quiz}
+{answer}'''F'''.
+풀이: 네 조건은 Mutual exclusion · Hold and wait · No preemption · Circular wait (p.12). Busy wait 는 [[spin lock]] 의 '''대기 방식'''일 뿐 조건이 아니다 — 2025F P1-c 정답이 바로 “Busy wait”. 잠드는 락(예: pthread_mutex, 세마포어)으로도 데드락은 그대로 생긴다(p.10 예제가 pthread_mutex_lock).
+고친 문장: “Busy waiting is '''not''' a deadlock condition; threads that sleep while waiting can still deadlock.”
+채점 포인트: F + 4조건 중 busy wait 없음.
+(L12 p.12, 2025F P1-c) → [[데드락 4조건]]{/answer}
+
+=== B2 ===
+{quiz}(T / F) Deadlock can arise only if all four conditions hold simultaneously; therefore eliminating any single one of them is enough to prevent deadlock.{/quiz}
+{answer}'''T'''.
+풀이: p.12 “Deadlock can arise if four conditions hold '''simultaneously'''” + p.14 “A deadlock cannot occur if '''any''' of the four conditions are not met”. 이것이 prevention 의 출발점 — 조건 하나씩 깨는 기법 4개(p.15~24). 🎙 “네 조건 중 하나만 없애도 데드락은 사라진다. 그중 ②와 ④가 핵심.”
+채점 포인트: T.
+(L12 p.12, p.14) → [[데드락 4조건]]{/answer}
+
+=== B3 ===
+{quiz}(T / F) Most general-purpose operating systems, including Linux and Windows, implement deadlock prevention inside the kernel.{/quiz}
+{answer}'''F'''.
+풀이: p.13 Method 3 “ignore the problem … Used by most operating systems, including Windows, Linux, and Solaris”. prevention 은 p.14 “Mostly done by '''programmers'''”. 🎙 세 방법 모두 오버헤드가 커서 OS 는 무시하고 필요한 응용이 각자 구현.
+고친 문장: “Most operating systems, including Linux and Windows, '''ignore''' deadlocks and pretend they never occur.”
+채점 포인트: F + “ignore”.
+(L12 p.13) → [[데드락]]{/answer}
+
+=== B4 ===
+{quiz}(T / F) In Lecture 12, CompareAndSwap(address, expected, new) returns the value that was stored at address before the call.{/quiz}
+{answer}'''F''' (함정).
+풀이: 12강 p.22 CAS 는 같으면 바꾸고 '''return 1; // success''', 다르면 '''return 0'''. '''옛 값을 반환하는 것은 9강 p.22 의 CAS'''(“in either case, return the actual value”). 그래서 루프 조건도 다르다: 9강 스핀 락은 `== 1`(옛 값이 1 = 누가 쥠), 12강 AtomicIncrement 는 `== 0`(실패).
+고친 문장: “In Lecture 12, CompareAndSwap returns '''1 on success and 0 on failure'''; the Lecture 9 version returns the old value.”
+채점 포인트: F + 1/0 반환.
+(L12 p.22 vs L9 p.22) → [[compare-and-swap]] · [[lock-free]]{/answer}
+
+=== B5 ===
+{quiz}(T / F) The lock-free AtomicIncrement() guarantees that every calling thread finishes within a bounded number of retries, so it is free of both deadlock and starvation.{/quiz}
+{answer}'''F'''.
+풀이: p.23 마지막 세 줄 “No lock is acquired · No deadlock can arise · '''Starvation is possible'''”. 락이 없으니 쥔 채 기다리는 일(hold and wait)이 없어 데드락은 불가능. 하지만 CAS 가 실패할 때마다 다시 읽고 재시도하는데, 운 나쁜 스레드는 매번 다른 스레드에게 선수를 빼앗겨 '''몇 번 실패할지 상한이 없다'''.
+고친 문장: “AtomicIncrement() is deadlock-free, but '''starvation is possible''' because a thread's CAS can fail an unbounded number of times.”
+채점 포인트: F + starvation possible.
+(L12 p.23) → [[lock-free]]{/answer}
+
+=== B6 ===
+{quiz}(T / F) Wrapping all lock acquisitions with a global prevention lock increases concurrency, because no untimely thread switch can occur in the middle of lock acquisition.{/quiz}
+{answer}'''F'''.
+풀이: 앞부분(“no untimely thread switch can occur in the midst of lock acquisition”)은 p.17 그대로 맞지만 결론이 반대. p.17 Problems: ① 호출 전에 '''어떤 락이 필요한지 정확히 알고 미리''' 잡아야 함 ② '''Decrease concurrency!''' 🎙 “사실상 global lock — L1·L2 를 따로 쓸 이유가 없다. '''디버깅용'''(Useful for debugging)이지 실제 시스템엔 못 쓴다.”
+고친 문장: “A global prevention lock prevents hold-and-wait deadlock but '''decreases concurrency'''.”
+채점 포인트: F + decrease concurrency.
+(L12 p.17) → [[hold and wait 방지]]{/answer}
+
+=== B7 ===
+{quiz}(T / F) In a livelock the threads involved are blocked in the sleeping state, exactly as in a deadlock; the only difference is that a livelock can be resolved by rebooting.{/quiz}
+{answer}'''F'''.
+풀이: livelock 의 스레드는 '''잠들지 않고 계속 실행'''한다 — lock → trylock 실패(−1) → unlock → goto top 을 반복(p.20). 상태가 계속 바뀌는데 '''progress 가 없을''' 뿐. 🎙 “죽진 않았지만 데드락과 같은 일. 누가 우선인지 못 정하니 완전 제거는 불가, '''random delay''' 로 행동을 다르게 한다.”
+고친 문장: “In a livelock the threads keep running (repeatedly trying and failing) but make no progress; a random delay before retrying breaks it.”
+채점 포인트: F + running/no progress + random delay.
+(L12 p.20) → [[livelock]]{/answer}
+
+=== B8 ===
+{quiz}(T / F) In deadlock detection & recovery, the expensive part is detecting the deadlock; once a cycle is found, recovery is cheap.{/quiz}
+{answer}'''F''' (반대).
+풀이: 🎙 10/7: “'''탐지는 쉽다''' — holder/waiter 그래프를 만들어 cycle 을 찾으면 된다. '''recovery 가 비싸다''' — 되돌아갈 지점(checkpoint)이 필요하다.” DB 는 원래 checkpoint/rollback 이 있어 잘 맞고, 실시간 게임은 불가, 턴제·싱글 게임은 save/load 로 가능. p.29 “the system needs to be restarted”.
+고친 문장: “Detection (finding a cycle in the resource graph) is easy; '''recovery''' is the expensive part because it needs checkpoints/restart.”
+채점 포인트: F + recovery 가 비쌈.
+(L12 p.29, 🎙 10/7) → [[데드락 detection]]{/answer}
+
+=== B9 ===
+{quiz}(T / F) With lock-free data structures built on compare-and-swap, mutual exclusion disappears entirely: no component of the system ever needs exclusive access to anything.{/quiz}
+{answer}'''F'''.
+풀이: p.22 “Avoid the need for mutual exclusion at all — using powerful hardware instruction” 은 '''소프트웨어 락'''이 필요 없다는 뜻. 🎙 교수님: “mutual exclusion 은 사라진 게 아니라 '''cache bus 를 누가 잡느냐는 하드웨어로 옮겨간 것'''.” CAS 한 명령은 하드웨어가 원자적으로(배타적으로) 실행한다. 다만 명령 하나 길이라 '''쥔 채 기다리는 일'''이 없어 데드락이 안 생긴다.
+고친 문장: “Lock-free code needs no software lock, but exclusive access is still enforced '''by the hardware''' (the atomic CAS on the cache/bus).”
+채점 포인트: F + 하드웨어로 이동.
+(L12 p.22, 🎙 10/7) → [[lock-free]]{/answer}
+
+{tip}T/F 에서 데드락 함정 3종: ① busy wait 를 조건에 끼워 넣기 ② 12강 CAS 반환값을 9강처럼 쓰기 ③ “lock-free = starvation-free”. 셋 다 슬라이드 한 줄로 반박된다.{/tip}
+
+== Part C. Multiple choice (5지선다, NOT) ==
+
+=== C1 ===
+{quiz}Each deadlock-prevention technique below is paired with the deadlock condition it eliminates. Which pairing is '''NOT''' correct?<br>① Acquiring locks in a fixed total order — Circular wait<br>② Grabbing every needed lock inside a global prevention lock — Hold and wait<br>③ trylock() and releasing the held lock on failure (goto top) — No preemption<br>④ Updating shared data with compare-and-swap instead of a lock — Mutual exclusion<br>⑤ Adding a random delay before retrying — Circular wait{/quiz}
+{answer}'''⑤'''.
+풀이: random delay 는 데드락 조건을 깨는 기법이 아니라 '''trylock 방식이 낳는 livelock''' 을 깨는 장치(p.20). trylock 으로 no preemption 을 없앤 뒤 생기는 2차 문제의 해결책이다.
+* ① 맞음 — p.15 “Provide a total ordering on lock acquisition” → p.16 “Circular wait does not exist after the code change”.
+* ② 맞음 — p.17 “Acquire all locks at once, atomically” = hold and wait 제거.
+* ③ 맞음 — p.18 “all the resources currently being held by T0 are released” = 스스로 내놓음 = preemption 허용.
+* ④ 맞음 — p.22 “Avoid the need for mutual exclusion at all”.
+채점 포인트: 4개 쌍(ordering↔circular, global↔hold&wait, trylock↔no preemption, CAS↔mutual exclusion)을 외우고 random delay 는 livelock 용임을 앎.
+(L12 p.15~24) → [[데드락]] · [[livelock]]{/answer}
+
+=== C2 ===
+{quiz}Which of the following is '''NOT''' a correct statement about the four deadlock conditions (p.12)?<br>① Mutual exclusion: threads claim exclusive control of resources they require.<br>② Hold and wait: threads hold resources already allocated to them while waiting for more.<br>③ No preemption: resources cannot be forcibly removed from the threads holding them.<br>④ Circular wait: there is a circular chain of threads in which each holds a resource requested by the next thread.<br>⑤ The four conditions are sufficient one at a time: if any one of them holds, deadlock will eventually occur.{/quiz}
+{answer}'''⑤'''.
+풀이: 네 조건은 '''동시에''' 성립해야(“hold simultaneously”) 데드락이 '''생길 수 있다'''(“can arise”). 하나만으로는 안 되고, 넷이 다 있어도 스케줄에 따라 안 날 수도 있다(E1 (b) 참고 — 같은 코드도 순서에 따라 데드락이 나거나 안 난다). ①~④ 는 p.12 정의 문장 그대로.
+🎙 교수님 해석: mutual exclusion 없으면 기다릴 이유가 없음 / hold and wait 는 쥔 채 기다림 / preemption 되면 쥔 채 기다릴 일이 없음 / 순환이 없으면 누군가는 진행. “②와 ④가 핵심.”
+채점 포인트: “simultaneously” + “can arise”.
+(L12 p.12) → [[데드락 4조건]]{/answer}
+
+=== C3 ===
+{quiz}Which of the following is '''NOT''' true about the trylock-based approach (p.18–21)?<br>① pthread_mutex_trylock() returns 0 if it grabs the lock and −1 if the lock is not available.<br>② If both threads run the symmetric code in lockstep on two CPUs, they may livelock.<br>③ If the code allocated memory (e.g., malloc) after taking L1, it must free it before goto top when trylock(L2) fails.<br>④ Adding a random delay before goto top makes it unlikely that the two threads keep colliding.<br>⑤ Because no thread ever waits while holding a lock, the approach is guaranteed to complete in a bounded number of retries, so it is widely used for arbitrary code.{/quiz}
+{answer}'''⑤'''.
+풀이: 두 가지가 틀렸다. (i) 재시도 횟수에 상한이 없다 — livelock(p.20)이 바로 무한 재시도. random delay 도 확률적으로 줄일 뿐 보장하지 않는다. (ii) p.21 “This type of approach could work well in '''limited circumstances'''” — 중간에 잡은 자원(malloc 한 메모리 등)을 모두 '''되돌려야(revert)''' 해서 코드가 커진다. 🎙 “그래서 널리 못 쓴다.”
+* ① p.18 그대로. ② p.20 그림(“Thread 0 run by CPU 0 / Thread 1 run by CPU 1”). ③ p.21 코드 9번 줄 `free(ptr)`. ④ p.20 Solution.
+채점 포인트: limited circumstances + livelock 가능.
+(L12 p.18~21) → [[trylock]] · [[livelock]]{/answer}
+
+=== C4 ===
+{quiz}Which of the following is '''NOT''' true about deadlock avoidance via scheduling (p.25–28)?<br>① It requires global knowledge of which locks each thread might grab.<br>② Threads that could deadlock with each other are not run at the same time.<br>③ A thread that grabs only one lock can run concurrently with threads that grab two locks without risking deadlock.<br>④ It may cost performance even when the threads would not actually deadlock, because they are still serialized.<br>⑤ It provides a stronger guarantee than prevention and is the standard general-purpose solution in modern OSes.{/quiz}
+{answer}'''⑤'''.
+풀이: p.25 prevention = '''strong''' guarantee(데드락 가능성 자체가 없음), avoidance = '''mild''' guarantee. p.28 “Avoidance of deadlock via scheduling is '''not a widely-used general-purpose solution'''”.
+* ① p.25. ② p.26~27 Example-1/2: T1·T2(둘 다 L1·L2)는 같은 CPU 에 직렬. ③ p.26: T3 는 L2 만 잡으므로 T1 과 동시에 실행됨 — 락을 하나만 쥐면 hold and wait 가 생기지 않는다. ④ p.28: 셋이 같은 순서로 잡아 안전해도 “T1, T2, and T3 cannot run concurrently” → performance penalty.
+채점 포인트: strong/mild 를 뒤바꾼 것 + not widely used.
+(L12 p.25~28) → [[데드락 avoidance]]{/answer}
+
+=== C5 ===
+{quiz}Assume flag is 0 when free and 1 when held, and unlock() sets flag = 0. CAS9 is the Lecture 9 compare-and-swap (returns the old value) and CAS12 is the Lecture 12 version (returns 1 on success, 0 on failure). Which lock() is '''NOT''' a correct spin lock?<br>① while (CAS9(&flag, 0, 1) == 1) ;<br>② while (CAS12(&flag, 0, 1) == 0) ;<br>③ while (TestAndSet(&flag, 1) == 1) ;<br>④ while (!CAS12(&flag, 0, 1)) ;<br>⑤ while (CAS12(&flag, 0, 1) == 1) ;{/quiz}
+{answer}'''⑤'''.
+풀이: 루프 조건에는 '''“실패했을 때 나오는 값”'''을 써야 한다(실패하면 계속 돈다).
+{|
+! 보기 || 성공(획득) 시 반환 || 실패 시 반환 || 조건이 참 = 계속 spin || 판정
+|-
+| ① CAS9 == 1 || 0 (옛 값) || 1 (옛 값) || 실패일 때 || ✅
+|-
+| ② CAS12 == 0 || 1 || 0 || 실패일 때 || ✅
+|-
+| ③ TAS == 1 || 0 (옛 값) || 1 (옛 값) || 실패일 때 || ✅
+|-
+| ④ !CAS12 || 1 → !1 = 0 || 0 → !0 = 1 || 실패일 때 || ✅ (②와 같음)
+|-
+| ⑤ CAS12 == 1 || 1 || 0 || '''성공일 때''' || ❌
+|}
+⑤ 의 동작: flag=0 일 때 T1 이 CAS 성공(flag=1, 반환 1) → 조건 참이라 '''락을 쥔 채 계속 돈다'''. 그 사이 T2 는 CAS 실패(반환 0) → 조건 거짓 → '''락 없이 critical section 진입'''. 반대로 처음 실패한 스레드가 들어가므로 mutual exclusion 이 깨진다(검산 스크립트: 두 스레드 모든 인터리빙에서 ①~④ 는 동시 진입 0, ⑤ 는 동시 진입 발생).
+채점 포인트: CAS 반환값 버전 구분. [[락 그림 요약]] 의 cas_two_answers 그림, [[compare-and-swap]] 문서의 cas_two_versions 시뮬레이터로 확인.
+(L9 p.22~23, L12 p.22) → [[compare-and-swap]] · [[lock-free]]{/answer}
+
+=== C6 ===
+{quiz}Which of the following is '''NOT''' a reason (given in the lecture) why most operating systems choose to ignore deadlocks?<br>① Prevention places a burden on programmers and is not always possible.<br>② Avoidance requires too much global information about which locks threads will grab.<br>③ Detection must run periodically and recovery needs costly checkpoints.<br>④ Deadlocks are rare enough that rebooting a frozen system now and then is pragmatic.<br>⑤ Modern hardware makes all kernel locks lock-free, so deadlocks cannot occur in an OS kernel.{/quiz}
+{answer}'''⑤'''.
+풀이: 그런 말은 없고 사실도 아니다 — lock-free 는 특정 자료구조(카운터·리스트)에만 쓸 수 있고, 커널에도 일반 락이 많다. 오히려 🎙 “데드락은 아주 흔하다”(p.9 “Deadlocks are common in computer systems”).
+* ①②③ 🎙 10/7: “'''세 방법 모두 오버헤드가 크다''' — prevention 은 프로그래머 부담, avoidance 는 정보가 너무 많이 필요, detection 은 주기 실행 + recovery 비용.” ④ p.29 “If an OS froze once a year, you would just reboot it — If deadlocks are rare, such a non-solution is indeed quite pragmatic.”
+채점 포인트: 무시하는 이유 = 오버헤드. 증상 = resource leak(메모리 증가).
+(L12 p.13, p.29, 🎙 10/7) → [[데드락]]{/answer}
+
+{tip}NOT 문제는 '''보기마다 슬라이드 몇 쪽인지''' 대 보는 게 가장 빠르다. 슬라이드에 없는 문장(⑤류)이 거의 항상 정답.{/tip}
+
+== Part D. Code fill-in ==
+
+=== D1 ===
+{quiz}'''Lock ordering by address.''' Each account has its own mutex. Two threads call transfer(&x, &y, 10) and transfer(&y, &x, 20) at the same time.
+<pre class="c">
+typedef struct { pthread_mutex_t lock; int balance; } account_t;
+
+void transfer(account_t *from, account_t *to, int amt) {
+    account_t *first, *second;
+    if (from == to) ____(a)____;
+    if (____(b)____) { first = from; second = to;   }
+    else             { first = to;   second = from; }
+    pthread_mutex_lock(&first->lock);
+    pthread_mutex_lock(&second->lock);
+    from->balance -= amt;
+    to->balance   += amt;
+    pthread_mutex_unlock(&____(c)____->lock);
+    pthread_mutex_unlock(&____(d)____->lock);
+}
+</pre>
+(a)–(d) Fill in the blanks.<br>(e) In the naive version that does lock(&from->lock); lock(&to->lock), write the order of four events that deadlocks the two calls above, and name the condition the address comparison removes.<br>(f) What happens if line (a) is deleted and someone calls transfer(&x, &x, 5)?{/quiz}
+{answer}'''(a) return  (b) from < to  (c) second  (d) first'''
+풀이 (개념부터): p.15 lock ordering 은 “'''total ordering''' on lock acquisition” — 모든 스레드가 '''같은 순서'''로 잡으면 고리가 생길 수 없다. 락이 계좌마다 따로 있어서 “항상 L1 먼저” 처럼 이름으로 고정할 수 없으니, '''락의 주소'''(또는 계좌 번호)를 전역 순서로 쓴다(OSTEP 32장 “lock address”).
+* (b) `from < to` (주소 비교). `to < from` 으로 쓰고 then/else 를 맞바꿔도 같은 뜻 — 요점은 '''두 호출이 같은 계좌의 락을 먼저 잡는다'''는 것. x 의 주소가 작다면 transfer(x,y)·transfer(y,x) 둘 다 x 먼저.
+* (c)(d) 해제는 획득의 역순이 관례(second → first). 해제 순서는 데드락과 무관하지만(해제는 기다리지 않음) 슬라이드 p.15 도 L2 → L1 순.
+(e) naive 데드락 순서:
+<pre class="txt">
+1. T1 lock(x)      → 획득   (T1: x)
+2. T2 lock(y)      → 획득   (T2: y)
+3. T1 lock(y)      → BLOCKED (y 는 T2 가 쥠)
+4. T2 lock(x)      → BLOCKED (x 는 T1 이 쥠)   → T1 →(y)→ T2 →(x)→ T1 : circular wait
+</pre>
+검산: 두 스레드의 모든 인터리빙 탐색 — naive 는 데드락 상태 1개(각자 첫 락만 쥔 상태), 주소 순서 버전은 0개. 깨는 조건: '''Circular wait'''.
+(f) 같은 mutex 를 '''두 번''' lock → 두 번째 lock 은 자기 자신이 놓기를 기다리며 영원히 blocked (pthread 기본 mutex 는 재진입 불가). 고리 길이 1짜리 데드락. 그래서 (a) 에서 `return` 으로 미리 걸러 낸다(검산: transfer(x,x) 데드락 상태 1개).
+채점 포인트: (b) 주소 비교로 두 호출의 첫 락이 같아짐 · (e) 4단계 순서 + circular wait · (f) self-deadlock.
+🎙 교수님: lock ordering 은 매우 효과적이지만 '''항상 가능하진 않다''' — 순서를 미리 알 수 없는 경우는 F4.
+(L12 p.10, p.15~16) → [[lock ordering]] · [[데드락]] 문서의 deadlock_prevention 시뮬레이터(ordered){/answer}
+
+=== D2 ===
+{quiz}'''trylock + goto top with an intermediate allocation.''' Thread T0 needs locks M (first) and N, and allocates a buffer in between.
+<pre class="c">
+ 1  top:
+ 2      pthread_mutex_lock(&M);
+ 3      buf = malloc(8192);
+ 4      fill(buf);
+ 5      if (pthread_mutex_trylock(&N) == ____(a)____) {
+ 6          ____(b)____;
+ 7          ____(c)____;
+ 8          goto top;
+ 9      }
+10      commit(buf);                 /* uses M and N */
+11      pthread_mutex_unlock(&N);
+12      pthread_mutex_unlock(&M);
+</pre>
+(a)–(c) Fill in the blanks.<br>(d) Thread T1 runs the mirror image (lock N, trylock M). Explain why T0 and T1 can no longer deadlock, naming the condition removed.<br>(e) If blank (b) is left empty and the two threads collide 1,000 times before succeeding, what is leaked by T0, and how much?{/quiz}
+{answer}'''(a) -1  (b) free(buf)  (c) pthread_mutex_unlock(&M)'''
+풀이:
+* (a) p.18 “pthread_mutex_trylock(): grab the lock if available (returns '''0'''), or return '''−1''': you should try again later”. 실패 조건은 `== -1`.
+* (b) p.21: “if after acquiring L1, the code had allocated some memory, it would have to '''release that memory''' upon failure to acquire L2” → `free(buf)`. 슬라이드처럼 free 를 unlock '''앞'''에 둔다(락 아래에서 만든 것을 먼저 되돌림). 순서를 바꿔도 정답 처리 가능하나 둘 다 있어야 함.
+* (c) 쥔 락을 '''스스로 내놓기''' → `pthread_mutex_unlock(&M)`.
+(d) T0 은 N 을 못 잡으면 M 을 '''놓고''' 처음으로 돌아간다 → M 을 쥔 채 N 을 '''기다리는''' 상태가 없다. 상대가 원하는 자원을 내놓는 것 = 자원이 (스스로) preempt 됨 → '''No preemption''' 조건 제거(그 결과 hold and wait 도 지속되지 않음). 🎙 “6번 줄을 지나면 둘 다 쥔 게 보장.” 대신 두 스레드가 같은 리듬이면 '''livelock''' 가능 → E3.
+(e) 충돌 한 번마다 malloc(8192) 한 버퍼가 해제되지 않고 포인터만 덮어써짐 → 1,000 × 8192 B = '''8,192,000 B ≈ 7.8 MiB''' 메모리 누수. p.21 이 말하는 '''“limited circumstances”''' 의 이유 — 중간 작업을 전부 되돌려야 해서 코드가 커지고 실수하기 쉽다.
+채점 포인트: −1 · free · unlock 세 칸, no preemption, 누수량 계산.
+(L12 p.18~21) → [[trylock]] · [[livelock]]{/answer}
+
+=== D3 ===
+{quiz}'''Lock-free with both CAS versions.'''
+<pre class="c">
+// Lecture 12 CAS: returns 1 on success, 0 on failure
+int CAS12(int *addr, int expected, int new);
+// Lecture 9 CAS: always returns the old value of *addr
+int CAS9 (int *addr, int expected, int new);
+
+void AtomicIncrement12(int *value, int amount) {
+    int old;
+    do {
+        old = ____(a)____;
+    } while (CAS12(value, old, ____(b)____) == ____(c)____);
+}
+
+void AtomicIncrement9(int *value, int amount) {
+    int old;
+    do {
+        old = *value;
+    } while (CAS9(value, old, old + amount) ____(d)____);
+}
+
+typedef struct node { int key; struct node *next; } node_t;
+node_t *head;                      // shared list head
+// CASP: pointer version of CAS12 (returns 1 / 0)
+void Push(int key) {
+    node_t *n = malloc(sizeof(node_t));
+    n->key = key;
+    do {
+        n->next = ____(e)____;
+    } while (CASP(&head, ____(f)____, n) == 0);
+}
+</pre>
+(a)–(f) Fill in the blanks.<br>(g) A student writes AtomicIncrement9 with the loop condition == 0 (copied from the Lecture 12 version). Starting from *value == 0, a single call AtomicIncrement9(&value, 5) with no other thread running leaves what value? Starting from *value == 3, if another thread adds 1 between the read and the CAS, what final value results?{/quiz}
+{answer}'''(a) *value  (b) old + amount  (c) 0  (d) != old  (e) head  (f) n->next'''
+풀이:
+* (a)~(c) p.23 원문: `do { int old = *value; } while (CompareAndSwap(value, old, old+amount) == 0);` — 12강 CAS 는 '''실패 = 0''' 이므로 0 이면 다시.
+* (d) 9강 CAS 는 옛 값을 돌려준다. 성공 = 옛 값이 expected(old)와 같았음 → 반환값 == old. 실패 = 그 사이 누가 바꿈 → 반환값 ≠ old. 실패하면 재시도해야 하므로 `!= old`.
+* (e)(f) 리스트 맨 앞 삽입: 새 노드의 next 를 '''지금 읽은 head''' 로 걸고, head 가 아직 그 값(n->next)일 때만 head 를 n 으로 바꾼다. 그 사이 다른 스레드가 push 했다면 CAS 실패 → n->next 를 새 head 로 다시 건다. (OSTEP 32장 lock-free insert 와 같은 모양.) 검산: T1 push(a)·T2 push(b) 를 “읽기-읽기-T1 CAS-T2 CAS” 로 섞으면 T2 CAS 가 0 을 반환하고 재시도 후 리스트 b → a, 두 노드 모두 보존.
+(g) `== 0` 을 9강 CAS 에 쓰면 반환값(옛 값)이 0 일 때만 재시도한다:
+{|
+! 시작 || 상황 || 1회차 CAS9 반환 || == 0 ? || 2회차 || 최종 || 옳은 값
+|-
+| 0 || 혼자 || 0 (성공, value=5) || 참 → 또 돎 || old=5, CAS9(5,10) 반환 5 → 탈출 || '''10''' || 5
+|-
+| 3 || 사이에 +1 (value=4) || 4 (실패, 안 바뀜) || 거짓 → 탈출 || 없음 || '''4''' || 9
+|}
+즉 성공했는데 한 번 '''더 더하고'''(0 에서), 실패했는데 '''그냥 나간다'''(갱신 유실). 루프 조건은 “실패 신호”여야 하고, 그 신호가 CAS 버전마다 다르다(12강 0 / 9강 ≠ old).
+채점 포인트: (c) 0, (d) != old, (f) n->next, (g) 10 과 4.
+(L12 p.22~23, L9 p.22) → [[lock-free]] · [[compare-and-swap]]{/answer}
+
+=== D4 ===
+{quiz}'''Hold-and-wait prevention.''' Fill in the code so that T0 and T1 (which need L1 and L2 in opposite orders) can never deadlock using a single extra lock G.
+<pre class="c">
+T0                                 T1
+1 ____(a)____;                     1 ____(a)____;
+2 pthread_mutex_lock(&L1);         2 pthread_mutex_lock(&L2);
+3 pthread_mutex_lock(&L2);         3 pthread_mutex_lock(&L1);
+4 ... critical section ...         4 ... critical section ...
+5 pthread_mutex_unlock(&L2);       5 pthread_mutex_unlock(&L1);
+6 pthread_mutex_unlock(&L1);       6 pthread_mutex_unlock(&L2);
+7 ____(b)____;                     7 ____(b)____;
+</pre>
+(a), (b) Fill in.<br>(c) The slide's T1 shows pthread_mutex_lock(prevention) on its last line. What goes wrong if the code is run exactly that way?<br>(d) Give the two problems the slide lists for this approach.{/quiz}
+{answer}'''(a) pthread_mutex_lock(&G)  (b) pthread_mutex_unlock(&G)'''
+풀이: p.17 “Acquire all locks at once, '''atomically'''”. G(prevention)를 쥔 스레드만 L1·L2 획득 구간에 들어가므로 두 스레드가 '''각자 하나씩 쥔 채 기다리는''' 상태(hold and wait 의 위험한 형태)가 생기지 않는다. 검산: 모든 인터리빙에서 데드락 0. (G 를 락 두 개를 다 잡은 직후에 풀어도 데드락 0 — 획득 구간만 원자적이면 충분. 슬라이드는 맨 끝에서 푼다.)
+(c) 슬라이드 T1 8번 줄은 '''unlock 의 오타'''. 그대로 실행하면 T1 이 G 를 다시 잡고 끝나 '''아무도 G 를 놓지 않는다''' → 그 뒤 G 를 잡으려는 T0(또는 T1 의 다음 호출)이 영원히 blocked (검산: G 를 T1 이 쥔 채 멈춘 상태 2개).
+(d) p.17 Problems: ① 루틴을 부를 때 '''어떤 락이 필요한지 정확히 알고 미리''' 잡아야 한다(캡슐화와 충돌) ② '''Decrease concurrency''' — 🎙 “사실상 global lock, L1·L2 를 따로 둘 이유가 없다. Useful for debugging.”
+채점 포인트: lock/unlock(G), 오타 지적, 문제점 2개.
+(L12 p.17) → [[hold and wait 방지]]{/answer}
+
+{tip}코드 빈칸 1순위: trylock 실패값 '''−1''', 12강 CAS 실패값 '''0''', 9강 CAS 실패 판정 '''!= old'''. 세 숫자가 다 다르다.{/tip}
+
+== Part E. Trace / graph ==
+
+=== E1 ===
+{quiz}'''Three threads, three locks.''' Each thread runs once and then exits.
+<pre class="c">
+TA: lock(P); lock(Q); /* work */ unlock(Q); unlock(P);
+TB: lock(Q); lock(R); /* work */ unlock(R); unlock(Q);
+TC: lock(R); lock(P); /* work */ unlock(P); unlock(R);
+</pre>
+A thread that calls lock() on a held lock blocks; when the lock is released, the (single) waiter wakes up holding it.<br>(a) The scheduler runs one lock/unlock call at a time in the order TA, TB, TC, TA, TB, TC. Write the result of each call and the holder of each lock. Does a deadlock occur? After which call?<br>(b) Now the order is TA, TA, TB, TC, TC, TA, TA, and afterwards any runnable thread runs to completion. Write all events until every thread finishes.<br>(c) Change exactly one thread's acquisition order so that no interleaving can deadlock, and state the total order you imposed.{/quiz}
+{answer}'''(a) 6번째 호출(TC lock(P)) 직후 데드락: TA→TB→TC→TA 고리. (b) 데드락 없이 TA → TC → TB 순으로 끝남. (c) TC 를 lock(P); lock(R) 로 (순서 P < Q < R).'''
+풀이 (a):
+{|
+! # || 호출 || 결과 || P || Q || R
+|-
+| 1 || TA lock(P) || 획득 || TA || - || -
+|-
+| 2 || TB lock(Q) || 획득 || TA || TB || -
+|-
+| 3 || TC lock(R) || 획득 || TA || TB || TC
+|-
+| 4 || TA lock(Q) || '''BLOCKED''' (TB 가 쥠) || TA || TB || TC
+|-
+| 5 || TB lock(R) || '''BLOCKED''' (TC 가 쥠) || TA || TB || TC
+|-
+| 6 || TC lock(P) || '''BLOCKED''' (TA 가 쥠) → '''데드락''' || TA || TB || TC
+|}
+6번 호출로 TA →(Q)→ TB →(R)→ TC →(P)→ TA 의 길이 3 고리가 닫힌다. 네 조건이 동시에: 락은 배타적(mutual exclusion), 각자 하나 쥔 채 다음 것을 기다림(hold and wait), 아무도 뺏지 않음(no preemption), 고리(circular wait). p.10~11 의 2-스레드 예제를 3개로 늘린 것.
+풀이 (b):
+{|
+! # || 호출 || 결과 || P || Q || R
+|-
+| 1 || TA lock(P) || 획득 || TA || - || -
+|-
+| 2 || TA lock(Q) || 획득 || TA || TA || -
+|-
+| 3 || TB lock(Q) || BLOCKED (TA) || TA || TA || -
+|-
+| 4 || TC lock(R) || 획득 || TA || TA || TC
+|-
+| 5 || TC lock(P) || BLOCKED (TA) || TA || TA || TC
+|-
+| 6 || TA unlock(Q) || TB 깨어나 Q 획득 || TA || TB || TC
+|-
+| 7 || TA unlock(P) || TC 깨어나 P 획득, '''TA 종료''' || TC || TB || TC
+|-
+| 8 || TB lock(R) || BLOCKED (TC) || TC || TB || TC
+|-
+| 9 || TC unlock(P) || 해제 || - || TB || TC
+|-
+| 10 || TC unlock(R) || TB 깨어나 R 획득, '''TC 종료''' || - || TB || TB
+|-
+| 11 || TB unlock(R) || 해제 || - || TB || -
+|-
+| 12 || TB unlock(Q) || 해제, '''TB 종료''' || - || - || -
+|}
+같은 코드라도 TA 가 '''두 락을 다 잡은 뒤'''에 다른 스레드가 첫 락을 잡으면 고리가 닫히지 않는다 → 데드락은 '''스케줄에 달려 있다'''(🎙 “데드락은 스케줄에 달려 있다” — avoidance 의 출발점).
+풀이 (c): 전역 순서 P < Q < R 을 정하면 TA(P→Q)·TB(Q→R) 는 이미 순서를 지키고 TC(R→P)만 어긋남 → '''TC: lock(P); lock(R)'''. 검산: 모든 인터리빙(상태 87개) 중 원래 코드는 데드락 상태 1개(각자 첫 락만 쥔 상태), 고친 코드는 0개. (TA 를 Q→P 로 바꾸는 것도 순서 Q < R < P 로 정답 — 셋 중 '''하나만''' 뒤집으면 고리가 끊긴다.)
+채점 포인트: (a) 6번째에서 데드락 + 고리 방향 (b) 12개 이벤트 + 종료 순서 TA, TC, TB (c) 순서 명시.
+(L12 p.10~11, p.15~16) → [[데드락]] · [[lock ordering]]{/answer}
+
+=== E2 ===
+{quiz}'''Wait-for graph.''' Five threads and five mutexes. The current state is:
+<pre class="txt">
+T1 holds M1, requests M2
+T2 holds M2, requests M3
+T3 holds M3, requests M4
+T4 holds M4, requests M2
+T5 holds M5, requests M1
+</pre>
+(a) Draw the wait-for graph (edge Ti → Tj if Ti waits for a lock held by Tj).<br>(b) Which threads form the cycle? Which threads are not on the cycle but still can never proceed?<br>(c) A deadlock detector aborts one thread (releasing all its locks; it will be restarted from a checkpoint). Which single victims resolve everything? For victim T4, in what order do the other threads finish? Would aborting T5 help?{/quiz}
+{answer}'''(b) 고리 T2 → T3 → T4 → T2. T1 과 T5 는 고리 밖이지만 영원히 진행 못 함. (c) T2·T3·T4 중 하나. T4 를 죽이면 T3 → T2 → T1 → T5 순으로 끝남. T5(또는 T1)를 죽이면 해결 안 됨.'''
+풀이 (a): 요청한 락의 주인에게 화살표.
+<pre class="ascii">
+  T5 --(M1)--> T1 --(M2)--> T2 --(M3)--> T3
+                             ^            |
+                             |          (M4)
+                             |            v
+                             +---(M2)---- T4
+</pre>
+{|
+! 스레드 || 쥔 락 || 기다리는 락 || 그 락의 주인 (간선)
+|-
+| T1 || M1 || M2 || T1 → T2
+|-
+| T2 || M2 || M3 || T2 → T3
+|-
+| T3 || M3 || M4 || T3 → T4
+|-
+| T4 || M4 || M2 || T4 → T2
+|-
+| T5 || M5 || M1 || T5 → T1
+|}
+(b) 각 스레드에서 화살표를 따라가면 T1→T2→T3→T4→'''T2'''…, T5→T1→T2→… — 모두 '''T2-T3-T4 고리'''로 빨려 들어간다. 고리 위의 셋이 4조건(circular wait)을 만족하는 데드락 집합이고, T1(M2 대기)·T5(M1 대기)는 고리에 '''매달린''' 스레드 — 기다리는 상대가 영원히 안 끝나므로 같이 멈춘다. 즉 detection 은 “cycle 존재 여부”로 데드락을 판정하고, 멈춘 스레드는 고리보다 많을 수 있다.
+(c) 회복은 '''고리를 끊어야''' 한다. 검산(희생자별 진행):
+{|
+! 희생자 || 이후 끝나는 순서 || 남은 멈춤
+|-
+| T4 || T3 → T2 → T1 → T5 || 없음 ✅
+|-
+| T3 || T2 → T1 → T4 → T5 || 없음 ✅
+|-
+| T2 || T1 → T4 → T3 → T5 || 없음 ✅
+|-
+| T1 || T5 || T2, T3, T4 ❌
+|-
+| T5 || (없음) || T1~T4 ❌
+|}
+T4 희생 시: M4 해제 → T3 가 M4 획득·완료 → M3·M4 해제 → T2 가 M3 획득·완료 → M2 해제 → T1 이 M2 획득·완료 → M1 해제 → T5 완료. (T4 는 checkpoint 에서 다시 시작.)
+🎙 “탐지는 쉽다(그래프 cycle), recovery 가 비싸다(checkpoint)” — p.29 DB 예: 주기적으로 resource graph 를 만들어 cycle 이 있으면 재시작.
+채점 포인트: 간선 방향, 고리 3개 + 매달린 2개 구분, 희생자는 고리 위에서.
+(L12 p.11, p.29) → [[데드락 detection]]{/answer}
+
+=== E3 ===
+{quiz}'''Livelock and random delay.''' TX runs on CPU 0 and TY on CPU 1, both starting at tick 1.
+<pre class="c">
+TX (CPU 0)                         TY (CPU 1)
+1 top: lock(A);                    1 top: lock(B);
+2 if (trylock(B) == -1) {          2 if (trylock(A) == -1) {
+3     unlock(A);                   3     unlock(B);
+4     goto top;   // + delay d     4     goto top;   // + delay d
+  }                                  }
+5 CS;                              5 CS;
+6 unlock(B);                       6 unlock(A);
+7 unlock(A);                       7 unlock(B);
+</pre>
+Model: every numbered action takes exactly one tick; both CPUs execute one action per tick; trylock/lock see the lock state at the start of the tick; a blocked lock() retries next tick; a delaying thread does nothing.<br>(a) With d = 0 for both threads, fill a tick table for ticks 1–8 (action of TX, action of TY, holders after the tick). Do they ever enter CS?<br>(b) Is this a deadlock? Which of the four conditions is still broken, and why is there still no progress?<br>(c) After the first failure the random delays come out as TX: d = 2, TY: d = 0 (all later delays 0). Continue the table until both threads finish. At which tick does each thread enter CS, and how many trylock failures does each have in total?{/quiz}
+{answer}'''(a) 4 tick 주기로 같은 동작 반복, 둘 다 CS 진입 못 함 (livelock). (b) 데드락 아님 — no preemption 은 깨졌지만 대칭 타이밍 때문에 progress 0. (c) TY 는 tick 7, TX 는 tick 11 에 CS. trylock 실패는 각각 1번.'''
+풀이 (a) (검산 스크립트 출력 그대로):
+{|
+! tick || TX || TY || 끝난 뒤 보유
+|-
+| 1 || lock(A) 성공 || lock(B) 성공 || A:TX, B:TY
+|-
+| 2 || trylock(B) = '''−1''' || trylock(A) = '''−1''' || A:TX, B:TY
+|-
+| 3 || unlock(A) || unlock(B) || -
+|-
+| 4 || goto top || goto top || -
+|-
+| 5 || lock(A) 성공 || lock(B) 성공 || A:TX, B:TY
+|-
+| 6 || trylock(B) = −1 || trylock(A) = −1 || A:TX, B:TY
+|-
+| 7 || unlock(A) || unlock(B) || -
+|-
+| 8 || goto top || goto top || -
+|}
+4 tick 마다 처음 상태로 돌아온다 → 영원히 반복, CS 진입 0회. p.20 “Two threads could both be repeatedly attempting this sequence and repeatedly failing to acquire both locks → No progress is made”.
+(b) '''Livelock''' (2025F P2-g). 데드락과 달리 둘 다 blocked 가 아니고 계속 명령을 실행한다. trylock 이 실패하면 쥔 락을 놓으므로 '''no preemption''' 은 깨졌다 — 그래서 '''영원히 쥔 채 기다리는''' 상태는 없다. 하지만 두 스레드가 '''같은 리듬'''으로 서로 반대 락을 먼저 잡기 때문에 매 라운드 똑같이 충돌한다. 🎙 “사실은 서로 기다리는 것(hold and wait 가 남아 있음). 누가 우선인지 못 정하니 완전 제거는 불가, random delay 로 행동을 다르게.”
+(c) TX 가 tick 4 의 goto top 뒤 2 tick 쉰다:
+{|
+! tick || TX || TY || 끝난 뒤 보유
+|-
+| 1~4 || (a) 와 같음 (둘 다 실패 1회) || (a) 와 같음 || -
+|-
+| 5 || delay || lock(B) 성공 || B:TY
+|-
+| 6 || delay || trylock(A) = '''0''' (성공) || A:TY, B:TY
+|-
+| 7 || lock(A) — 막힘 || '''CS''' || A:TY, B:TY
+|-
+| 8 || lock(A) — 막힘 || unlock(A) || B:TY
+|-
+| 9 || lock(A) 성공 || unlock(B) → 종료 || A:TX
+|-
+| 10 || trylock(B) = 0 (성공) || - || A:TX, B:TX
+|-
+| 11 || '''CS''' || - || A:TX, B:TX
+|-
+| 12 || unlock(B) || - || A:TX
+|-
+| 13 || unlock(A) → 종료 || - || -
+|}
+TY CS = tick 7, TX CS = tick 11, 둘 다 tick 13 까지 종료. trylock 실패는 TX 1회, TY 1회(tick 2). 엇갈린 2 tick 덕분에 TY 가 A 가 비어 있는 동안 두 락을 다 잡는다. p.20 Solution “Add a random delay before looping back”. 🎙 “'''분산 시스템에서는 random 이 최선인 경우가 많다'''” (네트워크 충돌 후 random backoff 와 같은 발상).
+채점 포인트: (a) −1 반복 + CS 0회 (b) livelock, 실행 중이지만 progress 없음 (c) tick 7 / 11, 실패 1·1.
+(L12 p.18~20, 2025F P2-g) → [[livelock]] · [[trylock]] · [[데드락]] 문서의 deadlock_prevention 시뮬레이터(livelock){/answer}
+
+=== E4 ===
+{quiz}'''Lock-free AtomicIncrement with three threads.''' Shared value = 7. T1 calls AtomicIncrement(&value, 2), T2 calls AtomicIncrement(&value, 6), T3 calls AtomicIncrement(&value, 1), using the Lecture 12 code (old = *value; while (CAS(value, old, old+amount) == 0)).<br>The steps happen in this order (R = line 3 read, C = line 4 CAS):<br>T1 R, T2 R, T2 C, T3 R, T1 C, T1 R, T3 C, T1 C, T1 R, T1 C<br>(a) For each step give old, the CAS arguments, the CAS return value and value afterwards.<br>(b) Final value and total number of CAS calls (per thread).<br>(c) If the Lecture 9 CAS (returns the old value) were used with the correct loop condition, what would each CAS return?<br>(d) Which thread illustrates “starvation is possible”, and why can no deadlock arise here?{/quiz}
+{answer}'''(a) 아래 표 (b) 최종 16, CAS 5회 (T1 3 · T2 1 · T3 1) (c) 7, 13, 13, 14, 14 (d) T1 — 두 번 연속 선수를 빼앗김; 락을 쥐지 않으므로 데드락 불가.'''
+풀이: AtomicIncrement 는 “3번 줄 읽기 → 4번 줄 CAS” 두 단계 루프다. CAS 는 '''읽은 뒤 아무도 value 를 안 바꿨을 때만''' 성공한다.
+{|
+! # || 스레드 || 동작 || old || CAS 인자 || 12강 CAS 반환 || value 후
+|-
+| 1 || T1 || R || 7 || - || - || 7
+|-
+| 2 || T2 || R || 7 || - || - || 7
+|-
+| 3 || T2 || C || 7 || (value, 7, 13) || '''1''' 성공, T2 끝 || 13
+|-
+| 4 || T3 || R || 13 || - || - || 13
+|-
+| 5 || T1 || C || 7 || (value, 7, 9) || '''0''' 실패 (13 ≠ 7) || 13
+|-
+| 6 || T1 || R || 13 || - || - || 13
+|-
+| 7 || T3 || C || 13 || (value, 13, 14) || '''1''' 성공, T3 끝 || 14
+|-
+| 8 || T1 || C || 13 || (value, 13, 15) || '''0''' 실패 (14 ≠ 13) || 14
+|-
+| 9 || T1 || R || 14 || - || - || 14
+|-
+| 10 || T1 || C || 14 || (value, 14, 16) || '''1''' 성공, T1 끝 || '''16'''
+|}
+(b) 최종 '''16''' = 7 + 2 + 6 + 1 — 실패한 CAS 는 아무것도 안 쓰므로 갱신이 하나도 사라지지 않는다(counter race 와 대비). CAS 호출 '''5회''': T1 3회(실패 2 + 성공 1), T2 1회, T3 1회.
+(c) 9강 CAS 는 성공/실패와 무관하게 '''호출 시점의 옛 값'''을 돌려준다: 3번 '''7'''(= old 7 → 성공), 5번 '''13'''(≠ 7 → 실패), 7번 '''13'''(= 13 → 성공), 8번 '''14'''(≠ 13 → 실패), 10번 '''14'''(= 14 → 성공). 루프 조건은 `!= old`. 값의 변화는 (a) 와 똑같고 최종 16, 호출 5회 (검산 두 버전 일치).
+(d) '''T1''': 읽을 때마다 다른 스레드가 먼저 CAS 에 성공해 두 번 실패. 스케줄이 계속 이렇게 불리하면 T1 은 '''몇 번이든''' 실패할 수 있다 → p.23 “Starvation is possible”. 데드락은 불가능: 락을 '''쥔 채 기다리는''' 단계가 없다(hold and wait 없음, mutual exclusion 은 CAS 한 명령 안 — 🎙 하드웨어로 옮겨감). 누군가의 CAS 가 실패했다는 것은 '''다른 누군가가 성공했다'''는 뜻이라 시스템 전체로는 항상 진행한다.
+채점 포인트: 실패 CAS 2개(5·8번)를 찾는 것 + 최종 16 + 반환값 버전 구분.
+(L12 p.22~24) → [[lock-free]] 문서의 lockfree_cas3 시뮬레이터 · [[compare-and-swap]]{/answer}
+
+=== E5 ===
+{quiz}'''Deadlock avoidance via scheduling on 2 CPUs.''' Five threads, non-preemptive, each runs exactly once:
+<pre class="txt">
+thread   locks it may grab (order unknown)   run time
+T1       L1, L2                              4
+T2       L1, L2                              3
+T3       L2                                  2
+T4       (none)                              3
+T5       L1, L2                              2
+</pre>
+The scheduler knows only which locks each thread may grab (global knowledge) and must never run two threads concurrently if they could deadlock with each other.<br>(a) Which pairs of threads must never overlap in time, and why can T3 overlap with T1?<br>(b) Give a deadlock-free schedule (CPU, start, end for each thread) with minimum makespan, and that makespan.<br>(c) What would the minimum makespan be if the scheduler ignored deadlock (any two threads may overlap)? Relate the difference to p.28.{/quiz}
+{answer}'''(a) {T1,T2}, {T1,T5}, {T2,T5}. (b) 최소 makespan 9 — 예: CPU 1 = T1(0–4) → T2(4–7) → T5(7–9), CPU 2 = T3(0–2) → T4(2–5). (c) 7 → 2 단위 손해 = avoidance 의 performance penalty.'''
+풀이 (a): 두 스레드가 서로 데드락하려면 '''각자 하나씩 쥐고 상대 것을 기다려야''' 하므로 둘 다 락을 '''두 개 이상''' 공유해야 한다. L1·L2 를 둘 다 쓰는 T1·T2·T5 는 서로 어떤 순서로 잡을지 모르니(order unknown) 겹치면 위험 → 세 쌍 모두 금지. T3 는 L2 하나만 잡으므로 '''쥔 채 다른 락을 기다리는 일이 없다'''(hold and wait 불가) → T1 과 L2 를 두고 잠깐 기다릴 수는 있어도 데드락은 아니다. p.26 Example-1 에서 T3 가 T1 과 동시에 도는 이유. T4 는 락이 없으니 누구와도 OK.
+풀이 (b): T1+T2+T5 = 4+3+2 = '''9''' 는 서로 겹칠 수 없으므로 makespan ≥ 9. 나머지(T3 2, T4 3 = 5)는 다른 CPU 에 넣으면 9 안에 들어간다.
+{|
+! CPU || 0–2 || 2–3 || 3–4 || 4–5 || 5–7 || 7–9
+|-
+| CPU 1 || T1 || T1 || T1 || T2 || T2 || T5
+|-
+| CPU 2 || T3 || T4 || T4 || T4 || (idle) || (idle)
+|}
+검산: CPU 배정 2^5 × 시작 시각 0~9 를 전부 탐색 — 제약을 지키는 최소 makespan '''9''', 최적 해 920개(T1·T2·T5 를 두 CPU 에 나눠도 시간이 겹치지만 않으면 됨. 예 T5 를 CPU 2 의 7–9 로).
+풀이 (c): 제약이 없으면 총 작업 14 를 두 CPU 에 7 / 7 로 나눌 수 있어(예: T1+T2 = 7 / T3+T4+T5 = 7) makespan '''7'''. 9 − 7 = '''2''' 단위가 avoidance 비용. p.28: “Deadlock avoidance often results in '''performance penalty'''” — 실제로는 T1·T2·T5 가 모두 같은 순서(L1→L2)로 잡아 안전하더라도, 스케줄러는 순서를 모르니 “cannot run concurrently”. 그래서 p.28 “not a widely-used general-purpose solution”. 🎙 “요구가 너무 많아 비현실적이지만 유명하니 알아 둘 것.”
+채점 포인트: 금지 쌍 3개, T3 이유(락 1개 = hold and wait 없음), 9 와 7.
+(L12 p.25~28) → [[데드락 avoidance]]{/answer}
+
+{tip}추적 문제는 '''표의 열을 먼저 그린다''': 락마다 보유자 열(E1), 스레드마다 old/반환값 열(E4), tick 마다 두 CPU 열(E3). 열을 정해 두면 한 행씩 채우는 기계 작업이 된다.{/tip}
+
+== Part F. Short answer / 서술 ==
+
+=== F1 ===
+{quiz}Compare deadlock prevention and deadlock avoidance: when is each applied (static vs dynamic), who does the work, how strong is the guarantee, and what does each require or cost?{/quiz}
+{answer}'''모범 답안''':
+{|
+! 항목 || Prevention || Avoidance
+|-
+| p.13 분류 || Method 1 의 '''static''' || Method 1 의 '''dynamic'''
+|-
+| 방법 || 코드를 바꿔 4조건 중 '''하나를 없앰'''(lock ordering · 전역 prevention 락 · trylock · lock-free) || 조건은 그대로 두고 실행 시 '''스케줄을 골라''' 위험한 동시 실행을 뺌
+|-
+| 누가 || '''프로그래머'''(p.14 “Mostly done by programmers”) || 스케줄러 / 자원 할당자
+|-
+| 보장 || '''strong''' — 데드락 가능성 자체가 없음 (p.25) || '''mild''' — 데드락 상태로 안 들어가게 배정 (p.25)
+|-
+| 요구·비용 || 항상 가능하진 않음(자원 간 자연 의존), concurrency 감소·livelock·revert 코드 등 기법별 부작용 || '''global knowledge'''(각 스레드가 어떤 락을 잡을지) 필요, 직렬화로 '''performance penalty''', 범용으로 안 씀 (p.28)
+|}
+🎙 “static = 코드·구현을 바꿔 조건을 없앰, dynamic = 실행 시 스케줄을 바꿔 피함. 데드락은 스케줄에 달려 있다 — 잠재적 의존은 남지만 문제되는 순서를 스케줄에서 빼면 된다.”
+채점 포인트: static/dynamic, 프로그래머/스케줄러, strong/mild, global knowledge + penalty — 4쌍 중 3쌍 이상.
+(L12 p.13~14, p.25~28) → [[데드락]] · [[데드락 avoidance]]{/answer}
+
+=== F2 ===
+{quiz}Most operating systems (Windows, Linux, Solaris) simply ignore deadlocks. Give the reason, explain how deadlocks that do occur are typically noticed in practice, and contrast this with detection & recovery.{/quiz}
+{answer}'''모범 답안''':
+* '''이유''': 세 방법 모두 '''오버헤드가 크다''' — prevention 은 프로그래머 부담이고 항상 가능하지 않음, avoidance 는 정보가 너무 많이 필요하고 성능 손해, detection 은 주기적으로 돌아야 하고 recovery(checkpoint·재시작)가 비쌈. 데드락이 드물면 가끔 재부팅하는 것이 실용적(p.29 “If an OS froze once a year, you would just reboot it … quite pragmatic”). 그래서 OS 는 지원하지 않고, 필요한 '''작은 워크로드(서버 애플리케이션)가 각자''' 구현한다.
+* '''실제로 어떻게 발견되나''' (🎙 10/7): 데드락 난 스레드는 자원을 쥔 채 영원히 끝나지 않는다 → '''resource leak'''. 돌지 않으니 CPU 사용률로는 안 보이고, '''메모리 사용량이 서서히 증가'''하는 것으로 운영 중 profiling·auditing 에서 잡힌다. “완벽한 소프트웨어는 없다 — 그래서 유지보수 인력이 필요하다.”
+* '''detection & recovery 와 비교''': Method 2 는 탐지기가 주기적으로 resource graph 의 cycle 을 찾아 '''자동으로''' 회복 → 해결을 '''보장'''. Method 3 은 누군가 운영 중 발견하고 '''사람이''' 재시작한다고 '''가정'''할 뿐. 🎙 “Method 3 은 Method 2 보다 훨씬 나쁘다.”
+채점 포인트: 오버헤드 · resource leak(메모리 증가) · 자동 vs 사람.
+(L12 p.13, p.29, 🎙 10/7) → [[데드락]] · [[데드락 detection]]{/answer}
+
+=== F3 ===
+{quiz}Explain why the lock-free AtomicIncrement() of p.23 can never deadlock, yet a thread calling it may starve. Then explain the professor's remark that with compare-and-swap “mutual exclusion has moved to the hardware.”{/quiz}
+{answer}'''모범 답안''':
+* '''데드락 불가''': 락을 아예 잡지 않는다(p.23 “No lock is acquired”). 데드락에는 4조건이 '''동시에''' 필요한데, 스레드가 무언가를 '''쥔 채''' 다른 것을 기다리는 순간이 없으므로 hold and wait·circular wait 가 성립할 수 없다(p.23 “No deadlock can arise”). 또 어떤 스레드의 CAS 가 실패했다면 그 사이 '''다른 스레드의 CAS 가 성공'''했다는 뜻이므로 시스템 전체는 항상 진행한다.
+* '''starvation 가능''': CAS 실패 시 다시 읽고 재시도하는데, 재시도 횟수에 '''상한이 없다'''. 매번 다른 스레드가 읽기와 CAS 사이에 값을 바꾸면 같은 스레드가 계속 실패할 수 있다(E4 의 T1 처럼). ticket lock 같은 순서 보장 장치가 없다(p.23 “Starvation is possible”).
+* '''하드웨어로 옮겨간 mutual exclusion''' (🎙 10/7): CAS 는 “비교 + 쓰기”를 '''한 명령'''으로 원자적으로 한다 — 그 짧은 순간에는 하드웨어(cache coherence / bus)가 그 메모리 위치를 '''배타적으로''' 잡는다. 즉 배타성은 사라진 게 아니라 소프트웨어 락에서 '''명령 하나 길이의 하드웨어 배타성'''으로 줄어든 것. 명령 하나는 중간에 다른 자원을 기다리지 않으니 데드락이 생길 여지가 없다.
+채점 포인트: 락 없음 → hold and wait 없음, 재시도 상한 없음, 하드웨어 원자 명령.
+(L12 p.22~24, 🎙 10/7) → [[lock-free]]{/answer}
+
+=== F4 ===
+{quiz}Lock ordering is called “very effective” but “not always possible.” Describe a situation in which a total lock order cannot be imposed, and state which other technique from Lecture 12 could still be applied there and at what cost.{/quiz}
+{answer}'''모범 답안''':
+* '''불가능한 상황''' (🎙 10/7): 어떤 락이 필요한지가 '''다른 락으로 보호된 데이터를 읽어야 비로소 알 수 있을 때''' — 스레드 1 은 A 를 봐야 B 가 필요한지 알고, 스레드 2 는 B 를 봐야 A 가 필요한지 안다. 자원 사이에 '''자연스러운 의존(natural dependency)'''이 있어 “항상 A 먼저”처럼 순서를 미리 정할 수 없다. 예: 연결 리스트를 따라가며 노드 락을 잡는 경우(다음 노드는 현재 노드를 잡아야 알 수 있음). 또 p.15 “requires careful design of '''global''' locking strategies” — 대형 코드에서 모든 락의 전역 순서를 유지하기 어렵다.
+* '''대안''': trylock + goto top(no preemption 제거, p.18~19) — 두 번째 락을 못 잡으면 첫 락을 놓고 다시 시작. 비용: '''livelock''' 가능 → random delay 필요(p.20), 중간에 한 일(malloc 등)을 전부 '''되돌려야''' 함(p.21, “limited circumstances”). 또는 전역 prevention 락(p.17) — 비용: '''concurrency 감소''', 필요한 락을 미리 알아야 함. 자료구조가 단순하면 lock-free CAS(p.22) — starvation 가능.
+채점 포인트: 자연 의존 예시 1개 + 대안 1개와 그 비용.
+(L12 p.15, p.17~22, 🎙 10/7) → [[lock ordering]] · [[trylock]]{/answer}
+
+== 관련 문서 ==
+* [[데드락]] — 허브 (정의·예제·처리 방법·deadlock_prevention 시뮬레이터)
+* [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]
+* [[compare-and-swap]] — 9강 CAS(옛 값) vs 12강 CAS(1/0)
+* [[dining philosophers]] — 11강의 circular wait 예제
+* [[2025F 중간고사 족보]] — P1-c(Busy wait), P2-g(Livelock)
+* [[실전 문제 ① park·futex]] · [[실전 문제 ② condition variable]] · [[실전 문제 ③ 세마포어]]
+* [[중간고사 모의 v3]] · [[자주 틀리는 함정 모음]]

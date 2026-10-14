@@ -1,0 +1,673 @@
+key: 실전 문제 ① park·futex
+title: 실전 문제 ① — park · setpark · futex (9강 p.30~42)
+category: 시험, 실전 문제
+---
+9강 후반부(p.30~42: So Much Spinning → yield → queue + park/unpark → wakeup/waiting race → setpark → futex → 최종 평가)와 10강 p.2~3 futex 단순 락, 12강 p.39~42 Summary 에서 교수님이 다시 짚은 포인트만 모은 '''실전 문제'''. 문제는 영어(시험 언어), 해설은 한국어. '''먼저 종이에 답을 쓰고''' '정답 보기'를 펼친다.
+형식은 2025F 중간고사([[2025F 중간고사 족보]])와 같은 정의→용어 · T/F · 객관식 · 코드 빈칸 · trace · 서술. 다른 실전 문제: [[실전 문제 ② condition variable]] · [[실전 문제 ③ 세마포어]] · [[실전 문제 ④ 데드락]]. 이전 모의고사는 [[중간고사 모의 v3]].
+
+{info}총 34문항 · Part A 8 · Part B 9 · Part C 6 · Part D 4 · Part E 3 · Part F 4. 모든 trace·값은 Python 모델로 전수/결정적 검산함 (`중간고사/문제풀이/실전문제_검산/_check_E6.txt`).{/info}
+
+{exam}🎯 12강 p.39~42 Summary 에서 교수님이 다시 짚은 것 (10/7): ① '''So Much Spinning''' — spin 은 CPU cycle 을 버린다 → sleeping lock, OS 지원이 필요. ② '''guard 를 쥔 채 잠들면 남이 spin''' 하므로 guard = 0 은 park() 앞에 와야 하고, 그 틈의 race 는 '''setpark''' 로 막는다. ③ 완성본(setpark 들어간 lock/unlock)의 흐름을 손으로 따라갈 수 있을 것.{/exam}
+
+== Part A. Definition → Term ==
+슬라이드의 영어 정의를 보고 용어를 쓴다. 괄호 안은 단어 수 힌트.
+
+=== A1 ===
+{quiz}“An OS system call that moves the caller from the running state to the ready state; a waiting thread calls it instead of spinning, to give up the CPU to another thread.” (1 word){/quiz}
+{answer}'''yield()'''
+9강 p.31 “When you are going to spin, give up the CPU to another thread — OS system call moves the caller from the running state to the ready state”. 락 코드는 `while (TestAndSet(&flag, 1) == 1) yield();`. Ready 로 가는 것이지 Blocked 로 가는 것이 아니라서, 다시 스케줄되면 또 TestAndSet 을 시도한다 → run-and-yield 반복(p.32).
+채점 포인트: 철자 yield, “running → ready” 를 같이 기억.
+(L9 p.31) → [[yield 락]]{/answer}
+
+=== A2 ===
+{quiz}“Put a calling thread to sleep.” — one of the two primitives that let a lock use a queue instead of spinning. (1 word){/quiz}
+{answer}'''park()'''
+9강 p.33 정의 그대로. Solaris 가 제공하는 primitive. 호출한 스레드는 Running → Blocked(sleep), 스케줄 후보에서 빠져 CPU 를 전혀 쓰지 않는다. 짝은 unpark(threadID).
+채점 포인트: “calling thread” = 자기 자신을 재움 (남을 재우는 것이 아님).
+(L9 p.33) → [[park와 unpark]]{/answer}
+
+=== A3 ===
+{quiz}“Wake a particular thread as designated by threadID.” (1 word, with its argument){/quiz}
+{answer}'''unpark(threadID)'''
+9강 p.33. “particular” 가 핵심 — 아무나 깨우는 것이 아니라 인자로 지정한 그 스레드 하나만 깨운다. 누구를 깨울지는 lock 코드가 `queue_remove(m->q)` 로 큐 맨 앞을 꺼내 정한다 → FIFO 순서 = fairness.
+채점 포인트: “threadID 로 지정된 스레드 하나”.
+(L9 p.33) → [[park와 unpark]]{/answer}
+
+=== A4 ===
+{quiz}“A field of the queue-based lock that prevents the function lock from being executed by multiple threads simultaneously; it is acquired by spinning on TestAndSet and is used as a spin-lock around the flag and the queue.” (1 word){/quiz}
+{answer}'''guard''' (`m->guard`)
+9강 p.34 코드 옆 주석 “m->guard prevents the function lock from being executed by multiple threads simultaneously” + p.35 Limitation 1 “m->guard is used as a spin-lock around the flag and queue”. 진짜 락은 `flag`, guard 는 “락을 만들기 위한 락”. guard 를 잡는 구간은 몇 명령어뿐이라 spin 시간이 매우 짧다(“quite limited”).
+채점 포인트: flag 와 혼동하면 0점. guard = flag·queue 보호, flag = critical section 보호.
+(L9 p.34~35) → [[guard]]{/answer}
+
+=== A5 ===
+{quiz}“Put a calling thread to sleep queue only if *address = value.” (1 word, with its two arguments){/quiz}
+{answer}'''futex_wait(address, value)'''
+9강 p.39 (= 10강 p.2). “only if” 가 바로 “checked” 의 의미 — 커널이 잠재우기 직전에 `*address == value` 를 다시 확인하고, 다르면 잠재우지 않고 즉시 리턴한다. 그래서 유저 공간에서 값을 본 뒤 시스템 콜에 들어가기까지의 틈에 락이 풀려도 영원히 잠들지 않는다.
+채점 포인트: 인자 두 개(address, value) 모두 써야 함.
+(L9 p.39) → [[futex]]{/answer}
+
+=== A6 ===
+{quiz}“Wake a waiting thread that waits for address.” (1 word, with its argument){/quiz}
+{answer}'''futex_wake(address)'''
+9강 p.39. 대기자는 '''주소(address)''' 로 구분된다 — unpark 가 threadID 로 지정하는 것과 대비. 대기 큐 자체는 커널이 관리(p.41 “The kernel manages the waiting queue”).
+채점 포인트: unpark 와 구분 (futex_wake 의 인자는 threadID 가 아니라 address).
+(L9 p.39) → [[futex]]{/answer}
+
+=== A7 ===
+{quiz}“A purely scheduling primitive, for which the kernel maintains a minimal state.” (2 words, joined by a slash){/quiz}
+{answer}'''park/unpark'''
+9강 p.41 “Park/unpark vs Futex” 의 왼쪽 칸. 교수님(9/28): 커널은 '''setpark 되었는지 1비트''' 정도만 유지하면 된다. 반대편 futex 는 “User only owns the lock state, the kernel manages the waiting queue”.
+채점 포인트: futex 와 바꿔 쓰면 0점.
+(L9 p.41) → [[park와 unpark]]{/answer}
+
+=== A8 ===
+{quiz}“The lock-evaluation criterion that changes from No (p.29) to Yes (p.42) because the spinning problem can be mitigated with yield and sleeping.” (1 word){/quiz}
+{answer}'''Performance'''
+9강 p.29 (ticket lock 평가) “Performance: No — every other thread will spin for a given time slice” → p.42 최종 평가 “Performance: Yes — Spinning problem can be mitigated with yield and sleeping”. Correctness 와 Fairness 는 p.29 에서 이미 Yes.
+채점 포인트: “mitigated” — 완전히 없앤 것이 아니라 완화(guard spin 은 남음).
+(L9 p.29, p.42) → [[락 평가 기준]]{/answer}
+
+{tip}A 파트 함정: park ↔ unpark ↔ futex_wait ↔ futex_wake 네 정의가 모두 한 줄짜리라 섞이기 쉽다. '''“calling thread” = park 계열, “particular thread / threadID” = unpark, “address” 가 들어가면 futex''' 로 구분.{/tip}
+
+== Part B. True / False ==
+T 면 T, F 면 F 와 함께 '''틀린 부분을 고친 문장'''을 쓴다.
+
+=== B1 ===
+{quiz}In the queue-based lock, m->flag protects the queue and the internal state of lock(), while m->guard is the actual lock that protects the user's critical section.{/quiz}
+{answer}'''F'''
+역할이 정반대. 고친 문장: '''m->flag is the actual lock that protects the critical section; m->guard is a spin-lock that protects m->flag and the queue inside lock()/unlock().'''
+critical section 동안 1 로 남아 있는 것은 flag 이고, guard 는 lock()/unlock() 안에서 몇 명령어 동안만 1 이 된다 (lock() 의 두 분기 모두 함수를 나가기 전에 guard = 0).
+채점 포인트: 두 역할을 정확히 교환해 써야 정답.
+(L9 p.34~35) → [[queue 락]], [[guard]]{/answer}
+
+=== B2 ===
+{quiz}The queue-based lock with park()/unpark() avoids spin-waiting entirely.{/quiz}
+{answer}'''F'''
+p.35 Limitation 1 원문 “'''Don't avoid spin-waiting entirely'''”. 고친 문장: '''It still spins to acquire m->guard, but the time spent spinning is quite limited (just a few instructions).'''
+guard 는 TestAndSet 으로 spin 해서 잡는다. 다만 guard 를 쥔 구간은 flag 검사·큐 조작 몇 줄뿐이라 낭비가 작다. 반면 critical section 전체를 기다리는 것은 park 로 잠들어서 한다.
+채점 포인트: “guard 획득용 spin 은 남는다 + 짧다” 두 가지.
+(L9 p.35) → [[queue 락]]{/answer}
+
+=== B3 ===
+{quiz}When a thread returns from park() inside lock(), it must re-check m->flag and set it to 1 before entering the critical section, because unlock() cleared the flag.{/quiz}
+{answer}'''F'''
+고친 문장: '''unlock() does not clear m->flag when the queue is non-empty; the lock is handed directly to the woken thread, so it returns from park() already holding the lock and enters the critical section without re-checking.'''
+p.35 line 28 주석 “hold lock (for next thread!)”. 대기자가 있으면 `unpark(queue_remove(m->q))` 만 하고 flag 는 1 그대로 = '''hand-off'''. 실제로 lock() 의 else 분기는 park() 다음에 아무 코드도 없다 — 깨어나면 그대로 함수를 빠져나간다.
+채점 포인트: “flag stays 1 / hand-off” 를 써야 함.
+(L9 p.34~35) → [[queue 락]]{/answer}
+
+=== B4 ===
+{quiz}Replacing the spin loop with yield() changes the waiting thread's state transition from running→ready to running→blocked.{/quiz}
+{answer}'''F'''
+고친 문장: '''yield() moves the caller from the running state to the ready state; it is park() that puts the caller to sleep (blocked).'''
+spin 은 상태 전이 자체가 없고(계속 Running), yield 는 Running → Ready, park 는 Running → Blocked. Ready 에 남기 때문에 yield 락은 run-and-yield 가 반복되고 context switch 비용이 쌓인다(p.32).
+채점 포인트: yield = ready, park = blocked.
+(L9 p.31, p.33) → [[yield 락]], [[프로세스 상태]]{/answer}
+
+=== B5 ===
+{quiz}setpark() fixes the wakeup/waiting race by making “release m->guard” and “go to sleep” a single atomic operation.{/quiz}
+{answer}'''F'''
+고친 문장: '''setpark() lets a thread indicate it is about to park; if another thread calls unpark() before park() is actually called, the subsequent park() returns immediately instead of sleeping.'''
+guard 해제와 잠들기는 여전히 별개의 두 동작이고, 그 사이에 context switch 가 일어날 수 있다. setpark 는 그 틈을 없애는 것이 아니라 '''틈 사이에 도착한 unpark 를 기록'''해 두는 장치다. 교수님(9/28): “park 시스템의 한계는 unpark 를 기록할 메커니즘이 없다는 것.”
+채점 포인트: “atomic 으로 만든다” 가 틀린 부분, “unpark 를 기억 → park 즉시 리턴” 이 맞는 설명.
+(L9 p.37) → [[setpark]]{/answer}
+
+=== B6 ===
+{quiz}futex_wait(addr, v) always puts the caller to sleep; checking *addr is left to the caller after it wakes up.{/quiz}
+{answer}'''F'''
+고친 문장: '''futex_wait(addr, v) puts the caller to sleep only if *addr == v; otherwise it returns immediately.'''
+이 검사(checked)를 '''커널이 잠재우기 직전에''' 한다는 것이 핵심이다. 유저 쪽에서 검사하고 나서 시스템 콜을 부르면 그 사이에 값이 바뀔 수 있으므로 의미가 없다.
+채점 포인트: “only if *addr == value” 를 써야 함.
+(L9 p.39) → [[futex]]{/answer}
+
+=== B7 ===
+{quiz}In the futex-based simple lock of L10 p.3, unlock() may omit futex_wake(mutex), because the next TestAndSet(mutex, 1) by a waiting thread will observe mutex == 0.{/quiz}
+{answer}'''F'''
+고친 문장: '''unlock() must call futex_wake(mutex) after *mutex = 0; a waiter that is already asleep in futex_wait will never run TestAndSet again unless someone wakes it.'''
+잠든 스레드는 스스로 아무것도 검사하지 못한다. 교수님(9/28): “wake 가 없으면 잠든 스레드를 아무도 못 깨우니 중요하다.”
+채점 포인트: “잠든 스레드는 재검사를 못 한다”.
+(L10 p.3, L9 p.39) → [[futex]]{/answer}
+
+=== B8 ===
+{quiz}With futex, the user owns only the lock state, while the kernel manages the waiting queue; this allows fair wakeup (priority inheritance) and robust mutexes (owner-death detection).{/quiz}
+{answer}'''T'''
+9강 p.41 원문 그대로. 교수님(9/28): spin lock 은 락을 쥔 스레드가 죽으면 아무도 락을 못 잡아 시스템이 멈추지만, futex 는 커널이 대기자·주소를 알고 있어 owner 가 죽은 것을 감지할 수 있다.
+채점 포인트: 두 이유의 슬라이드 용어(fair wakeup, robust mutex).
+(L9 p.41) → [[futex]]{/answer}
+
+=== B9 ===
+{quiz}A simple fix for the wakeup/waiting race is to move m->guard = 0 after park(), so that no other thread can call unpark() before the waiter is asleep.{/quiz}
+{answer}'''F'''
+고친 문장: '''If park() comes before m->guard = 0, the thread sleeps while holding guard; every other thread (including the lock holder in unlock()) spins on guard forever, so nobody can ever unpark it.'''
+12강 Summary(p.40~42)에서 교수님이 다시 강조한 바로 그 포인트: “'''guard 쥔 채 잠들면 남이 spin'''”. park() 는 호출하면 다음 줄을 실행하지 못하므로 순서를 바꿔서는 못 고친다 → '''setpark''' 추가로 고친다. (Python 전수 탐색: 이 순서는 “A 잠듦 + T0 가 guard 에서 무한 spin” 상태에 도달.)
+채점 포인트: “guard held while sleeping → others spin forever” + 대안 setpark.
+(L9 p.36~37, L12 p.40~42) → [[setpark]], [[guard]]{/answer}
+
+{tip}B 파트에서 F 를 고를 때는 '''무엇이 틀렸는지 한 단어'''를 찾는다: flag↔guard, ready↔blocked, always↔only if, entirely↔limited. 고친 문장은 슬라이드 원문 표현을 그대로 쓰는 게 가장 안전하다.{/tip}
+
+== Part C. Multiple choice (5지선다) ==
+
+=== C1 ===
+{quiz}Which of the following is '''NOT''' a problem of the lock “while (TestAndSet(&flag, 1) == 1) yield();” (L9 p.31–32)?
+(1) The cost of a context switch can be substantial.
+(2) If the holder goes to sleep, the other N−1 threads repeat run-and-yield, causing N−1 context switches.
+(3) If the holder keeps the lock for a long time, the run-and-yield overhead becomes severe.
+(4) A thread may repeatedly get the lock, so starvation is still possible.
+(5) Two threads may be in the critical section at the same time, because yield() can return between the test and the set.{/quiz}
+{answer}'''정답 (5)'''
+상호 배제는 여전히 '''TestAndSet 의 atomicity''' 가 보장한다. yield() 는 TAS 가 1 을 반환해 획득에 실패한 '''뒤에만''' 불리고, test 와 set 은 한 명령 안에서 같이 일어난다 → Correctness 는 Yes.
+(1)(2)(3) p.32 첫 번째 bullet (context switch 비용, N−1 번, 오래 쥐면 심해짐). (4) p.32 두 번째 bullet “The starvation problem still exists”.
+채점 포인트: yield 락의 문제는 '''performance(context switch) 와 fairness(starvation)''' — correctness 는 문제 없음.
+(L9 p.31~32) → [[yield 락]]{/answer}
+
+=== C2 ===
+{quiz}About m->guard in the queue-based lock (L9 p.34–35), which statement is '''NOT''' correct?
+(1) It is acquired by spinning on TestAndSet(&m->guard, 1).
+(2) It protects m->flag and the queue from concurrent modification.
+(3) It is held only for a few instructions inside lock() and unlock().
+(4) In the else-branch of lock(), it is released before the thread calls park().
+(5) The lock owner keeps holding it for the whole critical section, so that no other thread can modify the queue meanwhile.{/quiz}
+{answer}'''정답 (5)'''
+lock() 은 두 분기 모두 함수를 나가기 전에 `m->guard = 0` 을 한다(p.34 line 14, 17). critical section 동안 1 인 것은 '''flag''' 이고 guard 는 0 이다. 그래서 다른 스레드가 그동안 guard 를 잡고 큐에 자기를 넣을 수 있다 — 그래야 대기열이 생긴다.
+(1) p.34 line 10~11. (2) p.35 “spin-lock around the flag and queue”. (3) p.35 “just a few instructions”. (4) line 17 guard = 0 → line 18 park().
+채점 포인트: “guard 를 CS 내내 쥔다” 가 오답 포인트.
+(L9 p.34~35) → [[guard]]{/answer}
+
+=== C3 ===
+{quiz}Which statement about futex (L9 p.39–41) is '''NOT''' correct?
+(1) It stands for fast userspace mutex and is provided by Linux.
+(2) It is described as the “checked” and “queued” version of park().
+(3) futex_wait(address, value) puts the caller to sleep only if *address equals value.
+(4) The kernel manages the waiting queue, while the user owns the lock state.
+(5) Like park/unpark, it is a purely scheduling primitive for which the kernel keeps only a minimal state.{/quiz}
+{answer}'''정답 (5)'''
+“purely scheduling primitive / minimal state” 는 p.41 에서 '''park/unpark''' 쪽 설명이다. futex 는 반대로 커널이 대기 큐(주소별 대기자 목록)를 직접 관리해 상태가 더 많고, 그 대가로 fair wakeup·robust mutex 를 얻는다.
+(1)(2)(3) p.39. (4) p.41.
+채점 포인트: p.41 의 좌우 두 칸을 바꾸는 함정.
+(L9 p.39~41) → [[futex]], [[park와 unpark]]{/answer}
+
+=== C4 ===
+{quiz}The else-branch of lock() in the queue-based lock is rewritten in five ways. Thread T0 holds the lock and will call unlock(); thread A calls lock() and finds flag == 1. Which ordering is the '''only''' one that can never make A sleep forever and never makes any thread spin on guard forever?
+(1) queue_add(m->q, gettid()); m->guard = 0; park();
+(2) queue_add(m->q, gettid()); setpark(); m->guard = 0; park();
+(3) queue_add(m->q, gettid()); m->guard = 0; setpark(); park();
+(4) setpark(); queue_add(m->q, gettid()); park(); m->guard = 0;
+(5) queue_add(m->q, gettid()); park(); setpark(); m->guard = 0;{/quiz}
+{answer}'''정답 (2)''' (p.37 원본 순서)
+판단 기준 두 개: ① guard 를 '''쥔 채''' 잠들면 안 된다(남이 guard 에서 무한 spin). ② guard = 0 과 park() 사이에 도착한 unpark 가 '''기록되어야''' 한다(setpark 가 guard = 0 보다 앞).
+(1) 원본 p.34 — setpark 없음. guard = 0 뒤 park() 전에 T0 가 unpark(A) → 신호 소실 → A 영원히 잠듦 (p.36 wakeup/waiting race).
+(3) setpark 가 guard = 0 '''뒤''' — guard = 0 과 setpark() 사이에 T0 의 unpark 가 오면 아직 기록 장치가 없어 (1)과 똑같이 소실.
+(4)(5) park() 가 guard = 0 보다 앞 — A 가 guard = 1 인 채 잠들고, T0 는 unlock() line 23 에서 영원히 spin. A 를 깨울 수 있는 유일한 스레드가 T0 이므로 둘 다 영영 못 나감.
+Python 으로 T0·A 두 스레드의 모든 인터리빙을 전수 탐색: (2) 만 모든 경로가 정상 종료, (1)(3) 은 “A 잠듦(spin 없음)”, (4)(5) 는 “A 잠듦 + T0 가 guard 에서 spin” 에 도달.
+채점 포인트: 오답 각각을 “sleep forever” 와 “spin on guard forever” 로 분류할 수 있어야 함.
+(L9 p.34~38) → [[setpark]], [[queue 락]]{/answer}
+
+=== C5 ===
+{quiz}Which row of the lock-evaluation table is '''NOT''' consistent with Lecture 9?
+(1) Simple flag lock without hardware support — Correctness: No.
+(2) Test-and-set spin lock — Correctness: Yes, Fairness: No.
+(3) Ticket lock (fetch-and-add) — Fairness: Yes, Performance: No.
+(4) Ticket lock (fetch-and-add) — Performance: Yes, because waiting threads are served in FIFO order of their tickets.
+(5) Lock with queue + park/unpark — Performance improved, because waiters sleep instead of spinning and only the short guard section is spun on.{/quiz}
+{answer}'''정답 (4)'''
+FIFO 순서는 '''Fairness''' 의 근거이지 Performance 의 근거가 아니다. ticket lock 의 대기자는 여전히 `while (lock->turn != myturn) ;` 로 spin → holder 가 preempt 되면 “every other threads will spin for a given time slice” (p.29) → Performance: No.
+(1) p.17 — test 와 set 사이 switch 로 둘 다 진입. (2) p.24. (3) p.29. (5) p.33~35, p.42 “mitigated with yield and sleeping”.
+채점 포인트: 공정성(순서)과 성능(spin 낭비)을 섞지 말 것.
+(L9 p.24, p.29, p.42) → [[락 평가 기준]], [[ticket lock]]{/answer}
+
+=== C6 ===
+{quiz}About park() and unpark(threadID) '''without''' setpark(), which statement is '''NOT''' correct?
+(1) park() puts the calling thread to sleep.
+(2) unpark(threadID) wakes the particular thread designated by threadID.
+(3) The queue lock stores gettid() in the queue so that unlock() knows whom to unpark.
+(4) Neither park() nor unpark() by itself checks the value of m->flag.
+(5) If unpark(T) is called while T is still running (before T calls park()), T's later park() returns immediately.{/quiz}
+{answer}'''정답 (5)'''
+setpark 가 '''없으면''' 아직 잠들지 않은 스레드에 온 unpark 는 기록되지 않고 사라진다 → 그 뒤 park() 는 진짜로 잠들고, 깨워 줄 사람이 없어 sleep forever (p.35 Limitation 2, p.36). “park 가 즉시 리턴” 은 '''setpark() 를 먼저 부른 경우'''에만 성립하는 p.37 의 동작이다.
+(1)(2) p.33. (3) p.34 line 16 `queue_add(m->q, gettid())`. (4) park/unpark 는 purely scheduling primitive(p.41) — 값을 검사하는 것은 futex_wait 의 특징.
+채점 포인트: setpark 유무에 따라 같은 상황의 결과가 정반대가 된다는 점.
+(L9 p.33~37) → [[park와 unpark]], [[setpark]]{/answer}
+
+{tip}“NOT” 문제는 보기마다 '''출처 슬라이드 쪽수'''를 붙여 보면 빨리 끝난다. 쪽수를 못 붙이는 보기(= 슬라이드에 없는 말)가 대개 정답이다.{/tip}
+
+== Part D. Code fill-in ==
+
+=== D1 ===
+{quiz}'''Queue-based lock with setpark()''' (L9 p.34–38). Fill in blanks (a)–(l).
+<pre class="c">
+typedef struct __lock_t { int flag; int guard; queue_t *q; } lock_t;
+
+void lock(lock_t *m) {
+    while (___(a)___)
+        ;
+    if (___(b)___) {
+        ___(c)___;
+        ___(d)___;
+    } else {
+        ___(e)___;
+        ___(f)___;
+        ___(g)___;
+        ___(h)___;
+    }
+}
+
+void unlock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+    if (___(i)___)
+        ___(j)___;
+    else
+        ___(k)___;
+    ___(l)___;
+}
+</pre>
+(m) In which branch of unlock() is m->flag left unchanged, and why?
+{/quiz}
+{answer}'''정답: (a) TestAndSet(&m->guard, 1) == 1  (b) m->flag == 0  (c) m->flag = 1  (d) m->guard = 0  (e) queue_add(m->q, gettid())  (f) setpark()  (g) m->guard = 0  (h) park()  (i) queue_empty(m->q)  (j) m->flag = 0  (k) unpark(queue_remove(m->q))  (l) m->guard = 0'''
+<pre class="txt">
+(a) guard 를 spin 으로 획득. TAS 가 옛 값 1 을 돌려주는 동안 계속 돈다.
+(b)(c) 락이 비어 있으면 flag = 1 로 획득.
+(d) 획득했어도 guard 는 곧바로 놓는다 — guard 는 lock() 함수 안에서만 쥔다.
+(e) 이미 누가 쥐고 있으면 자기 thread ID 를 큐에 넣는다.
+(f) setpark() — “곧 park 할 것” 을 미리 알림. 반드시 (g) 보다 앞.
+(g) guard 해제 — 반드시 (h) 보다 앞 (guard 쥔 채 잠들면 unlock() 이 guard 에서 무한 spin).
+(h) park() — 잠든다. 깨어나면 이미 락 소유자 (hand-off).
+(i)(j) 기다리는 사람이 없으면 flag = 0 으로 진짜 해제.
+(k) 기다리는 사람이 있으면 맨 앞 스레드를 깨운다. flag 는 건드리지 않음.
+(l) guard 해제.
+(m) else 분기 (k). 대기자에게 락을 '''직접 넘기기(hand-off)''' 때문: flag 를 1 로 둔 채
+    깨우면 깨어난 스레드는 flag 를 다시 검사하지 않고 바로 CS 로 들어간다.
+    flag 를 0 으로 내리면 그 사이에 제3의 스레드가 (b) 에서 락을 채 가 두 스레드가
+    동시에 CS 에 들어간다 (D3 참고). p.35 주석 “hold lock (for next thread!)”.
+</pre>
+채점 포인트: (f)(g)(h) 순서가 setpark → guard = 0 → park 인지, (k) 에 flag = 0 이 섞이지 않았는지.
+(L9 p.34~38) → [[queue 락]], [[setpark]]. 직접 돌려 보려면 [[queue 락]] 문서의 시뮬레이터.{/answer}
+
+=== D2 ===
+{quiz}'''Futex-based “simpler” lock''' (L10 p.3). mutex is an int, 0 = free, 1 = held. Fill in (a)–(e).
+<pre class="c">
+void lock(int *mutex) {
+    while (___(a)___) {
+        futex_wait(___(b)___, ___(c)___);
+    }
+}
+
+void unlock(int *mutex) {
+    ___(d)___;
+    futex_wake(___(e)___);
+}
+</pre>
+(f) Why is the second argument of futex_wait exactly that value?
+(g) A student swaps the two lines of unlock() (futex_wake first, then the store). Give a schedule of two threads in which a thread sleeps although the lock is free.
+{/quiz}
+{answer}'''정답: (a) TestAndSet(mutex, 1) == 1  (b) mutex  (c) 1  (d) *mutex = 0  (e) mutex'''
+<pre class="txt">
+(a) 락을 잡으려 시도 — 옛 값이 1 이면(누가 쥐고 있음) 루프 안으로.
+(b)(c) futex_wait(mutex, 1): “mutex 가 아직 1 이면 재워 달라”.
+(d)(e) 먼저 락을 풀고, 그 주소에서 자고 있는 스레드 하나를 깨운다.
+
+(f) 1 = “내가 방금 TAS 로 본 값(= 잠겨 있음)”. 교수님(9/28): 2번 줄(TAS)과 3번 줄
+    (futex_wait) 사이에 context switch 가 나서 holder 가 이미 *mutex = 0 을 했을 수 있다.
+    커널이 잠재우기 직전에 *mutex == 1 인지 다시 보고, 0 이면 잠들지 않고 리턴 →
+    while 로 돌아가 TAS 로 획득. '''검사를 통과했을 때만 잔다''' = “checked”.
+    → setpark 없이도 wakeup/waiting race 가 없다.
+
+(g) 1. T1: TAS → 0, 획득 (mutex 1)
+    2. T2: TAS → 1, futex_wait(mutex, 1): mutex == 1 → 잠듦
+    3. T1: unlock: futex_wake(mutex) 먼저 → T2 깨움 (Ready)
+    4. T2: (T1 의 store 전에 실행) TAS → 1, futex_wait(mutex, 1): mutex 아직 1 → 다시 잠듦
+    5. T1: *mutex = 0 → 락은 비었는데 T2 는 잠들어 있고, wake 는 이미 써 버렸다.
+    다음에 누가 lock/unlock 을 해 주기 전까지 T2 는 계속 잠듦 (아무도 안 오면 영원히).
+    → unlock 은 '''상태를 먼저 바꾸고(store) 그다음 깨운다(wake)'''.
+</pre>
+(Python 결정적 trace 로 (g) 의 5단계 확인: 마지막 상태 mutex = 0, T2 asleep.)
+채점 포인트: (c) 를 0 으로 쓰면 오답(“0 이면 재워라” = 락이 비었을 때 잠드는 셈). (g) 는 “wake 가 store 보다 먼저 와서 소실” 을 단계로 보여야 만점.
+(L10 p.2~3, L9 p.39) → [[futex]]{/answer}
+
+=== D3 ===
+{quiz}'''Find the bugs.''' The following queue-based lock contains three bugs, each on one marked line (/* 1 */, /* 2 */, /* 3 */). For each, state what goes wrong (which thread ends up doing what) and give the corrected line(s).
+<pre class="c">
+void lock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+    if (m->flag == 0) {
+        m->flag = 1;                        /* 1 */
+    } else {
+        queue_add(m->q, gettid());
+        m->guard = 0;                       /* 2 */
+        setpark();
+        park();
+    }
+}
+
+void unlock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+    if (queue_empty(m->q))
+        m->flag = 0;
+    else {
+        m->flag = 0;                        /* 3 */
+        unpark(queue_remove(m->q));
+    }
+    m->guard = 0;
+}
+</pre>
+{/quiz}
+{answer}'''정답: ① if 분기에 m->guard = 0 이 빠짐 → 모두 guard 에서 무한 spin ② setpark() 가 guard = 0 뒤 → wakeup/waiting race 그대로 ③ hand-off 대신 flag = 0 → mutual exclusion 위반'''
+<pre class="txt">
+/* 1 */  락을 얻은 스레드가 guard 를 1 로 둔 채 lock() 을 나간다.
+         → 이후 lock() 을 부르는 모든 스레드, 그리고 자기 자신의 unlock() 까지
+           TestAndSet(&m->guard) 에서 영원히 spin. (락 하나가 시스템 전체를 멈춤)
+         수정: m->flag = 1;  m->guard = 0;
+
+/* 2 */  m->guard = 0 과 setpark() 사이에 context switch → holder 가 unlock() 에서
+         unpark(나) 를 부름 → 아직 setpark 전이라 기록되지 않고 소실 → 이후 park() 에서
+         영원히 잠듦. setpark 를 넣은 의미가 없다.
+         수정: queue_add(...); setpark(); m->guard = 0; park();
+
+/* 3 */  hand-off 가 깨진다. 순서 예:
+           T0 보유, A 는 큐에서 잠듦.
+           T0 unlock: flag = 0, unpark(A)  → A 는 Ready, 아직 실행 전.
+           C 가 lock(): flag == 0 → flag = 1, 획득 → CS 진입.
+           A 실행: park() 에서 리턴 = “나는 락 소유자” 라고 믿고 CS 진입.
+         → A 와 C 가 동시에 critical section. (park 에서 깨어난 스레드는 flag 를
+           다시 검사하지 않기 때문)
+         수정: else 분기에서 flag 를 건드리지 않음 — unpark(queue_remove(m->q)); 만.
+</pre>
+(Python 3스레드 전수 탐색: 버그 ③ 이 있으면 CS 동시 인원 최대 2, 없으면 1.)
+채점 포인트: 각 버그를 “무한 spin / sleep forever / 상호 배제 위반” 셋 중 정확한 결과와 연결.
+(L9 p.34~38) → [[queue 락]], [[guard]]{/answer}
+
+=== D4 ===
+{quiz}'''(심화) Linux futex lock''' (L9 p.40). The lock uses one 32-bit integer: bit 31 = “lock held”, the remaining bits = number of waiters.
+<pre class="c">
+ 1 void lock(int *mutex) {
+ 2     if (atomic_bit_test_set(mutex, 31) == 0) return;
+ 3     atomic_increment(mutex);
+ 4     while (1) {
+ 5         if (atomic_bit_test_set(mutex, 31) == 0) {
+ 6             atomic_decrement(mutex);
+ 7             return;
+ 8         }
+ 9         v = *mutex;
+10         if (v >= 0) continue;
+11         futex_wait(mutex, v);
+12     }
+13 }
+22 void unlock(int *mutex) {
+23     if (atomic_add_zero(mutex, 0x80000000))
+24         return;
+25     futex_wake(mutex);
+26 }
+</pre>
+(a) The lock is held and two threads are waiting. Give *mutex in hex and as a signed int.
+(b) Which line lets an uncontended lock() finish without any system call?
+(c) What does “v >= 0” on line 10 mean, and why does the thread go back to line 5 instead of sleeping?
+(d) When does unlock() return on line 24 without calling futex_wake?
+{/quiz}
+{answer}'''정답: (a) 0x80000002 = −2147483646  (b) line 2  (c) bit 31 이 0 = 락이 이미 풀림 → 다시 잡으러 감  (d) 락을 쥐고 있었고 대기자가 0명일 때 (더한 결과가 0)'''
+<pre class="txt">
+(a) bit 31 = 1 → 0x80000000, 대기자 2 → +2 → 0x80000002.
+    부호 있는 32비트로 보면 최상위 비트가 1 이므로 음수: −2^31 + 2 = −2147483646.
+    → “음수 = 잠김” 이라는 성질을 line 10 이 이용한다.
+(b) line 2: bit 31 을 원자적으로 세트하고 옛 값이 0 이면(아무도 안 쥠) 바로 return.
+    유저 공간 atomic 명령 하나로 끝 — futex 의 “fast userspace” 의 의미.
+(c) v >= 0 ⇔ bit 31 이 0 ⇔ 방금 읽은 순간 락이 비어 있음. 잠들 이유가 없으니 line 5 로
+    돌아가 다시 획득을 시도. v < 0(잠김)일 때만 futex_wait(mutex, v) — 그리고 커널은
+    *mutex 가 여전히 v 일 때만 재운다 (그 사이 값이 바뀌었으면 즉시 리턴).
+(d) 0x80000000 을 더하면 bit 31 의 1 이 넘쳐 사라진다(락 해제). 결과가 0 이면
+    대기자 수도 0 → 깨울 사람이 없으니 시스템 콜 없이 return.
+    결과가 0 이 아니면(대기자 있음) futex_wake 로 하나 깨움.
+</pre>
+(Python: 0x80000002 의 signed 값, 0x80000000 + 0x80000000 = 0 (mod 2^32) 확인.)
+채점 포인트: 9강 해설 기준 “코드 암기는 불필요, 흐름(경쟁 없으면 유저 공간, 경쟁 있을 때만 커널)” 이 핵심. (a)(b) 만 맞혀도 기본 점수.
+(L9 p.40) → [[futex]], [[two-phase lock]]{/answer}
+
+{tip}코드 빈칸은 '''대칭'''으로 외우면 쉽다: lock 의 두 분기 모두 “guard = 0” 으로 끝나고, unlock 도 “guard = 0” 으로 끝난다. else 분기만 그 사이에 “setpark” 를 끼우고 뒤에 “park” 를 붙인다.{/tip}
+
+== Part E. Trace ==
+
+=== E1 ===
+{quiz}'''Queue lock hand-off with four threads''' (L9 p.34–38, setpark version as in D1). Initially T1 holds the lock: flag = 1, guard = 0, queue empty. Single CPU. Each listed action runs to completion without interruption:
+1) T2 calls lock().  2) T3 calls lock().  3) T1 calls unlock().  4) Before T2 runs, T4 calls lock().  5) T2 runs and later calls unlock().  6) T3 runs and later calls unlock().  7) T4 runs and later calls unlock().
+(a) After each step, give flag, guard, the queue contents, the set of sleeping threads, and the current lock owner.
+(b) In step 4, the lock was just released by T1. Why does T4 not get the lock before T2?
+(c) What is the order in which threads enter the critical section?
+{/quiz}
+{answer}'''정답: (b) flag 가 1 인 채 T2 에게 hand-off 되어 있으므로 T4 는 else 분기로 줄을 선다  (c) T1 → T2 → T3 → T4'''
+{|
+! 단계 || 실행 || flag || guard || queue || 잠든 스레드 || 소유자 || 설명
+|-
+| 0 || (초기) || 1 || 0 || [ ] || - || T1 || T1 이 CS 안
+|-
+| 1 || T2 lock() || 1 || 0 || [T2] || T2 || T1 || flag==1 → queue_add, setpark, guard=0, park
+|-
+| 2 || T3 lock() || 1 || 0 || [T2, T3] || T2, T3 || T1 || 같은 else 분기, 큐 뒤에 섬
+|-
+| 3 || T1 unlock() || 1 || 0 || [T3] || T3 || T2 || 큐 비어 있지 않음 → unpark(T2), '''flag 는 1 유지'''
+|-
+| 4 || T4 lock() || 1 || 0 || [T3, T4] || T3, T4 || T2 || flag==1 이므로 획득 불가 → 줄 맨 뒤
+|-
+| 5 || T2 실행·unlock() || 1 || 0 || [T4] || T4 || T3 || park 에서 리턴 = 이미 소유자. unlock → unpark(T3)
+|-
+| 6 || T3 실행·unlock() || 1 || 0 || [ ] || - || T4 || unpark(T4)
+|-
+| 7 || T4 실행·unlock() || 0 || 0 || [ ] || - || 없음 || 큐 비었음 → 이때 처음으로 flag = 0
+|}
+<pre class="txt">
+(b) unlock() 은 대기자가 있으면 flag 를 0 으로 내리지 않고 unpark 만 한다(hand-off).
+    그래서 T2 가 아직 CPU 를 받지 못했어도 락은 이미 T2 의 것이고, T4 는 flag == 1 을 보고
+    큐 맨 뒤로 간다. → 늦게 온 스레드가 새치기(barging) 하지 못함 = FIFO, fairness.
+(c) T1 → T2 → T3 → T4 (lock() 을 부른 순서 그대로).
+    flag 는 마지막 unlock 전까지 한 번도 0 이 되지 않는다. guard 는 각 동작이 끝날 때마다 0.
+</pre>
+(Python 결정적 trace 33 단계로 위 표 확인.)
+채점 포인트: 3단계에서 flag = 1 유지, 4단계에서 T4 가 큐로, 마지막에만 flag = 0.
+(L9 p.34~35) → [[queue 락]]. 같은 동작을 [[queue 락]] 문서의 시뮬레이터에서 단계별로 볼 수 있다.{/answer}
+
+=== E2 ===
+{quiz}'''Sleep forever with three threads, then the setpark fix''' (L9 p.35–38). Initially T1 holds the lock: flag = 1, guard = 0, queue empty. Single CPU.
+Schedule:
+1) T2 calls lock(): acquires guard, sees flag == 1, executes queue_add and m->guard = 0, and is preempted just before park().
+2) T1 calls unlock() and runs it to completion.
+3) T3 calls lock() and runs it until it is asleep.
+4) T2 resumes and executes park().
+(a) Using the original lock of p.34 (no setpark), give flag, guard, queue, sleeping threads and the logical owner after each step. Can any thread ever enter the critical section again?
+(b) Repeat with the setpark version (T2 calls setpark() before m->guard = 0 in step 1; T3 likewise in step 3). Continue the trace until the lock is free. In which order do T2 and T3 enter the critical section?
+{/quiz}
+{answer}'''정답: (a) 마지막에 flag = 1, queue = [T3], T2·T3 모두 잠듦 → 아무도 다시 CS 에 못 들어감  (b) T2 의 park() 가 즉시 리턴 → T2 → T3 순서로 진입, 마지막 flag = 0'''
+'''(a) setpark 없음 (p.34 원본)'''
+{|
+! 단계 || 실행 || flag || guard || queue || 잠든 스레드 || 소유자(논리) || 설명
+|-
+| 0 || (초기) || 1 || 0 || [ ] || - || T1 ||
+|-
+| 1 || T2: queue_add, guard=0 → 선점 || 1 || 0 || [T2] || - || T1 || T2 는 아직 깨어 있음 (park 직전)
+|-
+| 2 || T1 unlock() || 1 || 0 || [ ] || - || T2 || unpark(T2) — T2 가 자고 있지 않아 '''신호 소실'''. hand-off 로 flag 는 1
+|-
+| 3 || T3 lock() || 1 || 0 || [T3] || T3 || T2 || flag==1 → 큐에 들어가 잠듦
+|-
+| 4 || T2 park() || 1 || 0 || [T3] || T2, T3 || T2 || 깨워 줄 사람이 이미 지나감 → '''영원히 잠듦'''
+|}
+<pre class="txt">
+→ 락의 소유자 T2 가 잠들어 있어 unlock() 을 부를 스레드가 없다. T3 도 T2 의 unlock 을
+  기다리며 잠듦. 이후 lock() 을 부르는 모든 스레드도 flag == 1 → 큐 → park.
+  CPU 를 쓰는 스레드는 없다(spin 이 아니라 sleep) — “조용히 멈춘” 상태.
+  p.36 그림의 ④ “Thread A wakes up but starts to sleep immediately” 가 바로 단계 4.
+</pre>
+'''(b) setpark 있음 (p.37~38)'''
+{|
+! 단계 || 실행 || flag || guard || queue || 잠든 스레드 || setpark 표시 || 소유자 || 설명
+|-
+| 1 || T2: queue_add, setpark, guard=0 → 선점 || 1 || 0 || [T2] || - || T2 || T1 || “곧 잔다” 예고
+|-
+| 2 || T1 unlock() || 1 || 0 || [ ] || - || T2 (unpark 기록됨) || T2 || unpark(T2) 가 '''기록'''됨. flag 1 유지
+|-
+| 3 || T3 lock() || 1 || 0 || [T3] || T3 || T2 || T2 || T3 은 setpark 후 park → 잠듦
+|-
+| 4 || T2 park() || 1 || 0 || [T3] || T3 || - || T2 || 기록된 unpark 소모 → '''즉시 리턴''', T2 가 CS 진입
+|-
+| 5 || T2 unlock() || 1 || 0 || [ ] || - || - || T3 || unpark(T3) → T3 깨어남 (hand-off)
+|-
+| 6 || T3 실행·unlock() || 0 || 0 || [ ] || - || - || 없음 || 큐 비었음 → flag = 0
+|}
+<pre class="txt">
+진입 순서 T2 → T3. setpark 는 guard = 0 과 park() 사이의 틈을 없애지 않는다.
+틈에 도착한 unpark 를 '''기억'''해서 뒤의 park() 를 무시하게 만들 뿐이다 (p.37
+“the subsequent park returns immediately instead of sleeping”, p.38 ③).
+</pre>
+(Python 결정적 trace: (a) T1 의 unpark(T2) → LOST, 끝 상태 asleep = {T2, T3}. (b) 2단계 unpark → recorded, 4단계 park 즉시 리턴, 끝 flag = 0.)
+채점 포인트: (a) 2단계 “unpark 소실 + flag 1 유지”, 4단계 “영원히 잠듦”, T3 까지 멈춘다는 결론. (b) 4단계 “park 즉시 리턴”.
+(L9 p.35~38) → [[setpark]], [[park와 unpark]]. [[setpark]] 문서의 시뮬레이터에서 setpark 유무를 바꿔 같은 장면을 재생할 수 있다.{/answer}
+
+=== E3 ===
+{quiz}'''Futex simple lock trace''' (L10 p.3, code as in D2). mutex = 0 initially. Single CPU. Steps:
+1) T1: TestAndSet(mutex, 1).  2) T2: TestAndSet(mutex, 1), then T2 is preempted before futex_wait.  3) T1: *mutex = 0.  4) T1: futex_wake(mutex).  5) T3: TestAndSet(mutex, 1).  6) T2: futex_wait(mutex, 1).  7) T3: *mutex = 0.  8) T3: futex_wake(mutex).  9) T2: TestAndSet(mutex, 1).
+(a) For each step give the value returned by TestAndSet (if any), *mutex afterwards, the futex wait queue, and who holds the lock.
+(b) In step 6, does T2 sleep? Would the answer change if step 5 had not happened? Explain using the meaning of “checked”.
+(c) Compare the order in which T2 and T3 got the lock with what the queue lock of E1 would have done. Is this futex lock FIFO-fair?
+{/quiz}
+{answer}'''정답: (b) 잠든다 (T3 이 이미 다시 잠가서 *mutex == 1). 5단계가 없었다면 *mutex == 0 ≠ 1 이므로 잠들지 않고 즉시 리턴  (c) T2 가 먼저 시도했는데 T3 이 먼저 획득 — FIFO 아님 (barging 가능)'''
+{|
+! 단계 || 실행 || TAS 반환값 || *mutex || futex 큐 || 소유자 || 설명
+|-
+| 1 || T1 TAS || 0 || 1 || [ ] || T1 || 0 → while 탈출, 획득
+|-
+| 2 || T2 TAS || 1 || 1 || [ ] || T1 || 1 → 루프 안으로, futex_wait 직전 선점
+|-
+| 3 || T1 *mutex = 0 || - || 0 || [ ] || 없음 || 락 해제
+|-
+| 4 || T1 futex_wake || - || 0 || [ ] || 없음 || 자는 스레드 없음 → 아무 일 없음
+|-
+| 5 || T3 TAS || 0 || 1 || [ ] || T3 || 비어 있던 락을 T3 이 먼저 획득
+|-
+| 6 || T2 futex_wait(mutex, 1) || - || 1 || [T2] || T3 || 커널 검사: *mutex == 1 → 잠듦 (올바름)
+|-
+| 7 || T3 *mutex = 0 || - || 0 || [T2] || 없음 ||
+|-
+| 8 || T3 futex_wake || - || 0 || [ ] || 없음 || T2 깨어남 → while 로 돌아감
+|-
+| 9 || T2 TAS || 0 || 1 || [ ] || T2 || 획득
+|}
+<pre class="txt">
+(b) 6단계: 커널이 *mutex 를 다시 본다 → 1 (T3 보유) → value 와 같으므로 재운다.
+    잠들어도 안전: 소유자 T3 이 unlock 에서 futex_wake 를 부를 것이기 때문 (8단계).
+    5단계가 없었다면: *mutex == 0 ≠ 1 → futex_wait 이 잠재우지 않고 즉시 리턴 →
+    T2 는 while 로 돌아가 TAS → 0 → 획득.  (4단계의 wake 가 허공에 사라졌는데도
+    sleep forever 가 안 생기는 이유 = “checked”. queue 락 + setpark 와 같은 효과를
+    커널의 값 검사로 얻는다.)
+(c) T2 가 2단계에서 먼저 시도했지만 T3 이 5단계에서 먼저 얻었다.
+    이 단순 futex 락은 unlock 이 *mutex = 0 으로 락을 '''내려놓고''' 깨우므로, 깨어난
+    스레드가 다시 경쟁한다 → 그 사이 새 스레드가 새치기 가능. queue 락은 flag 를 1 로
+    둔 채 넘겨주는 hand-off 라 T4 같은 새치기가 불가능했다 (E1).
+</pre>
+(Python 결정적 trace 로 9단계 값 확인 + 5단계 없는 변형에서 futex_wait 즉시 리턴 확인.)
+채점 포인트: 6단계 “잠든다(값이 1)”, 변형에서 “즉시 리턴”, (c) “FIFO 보장 안 됨”. (c) 는 슬라이드에 직접 적힌 말이 아니라 코드에서 추론하는 문제 — 근거(“*mutex = 0 후 wake → 다시 경쟁”)를 써야 점수.
+(L10 p.2~3, L9 p.39) → [[futex]]{/answer}
+
+{tip}trace 표는 '''열을 먼저 그리고''' 시작한다: flag · guard · queue · 잠든 스레드 · 소유자. 특히 queue 락에서 “소유자” 열을 따로 두면 hand-off(소유자는 바뀌었는데 flag 는 그대로 1)가 한눈에 보인다.{/tip}
+
+== Part F. Short answer / 서술 ==
+
+=== F1 ===
+{quiz}'''So Much Spinning.''' (a) Explain why a test-and-set spin lock can waste an entire time slice on a single CPU. (b) A single CPU runs 5 threads in round-robin with a 10 ms time slice; T1 holds the lock and is preempted inside the critical section, and T2–T5 each try to acquire it once before T1 runs again. Estimate the CPU time wasted before T1 runs again with a spin lock and with a yield lock (assume one context switch ≈ 0.05 ms and ignore other costs). (c) Why does the yield lock still not solve the problem completely?{/quiz}
+{answer}'''정답: (b) spin ≈ 40 ms, yield ≈ 0.2 ms (context switch 4회)'''
+'''Model answer (English skeleton)'''
+(a) A waiting thread repeatedly checks the flag. On a single CPU the holder cannot run (and release the lock) while the waiter is running, so the waiter spins until its time slice expires — it “wastes an entire time slice doing nothing but checking a value”.
+(b) Spin: 4 waiters × 10 ms = 40 ms. Yield: each waiter runs TAS once and yields → 4 context switches ≈ 4 × 0.05 = 0.2 ms.
+(c) The cost of context switches remains (N−1 run-and-yields per round, severe if the holder keeps the lock long or sleeps on I/O), and there is no ordering, so starvation is still possible.
+'''한국어 풀이'''
+<pre class="txt">
+(a) 단일 CPU 에서는 대기자가 CPU 를 쥐고 있는 동안 holder 가 실행될 수 없다.
+    → 아무리 돌아도 flag 가 0 이 될 수 없는데, time slice 가 끝날 때까지 값만 확인.
+    p.30 “Any time a thread gets caught spinning, it wastes an entire time slice
+    doing nothing but checking a value” → “We’ll need OS support too!”
+(b) spin: T2~T5 가 각각 10 ms 씩 통째로 spin → 40 ms 낭비.
+    yield: T2~T5 가 TAS 한 번 실패 → yield → 다음 스레드… N−1 = 4 번의 run-and-yield
+    (context switch 4회) → 약 0.2 ms. 200배 차이.
+(c) p.32: ① context switch 비용 자체는 남고, holder 가 I/O 등으로 오래 잠들면
+    대기자들이 run-and-yield 를 끝없이 반복한다(매 라운드 N−1 번).
+    ② 누가 다음에 락을 잡을지 순서가 없다 → starvation 여전.
+    → 해결: 대기자를 '''큐에 넣고 재운다'''(park) — Ready 가 아니라 Blocked 라
+      스케줄 후보에서 빠지고, unlock 이 정확히 한 명을 깨운다 (p.33).
+</pre>
+채점 포인트: (a) “단일 CPU → holder 가 못 돌아 → time slice 전체 낭비”. (b) 숫자 둘 다(가정 명시). (c) context switch 비용 + starvation 두 개.
+(L9 p.30~33) → [[yield 락]], [[spin lock]]{/answer}
+
+=== F2 ===
+{quiz}'''Why not just swap?''' In the queue-based lock of p.34, the else-branch is queue_add(); m->guard = 0; park();. (a) Explain the wakeup/waiting race this creates. (b) A student proposes moving m->guard = 0 after park(). Explain why this fails. (c) Explain how setpark() solves the race and why it must be placed before m->guard = 0.{/quiz}
+{answer}'''Model answer (English skeleton)'''
+(a) If the waiter is preempted after m->guard = 0 but before park(), the holder can run unlock() and call unpark(waiter). The waiter is not asleep yet, so the wakeup is lost; when it later calls park() it sleeps forever (potentially).
+(b) park() does not return until someone unparks the thread, so m->guard = 0 is never executed while it sleeps. The waiter sleeps holding guard; the holder spins on guard in unlock() forever and can never unpark it → no progress.
+(c) setpark() indicates that the thread is about to park. If unpark() arrives before park(), it is recorded and the subsequent park() returns immediately. It must come before m->guard = 0, because unpark can only be called after guard is released; if setpark came later, an unpark arriving in between would still be lost.
+'''한국어 풀이'''
+<pre class="txt">
+핵심: “큐에 등록 + 잠들기” 가 하나의 atomic 동작이 아니다. 둘 사이에 guard 를 놓아야
+하는데, guard 를 놓는 순간 unlock() 이 들어와 unpark 를 할 수 있다.
+(b) 12강 Summary 에서 교수님이 짚은 것: “guard 쥔 채 잠들면 남이 spin”.
+    교수님(9/28): “park 하면 다음 줄을 실행할 수 없으니 순서는 바꿀 수 없다.
+    다른 쪽에서 고친다 — 문제는 unpark 를 기록할 메커니즘이 없다는 것.”
+(c) unpark 가 올 수 있는 가장 이른 시점 = guard 가 0 이 된 직후.
+    그러니 기록 장치(setpark)는 그보다 먼저 켜져 있어야 한다.
+    (Python 전수 탐색: setpark 를 guard = 0 뒤에 두면 sleep forever 경로가 다시 생김.)
+</pre>
+채점 포인트: (a) “park 직전 선점 → unpark 먼저 → 신호 소실 → 영원히 잠듦” 4단계. (b) “guard 를 쥔 채 잠듦 → unlock 이 guard 에서 무한 spin”. (c) “unpark 기록 → park 즉시 리턴” + “guard = 0 앞이어야 하는 이유”.
+(L9 p.35~38, L12 p.40~42) → [[setpark]], [[guard]]{/answer}
+
+=== F3 ===
+{quiz}'''Two fixes for one race.''' Solaris uses setpark(); Linux uses futex_wait(address, value). Compare how each prevents a thread from sleeping forever, and state one advantage the slides give for letting the kernel manage the waiting queue (futex).{/quiz}
+{answer}'''Model answer (English skeleton)'''
+* setpark(): the thread announces “I am about to park”. An unpark that arrives before park() is remembered, and park() returns immediately. Fix by '''recording''' the early wakeup.
+* futex_wait(addr, v): the kernel '''re-checks''' *addr == v right before putting the thread to sleep; if the lock state has changed (e.g. the lock was released), it returns immediately. Fix by '''checking''' the condition atomically in the kernel.
+* Kernel-managed queue: fair wakeup (priority inheritance) and robust mutexes (owner-death detection).
+'''한국어 풀이'''
+<pre class="txt">
+setpark = “예약” 방식 — 깨우기 신호를 기억한다. park/unpark 는 purely scheduling
+         primitive 라 값은 보지 않고, 커널은 setpark 여부 1비트 정도만 유지 (p.41).
+futex   = “재검사” 방식 — 잠들기 직전 값을 다시 본다. 대기 큐도 커널이 관리
+         (checked + queued, p.39). 교수님(9/28): futex 는 큐(fairness)와
+         검사(setpark 역할)를 API 하나로 통합한 것.
+장점: 커널이 누가 무엇을 기다리는지 알기 때문에
+      ① fair wakeup — priority inheritance 가능
+      ② robust mutex — 락 소유자가 죽으면 감지해 대기자를 처리.
+         spin lock 은 소유자가 죽으면 아무도 락을 못 잡아 멈춘다.
+</pre>
+채점 포인트: “기록 vs 재검사” 대비가 핵심. 장점은 슬라이드 용어 하나 이상.
+(L9 p.37~41) → [[futex]], [[setpark]], [[park와 unpark]]{/answer}
+
+=== F4 ===
+{quiz}'''Lock evaluation summary.''' Fill in Correctness / Fairness / Performance (Yes/No) for: (1) test-and-set spin lock, (2) ticket lock, (3) test-and-set + yield lock, (4) queue + test-and-set guard + park/unpark (with setpark). Justify each “No” in one phrase, and explain why the final slide (p.42) can say “Performance: Yes” even though the queue lock still spins on guard.{/quiz}
+{answer}'''정답 표'''
+{|
+! 락 || Correctness || Fairness || Performance || 근거
+|-
+| (1) TAS spin lock || Yes || No || No || 순서 보장 없음 → starvation, 대기자가 time slice 를 spin 으로 낭비 (p.24)
+|-
+| (2) ticket lock || Yes || Yes || No || FetchAndAdd 로 FIFO, 그러나 대기는 여전히 spin (p.29)
+|-
+| (3) TAS + yield || Yes || No || 부분 개선 || spin 대신 양보하지만 N−1 context switch 비용, starvation 여전 (p.32)
+|-
+| (4) queue + guard + park (setpark) || Yes || Yes || Yes || 큐 FIFO + hand-off, 대기자는 잠듦, guard spin 은 몇 명령어 (p.35, p.42)
+|}
+'''Model answer (English skeleton)''': p.42 says the spinning problem “can be '''mitigated''' with yield and sleeping”. The remaining spin is only on m->guard, which is held for just a few instructions (p.35), so the waste is negligible compared with spinning for a whole critical section or time slice.
+'''한국어 풀이'''
+<pre class="txt">
+9강 전체 흐름 = 평가표의 No 를 하나씩 Yes 로 바꾸는 과정 (p.14 의 3기준).
+  (1) → (2): Fairness No→Yes (fetch-and-add 번호표).
+  (2) → (3)·(4): Performance No→Yes (OS 지원: yield, sleeping).
+p.42 슬라이드 문구는 Fairness 근거로 “Fetch-and-Add” 를 그대로 적어 두었다.
+queue 락 자체의 공정성 근거는 큐의 FIFO + hand-off(새치기 불가, E1).
+“Performance: Yes” 는 spin 을 '''없앴다'''가 아니라 '''완화했다'''(mitigated).
+</pre>
+채점 포인트: (1)(2) 는 슬라이드 표 그대로(p.24, p.29). (3) 은 슬라이드에 표가 없으므로 근거(p.32 두 문제)를 써야 점수. 마지막 질문은 “guard 구간이 매우 짧다 + mitigated” 두 가지.
+(L9 p.24, p.29, p.32, p.35, p.42) → [[락 평가 기준]]{/answer}
+
+{tip}서술형은 '''영어 키워드 문장 2~3개 + 근거 슬라이드 표현'''으로 쓰면 부분 점수를 지키기 쉽다. 이 파트의 키워드: wastes an entire time slice / run-and-yield / lost wakeup / sleeps holding guard / indicate it is about to park / only if *address = value / mitigated.{/tip}
+
+== 관련 문서 ==
+* [[yield 락]] · [[queue 락]] · [[guard]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]
+* [[락 평가 기준]] · [[spin lock]] · [[ticket lock]] · [[test-and-set]]
+* [[중간고사 모의 v3]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]
+* 다음 실전 문제: [[실전 문제 ② condition variable]] · [[실전 문제 ③ 세마포어]] · [[실전 문제 ④ 데드락]]
