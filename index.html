@@ -1743,7 +1743,7 @@ const ARTICLES = {
    "OSTEP 31장",
    "기출"
   ],
-  "body": "{info}📌 '''11강 슬라이드 p.29~33''' 기준(10강 p.51~55와 같은 내용). 2026-09-30 수업 녹음 반영. '''2025F 중간고사 Problem 5'''(계산, 12pts)에 실제로 나왔으므로 슬라이드 코드와 규칙을 먼저 익혀 둘 것.{/info}\n\n'''Reader-writer lock'''은 읽기는 여럿이 동시에, 쓰기는 혼자만 하게 하는 락이다. 리스트 lookup(읽기)은 동시에 해도 안전하고, insert(쓰기)만 배타적이면 되기 때문이다. [[세마포어]] 두 개와 카운터 하나로 만든다.\n\n{def}p.30 원문: \"Imagine a number of concurrent list operations, including inserts and simple lookups.\"\n* '''Insert (writer)''': \"Change the state of the list — A traditional critical section makes sense\"\n* '''Lookup (reader)''': \"Simply read the data structure — As long as we can guarantee that '''no insert is on-going''', we can allow '''many lookups to proceed concurrently'''\"\n\"This special type of lock is known as a '''reader-writer lock'''\"\np.31: \"'''Only a single writer''' can acquire the lock\" · \"Once a reader has acquired a read lock, '''more readers will be allowed''' to acquire the read lock too\" · \"A writer will have to '''wait until all readers are finished'''\"{/def}\n\n{analogy}🎭 '''도서관 열람실'''. 열람(읽기)은 여러 명이 동시에 해도 되지만, 책장 재배치(쓰기)는 열람실이 '''완전히 빌 때''' 사서 혼자 한다. '''첫 열람자'''가 문에 \"열람 중\" 팻말을 걸고(writelock 획득), '''마지막 열람자'''가 뗀다(writelock 반납). 열람자가 끊임없이 오면 사서는 영원히 못 들어간다(starvation).{/analogy}\n\n== 코드 (p.31~32) ⭐⭐⭐ ==\n\n[[img:L11-32.png|p.32 rwlock_acquire_readlock / release_readlock / acquire_writelock / release_writelock — 첫 reader가 writelock을 잡고 마지막 reader가 놓는다|large]]\n\n<pre class=\"c\">\n 1   typedef struct _rwlock_t {\n 2     sem_t lock;      // binary semaphore (basic lock)\n 3     sem_t writelock; // used to allow ONE writer or MANY readers\n 4     int   readers;   // count of readers reading in critical section\n 5   } rwlock_t;\n 6\n 7   void rwlock_init(rwlock_t *rw) {\n 8     rw->readers = 0;\n 9     sem_init(&rw->lock, 0, 1);\n10     sem_init(&rw->writelock, 0, 1);\n11   }\n12\n13   ...\n14   void rwlock_acquire_readlock(rwlock_t *rw) {\n15     sem_wait(&rw->lock);\n16     rw->readers++;\n17     if (rw->readers == 1)\n18       sem_wait(&rw->writelock); // first reader acquires writelock\n19     sem_post(&rw->lock);\n20   }\n21\n22   void rwlock_release_readlock(rwlock_t *rw) {\n23     sem_wait(&rw->lock);\n24     rw->readers--;\n25     if (rw->readers == 0)\n26       sem_post(&rw->writelock); // last reader releases writelock\n27     sem_post(&rw->lock);\n28   }\n29\n30   void rwlock_acquire_writelock(rwlock_t *rw) {\n31     sem_wait(&rw->writelock);\n32   }\n33\n34   void rwlock_release_writelock(rwlock_t *rw) {\n35     sem_post(&rw->writelock);\n36   }\n<\/pre>\n\n{|\n! 필드 / 줄 || 역할\n|-\n| `lock` (초기 1) || '''`readers` 카운터만 보호'''하는 짧은 binary semaphore\n|-\n| `writelock` (초기 1) || \"ONE writer or MANY readers\" — writer는 이것을 직접 잡고, reader 무리는 '''대표 한 명'''이 잡는다\n|-\n| `readers` || critical section 안에서 읽는 중인 reader 수\n|-\n| '''17~18번 줄''' || '''첫 reader'''(`readers == 1`)가 writelock을 대표로 잡는다 → writer 차단. 두 번째 이후 reader는 카운터만 올리고 통과\n|-\n| '''25~26번 줄''' || '''마지막 reader'''(`readers == 0`)가 writelock을 놓는다 → 대기 writer 진입\n|-\n| 30~36번 줄 || writer는 writelock 하나만 잡고 놓는다\n|}\n\n<pre class=\"ascii\">\n R1 acquire_readlock: lock → readers=1 → (첫 reader) wait(writelock) 획득 → post(lock)\n R2 acquire_readlock: lock → readers=2 → (첫 아님) 통과 → post(lock)          ← R1, R2 동시에 읽음\n W  acquire_writelock: wait(writelock) → 이미 R1 이 들고 있음 → '''잠듦'''\n R1 release_readlock: lock → readers=1 → post(lock)\n R2 release_readlock: lock → readers=0 → (마지막) post(writelock) → W 깨어남 → post(lock)\n W  쓰기 … release_writelock: post(writelock)\n<\/pre>\n\n{warn}⚠️ '''읽는 중에 writelock을 잡고 있는 것은 reader가 아니라 \"reader 무리\"'''다. 첫 reader가 잡고 마지막 reader가 놓으므로, 중간에 들어온 reader가 먼저 나가도 writelock은 풀리지 않는다. 그리고 `readers++`/`--`와 `if` 검사 사이에 다른 reader가 끼어들면 안 되므로 그 부분만 `lock`으로 감싼다.{/warn}\n\n== Fairness 문제 (p.33) ⭐ ==\n\n{def}p.33 원문: \"The reader-writer locks have '''fairness problem'''. It would be relatively easy for '''reader to starve writer'''. More sophisticated solutions to this problem exist — A basic idea is to '''prevent more readers from entering the lock once a writer is waiting''' (not covered in this class)\"{/def}\n\nreader가 계속 들어오면 `readers`가 0으로 안 떨어져 '''writer가 starvation'''된다. OSTEP은 덧붙인다 — RW 락은 오버헤드가 커서 단순한 락보다 빠르지 않을 때가 많다: '''Hill's Law: \"Big and dumb is better.\"'''\n\n== 🎙 실제 수업 기록 (9/30 수, 녹음본 기준) ==\n\n* '''왜 필요한가''' (p.30): \"reader는 상태를 바꾸지 않으니 여럿이 동시에 읽어도 되고, writer의 변경은 즉시 반영돼야 하니 혼자여야 한다. 그냥 락 하나를 쓰면 '''reader의 동시 lookup이 불가능'''해 성능이 떨어진다.\"\n* '''왜 세마포어인가''' ⭐ (p.31~32, 슬라이드에 없는 설명): \"reader 수를 세려고 세마포어를 쓰는 게 '''아니다''' — lookup은 자원을 소비하지 않는다. 쓰는 세마포어 둘은 사실 '''둘 다 binary semaphore(=락)'''이고, reader 수는 `readers` 카운터가 센다. 그런데 왜 mutex 대신 세마포어인가? '''mutex에는 owner가 있어서 잡은 스레드만 놓을 수 있다.''' 세마포어는 '''다른 스레드가 값을 올려도 된다''' — 그래서 '''첫 reader가 잡은 writelock을 마지막 reader가 놓는''' '공유 소유'가 가능하다. acquire와 release 사이에 writelock의 holder가 같다는 보장이 없고, 소유권이 reader들 사이에서 이전된다.\"\n* '''코드 읽기''' (p.32): read lock을 잡을 때 '''writelock도 잡아야''' writer가 못 쓴다. 그런데 reader가 여럿이면 두 번째 reader는 writelock을 또 잡을 수 없으니 '''첫 reader만''' 잡는다(`readers == 1`). release는 '''마지막 reader'''(`readers == 0`)가 writelock을 놓는다. `lock`은 `readers` 카운터만 보호. writer는 writelock만 잡고 놓는다. \"복잡해 보이지만 '''우아한''' 구현.\"\n* '''fairness''' (p.33): \"writer가 락을 잡고 있을 때는 reader에게 공평한 기회가 있지만, reader가 잡고 있으면 '''여러 reader가 writelock을 함께 쥐므로''' writer의 기회가 훨씬 적다. 해결의 기본 아이디어는 '''writer가 기다리는 동안 새 reader를 막는 것''' — 세마포어 하나와 카운터가 더 필요하다. 이 수업에서는 안 다룬다.\"\n\n{exam}🎯 서술 후보: \"reader-writer lock에서 writelock을 mutex가 아닌 세마포어로 만드는 이유\" → '''mutex는 owner만 release할 수 있지만, 첫 reader가 잡은 writelock을 마지막 reader가 놓아야 하므로 owner 개념이 없는 세마포어가 필요하다.'''{/exam}\n\n== 2025F Problem 5 스타일 — 완료 시각 계산 ==\n\n입력은 `R(도착, 길이)` / `W(도착, 길이)`. 동시 reader 수 제한이 문제에 주어진다(5.1은 최대 3명). 규칙은 '''이 슬라이드 구현 기준''': writer는 모든 reader가 끝날 때까지 기다리고, '''writer가 대기 중이어도 reader는 계속 들어올 수 있다'''(p.33의 \"not covered\" 개선안은 적용하지 않음).\n\n<pre class=\"ascii\">\n 5.1: R(0,3) R(1,5) W(4,3) R(2,1) R(5,3)   (동시 reader 최대 3)\n t: 0    1    2    3    4    5    6    7    8    9   10   11\n R(0,3) ███████████████                                        끝 3\n R(1,5)      ██████████████████████████                        끝 6\n R(2,1)           █████                                        끝 3\n W(4,3)                    (대기: reader 가 남아 있음 ..........)\n R(5,3)                         ███████████████                끝 8\n W(4,3)                                         ███████████████ 8 → '''11'''\n → writer 는 reader 가 0 명이 되는 8 에 시작, 11 에 완료 (Best = Worst = 11)\n<\/pre>\n\n{exam}🎯 '''2025F Problem 5''': 5.1(4pts) Best/Worst = '''11 / 11''', 5.2(8pts) = '''20 / 21'''. 5.2의 best/worst는 reader 자리가 날 때 '''어느 reader를 고르느냐(tie-breaking)'''로 갈렸다. 핵심 규칙은 \"'''writer는 모든 reader가 끝날 때까지 기다린다''' + reader는 writer가 대기 중이어도 계속 들어올 수 있다(이 구현 기준)\". 자세한 풀이는 [[2025F 중간고사 족보]]. 코드 빈칸으로 나오면 '''17번 줄 `== 1`, 25번 줄 `== 0`, 그리고 어느 세마포어를 wait/post 하는가'''가 빈칸이 된다.{/exam}\n\n{quiz}reader R1이 읽는 중에 writer W가 도착하고, 이어서 reader R2가 도착했다. 위 코드에서 누가 먼저 진입하는가?{/quiz}\n{answer}'''R2'''. `readers`가 이미 1 이상이라 R2는 writelock을 다시 잡을 필요 없이(17번 줄 조건 거짓) 바로 진입한다. W는 `readers`가 0이 되어 마지막 reader가 writelock을 post할 때까지 기다린다 → writer starvation 가능성 (p.33).{/answer}\n\n{quiz}(빈칸) `if (rw->readers == __) sem_wait(&rw->____);` / `if (rw->readers == __) sem_post(&rw->____);`{/quiz}\n{answer}acquire: `readers == '''1'''` → `sem_wait(&rw->'''writelock''')` (첫 reader가 writer를 막는다). release: `readers == '''0'''` → `sem_post(&rw->'''writelock''')` (마지막 reader가 풀어 준다).{/answer}\n\n== 관련 문서 ==\n* [[세마포어]] · [[락]] · [[데드락]] · [[dining philosophers]] · [[fairness]] · [[2025F 중간고사 족보]]"
+  "body": "{info}📌 '''11강 슬라이드 p.29~33''' 기준(10강 p.51~55와 같은 내용). 2026-09-30 수업 녹음 반영. '''2025F 중간고사 Problem 5'''(계산, 12pts)에 실제로 나왔으므로 슬라이드 코드와 규칙을 먼저 익혀 둘 것.{/info}\n\n'''Reader-writer lock'''은 읽기는 여럿이 동시에, 쓰기는 혼자만 하게 하는 락이다. 리스트 lookup(읽기)은 동시에 해도 안전하고, insert(쓰기)만 배타적이면 되기 때문이다. [[세마포어]] 두 개와 카운터 하나로 만든다.\n\n{def}p.30 원문: \"Imagine a number of concurrent list operations, including inserts and simple lookups.\"\n* '''Insert (writer)''': \"Change the state of the list — A traditional critical section makes sense\"\n* '''Lookup (reader)''': \"Simply read the data structure — As long as we can guarantee that '''no insert is on-going''', we can allow '''many lookups to proceed concurrently'''\"\n\"This special type of lock is known as a '''reader-writer lock'''\"\np.31: \"'''Only a single writer''' can acquire the lock\" · \"Once a reader has acquired a read lock, '''more readers will be allowed''' to acquire the read lock too\" · \"A writer will have to '''wait until all readers are finished'''\"{/def}\n\n{analogy}🎭 '''도서관 열람실'''. 열람(읽기)은 여러 명이 동시에 해도 되지만, 책장 재배치(쓰기)는 열람실이 '''완전히 빌 때''' 사서 혼자 한다. '''첫 열람자'''가 문에 \"열람 중\" 팻말을 걸고(writelock 획득), '''마지막 열람자'''가 뗀다(writelock 반납). 열람자가 끊임없이 오면 사서는 영원히 못 들어간다(starvation).{/analogy}\n\n== 코드 (p.31~32) ⭐⭐⭐ ==\n\n[[img:L11-32.png|p.32 rwlock_acquire_readlock / release_readlock / acquire_writelock / release_writelock — 첫 reader가 writelock을 잡고 마지막 reader가 놓는다|large]]\n\n<pre class=\"c\">\n 1   typedef struct _rwlock_t {\n 2     sem_t lock;      // binary semaphore (basic lock)\n 3     sem_t writelock; // used to allow ONE writer or MANY readers\n 4     int   readers;   // count of readers reading in critical section\n 5   } rwlock_t;\n 6\n 7   void rwlock_init(rwlock_t *rw) {\n 8     rw->readers = 0;\n 9     sem_init(&rw->lock, 0, 1);\n10     sem_init(&rw->writelock, 0, 1);\n11   }\n12\n13   ...\n14   void rwlock_acquire_readlock(rwlock_t *rw) {\n15     sem_wait(&rw->lock);\n16     rw->readers++;\n17     if (rw->readers == 1)\n18       sem_wait(&rw->writelock); // first reader acquires writelock\n19     sem_post(&rw->lock);\n20   }\n21\n22   void rwlock_release_readlock(rwlock_t *rw) {\n23     sem_wait(&rw->lock);\n24     rw->readers--;\n25     if (rw->readers == 0)\n26       sem_post(&rw->writelock); // last reader releases writelock\n27     sem_post(&rw->lock);\n28   }\n29\n30   void rwlock_acquire_writelock(rwlock_t *rw) {\n31     sem_wait(&rw->writelock);\n32   }\n33\n34   void rwlock_release_writelock(rwlock_t *rw) {\n35     sem_post(&rw->writelock);\n36   }\n<\/pre>\n\n{|\n! 필드 / 줄 || 역할\n|-\n| `lock` (초기 1) || '''`readers` 카운터만 보호'''하는 짧은 binary semaphore\n|-\n| `writelock` (초기 1) || \"ONE writer or MANY readers\" — writer는 이것을 직접 잡고, reader 무리는 '''대표 한 명'''이 잡는다\n|-\n| `readers` || critical section 안에서 읽는 중인 reader 수\n|-\n| '''17~18번 줄''' || '''첫 reader'''(`readers == 1`)가 writelock을 대표로 잡는다 → writer 차단. 두 번째 이후 reader는 카운터만 올리고 통과\n|-\n| '''25~26번 줄''' || '''마지막 reader'''(`readers == 0`)가 writelock을 놓는다 → 대기 writer 진입\n|-\n| 30~36번 줄 || writer는 writelock 하나만 잡고 놓는다\n|}\n\n<pre class=\"ascii\">\n R1 acquire_readlock: lock → readers=1 → (첫 reader) wait(writelock) 획득 → post(lock)\n R2 acquire_readlock: lock → readers=2 → (첫 아님) 통과 → post(lock)          ← R1, R2 동시에 읽음\n W  acquire_writelock: wait(writelock) → 이미 R1 이 들고 있음 → '''잠듦'''\n R1 release_readlock: lock → readers=1 → post(lock)\n R2 release_readlock: lock → readers=0 → (마지막) post(writelock) → W 깨어남 → post(lock)\n W  쓰기 … release_writelock: post(writelock)\n<\/pre>\n\n{warn}⚠️ '''읽는 중에 writelock을 잡고 있는 것은 reader가 아니라 \"reader 무리\"'''다. 첫 reader가 잡고 마지막 reader가 놓으므로, 중간에 들어온 reader가 먼저 나가도 writelock은 풀리지 않는다. 그리고 `readers++`/`--`와 `if` 검사 사이에 다른 reader가 끼어들면 안 되므로 그 부분만 `lock`으로 감싼다.{/warn}\n\n== 줄 단위 디버깅 — 세마포어 값을 따라가며 (2026-10-14 추가) ⭐⭐⭐ ==\n\n'''읽는 법''': 세마포어 값은 강의 모델 그대로다. `sem_wait` 는 값을 1 빼고 '''음수가 되면 그 자리에서 잠든다''', `sem_post` 는 1 더하고 '''잠든 스레드가 있으면 하나 깨운다'''. 음수일 때 그 절댓값 = 잠든 스레드 수. 줄 번호는 아래 시뮬레이터의 reader/writer 코드 기준이다(reader 3~7번 = acquire, 8번 = 읽기, 10~14번 = release / writer 3번 = acquire, 4번 = 쓰기, 6번 = release).\n\n<pre class=\"c\">\n 1 void reader(rwlock_t *rw) {                 1 void writer(rwlock_t *rw) {\n 2   // acquire_readlock                       2   // acquire_writelock\n 3     sem_wait(&rw->lock);                    3     sem_wait(&rw->writelock);\n 4     rw->readers++;                          4   /* ---- 쓰기 ---- */\n 5     if (rw->readers == 1)                   5   // release_writelock\n 6       sem_wait(&rw->writelock);             6     sem_post(&rw->writelock);\n 7     sem_post(&rw->lock);                    7 }\n 8   /* ---- 읽기 ---- */\n 9   // release_readlock\n10     sem_wait(&rw->lock);\n11     rw->readers--;\n12     if (rw->readers == 0)\n13       sem_post(&rw->writelock);\n14     sem_post(&rw->lock);\n15 }\n<\/pre>\n\n=== 시나리오 1. 기본 — R1·R2 동시에 읽고, W 는 기다린다 ===\n\n{|\n! # || 누가·줄 || 하는 일 || lock || writelock || readers || 잠든 스레드\n|-\n| 0 || — || 초기값 || 1 || 1 || 0 ||\n|-\n| 1 || R1·3 || lock 잡음 || 0 || 1 || 0 ||\n|-\n| 2 || R1·4~5 || readers=1 → '''첫 reader''' || 0 || 1 || 1 ||\n|-\n| 3 || R1·6 || writelock 잡음 (무리 대표) || 0 || '''0''' || 1 ||\n|-\n| 4 || R1·7 || lock 놓음 → '''읽기 시작''' || 1 || 0 || 1 ||\n|-\n| 5 || R2·3~4 || lock 잡고 readers=2 || 0 || 0 || 2 ||\n|-\n| 6 || R2·5 || `2 == 1` 거짓 → '''6번 줄 건너뜀''' || 0 || 0 || 2 ||\n|-\n| 7 || R2·7 || lock 놓음 → '''R1·R2 동시에 읽는 중''' || 1 || 0 || 2 ||\n|-\n| 8 || W·3 || writelock 0 → −1 → '''W 잠듦''' || 1 || '''−1''' || 2 || W (writelock)\n|-\n| 9 || R1·10~12 || readers=1, `1 == 0` 거짓 → writelock '''안 놓음''' || 1 || −1 || 1 || W\n|-\n| 10 || R1·14 || lock 놓고 끝 || 1 || −1 || 1 || W\n|-\n| 11 || R2·10~12 || readers=0 → '''마지막 reader''' || 0 || −1 || 0 || W\n|-\n| 12 || R2·13 || writelock −1 → 0, '''W 깨움''' || 0 || 0 || 0 ||\n|-\n| 13 || R2·14 || lock 놓고 끝 || 1 || 0 || 0 ||\n|-\n| 14 || W·4~6 || 쓰고 writelock 놓음 || 1 || 1 || 0 ||\n|}\n\n'''핵심 두 줄''': ① R2 는 6번 줄을 '''건너뛴다''' — writelock 은 무리당 한 번만 잡는다. ② writelock 을 '''잡은 건 R1''' 인데 '''놓은 건 R2''' 다(#3 과 #12). 잡은 스레드와 놓는 스레드가 다르니 owner 가 있는 mutex 로는 못 짜고 세마포어를 쓴다 (🎙 9/30).\n\n=== 시나리오 2. writer 가 먼저 — 둘째 reader 는 어디서 기다리나? ===\n\n{|\n! # || 누가·줄 || 하는 일 || lock || writelock || readers || 잠든 스레드\n|-\n| 0 || — || 초기값 || 1 || 1 || 0 ||\n|-\n| 1 || W·3 || writelock 잡음 → 쓰기 시작 || 1 || 0 || 0 ||\n|-\n| 2 || R1·3~5 || lock 잡고 readers=1 → 첫 reader || 0 || 0 || 1 ||\n|-\n| 3 || R1·6 || writelock 0 → −1 → '''R1 잠듦 — lock 을 쥔 채로!''' || '''0''' || −1 || 1 || R1 (writelock)\n|-\n| 4 || R2·3 || lock 0 → −1 → '''R2 잠듦''' || '''−1''' || −1 || 1 || R1 (writelock), R2 ('''lock''')\n|-\n| 5 || W·4~6 || 다 쓰고 writelock −1 → 0, '''R1 깨움''' || −1 || 0 || 1 || R2 (lock)\n|-\n| 6 || R1·7 || 드디어 lock −1 → 0, '''R2 깨움''' → R1 읽기 시작 || 0 || 0 || 1 ||\n|-\n| 7 || R2·4~7 || readers=2, 6번 줄 건너뛰고 lock 놓음 → 둘 다 읽는 중 || 1 || 0 || 2 ||\n|-\n| 8 || R2·10~14 || readers=1, 마지막 아님 → 끝 || 1 || 0 || 1 ||\n|-\n| 9 || R1·10~14 || readers=0, 마지막 → writelock 0 → 1 → 끝 || 1 || 1 || 0 ||\n|}\n\n{warn}⚠️ '''흔한 오해: \"둘째 reader 도 writelock 에서 기다린다\"''' — 아니다. 첫 reader 가 6번 줄에서 잠들 때 아직 7번 줄 `sem_post(&rw->lock)` 을 '''못 했기''' 때문에 `lock` 이 잠긴 채로 남는다. 그래서 둘째 이후 reader 는 '''3번 줄 `lock` 에서''' 줄을 선다. 데드락은 아니다 — writer 가 writelock 을 놓으면 R1 → R2 순으로 줄줄이 풀린다. \"누가 어느 세마포어에서 자는가\" 를 묻는 문제의 단골 함정.{/warn}\n\n=== 시나리오 3. writer starvation (p.33) ===\n\n<pre class=\"ascii\">\n 시간 →\n R1  [acq]==== 읽기 ====[rel]                                readers: 1 → 2 → 1 → 2 → 1 → 0\n R2           [acq]======== 읽기 ========[rel]\n R3                            [acq]======== 읽기 ========[rel]\n W        [wait(writelock): −1 ── 잠듦 ──────────────────────────]▶ 쓰기\n                    ↑ W 가 기다리는 중에도 R2, R3 는 6번 줄을 건너뛰고 바로 들어온다\n<\/pre>\n\n`readers` 가 1 → 2 → 1 → 2 → 1 로 '''한 번도 0 이 안 되는''' 동안 W 는 계속 잔다. 코드 어디에도 \"기다리는 writer 가 있나?\" 를 보는 줄이 없기 때문이다. reader 가 겹쳐서 계속 오면 W 는 영원히 못 들어간다.\n\n=== 시뮬레이터 ===\n\n드롭다운으로 세 시나리오를 고른다. 변수표에 `lock`·`writelock` 값과 '''각 세마포어에서 잠든 스레드''', 그림에 '''방 안(읽거나 쓰는 중)''' 과 문 팻말(writelock 을 쥔 쪽)이 나온다. 시나리오 2 의 3~4단계에서 빨간 칸이 '''writelock 줄에 R1, lock 줄에 R2''' 로 갈리는 것을 확인하라.\n\n[[sim:rwlock_trace]]\n\n{tip}💡 '''시험에서 손으로 따라갈 때''': 표에 `lock / writelock / readers / 잠든 스레드` 네 칸만 그린다. reader 는 '''3→4→5→(6)→7''' 이 들어가기, '''10→11→12→(13)→14''' 가 나오기. 괄호 줄은 `readers` 가 1(들어갈 때) / 0(나올 때) 일 때만 실행. writer 는 '''3''' 과 '''6''' 두 줄뿐.{/tip}\n\n== Fairness 문제 (p.33) ⭐ ==\n\n{def}p.33 원문: \"The reader-writer locks have '''fairness problem'''. It would be relatively easy for '''reader to starve writer'''. More sophisticated solutions to this problem exist — A basic idea is to '''prevent more readers from entering the lock once a writer is waiting''' (not covered in this class)\"{/def}\n\nreader가 계속 들어오면 `readers`가 0으로 안 떨어져 '''writer가 starvation'''된다. OSTEP은 덧붙인다 — RW 락은 오버헤드가 커서 단순한 락보다 빠르지 않을 때가 많다: '''Hill's Law: \"Big and dumb is better.\"'''\n\n== 🎙 실제 수업 기록 (9/30 수, 녹음본 기준) ==\n\n* '''왜 필요한가''' (p.30): \"reader는 상태를 바꾸지 않으니 여럿이 동시에 읽어도 되고, writer의 변경은 즉시 반영돼야 하니 혼자여야 한다. 그냥 락 하나를 쓰면 '''reader의 동시 lookup이 불가능'''해 성능이 떨어진다.\"\n* '''왜 세마포어인가''' ⭐ (p.31~32, 슬라이드에 없는 설명): \"reader 수를 세려고 세마포어를 쓰는 게 '''아니다''' — lookup은 자원을 소비하지 않는다. 쓰는 세마포어 둘은 사실 '''둘 다 binary semaphore(=락)'''이고, reader 수는 `readers` 카운터가 센다. 그런데 왜 mutex 대신 세마포어인가? '''mutex에는 owner가 있어서 잡은 스레드만 놓을 수 있다.''' 세마포어는 '''다른 스레드가 값을 올려도 된다''' — 그래서 '''첫 reader가 잡은 writelock을 마지막 reader가 놓는''' '공유 소유'가 가능하다. acquire와 release 사이에 writelock의 holder가 같다는 보장이 없고, 소유권이 reader들 사이에서 이전된다.\"\n* '''코드 읽기''' (p.32): read lock을 잡을 때 '''writelock도 잡아야''' writer가 못 쓴다. 그런데 reader가 여럿이면 두 번째 reader는 writelock을 또 잡을 수 없으니 '''첫 reader만''' 잡는다(`readers == 1`). release는 '''마지막 reader'''(`readers == 0`)가 writelock을 놓는다. `lock`은 `readers` 카운터만 보호. writer는 writelock만 잡고 놓는다. \"복잡해 보이지만 '''우아한''' 구현.\"\n* '''fairness''' (p.33): \"writer가 락을 잡고 있을 때는 reader에게 공평한 기회가 있지만, reader가 잡고 있으면 '''여러 reader가 writelock을 함께 쥐므로''' writer의 기회가 훨씬 적다. 해결의 기본 아이디어는 '''writer가 기다리는 동안 새 reader를 막는 것''' — 세마포어 하나와 카운터가 더 필요하다. 이 수업에서는 안 다룬다.\"\n\n{exam}🎯 서술 후보: \"reader-writer lock에서 writelock을 mutex가 아닌 세마포어로 만드는 이유\" → '''mutex는 owner만 release할 수 있지만, 첫 reader가 잡은 writelock을 마지막 reader가 놓아야 하므로 owner 개념이 없는 세마포어가 필요하다.'''{/exam}\n\n== 2025F Problem 5 스타일 — 완료 시각 계산 ==\n\n입력은 `R(도착, 길이)` / `W(도착, 길이)`. 동시 reader 수 제한이 문제에 주어진다(5.1은 최대 3명). 규칙은 '''이 슬라이드 구현 기준''': writer는 모든 reader가 끝날 때까지 기다리고, '''writer가 대기 중이어도 reader는 계속 들어올 수 있다'''(p.33의 \"not covered\" 개선안은 적용하지 않음).\n\n<pre class=\"ascii\">\n 5.1: R(0,3) R(1,5) W(4,3) R(2,1) R(5,3)   (동시 reader 최대 3)\n t: 0    1    2    3    4    5    6    7    8    9   10   11\n R(0,3) ███████████████                                        끝 3\n R(1,5)      ██████████████████████████                        끝 6\n R(2,1)           █████                                        끝 3\n W(4,3)                    (대기: reader 가 남아 있음 ..........)\n R(5,3)                         ███████████████                끝 8\n W(4,3)                                         ███████████████ 8 → '''11'''\n → writer 는 reader 가 0 명이 되는 8 에 시작, 11 에 완료 (Best = Worst = 11)\n<\/pre>\n\n{exam}🎯 '''2025F Problem 5''': 5.1(4pts) Best/Worst = '''11 / 11''', 5.2(8pts) = '''20 / 21'''. 5.2의 best/worst는 reader 자리가 날 때 '''어느 reader를 고르느냐(tie-breaking)'''로 갈렸다. 핵심 규칙은 \"'''writer는 모든 reader가 끝날 때까지 기다린다''' + reader는 writer가 대기 중이어도 계속 들어올 수 있다(이 구현 기준)\". 자세한 풀이는 [[2025F 중간고사 족보]]. 코드 빈칸으로 나오면 '''17번 줄 `== 1`, 25번 줄 `== 0`, 그리고 어느 세마포어를 wait/post 하는가'''가 빈칸이 된다.{/exam}\n\n{quiz}reader R1이 읽는 중에 writer W가 도착하고, 이어서 reader R2가 도착했다. 위 코드에서 누가 먼저 진입하는가?{/quiz}\n{answer}'''R2'''. `readers`가 이미 1 이상이라 R2는 writelock을 다시 잡을 필요 없이(17번 줄 조건 거짓) 바로 진입한다. W는 `readers`가 0이 되어 마지막 reader가 writelock을 post할 때까지 기다린다 → writer starvation 가능성 (p.33).{/answer}\n\n{quiz}(빈칸) `if (rw->readers == __) sem_wait(&rw->____);` / `if (rw->readers == __) sem_post(&rw->____);`{/quiz}\n{answer}acquire: `readers == '''1'''` → `sem_wait(&rw->'''writelock''')` (첫 reader가 writer를 막는다). release: `readers == '''0'''` → `sem_post(&rw->'''writelock''')` (마지막 reader가 풀어 준다).{/answer}\n\n== 관련 문서 ==\n* [[세마포어]] · [[락]] · [[데드락]] · [[dining philosophers]] · [[fairness]] · [[2025F 중간고사 족보]]"
  },
  "데드락": {
   "title": "데드락 (Deadlock)",
@@ -6779,6 +6779,296 @@ window.SIMS = window.SIMS || {};
       }
     }
   };
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/rwlock_trace.js =====
+// rwlock_trace — 11강 p.31~33 (10강 p.53~55) reader-writer lock 을 줄 단위로 실행.
+// 세마포어는 강의 모델(Linux): wait = 값 −1, 음수면 잠듦 / post = 값 +1, 대기자가 있으면 하나 깨움.
+// 시나리오: basic(R1·R2 동시 읽기 → W 대기 → 마지막 reader 가 W 를 깨움) /
+//           writer_first(W 가 먼저 → 첫 reader 가 lock 을 쥔 채 writelock 에서 잠듦 → 둘째 reader 는 lock 에서 잠듦) /
+//           starvation(W 가 기다리는 동안 reader 가 계속 들어옴)
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var R_CODE = [
+    "void reader(rwlock_t *rw) {",
+    "  // rwlock_acquire_readlock(rw)",
+    "    sem_wait(&rw->lock);",
+    "    rw->readers++;",
+    "    if (rw->readers == 1)",
+    "      sem_wait(&rw->writelock); // 첫 reader",
+    "    sem_post(&rw->lock);",
+    "  /* ---- 읽기 (lookup) ---- */",
+    "  // rwlock_release_readlock(rw)",
+    "    sem_wait(&rw->lock);",
+    "    rw->readers--;",
+    "    if (rw->readers == 0)",
+    "      sem_post(&rw->writelock); // 마지막 reader",
+    "    sem_post(&rw->lock);",
+    "}"
+  ];
+  var W_CODE = [
+    "void writer(rwlock_t *rw) {",
+    "  // rwlock_acquire_writelock(rw)",
+    "    sem_wait(&rw->writelock);",
+    "  /* ---- 쓰기 (insert) ---- */",
+    "  // rwlock_release_writelock(rw)",
+    "    sem_post(&rw->writelock);",
+    "}"
+  ];
+
+  // 시나리오: [스레드, 메모(선택)] — 스레드가 자기 현재 줄 하나를 실행
+  var SCEN = {
+    basic: {
+      threads: ["R1", "R2", "W"],
+      intro: "슬라이드 p.31 의 기본 규칙 세 가지를 확인한다: ① reader 는 '''여럿이 동시에''' 읽는다 ② writer 는 reader 가 '''하나라도 있으면''' 기다린다 ③ '''마지막 reader''' 가 나가면서 writer 를 들여보낸다.",
+      sched: [
+        ["R1"], ["R1"], ["R1", "R1 이 '''첫 reader''' 다 (`readers == 1`). 그래서 reader 무리를 대표해 writelock 을 잡으러 간다."], ["R1"], ["R1"],
+        ["R2"], ["R2"], ["R2", "R2 는 `readers == 2` 라 조건이 거짓 — '''writelock 을 다시 잡지 않고''' 그냥 통과한다. 이미 R1 이 무리를 대표해 잡아 두었기 때문."], ["R2", "이제 '''R1 과 R2 가 동시에 읽는다'''. 락 하나였다면 R2 는 R1 이 끝날 때까지 기다려야 했다 — 이것이 rwlock 을 쓰는 이유."],
+        ["W", "writer 는 writelock '''하나만''' 잡으면 되는데, 그건 지금 reader 무리가 쥐고 있다 → 잠든다."],
+        ["R1", "R1 이 먼저 다 읽었다."], ["R1"], ["R1"], ["R1", "`readers` 가 1 로 줄었을 뿐 0 이 아니다 → R1 은 '''writelock 을 놓지 않는다'''. 먼저 나간 reader 가 아니라 '''마지막''' reader 가 놓는다."], ["R1"],
+        ["R2"], ["R2"], ["R2"], ["R2", "`readers == 0` — R2 가 '''마지막 reader''' 다."], ["R2", "writelock 을 post → 대기 중이던 W 가 깨어난다. R1 이 잡은 writelock 을 R2 가 놓았다: '''잡은 스레드와 놓는 스레드가 다르다''' — mutex 가 아니라 세마포어를 쓰는 이유."], ["R2"],
+        ["W", "W 가 쓰는 동안 reader 는 아무도 없다."], ["W"]
+      ]
+    },
+    writer_first: {
+      threads: ["R1", "R2", "W"],
+      intro: "writer 가 '''먼저''' 들어가 있을 때 reader 둘이 오면? 코드를 보면 첫 reader 가 '''`lock` 을 쥔 채로''' writelock 에서 잠든다 — 그래서 둘째 reader 는 writelock 이 아니라 '''`lock` 에서''' 막힌다. 줄 단위로 따라가야 보이는 장면.",
+      sched: [
+        ["W", "W 가 writelock 을 잡고 쓰기 시작."],
+        ["R1", "R1: `lock` 을 잡는다 (1 → 0)."], ["R1"], ["R1", "R1 이 첫 reader → writelock 을 잡으러 간다."],
+        ["R1", "writelock 은 W 가 쥐고 있다 → R1 은 '''여기서 잠든다'''. 그런데 R1 은 아직 7번 줄 `sem_post(&rw->lock)` 을 못 했다 → '''`lock` 을 쥔 채로 잠든 것'''."],
+        ["R2", "R2 는 3번 줄 `sem_wait(&rw->lock)` 에서 잠든다 (0 → −1). R1 이 lock 을 안 놓았으니까. 즉 writer 가 쓰는 동안 '''첫 reader 는 writelock 에서, 나머지 reader 는 lock 에서''' 줄을 선다. 데드락은 아니다 — W 가 끝나면 풀린다."],
+        ["W", "W 가 다 썼다."],
+        ["W", "W 가 writelock 을 post (−1 → 0) → writelock 에서 자던 R1 이 깨어난다. 이제 writelock 은 reader 무리 소유."],
+        ["R1", "R1 이 드디어 7번 줄 — lock 을 post (−1 → 0) → lock 에서 자던 R2 가 깨어난다. R1 은 읽기 시작."],
+        ["R2", "R2: `readers` 2."], ["R2", "2 ≠ 1 → writelock 은 건너뜀."], ["R2", "R1, R2 동시에 읽는 중."],
+        ["R2"], ["R2"], ["R2"], ["R2"], ["R2"],
+        ["R1"], ["R1"], ["R1"], ["R1"], ["R1", "R1 이 마지막 reader → writelock 을 반납 (0 → 1)."], ["R1"]
+      ]
+    },
+    starvation: {
+      threads: ["R1", "R2", "R3", "W"],
+      intro: "p.33 의 fairness 문제: reader 가 '''교대로 계속''' 들어오면 `readers` 가 한 번도 0 이 되지 않아 writer 가 굶는다. 이 구현은 writer 가 기다려도 '''새 reader 를 막지 않는다'''.",
+      sched: [
+        ["R1"], ["R1"], ["R1"], ["R1"], ["R1", "R1 읽는 중 (writelock = reader 무리)."],
+        ["W", "W 도착 → writelock 에서 잠듦."],
+        ["R2"], ["R2"], ["R2", "W 가 '''이미 기다리고 있는데도''' R2 는 `readers == 2` 라 writelock 없이 바로 통과한다. 코드 어디에도 '기다리는 writer 가 있나?' 를 보는 줄이 없다."], ["R2"],
+        ["R1"], ["R1"], ["R1"], ["R1", "R1 이 나가도 `readers` = 1 (R2 가 남음) → writelock 그대로."], ["R1"],
+        ["R3"], ["R3"], ["R3", "R3 도 바로 통과 — `readers` 가 0 이 될 틈이 없다."], ["R3"],
+        ["R2"], ["R2"], ["R2"], ["R2", "R2 가 나가도 R3 가 남아 있다. reader 가 이렇게 '''겹쳐서''' 계속 오면 W 는 영원히 기다린다 = '''writer starvation'''."], ["R2"],
+        ["R3"], ["R3"], ["R3"], ["R3", "여기서는 R3 뒤로 아무도 안 와서 `readers` 가 드디어 0."], ["R3", "그제야 마지막 reader R3 가 writelock 을 post → W 가 깨어난다."], ["R3"],
+        ["W", "W 는 R1, R2, R3 세 명이 다 지나간 뒤에야 쓴다. 개선안(p.33, 수업 범위 밖): '''writer 가 기다리는 동안 새 reader 를 막는다''' — 세마포어 하나와 카운터가 더 필요."], ["W"]
+      ]
+    }
+  };
+
+  global.SIMS["rwlock_trace"] = {
+    title: "reader-writer lock 줄 단위 디버깅",
+    desc: "11강 p.32 코드를 그대로 실행한다. 변수표의 `lock`·`writelock` 은 세마포어 값(음수 = 대기자 수), 대기 줄은 누가 어느 세마포어에서 자는지. 아래 그림의 방 안 = 지금 읽거나 쓰는 스레드.",
+    options: [
+      {
+        key: "scenario",
+        label: "시나리오",
+        values: [
+          { value: "basic", label: "기본: R1·R2 동시 읽기 → W 대기 → 마지막 reader 가 W 를 깨움" },
+          { value: "writer_first", label: "writer 먼저: 첫 reader 가 lock 을 쥔 채 잠듦" },
+          { value: "starvation", label: "writer starvation: reader 가 계속 들어옴" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      return run(SCEN[opts.scenario] || SCEN.basic);
+    }
+  };
+
+  function run(sc) {
+    var sem = { lock: { v: 1, q: [] }, writelock: { v: 1, q: [] } };
+    var readers = 0;
+    var wlOwner = "없음";
+    var th = {};
+    sc.threads.forEach(function (t) {
+      th[t] = { pc: 3, state: "ready", isW: t === "W" };
+    });
+    var steps = [];
+    var lastActor = null;
+
+    function where(t) {
+      var x = th[t];
+      if (x.state === "done") return "done";
+      if (x.state === "sleep") return "sleep";
+      if (!x.isW && x.pc === 8) return "inside";
+      if (x.isW && x.pc === 4) return "inside";
+      return "outside";
+    }
+    function stateLabel(t) {
+      var x = th[t], w = where(t);
+      if (w === "done") return "끝";
+      if (w === "sleep") return "잠듦 (" + (x.sleepOn) + " 에서)";
+      if (w === "inside") return x.isW ? "쓰는 중" : "읽는 중";
+      return x.pc === 3 && !x.started ? "아직 시작 전" : "진행 중 (줄 " + x.pc + ")";
+    }
+    function snap() {
+      var v = {
+        lock: sem.lock.v, "lock.q": sem.lock.q.join(", ") || "(없음)",
+        writelock: sem.writelock.v, "writelock.q": sem.writelock.q.join(", ") || "(없음)",
+        readers: readers, owner: wlOwner
+      };
+      sc.threads.forEach(function (t) { v[t] = stateLabel(t); });
+      return v;
+    }
+    function badges() {
+      var b = {};
+      sc.threads.forEach(function (t) {
+        var w = where(t);
+        b[t] = w === "done" ? "done" : (w === "sleep" ? "sleeping" : (w === "inside" ? "running" : (t === lastActor ? "running" : "ready")));
+      });
+      return b;
+    }
+    function pcs() {
+      var p = {};
+      sc.threads.forEach(function (t) {
+        p[t] = th[t].state === "done" || !th[t].started ? null : th[t].pc;
+      });
+      return p;
+    }
+    function svg() {
+      var W = 560, H = 190;
+      var s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" style="max-width:100%;font:12px sans-serif">';
+      // 방
+      s += '<rect x="190" y="30" width="200" height="120" rx="8" fill="#f4f8ff" stroke="#1d65b3" stroke-width="2"/>';
+      s += '<text x="290" y="22" text-anchor="middle" font-weight="700">공유 리스트 (방)</text>';
+      s += '<rect x="205" y="38" width="170" height="20" rx="4" fill="' + (wlOwner === "없음" ? "#eee" : (wlOwner.indexOf("reader") >= 0 ? "#dff3df" : "#ffe1cc")) + '" stroke="#888"/>';
+      s += '<text x="290" y="52" text-anchor="middle" font-size="11">문 팻말 writelock: ' + wlOwner + '</text>';
+      var inside = sc.threads.filter(function (t) { return where(t) === "inside"; });
+      inside.forEach(function (t, i) {
+        var x = 220 + i * 50, y = 95;
+        s += '<circle cx="' + (x + 15) + '" cy="' + y + '" r="16" fill="' + (th[t].isW ? "#ffb27a" : "#9fd39f") + '" stroke="#333"/>';
+        s += '<text x="' + (x + 15) + '" y="' + (y + 4) + '" text-anchor="middle" font-weight="700">' + t + '</text>';
+      });
+      s += '<text x="290" y="140" text-anchor="middle" fill="#555" font-size="11">readers = ' + readers + (inside.length ? "" : " · 비어 있음") + '</text>';
+      // 대기 줄
+      function queue(label, q, y, v) {
+        var out = '<text x="8" y="' + y + '" font-weight="700">' + label + ' = ' + v + '</text>';
+        out += '<text x="8" y="' + (y + 16) + '" fill="#555" font-size="11">잠든 줄:</text>';
+        q.forEach(function (t, i) {
+          out += '<rect x="' + (60 + i * 36) + '" y="' + (y + 4) + '" width="30" height="18" rx="3" fill="#ffd9d9" stroke="#b33"/>';
+          out += '<text x="' + (75 + i * 36) + '" y="' + (y + 17) + '" text-anchor="middle">' + t + '</text>';
+        });
+        return out;
+      }
+      s += queue("lock", sem.lock.q, 60, sem.lock.v);
+      s += queue("writelock", sem.writelock.q, 115, sem.writelock.v);
+      // 대기/밖/끝
+      var outside = sc.threads.filter(function (t) { return where(t) === "outside" && th[t].started; });
+      var done = sc.threads.filter(function (t) { return where(t) === "done"; });
+      s += '<text x="410" y="60" font-weight="700">진행 중(코드 안)</text>';
+      s += '<text x="410" y="78">' + (outside.join(", ") || "-") + '</text>';
+      s += '<text x="410" y="115" font-weight="700">끝남</text>';
+      s += '<text x="410" y="133">' + (done.join(", ") || "-") + '</text>';
+      s += '<text x="8" y="182" fill="#777" font-size="10">초록 = 읽는 reader · 주황 = 쓰는 writer · 빨강 칸 = 그 세마포어에서 잠든 스레드</text>';
+      return s + '</svg>';
+    }
+    function push(desc, pcOverride, note) {
+      var p = pcs();
+      if (pcOverride) for (var k in pcOverride) p[k] = pcOverride[k];
+      steps.push({ desc: desc, pc: p, vars: snap(), status: badges(), note: note, svg: svg() });
+    }
+
+    function semWait(t, name) {
+      var S = sem[name];
+      var before = S.v;
+      S.v -= 1;
+      if (S.v < 0) {
+        S.q.push(t); th[t].state = "sleep"; th[t].sleepOn = name;
+        return "`sem_wait(&" + name + ")`: " + before + " → '''" + S.v + "''' (음수) → '''" + t + " 잠듦'''";
+      }
+      return "`sem_wait(&" + name + ")`: " + before + " → " + S.v + " → 통과";
+    }
+    function semPost(t, name) {
+      var S = sem[name];
+      var before = S.v;
+      S.v += 1;
+      if (S.q.length) {
+        var u = S.q.shift();
+        th[u].state = "ready";
+        th[u].sleepOn = null;
+        th[u].pc = nextAfterWait(u, th[u].pc);
+        return { text: "`sem_post(&" + name + ")`: " + before + " → " + S.v + " → 대기자 '''" + u + " 깨움'''", woke: u };
+      }
+      return { text: "`sem_post(&" + name + ")`: " + before + " → " + S.v + " (기다리는 스레드 없음)", woke: null };
+    }
+    function nextAfterWait(t, pc) {
+      if (th[t].isW) return 4;          // writer: 3 → 쓰기
+      if (pc === 3) return 4;           // reader lock 획득
+      if (pc === 6) { wlOwner = "reader 무리"; return 7; }
+      if (pc === 10) return 11;
+      return pc + 1;
+    }
+
+    push(sc.intro + " 초기값: `lock = 1`, `writelock = 1`, `readers = 0` (p.31 `rwlock_init`).", {});
+
+    sc.sched.forEach(function (e) {
+      var t = e[0], memo = e[1] || "", x = th[t];
+      if (x.state === "sleep" || x.state === "done") throw new Error("rwlock_trace: " + t + " cannot run (" + x.state + ")");
+      x.started = true;
+      lastActor = t;
+      var line = x.pc, msg = "", note;
+      if (x.isW) {
+        if (line === 3) {
+          msg = semWait(t, "writelock");
+          if (x.state !== "sleep") { x.pc = 4; wlOwner = "W"; }
+        } else if (line === 4) { msg = "쓰기 끝 → release 로"; x.pc = 6; }
+        else if (line === 6) {
+          var r = semPost(t, "writelock"); msg = r.text;
+          wlOwner = r.woke ? (th[r.woke].isW ? r.woke : "reader 무리") : "없음";
+          x.state = "done"; x.pc = 7;
+        }
+      } else {
+        if (line === 3) { msg = semWait(t, "lock"); if (x.state !== "sleep") x.pc = 4; }
+        else if (line === 4) { readers += 1; msg = "`readers++` → " + readers; x.pc = 5; }
+        else if (line === 5) {
+          var c = readers === 1; msg = "`readers == 1` ? → " + (c ? "'''참''' (첫 reader)" : "거짓 → 6번 줄 건너뜀"); x.pc = c ? 6 : 7;
+        } else if (line === 6) {
+          msg = semWait(t, "writelock");
+          if (x.state !== "sleep") { x.pc = 7; wlOwner = "reader 무리"; }
+          else note = t + " 은 '''`lock` 을 아직 쥔 채로''' 잠들었다 — 다른 reader 는 이제 3번 줄 `lock` 에서 막힌다.";
+        } else if (line === 7) {
+          var r2 = semPost(t, "lock"); msg = r2.text + " → 읽기 시작"; x.pc = 8;
+        } else if (line === 8) { msg = "읽기 끝 → release 로"; x.pc = 10; }
+        else if (line === 10) { msg = semWait(t, "lock"); if (x.state !== "sleep") x.pc = 11; }
+        else if (line === 11) { readers -= 1; msg = "`readers--` → " + readers; x.pc = 12; }
+        else if (line === 12) {
+          var c2 = readers === 0; msg = "`readers == 0` ? → " + (c2 ? "'''참''' (마지막 reader)" : "거짓 → writelock 그대로"); x.pc = c2 ? 13 : 14;
+        } else if (line === 13) {
+          var r3 = semPost(t, "writelock"); msg = r3.text;
+          wlOwner = r3.woke ? (th[r3.woke].isW ? r3.woke : "reader 무리") : "없음";
+          x.pc = 14;
+        } else if (line === 14) {
+          var r4 = semPost(t, "lock"); msg = r4.text + " → " + t + " 끝"; x.state = "done"; x.pc = 15;
+        }
+      }
+      var pcShow = {}; pcShow[t] = line;
+      push("'''" + t + "''' " + line + "번 줄: " + msg + (memo ? " — " + memo : ""), pcShow, note);
+    });
+
+    push("끝. `lock = " + sem.lock.v + "`, `writelock = " + sem.writelock.v + "`, `readers = " + readers + "` — 모두 초기값으로 돌아왔다.", {});
+
+    var panels = sc.threads.map(function (t) {
+      return { id: t, title: t === "W" ? "W (writer)" : t + " (reader)", lang: "c", lines: t === "W" ? W_CODE : R_CODE };
+    });
+    var vars = [
+      { name: "lock", label: "lock (readers 보호, 값)", group: "세마포어" },
+      { name: "lock.q", label: "lock 에서 잠든 스레드", group: "세마포어" },
+      { name: "writelock", label: "writelock (값)", group: "세마포어" },
+      { name: "writelock.q", label: "writelock 에서 잠든 스레드", group: "세마포어" },
+      { name: "readers", label: "readers (읽는 중인 수)", group: "카운터" },
+      { name: "owner", label: "writelock 을 쥔 쪽", group: "카운터" }
+    ];
+    sc.threads.forEach(function (t) { vars.push({ name: t, label: t + " 상태", group: "스레드" }); });
+    return { panels: panels, vars: vars, steps: steps };
+  }
 })(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/sched_gantt.js =====

@@ -84,6 +84,115 @@ p.31: "'''Only a single writer''' can acquire the lock" · "Once a reader has ac
 
 {warn}⚠️ '''읽는 중에 writelock을 잡고 있는 것은 reader가 아니라 "reader 무리"'''다. 첫 reader가 잡고 마지막 reader가 놓으므로, 중간에 들어온 reader가 먼저 나가도 writelock은 풀리지 않는다. 그리고 `readers++`/`--`와 `if` 검사 사이에 다른 reader가 끼어들면 안 되므로 그 부분만 `lock`으로 감싼다.{/warn}
 
+== 줄 단위 디버깅 — 세마포어 값을 따라가며 (2026-10-14 추가) ⭐⭐⭐ ==
+
+'''읽는 법''': 세마포어 값은 강의 모델 그대로다. `sem_wait` 는 값을 1 빼고 '''음수가 되면 그 자리에서 잠든다''', `sem_post` 는 1 더하고 '''잠든 스레드가 있으면 하나 깨운다'''. 음수일 때 그 절댓값 = 잠든 스레드 수. 줄 번호는 아래 시뮬레이터의 reader/writer 코드 기준이다(reader 3~7번 = acquire, 8번 = 읽기, 10~14번 = release / writer 3번 = acquire, 4번 = 쓰기, 6번 = release).
+
+<pre class="c">
+ 1 void reader(rwlock_t *rw) {                 1 void writer(rwlock_t *rw) {
+ 2   // acquire_readlock                       2   // acquire_writelock
+ 3     sem_wait(&rw->lock);                    3     sem_wait(&rw->writelock);
+ 4     rw->readers++;                          4   /* ---- 쓰기 ---- */
+ 5     if (rw->readers == 1)                   5   // release_writelock
+ 6       sem_wait(&rw->writelock);             6     sem_post(&rw->writelock);
+ 7     sem_post(&rw->lock);                    7 }
+ 8   /* ---- 읽기 ---- */
+ 9   // release_readlock
+10     sem_wait(&rw->lock);
+11     rw->readers--;
+12     if (rw->readers == 0)
+13       sem_post(&rw->writelock);
+14     sem_post(&rw->lock);
+15 }
+</pre>
+
+=== 시나리오 1. 기본 — R1·R2 동시에 읽고, W 는 기다린다 ===
+
+{|
+! # || 누가·줄 || 하는 일 || lock || writelock || readers || 잠든 스레드
+|-
+| 0 || — || 초기값 || 1 || 1 || 0 ||
+|-
+| 1 || R1·3 || lock 잡음 || 0 || 1 || 0 ||
+|-
+| 2 || R1·4~5 || readers=1 → '''첫 reader''' || 0 || 1 || 1 ||
+|-
+| 3 || R1·6 || writelock 잡음 (무리 대표) || 0 || '''0''' || 1 ||
+|-
+| 4 || R1·7 || lock 놓음 → '''읽기 시작''' || 1 || 0 || 1 ||
+|-
+| 5 || R2·3~4 || lock 잡고 readers=2 || 0 || 0 || 2 ||
+|-
+| 6 || R2·5 || `2 == 1` 거짓 → '''6번 줄 건너뜀''' || 0 || 0 || 2 ||
+|-
+| 7 || R2·7 || lock 놓음 → '''R1·R2 동시에 읽는 중''' || 1 || 0 || 2 ||
+|-
+| 8 || W·3 || writelock 0 → −1 → '''W 잠듦''' || 1 || '''−1''' || 2 || W (writelock)
+|-
+| 9 || R1·10~12 || readers=1, `1 == 0` 거짓 → writelock '''안 놓음''' || 1 || −1 || 1 || W
+|-
+| 10 || R1·14 || lock 놓고 끝 || 1 || −1 || 1 || W
+|-
+| 11 || R2·10~12 || readers=0 → '''마지막 reader''' || 0 || −1 || 0 || W
+|-
+| 12 || R2·13 || writelock −1 → 0, '''W 깨움''' || 0 || 0 || 0 ||
+|-
+| 13 || R2·14 || lock 놓고 끝 || 1 || 0 || 0 ||
+|-
+| 14 || W·4~6 || 쓰고 writelock 놓음 || 1 || 1 || 0 ||
+|}
+
+'''핵심 두 줄''': ① R2 는 6번 줄을 '''건너뛴다''' — writelock 은 무리당 한 번만 잡는다. ② writelock 을 '''잡은 건 R1''' 인데 '''놓은 건 R2''' 다(#3 과 #12). 잡은 스레드와 놓는 스레드가 다르니 owner 가 있는 mutex 로는 못 짜고 세마포어를 쓴다 (🎙 9/30).
+
+=== 시나리오 2. writer 가 먼저 — 둘째 reader 는 어디서 기다리나? ===
+
+{|
+! # || 누가·줄 || 하는 일 || lock || writelock || readers || 잠든 스레드
+|-
+| 0 || — || 초기값 || 1 || 1 || 0 ||
+|-
+| 1 || W·3 || writelock 잡음 → 쓰기 시작 || 1 || 0 || 0 ||
+|-
+| 2 || R1·3~5 || lock 잡고 readers=1 → 첫 reader || 0 || 0 || 1 ||
+|-
+| 3 || R1·6 || writelock 0 → −1 → '''R1 잠듦 — lock 을 쥔 채로!''' || '''0''' || −1 || 1 || R1 (writelock)
+|-
+| 4 || R2·3 || lock 0 → −1 → '''R2 잠듦''' || '''−1''' || −1 || 1 || R1 (writelock), R2 ('''lock''')
+|-
+| 5 || W·4~6 || 다 쓰고 writelock −1 → 0, '''R1 깨움''' || −1 || 0 || 1 || R2 (lock)
+|-
+| 6 || R1·7 || 드디어 lock −1 → 0, '''R2 깨움''' → R1 읽기 시작 || 0 || 0 || 1 ||
+|-
+| 7 || R2·4~7 || readers=2, 6번 줄 건너뛰고 lock 놓음 → 둘 다 읽는 중 || 1 || 0 || 2 ||
+|-
+| 8 || R2·10~14 || readers=1, 마지막 아님 → 끝 || 1 || 0 || 1 ||
+|-
+| 9 || R1·10~14 || readers=0, 마지막 → writelock 0 → 1 → 끝 || 1 || 1 || 0 ||
+|}
+
+{warn}⚠️ '''흔한 오해: "둘째 reader 도 writelock 에서 기다린다"''' — 아니다. 첫 reader 가 6번 줄에서 잠들 때 아직 7번 줄 `sem_post(&rw->lock)` 을 '''못 했기''' 때문에 `lock` 이 잠긴 채로 남는다. 그래서 둘째 이후 reader 는 '''3번 줄 `lock` 에서''' 줄을 선다. 데드락은 아니다 — writer 가 writelock 을 놓으면 R1 → R2 순으로 줄줄이 풀린다. "누가 어느 세마포어에서 자는가" 를 묻는 문제의 단골 함정.{/warn}
+
+=== 시나리오 3. writer starvation (p.33) ===
+
+<pre class="ascii">
+ 시간 →
+ R1  [acq]==== 읽기 ====[rel]                                readers: 1 → 2 → 1 → 2 → 1 → 0
+ R2           [acq]======== 읽기 ========[rel]
+ R3                            [acq]======== 읽기 ========[rel]
+ W        [wait(writelock): −1 ── 잠듦 ──────────────────────────]▶ 쓰기
+                    ↑ W 가 기다리는 중에도 R2, R3 는 6번 줄을 건너뛰고 바로 들어온다
+</pre>
+
+`readers` 가 1 → 2 → 1 → 2 → 1 로 '''한 번도 0 이 안 되는''' 동안 W 는 계속 잔다. 코드 어디에도 "기다리는 writer 가 있나?" 를 보는 줄이 없기 때문이다. reader 가 겹쳐서 계속 오면 W 는 영원히 못 들어간다.
+
+=== 시뮬레이터 ===
+
+드롭다운으로 세 시나리오를 고른다. 변수표에 `lock`·`writelock` 값과 '''각 세마포어에서 잠든 스레드''', 그림에 '''방 안(읽거나 쓰는 중)''' 과 문 팻말(writelock 을 쥔 쪽)이 나온다. 시나리오 2 의 3~4단계에서 빨간 칸이 '''writelock 줄에 R1, lock 줄에 R2''' 로 갈리는 것을 확인하라.
+
+[[sim:rwlock_trace]]
+
+{tip}💡 '''시험에서 손으로 따라갈 때''': 표에 `lock / writelock / readers / 잠든 스레드` 네 칸만 그린다. reader 는 '''3→4→5→(6)→7''' 이 들어가기, '''10→11→12→(13)→14''' 가 나오기. 괄호 줄은 `readers` 가 1(들어갈 때) / 0(나올 때) 일 때만 실행. writer 는 '''3''' 과 '''6''' 두 줄뿐.{/tip}
+
 == Fairness 문제 (p.33) ⭐ ==
 
 {def}p.33 원문: "The reader-writer locks have '''fairness problem'''. It would be relatively easy for '''reader to starve writer'''. More sophisticated solutions to this problem exist — A basic idea is to '''prevent more readers from entering the lock once a writer is waiting''' (not covered in this class)"{/def}
