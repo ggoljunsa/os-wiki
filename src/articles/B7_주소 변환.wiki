@@ -1,0 +1,34 @@
+key: 주소 변환
+title: 주소 변환 (Address Translation)
+category: 13강 Virtual Memory, 핵심
+---
+'''주소 변환'''은 가상 주소(VA)를 물리 주소(PA)로 바꾸는 과정이다. [[가상 메모리]]의 두 구성 요소 중 하나(나머지 하나는 [[가상 주소 공간]]).
+
+{def}p.26 '''Address Translation'''
+* Each process has its own '''private''' virtual address space
+* A physical memory is '''shared''' by all the processes
+* "Address translation is a process of '''mapping virtual addresses to physical addresses'''"
+p.16: "Physical memory is a shared resource, '''managed by the OS'''. OS maps the address space of every process onto physical memory in a '''time and space efficient''' manner."{/def}
+
+{analogy}🎭 '''통역사'''. 프로그램은 자기 말(가상 주소)로만 말하고, 메모리는 자기 말(물리 주소)로만 알아듣는다. 매 문장마다 통역사([[MMU]])가 끼어서 바꿔 주고, 어떤 단어를 어떻게 바꿀지 사전은 OS가 써 둔다. 통역이 느리면 대화가 느려진다 → Efficiency.{/analogy}
+
+[[anim:addr_bind_time|변환을 컴파일 때·로드 때·실행 때 하면 각각 무엇이 되고 무엇이 안 되는지]]
+
+[[img:L13-26.png|p.26 — Process 0 … N−1 의 Virtual Address Space 가 Address Translation 을 거쳐 0~4GB Physical Address Space 로|large]]
+
+== 설계 목표 (p.27) ⭐⭐⭐ ==
+
+넷: '''Transparency · Protection · Flexibility · Efficiency'''. 원문과 해석은 [[VM 설계 목표]]. p.37에서 같은 슬라이드가 "→ '''Main topics in the rest of VM lectures'''"와 함께 반복된다 — 기말 내내 "이 기법은 네 목표 중 무엇을 얻고 무엇을 잃나"를 물을 것이라는 신호.
+
+== 언제 변환하나 (p.28~36) ⭐⭐⭐ ==
+
+"The address translation can be done at three different times: 1. '''Compile time''' 2. '''Load time''' 3. '''Execution time'''" → [[주소 변환 시점]]에서 swap/main 예제로 하나씩.
+
+== 누가 변환하나 (p.38) ==
+
+실행 시점 변환은 매 명령어·매 load/store마다 일어나므로 소프트웨어(OS)가 할 수 없다. CPU 안의 하드웨어 [[MMU]]가 한다. OS는 MMU가 쓸 정보(13강에서는 [[base and bounds|base/bounds 레지스터]])를 설정한다 — "Close cooperation between CPU and OS".
+
+{tip}4강 [[제한적 직접 실행]]과 똑같은 구조다. CPU 가상화: 프로그램은 CPU에서 '''직접''' 실행, OS는 [[타이머 인터럽트]]·[[트랩 테이블]]만 설정해 두고 필요할 때 개입. 메모리 가상화: 메모리 접근은 하드웨어가 '''직접''' 변환, OS는 레지스터만 설정해 두고 bounds 위반 같은 exception 때 개입. OSTEP 15장은 이것을 "limited direct execution의 메모리 버전"이라고 부른다.{/tip}
+
+== 관련 문서 ==
+* [[가상 메모리]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]]

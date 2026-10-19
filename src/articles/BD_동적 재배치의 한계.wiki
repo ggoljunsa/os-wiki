@@ -1,0 +1,35 @@
+key: 동적 재배치의 한계
+title: 동적 재배치의 한계 (Problems of Dynamic Relocation)
+category: 13강 Virtual Memory
+---
+13강의 마지막 내용 슬라이드(p.55). [[base and bounds]]가 왜 실제 시스템에 그대로 쓰일 수 없는지, 그래서 다음 강의에서 무엇을 배워야 하는지를 한 장으로 보여 준다.
+
+{def}p.55 '''Problems of Dynamic Relocation'''
+* We have assumed that the virtual space size is '''limited to 16 KB'''
+* '''In reality, it is huge!'''
+* "Big chunk of "free" space '''takes up physical memory'''" — 64-bit Linux machine, heap과 stack 사이 '''128 TB'''{/def}
+
+{analogy}🎭 '''침대 하나 쓰려고 호텔 층 전체를 빌리는 것'''. 실제로 쓰는 건 1층 로비(code·data)와 꼭대기 방 하나(stack)인데, base and bounds는 "연속 구간 하나"밖에 못 빌려 주니 그 사이 빈 층 전부를 빌려야 한다.{/analogy}
+
+[[img:L13-55.png|p.55 — 64-bit Linux 주소 공간: Code/Data/Heap 은 위쪽 몇 MB, Stack 은 0x7fff... 아래쪽, 그 사이 (free) 가 128 TB|large]]
+
+== 왜 문제인가 ==
+
+base and bounds는 주소 공간을 '''하나의 연속 덩어리'''로 물리 메모리에 놓는다(p.41의 "allocated but not in use"). 16KB 장난감 주소 공간에서는 가운데 free 몇 KB를 낭비하는 정도지만, 실제 64-bit 주소 공간은 heap~stack 사이가 128 TB다. 이걸 통째로 물리 메모리에 잡을 수는 없다.
+
+* [[VM 설계 목표]] 중 '''Space efficiency ①''' — "not wasting available physical memory" — 위반
+* 주소 공간이 물리 메모리보다 크면 '''아예 로드할 수 없다'''
+
+{info}OSTEP 15장은 이 낭비를 '''internal fragmentation'''(할당된 칸 '''안'''에서 안 쓰이는 공간)이라고 부른다. 슬라이드에는 이 용어가 없으니 답안에는 슬라이드 표현("free space takes up physical memory")을 먼저 쓰고, 용어는 덧붙이는 정도로.{/info}
+
+== 다음 강의로 ==
+
+OSTEP 순서(그리고 p.10 표가 "Virtual Memory — '''4-KB page'''"라고 예고한 것)대로라면 해결책은:
+# '''Segmentation''' (OSTEP 16장) — code·heap·stack '''세그먼트마다''' base/bounds 쌍을 따로 → 가운데 free를 물리 메모리에 안 올림
+# '''Free-space management''' (17장) — 크기가 제각각인 빈 칸을 [[free list]]로 관리 (external fragmentation)
+# '''Paging''' (18장~) — 고정 크기(4KB) page로 잘라 page table로 변환 → TLB
+
+(아직 배포되지 않은 강의 내용이므로 예고일 뿐 — 실제 14강 슬라이드가 오면 이 절을 고친다.)
+
+== 관련 문서 ==
+* [[base and bounds]] · [[가상 주소 공간]] · [[VM 설계 목표]] · [[free list]] · [[기말고사]]

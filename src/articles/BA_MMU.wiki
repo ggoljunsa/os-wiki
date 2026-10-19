@@ -1,0 +1,39 @@
+key: MMU
+title: MMU (Memory Management Unit)
+category: 13강 Virtual Memory, 용어
+---
+'''MMU'''는 CPU 안에 있는 하드웨어 장치로, 가상 주소를 물리 주소로 '''run time에''' 바꾼다. [[주소 변환 시점|execution time 변환]]을 실제로 가능하게 하는 부품.
+
+{def}p.38 '''Address Translation with Hardware''': "Hardware device inside CPU, '''Memory Management Unit (MMU)''', maps virtual to physical address '''at run time'''."
+* Address translation: Converting a virtual address to a physical address. '''Close cooperation between CPU and OS'''{/def}
+
+{analogy}🎭 '''CPU와 메모리 사이 우체국 분류기'''. CPU가 "4100번지 주세요"라고 쓴 편지(VA)를 내면, 분류기가 OS가 꽂아 둔 규칙표를 보고 실제 주소 4번(PA)으로 바꿔 보낸다. 규칙표에 없는 주소면 반송(exception).{/analogy}
+
+<pre class="ascii">
+   ┌──────────── CPU Chip ────────────┐
+   │                                   │                      Main memory
+   │  ┌─────┐  Virtual address  ┌─────┐  Physical address   0: [     ]
+   │  │ CPU │ ───── (VA) ─────▶ │ MMU │ ───── (PA) ──────▶  ...
+   │  └─────┘      4100         └─────┘        4            4: [■■■■■]
+   │     ▲                         ▲   │                     5: [■■■■■]
+   └─────┼─────────────────────────┼───┘                     ...
+         │                OS 가 설정한 변환 정보              M-1:[     ]
+         └──────────────── Data word ◀───────────────────────
+</pre>
+
+[[img:L13-38.png|p.38 — CPU 가 VA 4100 을 내면 MMU 가 PA 4 로 바꿔 Main memory 에 보내고 data word 가 CPU 로 돌아온다|large]]
+
+== 13강의 MMU = base + bounds ==
+
+13강에서 MMU 안에 들어 있는 것은 레지스터 두 개와 회로 두 개다(p.48 그림):
+* '''bounds register''' → 비교기 `<` : VA < bounds 이면 yes, 아니면 '''Raise exception'''
+* '''base register''' → 덧셈기 `+` : PA = VA + base
+
+[[anim:mmu_base_bounds|비교기와 덧셈기를 VA 가 통과하는 장면]]
+
+자세한 계산은 [[base and bounds]]. 나중 강의에서 MMU는 page table을 따라가는 회로와 TLB를 갖게 된다(p.10 표의 "Virtual Memory — managed by Hardware + OS"와 p.3의 "TLB").
+
+{tip}왜 하드웨어여야 하나: 명령어 fetch 하나, load/store 하나마다 변환이 필요하다. 이걸 OS(소프트웨어)가 하려면 매 접근마다 [[트랩]]을 걸어야 해서 수십~수백 배 느려진다 → [[VM 설계 목표|time efficiency]] 위반. 그래서 하드웨어가 매번 하고, OS는 규칙(레지스터 값)만 정한다 — "close cooperation between CPU and OS".{/tip}
+
+== 관련 문서 ==
+* [[주소 변환]] · [[주소 변환 시점]] · [[base and bounds]] · [[가상 메모리]]

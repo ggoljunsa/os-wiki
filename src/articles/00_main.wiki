@@ -25,6 +25,8 @@ category: 안내
 # [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]
 # [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위
 
+{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}
+
 {tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}
 
 {info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}
@@ -71,9 +73,15 @@ category: 안내
 | 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유
 |-
 | sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지
+|-
+| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장
 |}
 
 == 분류별 문서 ==
+
+=== 기말고사 (13강~) ===
+* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결
+* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]
 
 === 시험·과제 ===
 * [[시험 정보]] · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

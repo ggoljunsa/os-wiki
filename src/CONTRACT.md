@@ -95,6 +95,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 조건 변수 · wait와 signal · Mesa semantics · spurious wakeup · producer-consumer · bounded buffer · covering condition · broadcast · done flag 예제 · 락 기반 자료구조 · sloppy counter · concurrent linked list · concurrent queue · concurrent hash table · 세마포어 · reader-writer lock · 데드락 · dining philosophers
 ### 12강 Deadlock — 파일 접두어 `9ZG_`(허브)·`9ZI_`~`9ZP_`. 슬라이드 `12-Deadlock.pdf` 54쪽 = `_slides/L12-{pp}.png`(2026-10-07 수업; p.2~8 dining philosophers 복습, p.9~29 데드락, p.30~52 8~11강 Summary). 녹음은 p.15부터
 데드락 4조건 · lock ordering · hold and wait 방지 · trylock · livelock · lock-free · 데드락 avoidance · 데드락 detection
+### 기말고사 · 13강 Virtual Memory — 파일 접두어 `B0_`(기말 허브)·`B1_`~`BD_`. 슬라이드 `../../기말고사/강의자료/13-Virtual_Memory.pdf` 57쪽 = `_slides/L13-{pp}.png`, 텍스트 `_text/13-Virtual_Memory.txt` (표지 "12. Virtual Memory" — 파일명 기준 13강). 녹음 아직 없음 (2026-10-19)
+기말고사 · 가상 메모리 · 메모리 계층 · SRAM과 DRAM · locality · 메모리 가상화 · 가상 주소 공간 · 주소 변환 · VM 설계 목표 · 주소 변환 시점 · MMU · base and bounds · free list · 동적 재배치의 한계
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -132,6 +134,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | rwlock_trace | 11강 p.31~33 rwlock 을 reader/writer 코드 줄 단위로 실행(세마포어 값·대기 줄·방 안 SVG). 옵션 scenario = basic(R1·R2 동시 읽기 → W 대기 → 마지막 reader 가 깨움) / writer_first(첫 reader 가 lock 쥔 채 writelock 에서 잠듦, 둘째는 lock 에서) / starvation(R1·R2·R3 겹쳐 W 굶음) | reader-writer lock |
 | dining_trace | 11강 p.37/p.39 dining philosophers 를 같은 최악의 순서로 줄 단위 실행(포크 세마포어 값·주인·기다림 화살표 원탁 SVG). 옵션 version = broken(전원 −1, deadlock) / fixed(P4 만 f0 먼저 → P3→P2→P1→P0→P4) | dining philosophers |
 | p6_xyz | 2025F P6 / 문제집 u12 ④-11·12: x(empty)/y(full)/z(mutex) producer-consumer MAX=3 줄 단위, 버퍼·세마포어 SVG. 옵션 order = correct((−1,3,1)→(0,2,1)→(0,3,1)) / swapped((a)(b) 바꿔 데드락) | 2025F 중간고사 족보 |
+| base_bounds_trace | 13강 p.44~49·p.54: x = x + 3 의 메모리 참조 5번(fetch 128/132/135, load·store 15KB)을 MMU 코드(VA < bounds → PA = VA + base)와 함께, 물리 메모리 막대 SVG. 옵션 scenario = normal(base 32KB → 32896, 47KB) / out_of_bounds(%ebx 20KB → exception) / context_switch(A 의 base/bounds 를 PCB 에 저장, B 48KB 로 같은 코드 → 63KB) | base and bounds, 가상 메모리 |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
@@ -230,4 +233,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | cas_two_answers | 락 그림 요약 ②: 9강 CAS(원래 값)·12강 CAS(성공 여부)가 성공/실패 때 내는 숫자 비교 → while 에는 실패 숫자(==1 / ==0) | 락 그림 요약 |
 | ticket_bank | 락 그림 요약 ③: 은행 번호표 — 발급기(ticket)·전광판(turn)·창구(락)로 문제집 ④-02 이벤트 7개 | 락 그림 요약 |
 | dining_philosophers | 다섯 철학자·포크 5개 원탁: ① 모두 왼쪽 포크 sem_wait → 오른쪽 대기 → 붉은 고리(circular wait → deadlock) ② p.61 해법: P4 만 right→left → P4 가 포크 0개로 대기 → f4 가 남아 P3 → P2 → P1 순으로 먹음 | dining philosophers, 데드락 |
+| mmu_base_bounds | 13강 p.48~49 배치: Address Space · MMU(bounds 16KB '<', base 32KB '+') · Physical Memory. VA 128 → 32896, VA 15KB → 47KB, (변형) VA 20KB → no → Raise exception | base and bounds, MMU, 가상 메모리 |
+| addr_bind_time | 13강 p.31~36 세 줄: ① compile time(VA=PA, P2 로딩 ✗) ② load time(+0x100000/+0x200000 로 call 주소 고쳐 씀, 보호 없음) ③ execution time(파일 그대로, CPU 가 +100000/+200000) | 주소 변환 시점, 주소 변환, 기말고사 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

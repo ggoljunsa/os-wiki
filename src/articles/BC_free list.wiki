@@ -1,0 +1,34 @@
+key: free list
+title: Free List
+category: 13강 Virtual Memory, 용어
+---
+'''Free list'''는 OS가 관리하는 '''현재 사용하지 않는 물리 메모리 구간의 목록'''이다. [[base and bounds]]에서 프로세스를 시작할 때 자리를 찾고, 끝날 때 자리를 돌려주는 데 쓴다.
+
+{def}p.51 — "The OS must find a room for a new address space. '''Free list''': A list of the range of the physical memory which are '''not in use'''."
+p.53 — "The OS must '''put the memory back''' on the free list" (when a process is terminated){/def}
+
+{analogy}🎭 '''식당 빈자리 대기판'''. 손님(프로세스)이 오면 매니저(OS)가 대기판에서 빈 테이블 하나를 지우고 앉힌다. 손님이 나가면 그 테이블을 다시 대기판에 적는다.{/analogy}
+
+== 시작할 때 (p.51~52) ==
+
+물리 메모리 64KB, 0~16KB는 OS, 나머지 16KB 칸 셋이 비어 있다. 처음 free list는 '''32KB → 16KB → 48KB''' (노드 = 각 16KB 칸의 '''시작 주소'''). "The OS lookup the free list" — p.51에서 파란 점선으로 표시된 '''맨 앞 노드 32KB'''를 꺼내 새 프로세스(Code · Heap · allocated but not in use · Stack)를 32KB~48KB에 넣으면 free list는 '''16KB → 48KB''' (p.52).
+
+[[img:L13-51.png|p.51 — free list 32KB → 16KB → 48KB, 맨 앞 32KB 노드에 파란 점선(OS 가 고른 칸)|medium]]
+[[img:L13-52.png|p.52 — free list 16KB → 48KB, 32KB~48KB 에 새 프로세스가 들어감|medium]]
+
+== 끝날 때 (p.53) ==
+
+Process A가 32KB 칸에 있고 free list가 16KB → 48KB인 상태에서 A가 종료 → OS가 그 칸을 목록에 되돌려 '''32KB → 16KB → 48KB'''.
+
+[[img:L13-53.png|p.53 — 왼쪽: free list 16KB→48KB, 물리 32KB 에 Process A. 오른쪽: A 종료 후 free list 32KB→16KB→48KB, 물리 16~64KB 가 전부 not in use|large]]
+
+<pre class="ascii">
+  시작 전:      Free list → [32KB] → [16KB] → [48KB]          (맨 앞 32KB 를 꺼냄)
+  A 를 32KB 에:  Free list → [16KB] → [48KB]                  base=32KB, bounds=16KB
+  A 종료:        Free list → [32KB] → [16KB] → [48KB]          (돌려받은 칸이 다시 맨 앞 — 처음 상태로 복귀)
+</pre>
+
+{tip}p.53 오른쪽 그림에서 16KB·32KB·48KB 세 칸이 물리적으로 붙어 있는데도 free list에는 '''따로따로''' 세 노드로 남아 있다. 붙은 빈 칸을 하나로 합치는 일(coalescing)과, 어떤 칸을 고를지(best fit, first fit …)는 OSTEP 17장 free-space management에서 다룬다. 13강은 base and bounds의 칸 크기가 모두 16KB라서 이 문제가 드러나지 않는다.{/tip}
+
+== 관련 문서 ==
+* [[base and bounds]] · [[동적 재배치의 한계]] · [[가상 메모리]] · [[프로세스 목록]](3강, OS가 들고 있는 또 다른 목록)

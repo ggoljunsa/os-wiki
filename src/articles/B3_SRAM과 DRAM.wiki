@@ -1,0 +1,29 @@
+key: SRAM과 DRAM
+title: SRAM과 DRAM
+category: 13강 Virtual Memory, 용어
+---
+RAM(Random-Access Memory)은 칩으로 포장되고, 기본 저장 단위는 '''셀(cell, 셀당 1비트)'''이며, 여러 RAM 칩이 모여 메모리를 이룬다(p.4). 셀을 만드는 방식에 따라 SRAM과 DRAM으로 나뉜다. 둘 다 '''volatile'''(전원이 꺼지면 정보를 잃음, p.5).
+
+{def}p.4 원문
+* '''Static RAM (SRAM)''': Each cell stores a bit with a '''four or six-transistor circuit'''. Retains value indefinitely, as long as it is kept powered. Relatively insensitive to electrical noise (EMI), radiation, etc. '''Faster and more expensive''' than DRAM.
+* '''Dynamic RAM (DRAM)''': Each cell stores bit with a '''capacitor'''; one transistor is used for access. Value must be '''refreshed every 10-100 ms'''. More sensitive to disturbances (EMI, radiation,…) than SRAM. '''Slower and cheaper''' than SRAM.{/def}
+
+{analogy}🎭 SRAM은 '''스위치 여러 개로 만든 래치''' — 전원만 있으면 상태가 그대로다. DRAM은 '''조금씩 새는 물컵''' — 물(전하)이 있으면 1, 없으면 0인데 컵이 새서 10~100 ms마다 다시 채워야(refresh) 한다. 컵은 싸고 작아서 많이 깔 수 있으니 메인 메모리, 스위치 래치는 비싸고 커서 조금만 — 캐시.{/analogy}
+
+<pre class="ascii">
+             '''SRAM'''                         '''DRAM'''
+   셀당 소자   트랜지스터 4~6개              커패시터 1 + 트랜지스터 1
+   유지        전원만 있으면 계속             10~100 ms 마다 refresh
+   속도        10 ns                          100 ns
+   가격        860 달러/GB                     8.6 달러/GB
+   잡음 민감   덜함                           더함 (EMI, radiation)
+   쓰임        [[메모리 계층|L1/L2/L3 캐시, TLB]]          메인 메모리, frame buffer
+</pre>
+
+[[img:L13-06.png|p.6 SRAM vs DRAM vs Optane vs NAND Flash 표 — 트랜지스터 수·access time·refresh·nonvolatile·$/GB·용도|medium]]
+
+{quiz}다음 중 DRAM에 대한 설명으로 옳지 않은 것은? ① 셀마다 커패시터를 쓴다 ② 주기적으로 refresh 해야 한다 ③ SRAM보다 잡음에 민감하다 ④ 전원이 꺼져도 값을 유지한다 ⑤ SRAM보다 싸다{/quiz}
+{answer}'''④'''. DRAM과 SRAM은 둘 다 volatile — 전원이 꺼지면 정보를 잃는다(p.5). 전원이 꺼져도 유지되는 것은 ROM 계열·Flash·Optane.{/answer}
+
+== 관련 문서 ==
+* [[메모리 계층]] · [[locality]] · [[가상 메모리]]

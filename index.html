@@ -710,7 +710,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|}\n\n== 분류별 문서 ==\n\n=== 시험·과제 ===\n* [[시험 정보]] · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
+  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
  },
  "읽는 순서": {
   "title": "읽는 순서",
@@ -724,7 +724,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "CSE304 운영체제의 시험·퀴즈 일정과 범위. 원본 기준 파일은 저장소의 `운영체제/_시험정보.md`이며, 새 공지가 나오면 그쪽을 먼저 고친다.\n\n== 확정된 것 ==\n{|\n! 날짜 || 종류 || 범위 || 출처\n|-\n| '''2026-09-23 (수)''' || '''퀴즈 1''' (15분, 100점) || '''전부 [[과제1 xv6 alarm|과제 1]]''' — 핸들러 실행 모드, [[usertrap]] 코드 빈칸, [[alarm_saved]]가 필요한 이유, [[a0 복원]], alarmtest 변형 출력 예측 || 실제 시험지 → [[퀴즈1 복기]]\n|-\n| 2026-10-10 (금) 23:00 || 과제 1 마감 || [[sigalarm]]/[[sigreturn]] 구현 + 보고서 4~6쪽 + `make zipball` || Assignment 1.pdf\n|-\n| '''2026-10-14 (수)''' 수업 시간, 같은 강의실, '''1시간 30분''' || '''중간고사''' || '''1~12강 전부''' (12강은 p.29 데드락까지; p.30~52 는 복습 슬라이드). 교수(10/7 녹음): \"이 수업이 중간고사 전 마지막, 범위는 다 다뤘다, network 는 건너뛴다\". 형식은 미공지 — 2025F 는 객관식 + 정의→용어 + 계산 + 코드 빈칸 || 10/7 녹음 `음성 261007_165800.m4a` 48:20\n|-\n| (참고) || 이전 추정 || 작년 기준 1~9강 + condition variable까지 — 10강 [[조건 변수]]가 2026-09-28 진행(슬라이드 p.29 broadcast까지). 11강 [[세마포어]]·[[reader-writer lock]]·[[dining philosophers]]가 2026-09-30 진행(`11-Semaphore.pdf` 전부). 데드락 4조건은 \"next lecture\" || [[2025F 중간고사 족보]]\n|}\n\n{exam}교수님이 8강 앞부분 p.2–20에서 1~7강을 복습한 것은 '''퀴즈 대비용'''이라고 밝혔다 (2026-09-21). 실제 퀴즈는 과제 100%였지만, 중간고사에서는 이 복습 슬라이드가 그대로 출제 목록이 될 가능성이 높다. → [[스레드]] 문서의 \"교수님 퀴즈 복습 슬라이드\" 표 참고.{/exam}\n\n== 퀴즈 1에서 드러난 출제 스타일 ==\n* '''한 문장 서술''' — \"Limit each written explanation to one sentence.\" 길게 쓰면 손해.\n* '''코드 빈칸''' — 과제 코드의 조건식·대입문을 그대로 채우기 (`!p->alarm_active`, `*p->trapframe`, `(uint64)p->alarm_handler`).\n* '''값 추적''' — 레지스터 [[a0]]가 특정 시점에 어떤 값인지 ([[a0 복원]]).\n* '''출력 예측''' — 변형된 alarmtest를 읽고 printf 세 줄 쓰기. 코드를 tick 단위로 머릿속에서 돌려야 한다 → alarm_trace 시뮬레이터가 이 훈련용.\n\n== 작년(2025F) 중간고사 ==\n객관식 + 정의→용어 단답 + 스케줄링 계산 + 락 코드 빈칸. 평균 52.4 / 표준편차 14.4 / 최고 84. 자세한 것은 [[2025F 중간고사 족보]].\n\n[[img:SOL-42.png|2025F 중간 해설 p.42 — Statistics. Mean 52.4 / Stdev 14.4 / Max 84 점수 분포|medium]]\n\n== 아직 모르는 것 ==\n* 퀴즈 성적 반영 비율, 중간고사 '''형식'''(객관식/서술 비율, 계산기). 날짜·시간·범위는 10/7 확정(위 표).\n* 확인되면 `_시험정보.md`와 이 문서를 함께 갱신할 것."
+  "body": "CSE304 운영체제의 시험·퀴즈 일정과 범위. 원본 기준 파일은 저장소의 `운영체제/_시험정보.md`이며, 새 공지가 나오면 그쪽을 먼저 고친다.\n\n== 확정된 것 ==\n{|\n! 날짜 || 종류 || 범위 || 출처\n|-\n| '''2026-09-23 (수)''' || '''퀴즈 1''' (15분, 100점) || '''전부 [[과제1 xv6 alarm|과제 1]]''' — 핸들러 실행 모드, [[usertrap]] 코드 빈칸, [[alarm_saved]]가 필요한 이유, [[a0 복원]], alarmtest 변형 출력 예측 || 실제 시험지 → [[퀴즈1 복기]]\n|-\n| 2026-10-10 (금) 23:00 || 과제 1 마감 || [[sigalarm]]/[[sigreturn]] 구현 + 보고서 4~6쪽 + `make zipball` || Assignment 1.pdf\n|-\n| '''2026-10-14 (수)''' 수업 시간, 같은 강의실, '''1시간 30분''' || '''중간고사''' || '''1~12강 전부''' (12강은 p.29 데드락까지; p.30~52 는 복습 슬라이드). 교수(10/7 녹음): \"이 수업이 중간고사 전 마지막, 범위는 다 다뤘다, network 는 건너뛴다\". 형식은 미공지 — 2025F 는 객관식 + 정의→용어 + 계산 + 코드 빈칸 || 10/7 녹음 `음성 261007_165800.m4a` 48:20\n|-\n| '''미정''' || '''기말고사''' || 13강 [[가상 메모리]]부터 (2026-10-19 기준 13강 슬라이드만 배포). 날짜·형식 미공지 → [[기말고사]] || —\n|-\n| (참고) || 이전 추정 || 작년 기준 1~9강 + condition variable까지 — 10강 [[조건 변수]]가 2026-09-28 진행(슬라이드 p.29 broadcast까지). 11강 [[세마포어]]·[[reader-writer lock]]·[[dining philosophers]]가 2026-09-30 진행(`11-Semaphore.pdf` 전부). 데드락 4조건은 \"next lecture\" || [[2025F 중간고사 족보]]\n|}\n\n{exam}교수님이 8강 앞부분 p.2–20에서 1~7강을 복습한 것은 '''퀴즈 대비용'''이라고 밝혔다 (2026-09-21). 실제 퀴즈는 과제 100%였지만, 중간고사에서는 이 복습 슬라이드가 그대로 출제 목록이 될 가능성이 높다. → [[스레드]] 문서의 \"교수님 퀴즈 복습 슬라이드\" 표 참고.{/exam}\n\n== 퀴즈 1에서 드러난 출제 스타일 ==\n* '''한 문장 서술''' — \"Limit each written explanation to one sentence.\" 길게 쓰면 손해.\n* '''코드 빈칸''' — 과제 코드의 조건식·대입문을 그대로 채우기 (`!p->alarm_active`, `*p->trapframe`, `(uint64)p->alarm_handler`).\n* '''값 추적''' — 레지스터 [[a0]]가 특정 시점에 어떤 값인지 ([[a0 복원]]).\n* '''출력 예측''' — 변형된 alarmtest를 읽고 printf 세 줄 쓰기. 코드를 tick 단위로 머릿속에서 돌려야 한다 → alarm_trace 시뮬레이터가 이 훈련용.\n\n== 작년(2025F) 중간고사 ==\n객관식 + 정의→용어 단답 + 스케줄링 계산 + 락 코드 빈칸. 평균 52.4 / 표준편차 14.4 / 최고 84. 자세한 것은 [[2025F 중간고사 족보]].\n\n[[img:SOL-42.png|2025F 중간 해설 p.42 — Statistics. Mean 52.4 / Stdev 14.4 / Max 84 점수 분포|medium]]\n\n== 아직 모르는 것 ==\n* 퀴즈 성적 반영 비율, 중간고사 '''형식'''(객관식/서술 비율, 계산기). 날짜·시간·범위는 10/7 확정(위 표).\n* 확인되면 `_시험정보.md`와 이 문서를 함께 갱신할 것."
  },
  "운영체제란": {
   "title": "운영체제란 무엇인가 (What is an OS?)",
@@ -1959,6 +1959,113 @@ const ARTICLES = {
   ],
   "body": "'''`myproc()`'''은 [[xv6]]에서 '''\"지금 이 CPU에서 실행 중인 프로세스\"의 [[struct proc]] 포인터'''를 돌려주는 함수다. [[usertrap]], `sys_sigalarm`, `sys_sigreturn` 등 [[과제1 xv6 alarm|과제 1]]의 모든 코드가 이 함수로 시작한다.\n\n{def}\n`struct proc *myproc(void);` — returns the `struct proc *` of the process currently running on this CPU (`c->proc`).\n{/def}\n\n{analogy}\n`myproc()`은 '''\"지금 이 진료실에 앉아 있는 환자의 차트를 꺼내 오는 것\"'''이다. 병원(커널)에는 환자 차트가 64장 꽂혀 있는데(`struct proc proc[NPROC]`), 의사는 '''지금 눈앞의 환자 것'''만 필요하다. 그래서 `p->alarm_interval = n`이라고 쓰면 '''[[sigalarm]]을 부른 바로 그 프로세스의 칸'''에만 기록된다 — 알람 설정이 프로세스마다 독립인 이유.\n{/analogy}\n\n== 구현 ==\n\n<pre class=\"c\">\n// kernel/proc.c\nstruct proc*\nmyproc(void)\n{\n  push_off();               // 1  인터럽트 끄기\n  struct cpu *c = mycpu();  // 2  tp 레지스터의 hartid 로 CPU 구조체\n  struct proc *p = c->proc; // 3  그 CPU 가 지금 돌리는 프로세스\n  pop_off();                // 4  인터럽트 복원\n  return p;\n}\n<\/pre>\n\n{warn}\n1·4행의 `push_off()`/`pop_off()`가 핵심이다. 2행과 3행 사이에 [[타이머 인터럽트]]가 들어와 [[컨텍스트 스위치]]가 일어나면, '''다른 CPU로 옮겨 가서 엉뚱한 `c`를 읽게 된다'''. 그래서 그 짧은 구간 동안 인터럽트를 꺼 둔다 — 9강 [[인터럽트 비활성화]]와 같은 기법.\n{/warn}\n\n== 프로세스는 배열의 한 칸이다 ==\n\n<pre class=\"ascii\">\n   kernel/proc.c:   struct proc proc[NPROC];    // NPROC = 64. 부팅 때부터 고정 존재\n\n   커널 메모리 (bss)\n   proc[0]  ┌──────────────────────────────────────────┐\n            │ lock, state, pid, parent, kstack, sz     │  원래 필드\n            │ pagetable                                │\n            │ trapframe ─────────────┐  (포인터 8B)    │\n            │ context, ofile[], cwd, name              │\n            │ ── Assignment 1 추가 ──                   │\n            │ alarm_interval, alarm_handler,           │  ← 이 칸 \"안에\" 직접\n            │ alarm_elapsed, alarm_active              │\n            │ alarm_saved  [ 288B 구조체 통째 ]         │  ← 포인터가 아니라 내용물\n            └────────────────────────│─────────────────┘\n   proc[1]  ┌──────── 같은 모양 ─────│─────────────────┐\n     …                               │\n   proc[63]                          ▼\n                       trapframe 페이지 (4096B, 프로세스마다 1장)\n                       ┌──────────────────────────┐\n                       │ kernel_satp … epc        │\n                       │ ra sp … a0 … t6          │\n                       └──────────────────────────┘\n\n   myproc() 이 돌려주는 p = 이 배열의 \"한 칸을 가리키는 포인터\"\n<\/pre>\n\n[[img:L3-37.png|3강 p.37. 슬라이드의 xv6 struct proc(x86 시절 버전) — myproc()이 돌려주는 것이 이런 구조체 한 칸의 주소다. 과제 버전 필드는 다르다.|medium]]\n\n== `->` 와 `.` 의 차이가 곧 \"어디에 있나\" ==\n\n{| class=\"table\"\n! 식 || 뜻 || 데이터 위치\n|-\n| `p->alarm_interval` || p가 가리키는 칸의 필드 || '''proc 칸 안'''\n|-\n| `p->trapframe` || 칸 안의 '''포인터 값''' || 칸 안 (8 B)\n|-\n| `p->trapframe->epc` || 그 포인터를 '''한 번 더 따라간''' 페이지의 [[epc]] || '''별도 [[trapframe]] 페이지'''\n|-\n| `p->alarm_saved.epc` || 칸 안에 박힌 구조체의 epc (포인터 아님 → `.`) || '''proc 칸 안'''\n|}\n\n{tip}\n그래서 백업/복원 코드가 이렇게 생긴 것이다:\n<pre class=\"c\">\np->alarm_saved = *p->trapframe;   // 페이지 → 칸 안   (백업)\n*p->trapframe = p->alarm_saved;   // 칸 안 → 페이지   (복원)\n<\/pre>\n{/tip}\n\n{quiz}\n`sys_sigalarm()` 안에서 `myproc()` 대신 전역 변수에 interval을 저장하면 어떤 문제가 생기나?\n{/quiz}\n{answer}\n'''모든 프로세스가 같은 알람 설정을 공유'''하게 된다. A가 `sigalarm(2, fa)`를, B가 `sigalarm(5, fb)`를 부르면 서로 덮어쓰고, [[alarm_saved]] 슬롯도 하나뿐이라 A의 문맥이 B의 문맥으로 덮여 '''둘 다 crash'''한다. 프로세스별 상태는 반드시 [[struct proc]]([[PCB]]) 안에 둬야 한다 — 그것이 PCB의 존재 이유다.\n{/answer}\n\n== 관련 문서 ==\n* [[struct proc]] · [[PCB]] · [[trapframe]] · [[epc]] · [[alarm_saved]] · [[프로세스]]\n* [[sigalarm]] · [[sigreturn]] · [[usertrap]] · [[yield]] · [[인터럽트 비활성화]]\n* [[과제1 xv6 alarm]] · [[xv6]]"
  },
+ "기말고사": {
+  "title": "기말고사 (2026 Fall, 13강~)",
+  "category": [
+   "기말고사"
+  ],
+  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| 14강~ || (아직 배포 전) || OSTEP 순서상 다음은 segmentation → free-space management → paging → TLB (p.55의 \"free 공간 낭비\" 문제가 출발점) || —\n|}\n\n{warn}13강은 '''녹음본이 아직 없다'''. 아래 문서는 모두 슬라이드 기준이다. 수업 녹음이 들어오면 각 문서에 `🎙 실제 수업 기록`을 붙이고 교수님 강조점을 `{exam}`으로 올린다.{/warn}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전'''. 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]"
+ },
+ "가상 메모리": {
+  "title": "가상 메모리 (Virtual Memory) — 13강 허브",
+  "category": [
+   "13강 Virtual Memory",
+   "핵심"
+  ],
+  "body": "{info}📌 '''13강 슬라이드 `13-Virtual_Memory.pdf`(57쪽) 기준.''' 표지는 \"12. Virtual Memory\", 마지막 장은 \"End of Lecture 12\"지만 파일명이 13이라 위키에서는 13강이라 부른다(12강 Deadlock 덱이 표지 \"11.\"이었던 것과 같은 한 칸 밀림). 녹음본 아직 없음. 덱 구성: p.2~10 '''Beyond CPU and Flat Memory'''(RAM·계층·locality) → p.11~18 '''Memory Virtualization''' → p.19~24 '''Virtual Address Space''' → p.25~38 '''Address Translation'''(설계 목표·변환 시점 셋·MMU) → p.39~55 '''Dynamic Relocation'''(base and bounds, OS가 할 일, 한계) → p.56 참고문헌(OSTEP 13·14·15장).{/info}\n\n'''가상 메모리'''(Virtual Memory)는 OS가 물리 메모리를 가상화해서, 각 [[프로세스]]에게 '''자기만의 private한, 0번지부터 시작하는 큰 메모리'''가 있는 것처럼 보이게 하는 기법이다. 지금까지(1~12강)는 \"CPU에 레지스터 몇 개 + 평평한(flat) 메모리\"라는 큰 가정 아래에서 OS를 봤다(p.3). 13강은 그 가정을 깨고, '''메모리는 계층이고 여러 프로세스가 나눠 써야 한다'''는 현실에서 출발한다.\n\n{def}p.16 원문 — '''Virtual Memory = ① Virtual Address Space + ② Address Translation'''\n* '''Virtual address space''': \"Each process has its own '''private''' virtual address space. The program is '''unaware''' that memory is virtualized. A memory reference within one running program '''does not affect''' the address space of other processes.\"\n* '''Address translation''': \"Physical memory is a '''shared resource, managed by the OS'''. OS maps the address space of every process onto physical memory in a '''time and space efficient''' manner.\"\n* p.15: \"Memory virtualization is a process that '''translates Physical Memory into Virtual Memory'''.\" — \"OS provides an '''illusion''' memory space per each process.\"{/def}\n\n{analogy}🎭 '''호텔 객실 번호'''. 모든 손님(프로세스)이 자기 방을 \"101호\"라고 부르지만, 프런트(OS)가 각 카드키를 실제 서로 다른 방에 연결해 둔다. 손님은 건물 구조를 몰라도 되고(transparency), 남의 방 문은 안 열리고(protection), 빈 방을 여러 손님이 나눠 쓴다(efficiency). 13강의 [[base and bounds]]는 가장 단순한 프런트다 — \"당신 방 번호 + 3200 = 실제 방, 단 16개 넘으면 안 됨\".{/analogy}\n\n[[anim:mmu_base_bounds|VA 가 MMU 의 비교기(<bounds)와 덧셈기(+base)를 지나 PA 가 되는 흐름, 그리고 bounds 를 넘으면 exception 이 나는 순간을 먼저 보라]]\n\n[[sim:base_bounds_trace]]\n\n== 1. Beyond CPU and Flat Memory (p.2~10) ⭐ ==\n\np.3: \"We have seen how OS works under the big assumption: 1) CPU with few registers and 2) flat memory.\" 실제 기계에는 L1/L2/L3 캐시와 TLB(SRAM), DRAM, SSD, HDD, 키보드·마우스가 있고 '''\"OS manages all of them!\"'''\n\n* RAM 두 종류(p.4): [[SRAM과 DRAM|SRAM]](셀당 트랜지스터 4~6개, 빠르고 비쌈, 캐시) vs [[SRAM과 DRAM|DRAM]](커패시터 1개 + 트랜지스터 1개, 10~100 ms마다 refresh, 메인 메모리)\n* Nonvolatile(p.5): ROM / PROM / EPROM / EEPROM / NAND Flash / Optane(phase-change memory)\n* 계층(p.7): L0 레지스터 → L1·L2 캐시(SRAM) → L3 near main memory(DRAM) → L4 far main memory(Optane) → L5 local secondary storage(SSD·HDD). 위로 갈수록 작고 빠르고 비싸다.\n* 왜 계층이 통하나(p.8~9): '''[[locality|Principle of Locality]]''' — temporal + spatial\n* p.10 캐싱 표에서 '''Virtual Memory = \"4-KB page, cached in Main memory, latency 100 cycles, managed by Hardware + OS\"''' ← 이 행이 13강부터의 주제\n\n[[img:L13-07.png|p.7 Example Memory Hierarchy — 위층은 바로 아래층에서 가져온 것을 담는 캐시. 레지스터는 L1에서, L1은 L2에서, 메인 메모리는 디스크 블록을|large]]\n\n자세한 것은 [[메모리 계층]], [[locality]].\n\n== 2. Memory Virtualization (p.11~18) ⭐⭐ ==\n\n* p.12: 물리 메모리 = '''바이트 배열'''. 주소를 지정해 읽고(`mov A, %eax`) 쓴다(`mov %eax, A`).\n* p.13 '''No virtualization ①''': 물리 메모리에 프로세스 '''하나만''' (초기 OS, 임베디드). 단점: poor CPU utilization, memory space waste.\n* p.14 '''No virtualization ②''': '''Multiprogramming and Time Sharing''' — 여러 프로세스를 동시에 올리고 번갈아 실행 → CPU 활용도·메모리 효율 ↑. 그러나 '''protection issue'''(다른 프로세스의 errant access) + 로드할 때마다 위치가 바뀌어 관리가 어려움.\n* p.15~17: 그래서 OS가 각 프로세스에 '''illusion'''을 준다 → 위의 {def}.\n* p.18 '''Benefits''': ① '''Memory efficiency''' ② '''Protection''' ③ '''Ease of programming'''\n\n[[img:L13-14.png|p.14 Multiprogramming — 물리 메모리 0~512KB에 OS·A·B·C가 함께 있고, C에서 A로 향하는 'Errant access' 화살표가 protection issue를 보여 준다|large]]\n\n자세한 것은 [[메모리 가상화]].\n\n== 3. Virtual Address Space (p.19~24) ⭐⭐ ==\n\n* p.20: Linear address space = 연속된 음이 아닌 정수 {0,1,2,…}. '''Virtual address space = $N = 2^n$개의 가상 주소''' (n = 32 또는 64), '''Physical address space = $M = 2^m$개의 물리 주소'''. \"Clean distinction between data (bytes) and their attributes (addresses).\"\n* p.21~22: 주소 공간 = '''Program Code''' (명령어) + '''Heap''' (`malloc`/`new`, 아래로 자람) + '''Stack''' (return address, 지역 변수, 인자, 위로 자람). 예시 크기 16KB.\n* p.23~24 `mem.c`: \"'''Every address in a running program is virtual'''\" — 두 프로세스(2413, 2414)를 동시에 돌려도 code `0x40057d`, heap `0xcf2010`, stack `0x7fff9ca45fcc`가 '''똑같이''' 찍힌다. 같은 물리 주소일 수는 없으니 → 가상 주소다.\n\n[[img:L13-24.png|p.24 mem.c 실행 결과 — 두 프로세스가 같은 주소를 출력. 오른쪽은 64-bit Linux 주소 공간: heap과 stack 사이 free 영역이 128 TB|large]]\n\n자세한 것은 [[가상 주소 공간]].\n\n== 4. Address Translation (p.25~38) ⭐⭐⭐ ==\n\np.26: \"Address translation is a process of '''mapping virtual addresses to physical addresses'''.\" 각 프로세스는 private virtual address space를, 물리 메모리는 모든 프로세스가 공유한다.\n\n{def}p.27 / p.37 '''Design Goals''' — 넷 다 영어 이름으로\n* '''Transparency''': The program shouldn't be aware of the fact that memory is virtualized\n* '''Protection''': The OS should make sure to protect processes from one another\n* '''Flexibility''': Make the system easier to program\n* '''Efficiency''': Time efficiency (not making programs run much more slowly) / Space efficiency ((1) not wasting available physical memory and (2) not using too much memory for virtualization)\np.37에 같은 슬라이드가 다시 나오며 \"→ '''Main topics in the rest of VM lectures'''\"가 붙는다.{/def}\n\n=== 4.1 언제 변환하나 — 세 시점 (p.28~36) ===\n\n예제 프로그램 `swap`/`main` (p.29). 실행 파일 P1에서 `swap`은 `0x10052d`, `main`은 `0x100559` (p.30). P2는 `test`가 `0x100320`.\n\n{|\n! 시점 || 방법 || 결과\n|-\n| '''Compile time''' (p.31~32) || 컴파일러가 만든 주소가 곧 물리 주소 (VA = PA) || P1이 `0x100000`에 올라가면, 같은 주소를 쓰는 P2는 '''로드 불가''' (p.32 파란 X)\n|-\n| '''Load time''' (p.33~34) || 로딩할 때 주소를 고쳐 씀: P1 + `0x100000` → `call 20052d`, P2 + `0x200000` → `call 300320` || 여러 프로그램 동시 로드 가능. 그러나 '''P1이 P2 메모리를 건드릴 수 있다'''(보호 없음)\n|-\n| '''Execution time''' (p.35~36) || 실행 파일은 그대로(`call 10052d`), '''CPU가 실행 중에''' +100000 / +200000 해서 물리 주소로 || 프로세스마다 Virtual Address 0x100000~0xFFFFFF, 물리 위치는 실행 시점에 결정 → [[MMU]]\n|}\n\n[[img:L13-36.png|p.36 Execution time — CPU(회색) 안의 Process P1/P2 는 원래 주소 call 10052d / call 100320 그대로, 빨간 상자의 +100000 / +200000 을 지나 물리 0x20052d / 0x300320 으로|large]]\n\n자세한 것은 [[주소 변환 시점]].\n\n=== 4.2 MMU (p.38) ===\n\n\"Hardware device inside CPU, '''Memory Management Unit (MMU)''', maps virtual to physical address '''at run time'''.\" 그림에서 CPU가 VA 4100을 내면 MMU가 PA 4로 바꿔 메인 메모리에 보내고, data word가 CPU로 돌아온다. \"Close cooperation between CPU and OS.\" → [[MMU]]\n\n== 5. Dynamic Relocation — Base and Bounds (p.39~49) ⭐⭐⭐ ==\n\n{def}p.40 — '''Two hardware (CPU) registers'''\n* '''base register''': specify the '''start address''' of the physical memory in which a program is loaded\n* '''bounds (or limit) register''': specify the '''length''' of the physical memory that belongs to the program\n* 동작: ① 각 프로그램은 '''address 0에 로드되는 것처럼''' 컴파일 ② 실행 시작 시 OS가 물리 위치를 정하고 base·bounds를 설정 ③ 프로세스의 모든 메모리 참조를 '''MMU가 run time에''' 변환{/def}\n\np.43의 두 식이 전부다:\n$$\\text{physical address} = \\text{virtual address} + \\text{base}$$\n$$0 \\le \\text{virtual address} < \\text{bounds}$$\n\n예제(p.44~49): `x = x + 3` → 어셈블리 `128: movl 0x0(%ebx),%eax` / `132: addl $0x03,%eax` / `135: movl %eax,0x0(%ebx)`, `%ebx` = 15KB (x의 주소), base = 32KB, bounds = 16KB.\n* ① fetch 128 → 128 < 16KB ✓ → '''32896''' = 128 + 32768\n* ② load 15KB → 15KB < 16KB ✓ → '''47KB''' = 15KB + 32KB\n* ③ fetch 132 → 32900 (메모리 참조 없음) ④ fetch 135 → 32903, store 15KB → 47KB\n\n[[img:L13-48.png|p.48 ① Fetch instruction at address 128 — MMU 안에서 bounds(16KB)와 비교(<), yes 면 base(32KB)를 더해 32896, no 면 Raise exception|large]]\n\n자세한 것은 [[base and bounds]] (계산 연습 포함).\n\n== 6. OS가 할 일 (p.50~54) ⭐⭐ ==\n\n{|\n! 언제 || OS가 하는 일 || 슬라이드\n|-\n| 프로세스 시작 || 물리 메모리에서 주소 공간 자리 찾기 — '''[[free list]]'''(사용 안 하는 물리 메모리 범위 목록)를 뒤져 한 칸을 꺼냄 || p.51~52\n|-\n| 프로세스 종료 || 메모리를 '''free list에 되돌림''' || p.53\n|-\n| context switch || base-and-bounds 쌍을 '''[[PCB]]에 저장·복원''' || p.54\n|}\n\n[[img:L13-54.png|p.54 When Context Switch Occurs — A 실행 중 base 32KB/bounds 16KB → B 로 전환하면 base 48KB/bounds 16KB. A 의 값은 Process A PCB 에 저장|large]]\n\n== 7. 한계 (p.55) ⭐ ==\n\n\"We have assumed that the virtual space size is limited to 16 KB. '''In reality, it is huge!'''\" — 64-bit Linux의 heap~stack 사이 free 영역이 128 TB. base and bounds는 주소 공간 '''통째로''' 연속 배치하므로 \"'''Big chunk of \"free\" space takes up physical memory'''\". → [[동적 재배치의 한계]]\n\n== 시험 대비 핵심 요약 ==\n# '''Virtual Memory = Virtual Address Space + Address Translation''' (p.16). 가상화 = 물리 메모리를 가상 메모리로 바꿔 각 프로세스에 illusion 제공.\n# 가상화의 이점 셋: '''Memory efficiency · Protection · Ease of programming''' (p.18).\n# 설계 목표 넷: '''Transparency · Protection · Flexibility · Efficiency'''(time + space) (p.27).\n# 변환 시점 셋: '''compile time'''(VA=PA, 두 번째 프로그램 로드 불가) / '''load time'''(로딩 때 주소 수정, 보호 없음) / '''execution time'''(CPU가 실행 중 변환 = MMU).\n# MMU = CPU 안 하드웨어, VA→PA를 run time에.\n# base and bounds: '''PA = VA + base''', '''0 ≤ VA < bounds''' 아니면 exception. bounds는 '''길이'''(크기)이지 끝 주소가 아니다 (이 슬라이드 정의).\n# `x = x + 3` 예: base 32KB → fetch 128 → 32896, load 15KB → 47KB.\n# OS 할 일 셋: 시작(free list에서 자리), 종료(free list에 반납), context switch(base/bounds를 PCB에 저장·복원).\n# 한계: 큰 주소 공간의 '''free 부분까지 물리 메모리를 차지'''한다.\n# 계층 + locality: temporal(같은 것 다시) / spatial(가까운 것 곧). `sum += a[i]`에서 a[i]는 spatial, sum은 temporal.\n\n== 관련 문서 ==\n* [[기말고사]] (기말 범위 시작 페이지)\n* [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]]\n* [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 공간]](3강)\n* [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]]\n* [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* [[컨텍스트 스위치]] · [[PCB]] · [[제한적 직접 실행]]"
+ },
+ "메모리 계층": {
+  "title": "메모리 계층 (Memory Hierarchy)",
+  "category": [
+   "13강 Virtual Memory"
+  ],
+  "body": "'''메모리 계층'''은 작고 빠르고 비싼 저장장치를 위에, 크고 느리고 싼 저장장치를 아래에 쌓아서 '''위층이 아래층의 캐시 역할'''을 하게 만든 구조다. 13강 p.3~10은 \"CPU + 평평한 메모리\"라는 중간까지의 가정을 깨기 위해 이 그림부터 보여 준다 — '''\"OS manages all of them!\"'''\n\n{def}p.7 Example Memory Hierarchy\n* L0: Registers — \"CPU registers hold words retrieved from L1 cache\"\n* L1: L1 cache (SRAM) — \"holds cache lines retrieved from L2 cache\"\n* L2: L2 cache (SRAM) — \"holds cache lines retrieved from main memory\"\n* L3: Near main memory (DRAM) — \"Main memory holds disk blocks retrieved from local disks\"\n* L4: Far main memory (Optane)\n* L5: Local secondary storage (Flash SSDs and HDDs) — \"Local disks hold files retrieved from disks on remote network servers\"\n위: '''Smaller, faster, costlier per byte''' / 아래: '''Larger, slower, cheaper per byte'''{/def}\n\n{analogy}🎭 '''책상 – 책장 – 도서관 – 국립중앙도서관'''. 지금 쓰는 책은 책상(레지스터·L1)에, 이번 주에 볼 책은 책장(L2·DRAM)에, 가끔 보는 책은 도서관(SSD)에. 자주 쓰는 걸 가까이 두면 대부분의 요청이 책상에서 끝난다 — 이게 통하는 이유가 [[locality]]다.{/analogy}\n\n[[img:L13-07.png|p.7 피라미드 — 각 층 오른쪽 빨간 글씨가 '이 층은 바로 아래층에서 가져온 무엇을 담는가'|large]]\n\n== RAM과 비휘발성 메모리 (p.4~6) ==\n\n{|\n! 종류 || 셀당 트랜지스터 || Access time || Refresh? || Nonvolatile? || $/GB || 용도\n|-\n| '''SRAM''' || 4 or 6 || 10 ns || No || No || 860 || Cache memory\n|-\n| '''DRAM''' || 1 || 100 ns || Yes || No || 8.6 || Main memory, frame buffers\n|-\n| '''Optane''' || 1 || 300 ns || No || Yes || 4.0 || Main memory, disk buffers\n|-\n| '''Flash''' || ~1 || 10 us || No || Yes || 0.25 || Data storage\n|}\n(p.6 표. Flash의 \"~1\"은 multi-level cell 기술로 셀 하나에 여러 비트 — 2021년 기준 최대 5비트.)\n\n차이의 이유는 [[SRAM과 DRAM]]. Nonvolatile(p.5): ROM(생산 시 프로그램) · PROM(한 번) · EPROM(UV·X-Ray로 통째 지움) · EEPROM(전기적 삭제) · NAND Flash(부분(sector) 삭제 가능한 EEPROM) · Optane(phase-change memory). 쓰임: 펌웨어(BIOS, 디스크 컨트롤러), SSD, 디스크 캐시.\n\n== 계층 곳곳의 캐싱 (p.10) ⭐ ==\n\n{|\n! Cache Type || What is Cached? || Where is it Cached? || Latency (cycles) || Managed By\n|-\n| Registers || 4-8 bytes words || CPU core || 0 || Compiler/HW\n|-\n| L1 cache || 64-bytes block || On-Chip L1 || 1 || Hardware\n|-\n| L2 cache || 64-bytes block || On/Off-Chip L2 || 10 || Hardware\n|-\n| '''Virtual Memory''' || '''4-KB page''' || '''Main memory''' || '''100''' || '''Hardware + OS'''\n|-\n| Buffer cache || Parts of files || Main memory || 100 || OS\n|-\n| Disk cache || Disk sectors || Disk controller || 100,000 || Disk firmware\n|-\n| Network buffer cache || Parts of files || Local disk || 10,000,000 || AFS/NFS client\n|-\n| Browser cache || Web pages || Local disk || 10,000,000 || Web browser\n|-\n| Web cache || Web pages || Remote server disks || 1,000,000,000 || Web proxy server\n|}\n\n{tip}이 표에서 '''Virtual Memory 행만 \"Hardware + OS\"'''가 같이 관리한다. 캐시는 하드웨어 혼자, 버퍼 캐시는 OS 혼자다. 가상 메모리가 \"하드웨어([[MMU]])가 매 접근을 변환하고, OS가 그 규칙(레지스터·테이블)을 설정\"하는 협업이라는 13강 전체의 요지가 이 한 칸에 들어 있다. 또 단위가 '''4-KB page''' — 다음 강의(paging)의 예고다.{/tip}\n\n== 관련 문서 ==\n* [[가상 메모리]] · [[SRAM과 DRAM]] · [[locality]] · [[MMU]]"
+ },
+ "SRAM과 DRAM": {
+  "title": "SRAM과 DRAM",
+  "category": [
+   "13강 Virtual Memory",
+   "용어"
+  ],
+  "body": "RAM(Random-Access Memory)은 칩으로 포장되고, 기본 저장 단위는 '''셀(cell, 셀당 1비트)'''이며, 여러 RAM 칩이 모여 메모리를 이룬다(p.4). 셀을 만드는 방식에 따라 SRAM과 DRAM으로 나뉜다. 둘 다 '''volatile'''(전원이 꺼지면 정보를 잃음, p.5).\n\n{def}p.4 원문\n* '''Static RAM (SRAM)''': Each cell stores a bit with a '''four or six-transistor circuit'''. Retains value indefinitely, as long as it is kept powered. Relatively insensitive to electrical noise (EMI), radiation, etc. '''Faster and more expensive''' than DRAM.\n* '''Dynamic RAM (DRAM)''': Each cell stores bit with a '''capacitor'''; one transistor is used for access. Value must be '''refreshed every 10-100 ms'''. More sensitive to disturbances (EMI, radiation,…) than SRAM. '''Slower and cheaper''' than SRAM.{/def}\n\n{analogy}🎭 SRAM은 '''스위치 여러 개로 만든 래치''' — 전원만 있으면 상태가 그대로다. DRAM은 '''조금씩 새는 물컵''' — 물(전하)이 있으면 1, 없으면 0인데 컵이 새서 10~100 ms마다 다시 채워야(refresh) 한다. 컵은 싸고 작아서 많이 깔 수 있으니 메인 메모리, 스위치 래치는 비싸고 커서 조금만 — 캐시.{/analogy}\n\n<pre class=\"ascii\">\n             '''SRAM'''                         '''DRAM'''\n   셀당 소자   트랜지스터 4~6개              커패시터 1 + 트랜지스터 1\n   유지        전원만 있으면 계속             10~100 ms 마다 refresh\n   속도        10 ns                          100 ns\n   가격        860 달러/GB                     8.6 달러/GB\n   잡음 민감   덜함                           더함 (EMI, radiation)\n   쓰임        [[메모리 계층|L1/L2/L3 캐시, TLB]]          메인 메모리, frame buffer\n<\/pre>\n\n[[img:L13-06.png|p.6 SRAM vs DRAM vs Optane vs NAND Flash 표 — 트랜지스터 수·access time·refresh·nonvolatile·$/GB·용도|medium]]\n\n{quiz}다음 중 DRAM에 대한 설명으로 옳지 않은 것은? ① 셀마다 커패시터를 쓴다 ② 주기적으로 refresh 해야 한다 ③ SRAM보다 잡음에 민감하다 ④ 전원이 꺼져도 값을 유지한다 ⑤ SRAM보다 싸다{/quiz}\n{answer}'''④'''. DRAM과 SRAM은 둘 다 volatile — 전원이 꺼지면 정보를 잃는다(p.5). 전원이 꺼져도 유지되는 것은 ROM 계열·Flash·Optane.{/answer}\n\n== 관련 문서 ==\n* [[메모리 계층]] · [[locality]] · [[가상 메모리]]"
+ },
+ "locality": {
+  "title": "Locality (지역성)",
+  "category": [
+   "13강 Virtual Memory",
+   "용어"
+  ],
+  "body": "'''Locality'''는 [[메모리 계층]]이 실제로 빠른 이유다. 작은 캐시에 \"최근 쓴 것과 그 근처\"만 두어도 대부분의 접근이 거기서 끝난다.\n\n{def}p.8 '''Principle of Locality''': \"Programs tend to use data and instructions with addresses '''near or equal to''' those they have used recently.\"\n* '''Temporal locality''': Recently referenced items are likely to be referenced '''again''' in the near future\n* '''Spatial locality''': Items with '''nearby addresses''' tend to be referenced close together in time{/def}\n\n{analogy}🎭 '''시험 기간 책상'''. 방금 본 운체 정리본은 곧 또 본다(temporal). 정리본 13쪽을 봤으면 다음엔 14쪽을 본다(spatial). 그래서 책상에 \"최근 펼친 책 + 그 주변 페이지\"만 두어도 책장까지 갈 일이 거의 없다.{/analogy}\n\n== 예제 (p.9) ⭐⭐ ==\n\n<pre class=\"c\">\nsum = 0;\nfor (i = 0; i < n; i++)\n    sum += a[i];\nreturn sum;\n<\/pre>\n\n{|\n! 참조 || 패턴 || Locality\n|-\n| Data: `a[i]` || 배열 원소를 차례로 (stride-1 reference pattern) || '''Spatial'''\n|-\n| Data: `sum` || 매 반복마다 같은 변수 || '''Temporal'''\n|-\n| Instruction: 명령어 || 순서대로 실행 || '''Spatial'''\n|-\n| Instruction: 루프 || 같은 루프 몸체를 반복 || '''Temporal'''\n|}\n\n[[img:L13-09.png|p.9 Locality Example — data/instruction 각각 spatial·temporal 하나씩|medium]]\n\n{warn}'''함정''': \"명령어는 spatial만, 데이터는 temporal만\"이 아니다. 데이터에도 둘(a[i] spatial, sum temporal), 명령어에도 둘(순차 spatial, 루프 temporal)이 다 있다. 표 네 칸을 그대로 외울 것.{/warn}\n\n{quiz}`for (j…) for (i…) sum += a[i][j];` 처럼 C의 2차원 배열을 '''열 우선'''으로 돌면 어떤 locality가 나빠지나?{/quiz}\n{answer}'''Spatial locality'''. C는 row-major라 `a[i][j]` 다음 원소는 `a[i][j+1]`인데, 열 우선으로 돌면 한 행 길이만큼 떨어진 주소로 뛰어서 stride-1 패턴이 깨진다. `sum`의 temporal locality는 그대로다.{/answer}\n\n== 관련 문서 ==\n* [[메모리 계층]] · [[SRAM과 DRAM]] · [[가상 메모리]]"
+ },
+ "메모리 가상화": {
+  "title": "메모리 가상화 (Memory Virtualization)",
+  "category": [
+   "13강 Virtual Memory"
+  ],
+  "body": "'''메모리 가상화'''는 OS가 물리 메모리를 가상화해서 프로세스마다 '''자기 혼자 메모리 전체를 쓰는 것 같은 illusion'''을 주는 것이다. 13강 p.11~18은 \"가상화가 없으면 무엇이 문제인가\"를 두 단계로 보여 주고 나서 정의를 내린다. CPU 가상화(4~7강)가 '''시간'''을 나눴다면 메모리 가상화는 '''공간'''을 나눈다.\n\n{def}p.15 '''What is memory virtualization?'''\n* OS virtualizes its physical memory\n* OS provides an '''illusion''' memory space per each process\n* It seems to be seen like each process uses the '''whole memory'''\n* \"Memory virtualization is a process that '''translates Physical Memory into Virtual Memory'''\"{/def}\n\n{analogy}🎭 '''공유 오피스'''. 가상화 없이는 ① 한 회사가 건물을 통째로 쓰거나(빈 층 낭비) ② 여러 회사가 칸막이 없이 섞여 앉는다(옆 회사 서류를 마음대로 뒤짐, 매번 자리가 바뀌어 주소가 엉망). 가상화는 각 회사에 \"우리 사무실 1층~3층\"이라는 '''자기 층 번호'''를 주고, 건물 관리인이 그걸 실제 층으로 바꿔 준다.{/analogy}\n\n== 가상화가 없을 때 (p.12~14) ==\n\np.12: 물리 메모리는 '''바이트 배열'''이다. 프로그램은 모든 자료구조를 메모리에 두고, 주소 A를 지정해 읽거나(`mov A, %eax`) 쓴다(`mov %eax, A`).\n\n=== ① 프로세스 하나만 (p.13) ===\n\"Load only one process in physical memory\" — 초기 OS와 임베디드 시스템. 0~64KB에 OS, 그 위에 현재 프로그램 하나.\n* '''Poor CPU utilization''' — 그 프로그램이 I/O를 기다리면 CPU가 논다\n* '''Memory space waste''' — 프로그램이 안 쓰는 메모리도 다른 누구도 못 쓴다\n\n=== ② Multiprogramming and Time Sharing (p.14) ===\n\"'''Load multiple processes''' in physical memory\" — 하나를 잠깐 실행하고, 메모리 안에서 프로세스 사이를 전환 → CPU 활용도·메모리 효율 ↑. 그러나 여러 프로그램이 메모리에 함께 있으면:\n* '''Protection issue''' — 다른 프로세스의 '''errant memory access''' (p.14 그림: Process C에서 A로 향하는 화살표)\n* \"Memory address where processes stay keep '''changing whenever they are loaded'''\" → 프로세스 관리가 어렵다\n\n[[img:L13-14.png|p.14 — 0~512KB 물리 메모리에 OS, Process A·B·C, Free 칸들. 오른쪽 'No virtualization' 표시와 Errant access 화살표|large]]\n\n{tip}p.13·p.14 오른쪽 위에 둘 다 '''\"No virtualization\"'''이라고 적혀 있다. 즉 multiprogramming 자체는 가상화가 아니다 — 여러 프로세스를 올리는 것까지는 했지만 '''주소를 바꿔 주는 층'''이 없어서 보호와 재배치 문제가 남는다. 이 두 문제를 푸는 것이 가상화다.{/tip}\n\n== 가상화 (p.15~17) ==\n\n[[img:L13-17.png|p.17 — Process 0 … Process N−1 이 각자 0KB~16KB Virtual Address Space(Program Code·Heap·free·Stack)를 갖고, Address Translation 화살표로 0~4GB Physical Address Space 의 서로 다른 곳에 놓인다|large]]\n\n정의는 [[가상 메모리]]의 p.16: '''Virtual Memory = ① [[가상 주소 공간|Virtual Address Space]] + ② [[주소 변환|Address Translation]]'''.\n\n== 이점 (p.18) ⭐⭐ ==\n\n{def}p.18 '''Benefits of Memory Virtualization'''\n* '''Memory efficiency''': Enable many applications to run simultaneously, sharing physical memory\n* '''Protection''': The guarantee of '''isolation''' for processes as well as OS. Protection from errant accesses of other processes\n* '''Ease of programming''': Each process gets the '''same uniform linear address space'''. Simplify application development and management{/def}\n\n{warn}'''이점 셋(p.18)'''과 '''설계 목표 넷(p.27, [[VM 설계 목표]])'''을 섞지 말 것. 이점 = Memory efficiency · Protection · Ease of programming. 설계 목표 = Transparency · Protection · Flexibility · Efficiency. Protection만 양쪽에 다 있고, \"Ease of programming\" ↔ \"Flexibility\"(\"make the system easier to program\")가 짝이다.{/warn}\n\n{quiz}가상화 없이 multiprogramming만 하는 시스템(p.14)의 문제 두 가지를 슬라이드 표현으로 쓰라.{/quiz}\n{answer}① '''Protection issue''' — errant memory accesses from other processes. ② '''Memory address where processes stay keep changing whenever they are loaded''' — 프로세스 관리가 어렵다.{/answer}\n\n== 관련 문서 ==\n* [[가상 메모리]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[가상화]](1강)"
+ },
+ "가상 주소 공간": {
+  "title": "가상 주소 공간 (Virtual Address Space)",
+  "category": [
+   "13강 Virtual Memory"
+  ],
+  "body": "'''가상 주소 공간'''은 OS가 물리 메모리 위에 만들어 준 '''추상화'''로, 실행 중인 프로세스에 관한 모든 것(code, heap, stack 등)이 들어 있다. 3강의 [[주소 공간]](\"set of rights\")과 같은 대상인데, 13강은 '''그 안의 주소가 전부 가짜(virtual)'''라는 점을 강조한다.\n\n{def}p.20 '''Address Spaces'''\n* '''Linear address space''': Ordered set of contiguous non-negative integer addresses {0, 1, 2, 3 … }\n* '''Virtual address space''': Set of $N = 2^n$ virtual addresses (n = 32 or 64) — {0, 1, 2, 3, …, N−1}\n* '''Physical address space''': Set of $M = 2^m$ physical addresses — {0, 1, 2, 3, …, M−1}\n* \"Clean distinction between '''data (bytes)''' and their '''attributes (addresses)'''\"{/def}\n\n{analogy}🎭 '''모든 아파트 단지의 \"101동 101호\"'''. 주소 형식(동·호)은 어느 단지나 똑같지만 실제 위치는 다르다. 프로그램은 자기 단지 안 주소만 알고, 지도(물리 주소)는 OS가 안다.{/analogy}\n\n== 구성 (p.21~22) ==\n\n<pre class=\"ascii\">\n   0KB ┌──────────────────┐\n       │  Program Code    │  명령어가 사는 곳\n   1KB ├──────────────────┤\n       │  Heap     ↓      │  동적 할당: C 의 malloc, 객체지향 언어의 new\n   2KB ├──────────────────┤\n       │                  │\n       │     (free)       │  heap 과 stack 이 서로를 향해 자란다\n       │                  │\n  15KB ├──────────────────┤\n       │  Stack    ↑      │  return address·값, 지역 변수, 함수 인자\n  16KB └──────────────────┘\n<\/pre>\n(슬라이드는 heap이 아래로, stack이 위로 자라는 그림. 크기 16KB는 설명용 가정 — 실제는 [[동적 재배치의 한계|훨씬 크다]].)\n\n== \"모든 주소는 가상이다\" — mem.c (p.23~24) ⭐⭐ ==\n\n<pre class=\"c\">\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char *argv[]){\n    printf(\"(%d) location of code : %p\\n\", getpid(), (void *) main);\n    printf(\"(%d) location of heap : %p\\n\", getpid(), (void *) malloc(1));\n    int x = 3;\n    printf(\"(%d) location of stack : %p\\n\", getpid(), (void *) &x);\n    return x;\n}\n<\/pre>\n\n`main` 함수 주소 = code, `malloc(1)` 반환값 = heap, 지역 변수 `&x` = stack.\n\n<pre class=\"sh\">\n$ ./mem\n(2134) location of code : 0x40057d\n(2134) location of heap : 0xcf2010\n(2134) location of stack : 0x7fff9ca45fcc\n\n$ ./mem& ; ./mem&\n(2413) location of code : 0x40057d\n(2413) location of heap : 0xcf2010\n(2414) location of code : 0x40057d\n(2413) location of stack : 0x7fff9ca45fcc\n(2414) location of heap : 0xcf2010\n(2414) location of stack : 0x7fff9ca45fcc\n<\/pre>\n\n두 프로세스 2413, 2414가 '''동시에''' 살아 있는데 code·heap·stack 주소가 '''한 글자도 안 다르다'''. 두 프로세스가 같은 물리 바이트를 쓸 수는 없으므로, 출력된 값은 '''가상 주소'''이고 OS(+[[MMU]])가 각자를 서로 다른 물리 주소로 [[주소 변환|변환]]하고 있다는 증거다. p.23: \"'''Every address in a running program is virtual'''. OS translates the virtual address to physical address.\"\n\n[[img:L13-24.png|p.24 — 64-bit Linux 주소 공간: Code(Text) 0x400000, Data 0x401000, Heap 0xcf2000~0xd13000, 그 아래 128 TB free, Stack 0x7fff9ca28000~0x7fff9ca49000|large]]\n\n{warn}출력 순서(2413, 2413, 2414, 2413, …)가 뒤섞인 것은 두 프로세스가 [[스케줄링|스케줄]]되며 번갈아 printf 한 결과일 뿐, 주소와는 무관하다. 주소가 같다는 것이 요점이다. (요즘 Linux는 ASLR 때문에 실행마다 주소가 달라지지만, 슬라이드는 ASLR을 끈 상황.){/warn}\n\n{quiz}p.24에서 두 프로세스의 heap 주소가 둘 다 `0xcf2010`이다. 이것으로 알 수 있는 것을 한 문장으로.{/quiz}\n{answer}프로그램이 보는 주소는 '''가상 주소'''이며, 같은 가상 주소라도 프로세스마다 OS가 서로 다른 물리 주소로 변환한다(각 프로세스는 private virtual address space를 가진다).{/answer}\n\n== 관련 문서 ==\n* [[주소 공간]](3강) · [[가상 메모리]] · [[주소 변환]] · [[힙]] · [[스택]] · [[동적 재배치의 한계]]"
+ },
+ "주소 변환": {
+  "title": "주소 변환 (Address Translation)",
+  "category": [
+   "13강 Virtual Memory",
+   "핵심"
+  ],
+  "body": "'''주소 변환'''은 가상 주소(VA)를 물리 주소(PA)로 바꾸는 과정이다. [[가상 메모리]]의 두 구성 요소 중 하나(나머지 하나는 [[가상 주소 공간]]).\n\n{def}p.26 '''Address Translation'''\n* Each process has its own '''private''' virtual address space\n* A physical memory is '''shared''' by all the processes\n* \"Address translation is a process of '''mapping virtual addresses to physical addresses'''\"\np.16: \"Physical memory is a shared resource, '''managed by the OS'''. OS maps the address space of every process onto physical memory in a '''time and space efficient''' manner.\"{/def}\n\n{analogy}🎭 '''통역사'''. 프로그램은 자기 말(가상 주소)로만 말하고, 메모리는 자기 말(물리 주소)로만 알아듣는다. 매 문장마다 통역사([[MMU]])가 끼어서 바꿔 주고, 어떤 단어를 어떻게 바꿀지 사전은 OS가 써 둔다. 통역이 느리면 대화가 느려진다 → Efficiency.{/analogy}\n\n[[anim:addr_bind_time|변환을 컴파일 때·로드 때·실행 때 하면 각각 무엇이 되고 무엇이 안 되는지]]\n\n[[img:L13-26.png|p.26 — Process 0 … N−1 의 Virtual Address Space 가 Address Translation 을 거쳐 0~4GB Physical Address Space 로|large]]\n\n== 설계 목표 (p.27) ⭐⭐⭐ ==\n\n넷: '''Transparency · Protection · Flexibility · Efficiency'''. 원문과 해석은 [[VM 설계 목표]]. p.37에서 같은 슬라이드가 \"→ '''Main topics in the rest of VM lectures'''\"와 함께 반복된다 — 기말 내내 \"이 기법은 네 목표 중 무엇을 얻고 무엇을 잃나\"를 물을 것이라는 신호.\n\n== 언제 변환하나 (p.28~36) ⭐⭐⭐ ==\n\n\"The address translation can be done at three different times: 1. '''Compile time''' 2. '''Load time''' 3. '''Execution time'''\" → [[주소 변환 시점]]에서 swap/main 예제로 하나씩.\n\n== 누가 변환하나 (p.38) ==\n\n실행 시점 변환은 매 명령어·매 load/store마다 일어나므로 소프트웨어(OS)가 할 수 없다. CPU 안의 하드웨어 [[MMU]]가 한다. OS는 MMU가 쓸 정보(13강에서는 [[base and bounds|base/bounds 레지스터]])를 설정한다 — \"Close cooperation between CPU and OS\".\n\n{tip}4강 [[제한적 직접 실행]]과 똑같은 구조다. CPU 가상화: 프로그램은 CPU에서 '''직접''' 실행, OS는 [[타이머 인터럽트]]·[[트랩 테이블]]만 설정해 두고 필요할 때 개입. 메모리 가상화: 메모리 접근은 하드웨어가 '''직접''' 변환, OS는 레지스터만 설정해 두고 bounds 위반 같은 exception 때 개입. OSTEP 15장은 이것을 \"limited direct execution의 메모리 버전\"이라고 부른다.{/tip}\n\n== 관련 문서 ==\n* [[가상 메모리]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]]"
+ },
+ "VM 설계 목표": {
+  "title": "VM 설계 목표 (Transparency · Protection · Flexibility · Efficiency)",
+  "category": [
+   "13강 Virtual Memory",
+   "용어"
+  ],
+  "body": "가상 메모리(주소 변환)를 설계할 때 노리는 네 가지 목표. 13강 p.27에 처음, p.37에 \"→ '''Main topics in the rest of VM lectures'''\"와 함께 다시 나온다. '''정의→용어''' 문제로 내기 딱 좋은 형태.\n\n{def}p.27 '''Design Goals'''\n* '''Transparency''': The program '''shouldn't be aware''' of the fact that memory is virtualized\n* '''Protection''': The OS should make sure to '''protect processes from one another'''\n* '''Flexibility''': Make the system '''easier to program'''\n* '''Efficiency''' — '''Time efficiency''': not making programs run much more slowly / '''Space efficiency''': (1) not wasting available physical memory and (2) not using too much memory for virtualization{/def}\n\n{analogy}🎭 '''좋은 통역사의 조건'''. 손님이 통역사가 있는 줄도 모를 만큼 자연스럽고(Transparency), 손님끼리 비밀이 새지 않고(Protection), 손님이 어떤 말이든 편하게 할 수 있고(Flexibility), 대화가 느려지지 않고 통역 장비가 방을 다 차지하지 않아야(Efficiency) 한다.{/analogy}\n\n{|\n! 목표 || 이게 깨지면 || 13강에서 [[base and bounds]]는?\n|-\n| Transparency || 프로그램이 자기 물리 위치를 알아야 함 ([[주소 변환 시점|compile time]] 방식) || ✓ 프로그램은 0번지부터라고 믿는다\n|-\n| Protection || 남의 메모리를 읽고 씀 (p.14 errant access, load time 방식) || ✓ bounds 검사로 막음\n|-\n| Flexibility || 주소 공간을 원하는 대로 못 씀 || △ 주소 공간이 하나의 연속 덩어리여야 함\n|-\n| Efficiency (time) || 매 접근이 느려짐 || ✓ 덧셈·비교 하나, 하드웨어\n|-\n| Efficiency (space) || 물리 메모리 낭비 || ✗ heap~stack 사이 free 공간까지 물리 메모리 차지 → [[동적 재배치의 한계]]\n|}\n(표의 오른쪽 열은 위키 정리 — 슬라이드는 p.55에서 space 문제만 명시한다.)\n\n[[img:L13-27.png|p.27 Design Goals 원문|medium]]\n\n{warn}\"Space efficiency\"의 '''두 가지'''를 다 써야 한다: ① 사용 가능한 물리 메모리를 낭비하지 않기 ② '''가상화 자체에 메모리를 너무 많이 쓰지 않기'''. ②는 나중에 page table 크기 문제로 다시 나온다.{/warn}\n\n{quiz}다음 정의에 해당하는 용어를 쓰라. \"The program shouldn't be aware of the fact that memory is virtualized.\"{/quiz}\n{answer}'''Transparency'''{/answer}\n\n== 관련 문서 ==\n* [[주소 변환]] · [[메모리 가상화]](p.18 이점 셋과 비교) · [[base and bounds]] · [[OS 설계 목표]](2강)"
+ },
+ "주소 변환 시점": {
+  "title": "주소 변환 시점 (Compile time · Load time · Execution time)",
+  "category": [
+   "13강 Virtual Memory",
+   "핵심"
+  ],
+  "body": "[[주소 변환]]은 세 시점 중 하나에 할 수 있다(p.28): '''1. Compile time 2. Load time 3. Execution time'''. 13강 p.29~36은 한 예제 프로그램으로 셋을 차례로 보여 주고, 앞의 두 방식이 왜 안 되는지 보여 준 뒤 세 번째(→ [[MMU]], [[base and bounds]])로 간다.\n\n{analogy}🎭 '''택배 주소 쓰기'''. ① compile time = 공장에서 상자에 받는 사람 집 주소를 '''인쇄'''해 버림 — 그 집에 다른 사람이 이미 살면 끝. ② load time = 출고할 때 '''주소 스티커를 고쳐 붙임''' — 여러 집에 보낼 수 있지만, 상자 안 사람이 옆집 문을 열어도 막을 방법이 없음. ③ execution time = 상자엔 \"우리 집\"이라고만 쓰고, '''배달 기사(MMU)가 매번''' 실제 주소로 바꿔 배달 — 기사가 \"당신 구역 밖\"이면 배달 거부(exception).{/analogy}\n\n[[anim:addr_bind_time|세 줄 비교 — compile time 에서 P2 로딩이 막히는 X, load time 에서 call 주소가 고쳐 쓰이는 순간, execution time 에서 파일은 그대로고 CPU 쪽 +100000/+200000 이 붙는 순간을 보라]]\n\n== 예제 프로그램 (p.29~30) ==\n\n<pre class=\"c\">\n#include <stdio.h>\nvoid swap (int* a, int* b)\n{\n    int temp;\n    temp = *a;\n    *a = *b;\n    *b = temp;\n}\nint main()\n{\n    int a = 10, b = 20;\n    printf(\"[before] a=%d, b=%d\", a, b);\n    swap(&a, &b);\n    printf(\"[after] a=%d, b=%d\", a, b);\n    return 0;\n}\n<\/pre>\n\n심볼 두 개 `swap`, `main`. 실행 파일 P1 안에서 각각 '''`0x10052d`''', '''`0x100559`'''에 놓인다(p.30, `.text`는 `0x100000`부터, 그 위는 other code/system code, 아래 `.data`에 global variables). `main`은 `call 0x10052d <swap>`을 갖고 있다. 두 번째 실행 파일 P2는 `test`가 '''`0x100320`''', `main`이 `0x100559`, `call 100320`.\n\n== ① Compile time (p.31~32) ==\n\n\"Addresses generated by a compiler are '''directly mapped to physical addresses''' (virtual address = physical address).\"\n* P1을 로드하면 물리 `0x100000`~에 그대로 들어간다. `call 10052d`는 물리 `0x10052d`의 swap을 정확히 부른다.\n* P2도 `0x100000`~을 쓰겠다고 컴파일되어 있다 → '''이미 P1이 있는 자리''' → 로딩 불가 (p.32 파란 X).\n\n[[img:L13-32.png|p.32 — P1 은 물리 0x100000 에 그대로, P2(빨간 주소 0x100000/0x100320/0x100559)는 같은 자리를 원해서 Loading 화살표에 X|large]]\n\n== ② Load time (p.33~34) ==\n\n\"Address translation is done when executables are '''loaded into the physical memory'''.\"\n* P1 + `0x100000` → 물리 `0x200000`~, 코드 안의 주소도 고쳐 쓴다: `call 10052d` → '''`call 20052d`'''\n* P2 + `0x200000` → 물리 `0x300000`~, `call 100320` → '''`call 300320`'''\n* 이제 여러 애플리케이션을 동시에 올려 실행할 수 있다. 그러나 p.34: \"'''One process (P1) can interfere with another (P2)'s memory'''\" — 고친 주소는 진짜 물리 주소라서 P1이 `0x300320`을 건드리면 그대로 P2의 메모리다. '''보호 장치가 없다.'''\n\n[[img:L13-33.png|p.33 — Loading 하면서 +0x100000 / +0x200000. 물리 메모리 안 call 주소가 빨간 20052d / 300320 으로 바뀌어 있다|large]]\n\n== ③ Execution time (p.35~36) ⭐⭐⭐ ==\n\n\"Address translation is performed '''while executable runs in CPU'''.\"\n* 실행 파일 내용은 '''그대로''' 메모리에 올라간다 — 물리 `0x200000`~에 있는 P1 코드에도 여전히 `call 10052d`.\n* CPU가 그 명령을 실행하는 순간 `0x10052d`(Virtual Address)에 '''+100000'''을 더해 물리 `0x20052d`로, P2는 '''+200000'''으로 `0x300320`.\n* 각 프로세스는 Virtual Address `0x100000`~`0xFFFFFF`를 갖는다(p.36 CPU 안의 Process P1/P2 박스).\n\n[[img:L13-36.png|p.36 Execution-time — 회색 CPU 영역 안에서 Virtual Address 가 +100000 / +200000 을 거쳐 Physical Address 로|large]]\n\n이 덧셈을 매 접근마다 하는 하드웨어가 [[MMU]]이고, \"더할 값\"을 담는 레지스터가 [[base and bounds|base register]]다. bounds 검사를 붙이면 load time에 없던 '''protection'''도 생긴다.\n\n== 비교 ==\n\n{|\n! || Compile time || Load time || Execution time\n|-\n| 누가 주소를 정하나 || 컴파일러 || 로더(OS) || CPU의 MMU\n|-\n| 실행 파일 안 주소 || = 물리 주소 || 로딩 때 물리 주소로 '''고쳐 씀''' || 그대로 (가상 주소)\n|-\n| 여러 프로세스 동시 로드 || ✗ (주소 충돌) || ✓ || ✓\n|-\n| 다른 프로세스 보호 || ✗ || '''✗''' (p.34) || ✓ (bounds 검사)\n|-\n| 실행 중 위치 옮기기 || ✗ || ✗ (이미 고쳐 쓴 주소) || ✓ (base만 바꾸면 됨)\n|-\n| 비용 || 없음 || 로딩 때 한 번 || 매 메모리 접근 (하드웨어라 빠름)\n|}\n(마지막 두 행은 위키 정리.)\n\n{warn}'''함정''': load time 방식도 여러 프로세스를 동시에 올릴 수 있다. load time의 문제는 \"동시 로드 불가\"가 아니라 '''보호가 없다'''(p.34)는 것. \"동시 로드 불가\"는 compile time의 문제(p.32).{/warn}\n\n{quiz}P2 실행 파일(`test` at `0x100320`)을 물리 `0x300000`에 로드했다. (a) load time 변환이면 메모리 안의 `main`이 가진 call 명령은? (b) execution time 변환이면?{/quiz}\n{answer}(a) '''`call 300320`''' — 로딩할 때 +0x200000을 더해 고쳐 쓴다(p.33). (b) '''`call 100320`''' 그대로 — 실행 중에 CPU(MMU)가 +200000을 더해 물리 `0x300320`에 접근한다(p.36).{/answer}\n\n== 관련 문서 ==\n* [[주소 변환]] · [[MMU]] · [[base and bounds]] · [[프로그램 로딩]](3강) · [[가상 메모리]]"
+ },
+ "MMU": {
+  "title": "MMU (Memory Management Unit)",
+  "category": [
+   "13강 Virtual Memory",
+   "용어"
+  ],
+  "body": "'''MMU'''는 CPU 안에 있는 하드웨어 장치로, 가상 주소를 물리 주소로 '''run time에''' 바꾼다. [[주소 변환 시점|execution time 변환]]을 실제로 가능하게 하는 부품.\n\n{def}p.38 '''Address Translation with Hardware''': \"Hardware device inside CPU, '''Memory Management Unit (MMU)''', maps virtual to physical address '''at run time'''.\"\n* Address translation: Converting a virtual address to a physical address. '''Close cooperation between CPU and OS'''{/def}\n\n{analogy}🎭 '''CPU와 메모리 사이 우체국 분류기'''. CPU가 \"4100번지 주세요\"라고 쓴 편지(VA)를 내면, 분류기가 OS가 꽂아 둔 규칙표를 보고 실제 주소 4번(PA)으로 바꿔 보낸다. 규칙표에 없는 주소면 반송(exception).{/analogy}\n\n<pre class=\"ascii\">\n   ┌──────────── CPU Chip ────────────┐\n   │                                   │                      Main memory\n   │  ┌─────┐  Virtual address  ┌─────┐  Physical address   0: [     ]\n   │  │ CPU │ ───── (VA) ─────▶ │ MMU │ ───── (PA) ──────▶  ...\n   │  └─────┘      4100         └─────┘        4            4: [■■■■■]\n   │     ▲                         ▲   │                     5: [■■■■■]\n   └─────┼─────────────────────────┼───┘                     ...\n         │                OS 가 설정한 변환 정보              M-1:[     ]\n         └──────────────── Data word ◀───────────────────────\n<\/pre>\n\n[[img:L13-38.png|p.38 — CPU 가 VA 4100 을 내면 MMU 가 PA 4 로 바꿔 Main memory 에 보내고 data word 가 CPU 로 돌아온다|large]]\n\n== 13강의 MMU = base + bounds ==\n\n13강에서 MMU 안에 들어 있는 것은 레지스터 두 개와 회로 두 개다(p.48 그림):\n* '''bounds register''' → 비교기 `<` : VA < bounds 이면 yes, 아니면 '''Raise exception'''\n* '''base register''' → 덧셈기 `+` : PA = VA + base\n\n[[anim:mmu_base_bounds|비교기와 덧셈기를 VA 가 통과하는 장면]]\n\n자세한 계산은 [[base and bounds]]. 나중 강의에서 MMU는 page table을 따라가는 회로와 TLB를 갖게 된다(p.10 표의 \"Virtual Memory — managed by Hardware + OS\"와 p.3의 \"TLB\").\n\n{tip}왜 하드웨어여야 하나: 명령어 fetch 하나, load/store 하나마다 변환이 필요하다. 이걸 OS(소프트웨어)가 하려면 매 접근마다 [[트랩]]을 걸어야 해서 수십~수백 배 느려진다 → [[VM 설계 목표|time efficiency]] 위반. 그래서 하드웨어가 매번 하고, OS는 규칙(레지스터 값)만 정한다 — \"close cooperation between CPU and OS\".{/tip}\n\n== 관련 문서 ==\n* [[주소 변환]] · [[주소 변환 시점]] · [[base and bounds]] · [[가상 메모리]]"
+ },
+ "base and bounds": {
+  "title": "Base and Bounds (Dynamic Relocation)",
+  "category": [
+   "13강 Virtual Memory",
+   "핵심"
+  ],
+  "body": "'''Base and bounds'''(= '''dynamic relocation''')는 가장 단순한 하드웨어 주소 변환이다. CPU 안 레지스터 두 개 — '''base'''와 '''bounds'''(limit) — 만으로, 프로세스 주소 공간 '''전체'''를 물리 메모리의 한 연속 구간에 옮겨 놓는다(relocate). 13강 p.39~55의 주인공이고, 13강에서 '''계산 문제'''가 나올 곳은 여기뿐이다.\n\n{def}p.40 '''Dynamic Relocation (Base and Bounds)''' — Two hardware (CPU) registers\n* '''A base register''': specify the '''start address''' of the physical memory in which a program is loaded\n* '''A bounds (or limit) register''': specify the '''length''' of the physical memory that belongs to the program\n'''How is address translation done?'''\n* Each program is compiled '''as if it is loaded at address 0'''\n* When a program starts running, the '''OS decides''' where in physical memory it should be loaded and '''sets the base and bounds registers'''\n* When any memory reference is generated by the process, it is translated '''by the MMU at run time'''{/def}\n\n{def}p.43 — 이 두 식이 전부\n$$\\textbf{physical address} = \\textbf{virtual address} + \\textbf{base}$$\n$$0 \\le \\textbf{virtual address} < \\textbf{bounds}$$\n\"Every virtual address must not be greater than bound and negative\" — 어기면 MMU가 '''Raise exception'''(p.48).{/def}\n\n{analogy}🎭 '''주차장의 구역 배정'''. 손님(프로세스)은 자기 차를 \"내 구역 0번~15번 칸\"이라고 부른다. 관리인(OS)이 그 손님에게 \"실제로는 32번 칸부터\"(base)와 \"칸 16개까지\"(bounds)를 적어 준다. 입구 차단기(MMU)는 손님이 말한 칸 번호가 16 미만인지 보고(bounds 검사), 맞으면 32를 더해 실제 칸으로 안내한다. 17번 칸을 말하면 차단기가 안 열린다(exception).{/analogy}\n\n[[anim:mmu_base_bounds|fetch 128 → 32896, load 15KB → 47KB, 그리고 bounds 를 넘는 20KB 접근이 exception 이 되는 세 장면]]\n\n[[sim:base_bounds_trace]]\n\n== 로딩 (p.41~42) ==\n\n16KB 주소 공간(Program Code · Heap · (free) · Stack)을 물리 메모리 '''32KB~48KB'''에 통째로 놓는다. 0~16KB는 OS, 16~32KB와 48~64KB는 not in use. 이때 '''base = 32KB, bounds = 16KB'''.\n\n[[img:L13-41.png|p.41 Dynamic Relocation: Loading — 0~16KB Address Space 가 점선을 따라 물리 32KB~48KB 'Relocated Process' 로. heap~stack 사이는 'allocated but not in use'|large]]\n\n{warn}물리 메모리 안에서도 heap과 stack 사이 칸이 '''\"(allocated but not in use)\"'''다. 주소 공간을 통째로 옮기니까 '''안 쓰는 가운데 부분까지 물리 메모리를 잡아먹는다''' — 이게 p.55의 [[동적 재배치의 한계|한계]]로 이어진다.{/warn}\n\n== 예제: x = x + 3 (p.44~49) ⭐⭐⭐ ==\n\n<pre class=\"c\">\nvoid func() {\n    int x;\n    ...\n    x = x + 3; /* this is the line of code we are interested in */\n}\n<\/pre>\n\"Load a value from memory → Increment it by three → Store the value back into memory\" (p.44)\n\n<pre class=\"asm\">\n128 : movl 0x0(%ebx), %eax   ; load 0+ebx into eax\n132 : addl $0x03, %eax       ; add 3 to eax register\n135 : movl %eax, 0x0(%ebx)   ; store eax back to mem\n<\/pre>\n* 왼쪽 숫자 128·132·135는 명령어의 '''가상 주소'''(x86은 명령어 길이가 가변이라 4, 3씩 증가)\n* `x`의 주소는 `%ebx`에 들어 있고 '''`%ebx` = 15KB'''(stack 안), 그 자리 값은 3000 (p.46)\n\n=== 가상 주소 공간에서 보면 (p.46) ===\n# Fetch instruction at address 128\n# Execute (load from address 15KB)\n# Fetch instruction at address 132\n# Execute (no memory reference)\n# Fetch the instruction at address 135\n# Execute (store to address 15KB)\n→ 메모리 참조 '''5번'''(fetch 3 + load 1 + store 1). 각각이 MMU를 지난다.\n\n=== 변환 (p.47~49), base = 32KB, bounds = 16KB ===\n{|\n! # || 접근 || VA || VA < bounds(16KB = 16384)? || PA = VA + base(32KB = 32768)\n|-\n| ① || fetch `movl` || 128 || ✓ || '''32896''' (p.47·48)\n|-\n| ② || load x || 15KB = 15360 || ✓ || '''47KB''' = 48128 (p.47·49)\n|-\n| ③ || fetch `addl` || 132 || ✓ || 32900\n|-\n| ④ || fetch `movl` || 135 || ✓ || 32903\n|-\n| ⑤ || store x || 15KB || ✓ || 47KB\n|}\n(③~⑤는 같은 규칙을 적용한 위키 계산. 슬라이드는 ①②만 그림으로 보여 준다.)\n\n[[img:L13-48.png|p.48 ① Fetch instruction at address 128 — MMU: bounds 16KB 와 '<' 비교 → yes → base 32KB 와 '+' → 32896. no 면 Raise exception|large]]\n[[img:L13-49.png|p.49 ② Load from address 15KB — 같은 회로를 지나 물리 47KB (Stack 칸 안)|large]]\n\n{tip}'''단위 주의''' — 슬라이드는 KB와 바이트를 섞어 쓴다. 32896 = 128 + 32×1024. 15KB + 32KB = 47KB = 48128. 시험에서 한쪽이 바이트, 한쪽이 KB면 '''먼저 같은 단위로 바꿔서''' 더하고 비교할 것.{/tip}\n\n== bounds 검사 ⭐⭐ ==\n\n<pre class=\"ascii\">\n            VA ──┬──▶ [ VA < bounds ? ] ── yes ──▶ [ VA + base ] ──▶ PA ──▶ 메모리\n                 │              │\n                 │              no\n                 │              ▼\n                 │       '''Raise exception''' ──▶ OS 의 exception handler (보통 프로세스 종료)\n<\/pre>\n\n* bounds는 이 슬라이드에서 '''길이'''(length)다 → 검사는 '''VA'''로 한다: `VA < bounds`\n* (참고, OSTEP 15장) bounds를 물리 끝 주소로 정의하는 설계도 있다. 그때는 변환 '''후'''의 PA를 base+size와 비교한다. 이 강의는 p.40·p.43 정의대로 '''길이 + VA 검사'''.\n* 음수 VA도 안 된다 (`0 ≤ VA`)\n* exception은 4강의 [[트랩]]과 같은 경로로 OS에 넘어간다 — 하드웨어가 처리할 수 없는 상황에서 OS가 개입하는 [[제한적 직접 실행]] 패턴\n\n{exam}🎯 예상 계산 문제 형식: \"base = X, bounds = Y일 때 VA = Z의 PA는? 또는 exception?\" — 순서는 '''① VA와 bounds 비교 → ② 통과하면 base 더하기'''. bounds 검사를 PA로 하거나, base를 먼저 더한 값을 bounds와 비교하면 틀린다.{/exam}\n\n{quiz}base = 48KB, bounds = 16KB인 프로세스 B가 있다. 다음 VA 각각의 PA를 구하거나 exception이라 답하라. (a) 0 (b) 1000 (c) 16384 (d) 15KB{/quiz}\n{answer}(a) 0 < 16384 ✓ → 48KB = '''49152'''. (b) 1000 ✓ → 49152 + 1000 = '''50152'''. (c) 16384 = 16KB → `VA < bounds` 가 아니다(같다) → '''exception'''. (d) 15KB = 15360 ✓ → 48KB + 15KB = '''63KB''' = 64512.{/answer}\n\n== OS가 해야 할 일 (p.50~54) ⭐⭐ ==\n\np.50: \"OS must take action to implement base-and-bounds approach\"\n{|\n! 언제 || 할 일 || 자세히\n|-\n| When a process '''starts''' running || '''Finding space''' for address space in physical memory || [[free list]]에서 빈 칸을 찾아 꺼냄 (p.51~52)\n|-\n| When a process is '''terminated''' || '''Reclaiming''' the memory for use || 그 칸을 free list에 되돌림 (p.53)\n|-\n| When '''context switch''' occurs || '''Saving and storing''' the base-and-bounds pair || [[PCB]]에 저장·복원 (p.54)\n|}\n\n[[img:L13-54.png|p.54 — A 실행 중: base 32KB / bounds 16KB. Context Switching 후 B 실행: base 48KB / bounds 16KB. A 의 값은 'Process A PCB: base : 32KB, bounds : 16KB' 에 보관|large]]\n\n{tip}레지스터는 CPU에 '''한 쌍뿐'''이라 지금 실행 중인 프로세스의 값만 들어 있다. 그래서 4강 [[컨텍스트 스위치]]의 \"저장할 상태\" 목록에 base/bounds가 추가된다. 그리고 이 레지스터를 바꾸는 명령은 '''특권 명령'''이어야 한다(OSTEP 15장) — 유저 프로그램이 base를 마음대로 바꾸면 protection이 무너지므로. → [[특권 명령]], [[유저 모드와 커널 모드]]{/tip}\n\n== 장단점 ==\n{|\n! 장점 || 단점\n|-\n| 단순: 레지스터 2개 + 덧셈·비교 → 빠름 (time efficiency) || 주소 공간 '''전체'''가 연속이어야 함 → heap~stack 사이 free까지 물리 메모리 차지 (space efficiency ✗, p.55)\n|-\n| 프로그램은 0번지라고 믿음 (transparency) || 주소 공간이 물리 메모리 빈 칸보다 크면 못 올림\n|-\n| bounds로 보호 (protection) || 실행 중 프로세스를 옮기려면 메모리 복사 + base 갱신\n|}\n(장단점 표는 위키 정리. 슬라이드가 명시한 한계는 p.55의 \"free 공간이 물리 메모리를 차지한다\" 하나.)\n\n== 시험 대비 핵심 요약 ==\n# base = 프로그램이 로드된 물리 메모리 '''시작 주소''', bounds(limit) = 그 프로그램 물리 메모리의 '''길이'''.\n# '''PA = VA + base''', '''0 ≤ VA < bounds''' 아니면 exception. 검사가 먼저, 더하기가 나중.\n# 프로그램은 0번지에 로드되는 것처럼 컴파일, OS가 시작 때 위치를 정하고 레지스터 설정, MMU가 run time에 변환.\n# `x = x + 3` (base 32KB): fetch 128 → 32896, load 15KB → 47KB. 메모리 참조 5번.\n# OS 할 일: 시작 = free list에서 공간 찾기, 종료 = free list에 반납, context switch = base/bounds를 PCB에 저장·복원.\n# 한계: 큰 주소 공간의 free 영역까지 물리 메모리를 차지 (p.55).\n\n== 관련 문서 ==\n* [[MMU]] · [[주소 변환 시점]] · [[free list]] · [[동적 재배치의 한계]] · [[가상 메모리]]\n* [[컨텍스트 스위치]] · [[PCB]] · [[트랩]] · [[특권 명령]]"
+ },
+ "free list": {
+  "title": "Free List",
+  "category": [
+   "13강 Virtual Memory",
+   "용어"
+  ],
+  "body": "'''Free list'''는 OS가 관리하는 '''현재 사용하지 않는 물리 메모리 구간의 목록'''이다. [[base and bounds]]에서 프로세스를 시작할 때 자리를 찾고, 끝날 때 자리를 돌려주는 데 쓴다.\n\n{def}p.51 — \"The OS must find a room for a new address space. '''Free list''': A list of the range of the physical memory which are '''not in use'''.\"\np.53 — \"The OS must '''put the memory back''' on the free list\" (when a process is terminated){/def}\n\n{analogy}🎭 '''식당 빈자리 대기판'''. 손님(프로세스)이 오면 매니저(OS)가 대기판에서 빈 테이블 하나를 지우고 앉힌다. 손님이 나가면 그 테이블을 다시 대기판에 적는다.{/analogy}\n\n== 시작할 때 (p.51~52) ==\n\n물리 메모리 64KB, 0~16KB는 OS, 나머지 16KB 칸 셋이 비어 있다. 처음 free list는 '''32KB → 16KB → 48KB''' (노드 = 각 16KB 칸의 '''시작 주소'''). \"The OS lookup the free list\" — p.51에서 파란 점선으로 표시된 '''맨 앞 노드 32KB'''를 꺼내 새 프로세스(Code · Heap · allocated but not in use · Stack)를 32KB~48KB에 넣으면 free list는 '''16KB → 48KB''' (p.52).\n\n[[img:L13-51.png|p.51 — free list 32KB → 16KB → 48KB, 맨 앞 32KB 노드에 파란 점선(OS 가 고른 칸)|medium]]\n[[img:L13-52.png|p.52 — free list 16KB → 48KB, 32KB~48KB 에 새 프로세스가 들어감|medium]]\n\n== 끝날 때 (p.53) ==\n\nProcess A가 32KB 칸에 있고 free list가 16KB → 48KB인 상태에서 A가 종료 → OS가 그 칸을 목록에 되돌려 '''32KB → 16KB → 48KB'''.\n\n[[img:L13-53.png|p.53 — 왼쪽: free list 16KB→48KB, 물리 32KB 에 Process A. 오른쪽: A 종료 후 free list 32KB→16KB→48KB, 물리 16~64KB 가 전부 not in use|large]]\n\n<pre class=\"ascii\">\n  시작 전:      Free list → [32KB] → [16KB] → [48KB]          (맨 앞 32KB 를 꺼냄)\n  A 를 32KB 에:  Free list → [16KB] → [48KB]                  base=32KB, bounds=16KB\n  A 종료:        Free list → [32KB] → [16KB] → [48KB]          (돌려받은 칸이 다시 맨 앞 — 처음 상태로 복귀)\n<\/pre>\n\n{tip}p.53 오른쪽 그림에서 16KB·32KB·48KB 세 칸이 물리적으로 붙어 있는데도 free list에는 '''따로따로''' 세 노드로 남아 있다. 붙은 빈 칸을 하나로 합치는 일(coalescing)과, 어떤 칸을 고를지(best fit, first fit …)는 OSTEP 17장 free-space management에서 다룬다. 13강은 base and bounds의 칸 크기가 모두 16KB라서 이 문제가 드러나지 않는다.{/tip}\n\n== 관련 문서 ==\n* [[base and bounds]] · [[동적 재배치의 한계]] · [[가상 메모리]] · [[프로세스 목록]](3강, OS가 들고 있는 또 다른 목록)"
+ },
+ "동적 재배치의 한계": {
+  "title": "동적 재배치의 한계 (Problems of Dynamic Relocation)",
+  "category": [
+   "13강 Virtual Memory"
+  ],
+  "body": "13강의 마지막 내용 슬라이드(p.55). [[base and bounds]]가 왜 실제 시스템에 그대로 쓰일 수 없는지, 그래서 다음 강의에서 무엇을 배워야 하는지를 한 장으로 보여 준다.\n\n{def}p.55 '''Problems of Dynamic Relocation'''\n* We have assumed that the virtual space size is '''limited to 16 KB'''\n* '''In reality, it is huge!'''\n* \"Big chunk of \"free\" space '''takes up physical memory'''\" — 64-bit Linux machine, heap과 stack 사이 '''128 TB'''{/def}\n\n{analogy}🎭 '''침대 하나 쓰려고 호텔 층 전체를 빌리는 것'''. 실제로 쓰는 건 1층 로비(code·data)와 꼭대기 방 하나(stack)인데, base and bounds는 \"연속 구간 하나\"밖에 못 빌려 주니 그 사이 빈 층 전부를 빌려야 한다.{/analogy}\n\n[[img:L13-55.png|p.55 — 64-bit Linux 주소 공간: Code/Data/Heap 은 위쪽 몇 MB, Stack 은 0x7fff... 아래쪽, 그 사이 (free) 가 128 TB|large]]\n\n== 왜 문제인가 ==\n\nbase and bounds는 주소 공간을 '''하나의 연속 덩어리'''로 물리 메모리에 놓는다(p.41의 \"allocated but not in use\"). 16KB 장난감 주소 공간에서는 가운데 free 몇 KB를 낭비하는 정도지만, 실제 64-bit 주소 공간은 heap~stack 사이가 128 TB다. 이걸 통째로 물리 메모리에 잡을 수는 없다.\n\n* [[VM 설계 목표]] 중 '''Space efficiency ①''' — \"not wasting available physical memory\" — 위반\n* 주소 공간이 물리 메모리보다 크면 '''아예 로드할 수 없다'''\n\n{info}OSTEP 15장은 이 낭비를 '''internal fragmentation'''(할당된 칸 '''안'''에서 안 쓰이는 공간)이라고 부른다. 슬라이드에는 이 용어가 없으니 답안에는 슬라이드 표현(\"free space takes up physical memory\")을 먼저 쓰고, 용어는 덧붙이는 정도로.{/info}\n\n== 다음 강의로 ==\n\nOSTEP 순서(그리고 p.10 표가 \"Virtual Memory — '''4-KB page'''\"라고 예고한 것)대로라면 해결책은:\n# '''Segmentation''' (OSTEP 16장) — code·heap·stack '''세그먼트마다''' base/bounds 쌍을 따로 → 가운데 free를 물리 메모리에 안 올림\n# '''Free-space management''' (17장) — 크기가 제각각인 빈 칸을 [[free list]]로 관리 (external fragmentation)\n# '''Paging''' (18장~) — 고정 크기(4KB) page로 잘라 page table로 변환 → TLB\n\n(아직 배포되지 않은 강의 내용이므로 예고일 뿐 — 실제 14강 슬라이드가 오면 이 절을 고친다.)\n\n== 관련 문서 ==\n* [[base and bounds]] · [[가상 주소 공간]] · [[VM 설계 목표]] · [[free list]] · [[기말고사]]"
+ },
  "퀴즈1 복기": {
   "title": "퀴즈 1 복기 (2026-09-23)",
   "category": [
@@ -2346,6 +2453,30 @@ const NAV_ORDER = [
    "which_dev",
    "usys.pl",
    "myproc"
+  ]
+ },
+ {
+  "group": "기말고사",
+  "items": [
+   "기말고사"
+  ]
+ },
+ {
+  "group": "13강 Virtual Memory",
+  "items": [
+   "가상 메모리",
+   "메모리 계층",
+   "SRAM과 DRAM",
+   "locality",
+   "메모리 가상화",
+   "가상 주소 공간",
+   "주소 변환",
+   "VM 설계 목표",
+   "주소 변환 시점",
+   "MMU",
+   "base and bounds",
+   "free list",
+   "동적 재배치의 한계"
   ]
  },
  {
@@ -3232,6 +3363,184 @@ window.SIMS = window.SIMS || {};
     }
   };
 })();
+
+// ===== sims/base_bounds_trace.js =====
+// base_bounds_trace — 13강 p.44~49, p.54: x = x + 3 의 메모리 참조 5번을 MMU(base/bounds)로 한 단계씩 변환
+// 슬라이드 값: base = 32KB, bounds = 16KB, %ebx = 15KB (x 의 가상 주소), x = 3000, 명령 가상 주소 128/132/135
+// 옵션 scenario:
+//   normal         — p.47~49 그대로: fetch 128 → 32896, load 15KB → 47KB, …, store 47KB (x 3000 → 3003)
+//   out_of_bounds  — 같은 코드인데 %ebx = 20KB (bounds 밖) → load 에서 Raise exception (위키 변형)
+//   context_switch — p.54: A 가 끝난 뒤 B(base 48KB) 로 전환, base/bounds 를 PCB 에 저장·복원하고 같은 코드를 B 로 실행
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var KB = 1024;
+  var ASM = [
+    "128 : movl 0x0(%ebx), %eax   ; load 0+ebx into eax",
+    "132 : addl $0x03, %eax       ; add 3 to eax register",
+    "135 : movl %eax, 0x0(%ebx)   ; store eax back to mem"
+  ];
+  var MMU = [
+    "// MMU (p.43, p.48) — 매 메모리 참조마다 하드웨어가",
+    "if (0 <= VA && VA < bounds)",
+    "    PA = VA + base;",
+    "else",
+    "    raise exception;   // → OS exception handler"
+  ];
+
+  function kb(v) {
+    if (v === null || v === undefined || v === "-") return "-";
+    if (typeof v !== "number") return v;
+    return (v % KB === 0) ? (v / KB) + "KB (" + v + ")" : String(v);
+  }
+
+  // 물리 메모리 막대 0~64KB
+  function memSvg(st) {
+    var W = 520, H = 150, X0 = 20, X1 = 500, Y = 60, BH = 34;
+    function px(addr) { return X0 + (X1 - X0) * addr / (64 * KB); }
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:560px" font-family="sans-serif">';
+    o += '<text x="' + X0 + '" y="16" font-size="12" fill="#555">Physical Memory 0 ~ 64KB</text>';
+    var regions = [
+      [0, 16, "OS", "#c9d9f0", "#3b5d8f"],
+      [16, 32, "(not in use)", "#f2f2f2", "#999"],
+      [32, 48, "Process A", st.cur === "A" ? "#dbe8f7" : "#eef3fa", "#1d65b3"],
+      [48, 64, "Process B", st.cur === "B" ? "#dff3e4" : "#f2f8f3", "#2e9e4f"]
+    ];
+    regions.forEach(function (r) {
+      var x = px(r[0] * KB), w = px(r[1] * KB) - x;
+      o += '<rect x="' + x + '" y="' + Y + '" width="' + w + '" height="' + BH + '" fill="' + r[3] + '" stroke="' + r[4] + '"/>';
+      o += '<text x="' + (x + w / 2) + '" y="' + (Y + 21) + '" font-size="11" text-anchor="middle" fill="' + r[4] + '">' + r[2] + '</text>';
+    });
+    [0, 16, 32, 48, 64].forEach(function (k) {
+      o += '<text x="' + px(k * KB) + '" y="' + (Y + BH + 14) + '" font-size="10" text-anchor="middle" fill="#777">' + k + 'KB</text>';
+    });
+    // base ~ base+bounds 괄호
+    var bx = px(st.base), ex = px(st.base + st.bounds);
+    o += '<path d="M' + bx + ',' + (Y - 6) + ' L' + bx + ',' + (Y - 12) + ' L' + ex + ',' + (Y - 12) + ' L' + ex + ',' + (Y - 6) + '" fill="none" stroke="#3b2f4a" stroke-width="1.5"/>';
+    o += '<text x="' + ((bx + ex) / 2) + '" y="' + (Y - 16) + '" font-size="11" text-anchor="middle" fill="#3b2f4a">base ' + (st.base / KB) + 'KB + bounds ' + (st.bounds / KB) + 'KB</text>';
+    if (typeof st.pa === "number") {
+      var x = px(st.pa);
+      o += '<line x1="' + x + '" y1="' + (Y + BH + 18) + '" x2="' + x + '" y2="' + (Y + BH + 2) + '" stroke="#d6465f" stroke-width="2"/>';
+      o += '<polygon points="' + (x - 5) + ',' + (Y + BH + 8) + ' ' + (x + 5) + ',' + (Y + BH + 8) + ' ' + x + ',' + (Y + BH + 1) + '" fill="#d6465f"/>';
+      o += '<text x="' + x + '" y="' + (Y + BH + 32) + '" font-size="11" text-anchor="middle" fill="#d6465f">PA ' + kb(st.pa) + '</text>';
+    }
+    if (st.exc) {
+      o += '<text x="' + (W / 2) + '" y="' + (H - 4) + '" font-size="13" text-anchor="middle" fill="#d6465f" font-weight="700">Raise exception — VA ' + kb(st.va) + ' ≥ bounds</text>';
+    }
+    return o + '</svg>';
+  }
+
+  global.SIMS["base_bounds_trace"] = {
+    title: "Base and Bounds 주소 변환 — x = x + 3 (13강 p.44~49, p.54)",
+    desc: "명령어 fetch 3번 + load 1번 + store 1번, 메모리 참조 5번이 모두 [[MMU]] 를 지난다: '''VA < bounds''' 검사 → '''PA = VA + base'''. 옵션으로 bounds 를 넘는 접근(exception)과 context switch 때 base/bounds 를 [[PCB]] 에 저장·복원하는 장면을 본다.",
+    options: [
+      {
+        key: "scenario", label: "시나리오",
+        values: [
+          { value: "normal", label: "p.47~49 그대로 (base 32KB, %ebx = 15KB)" },
+          { value: "out_of_bounds", label: "%ebx = 20KB → bounds 위반 (exception)" },
+          { value: "context_switch", label: "p.54 A → B context switch 후 B 로 실행 (base 48KB)" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      var sc = opts.scenario || "normal";
+      var steps = [];
+      var S = {
+        cur: "A", base: 32 * KB, bounds: 16 * KB, ebx: (sc === "out_of_bounds" ? 20 * KB : 15 * KB),
+        eax: "?", va: "-", ok: "-", pa: "-", kind: "-", xA: 3000, xB: 3000, pcbA: "-", pcbB: "base 48KB, bounds 16KB", exc: false
+      };
+
+      function push(desc, pcAsm, pcMmu, note, status) {
+        var v = {
+          "실행 중": "Process " + S.cur,
+          base: kb(S.base), bounds: kb(S.bounds),
+          "%ebx (x 의 VA)": kb(S.ebx), "%eax": S.eax,
+          "참조 종류": S.kind, VA: kb(S.va), "VA < bounds ?": S.ok, PA: kb(S.pa),
+          "A 의 x (물리 47KB)": S.xA, "B 의 x (물리 63KB)": S.xB,
+          "PCB A": S.pcbA, "PCB B": S.pcbB
+        };
+        var st = { CODE: status || "running", MMU: pcMmu ? "running" : "ready" };
+        var step = { desc: desc, pc: { CODE: pcAsm, MMU: pcMmu }, vars: v, status: st, svg: memSvg(S) };
+        if (note) step.note = note;
+        steps.push(step);
+      }
+
+      function ref(kind, va, pcAsm, descPrefix) {
+        S.kind = kind; S.va = va; S.ok = "-"; S.pa = "-"; S.exc = false;
+        push(descPrefix + " → MMU 가 가상 주소 '''" + kb(va) + "''' 를 받는다.", pcAsm, 1);
+        var ok = va >= 0 && va < S.bounds;
+        S.ok = ok ? "yes (" + va + " < " + S.bounds + ")" : "no (" + va + " ≥ " + S.bounds + ")";
+        if (!ok) {
+          S.exc = true;
+          push("bounds 검사: " + va + " < " + S.bounds + " ? → '''no'''. MMU 가 '''Raise exception''' (p.48 아래쪽 화살표). 하드웨어가 [[트랩]]처럼 OS 의 exception handler 로 넘기고, OS 는 보통 이 프로세스를 종료한다.", pcAsm, 5,
+            "bounds 는 '''길이'''다(p.40). 검사는 변환 전 VA 로 한다: 0 ≤ VA < bounds. 20KB ≥ 16KB 이므로 물리 52KB(= B 의 메모리!)에 닿기 전에 막힌다 — 이것이 protection.", "blocked");
+          return false;
+        }
+        push("bounds 검사: " + va + " < " + S.bounds + " ? → '''yes'''.", pcAsm, 2);
+        S.pa = va + S.base;
+        push("PA = VA + base = " + va + " + " + S.base + " = '''" + S.pa + "'''" + (S.pa % KB === 0 ? " (= " + (S.pa / KB) + "KB)" : "") + ". 이 물리 주소로 메모리에 접근한다.", pcAsm, 3);
+        return true;
+      }
+
+      function runCode(label) {
+        var who = S.cur;
+        if (!ref("fetch", 128, 1, "① " + label + ": 명령어 fetch, 가상 주소 128")) return;
+        if (!ref("load x", S.ebx, 1, "② `movl 0x0(%ebx),%eax` 실행 — x 를 읽는다(%ebx = " + kb(S.ebx) + ")")) return;
+        S.eax = (who === "A" ? S.xA : S.xB);
+        S.kind = "-"; S.va = "-"; S.ok = "-";
+        push("%eax ← 메모리 값 '''" + S.eax + "'''.", 1, null);
+        ref("fetch", 132, 2, "③ 명령어 fetch, 가상 주소 132");
+        S.eax = S.eax + 3; S.kind = "-"; S.va = "-"; S.ok = "-"; S.pa = "-";
+        push("`addl $0x03,%eax` 실행 — '''메모리 참조 없음'''(p.46). %eax = " + S.eax + ". MMU 는 쉰다.", 2, null);
+        ref("fetch", 135, 3, "④ 명령어 fetch, 가상 주소 135");
+        ref("store x", S.ebx, 3, "⑤ `movl %eax,0x0(%ebx)` 실행 — x 에 쓴다");
+        if (who === "A") S.xA = S.eax; else S.xB = S.eax;
+        S.kind = "-"; S.va = "-"; S.ok = "-";
+        push("물리 " + kb(S.pa) + " 에 " + S.eax + " 저장. 끝 — 메모리 참조는 fetch 3 + load 1 + store 1 = '''5번''', 전부 같은 base/bounds 로 변환됐다.", 3, null);
+      }
+
+      push("초기 상태 (p.42, p.47): Process A 가 물리 32KB~48KB 에 로드되어 있고, OS 가 '''base = 32KB, bounds = 16KB''' 를 설정했다. 프로그램은 자기가 0번지에 있다고 믿는다. 실행할 코드는 `x = x + 3` 의 어셈블리 세 줄(p.45).", null, null);
+
+      if (sc === "context_switch") {
+        runCode("Process A");
+        S.pcbA = "base 32KB, bounds 16KB";
+        S.kind = "-"; S.va = "-"; S.ok = "-"; S.pa = "-";
+        push("타이머 인터럽트 → [[컨텍스트 스위치]]. OS 가 현재 base/bounds(32KB/16KB)를 '''Process A 의 [[PCB]]''' 에 저장한다 (p.54 오른쪽 위 'Process A PCB').", null, null,
+          "CPU 에 base/bounds 레지스터는 한 쌍뿐 → 프로세스마다 PCB 에 보관해야 한다.", "ready");
+        S.cur = "B"; S.base = 48 * KB; S.bounds = 16 * KB; S.eax = "?";
+        push("OS 가 '''Process B 의 PCB''' 에서 base = 48KB, bounds = 16KB 를 복원 → B 실행 (p.54 오른쪽 그림). B 도 '''똑같은 가상 주소'''(128, 15KB)를 쓴다.", null, null);
+        runCode("Process B");
+        push("정리: 같은 VA 15KB 가 A 에서는 물리 47KB, B 에서는 물리 63KB. 프로그램은 바뀐 게 없고 '''base 만''' 바뀌었다 — 이것이 private virtual address space.", null, null);
+      } else {
+        runCode("Process A");
+      }
+      return {
+        panels: [
+          { id: "CODE", title: "x = x + 3 (p.45, 가상 주소)", lang: "asm", lines: ASM },
+          { id: "MMU", title: "MMU (하드웨어)", lang: "c", lines: MMU }
+        ],
+        vars: [
+          { name: "실행 중", group: "CPU" },
+          { name: "base", group: "MMU 레지스터" },
+          { name: "bounds", group: "MMU 레지스터" },
+          { name: "참조 종류", group: "이번 메모리 참조" },
+          { name: "VA", group: "이번 메모리 참조" },
+          { name: "VA < bounds ?", group: "이번 메모리 참조" },
+          { name: "PA", group: "이번 메모리 참조" },
+          { name: "%ebx (x 의 VA)", group: "CPU" },
+          { name: "%eax", group: "CPU" },
+          { name: "A 의 x (물리 47KB)", group: "물리 메모리" },
+          { name: "B 의 x (물리 63KB)", group: "물리 메모리" },
+          { name: "PCB A", group: "OS" },
+          { name: "PCB B", group: "OS" }
+        ],
+        steps: steps
+      };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/cas_llsc.js =====
 // cas_llsc — 9강 p.22~23 Compare-And-Swap, 그리고 OSTEP ch.28 의 Load-Linked / Store-Conditional
@@ -10381,6 +10690,118 @@ window.SIMS = window.SIMS || {};
   global.AnimEngine = AnimEngine;
 })(typeof window !== "undefined" ? window : globalThis);
 
+// ===== anims/addr_bind_time.js =====
+// ============================================================
+// addr_bind_time — 주소 변환 세 시점 비교 (13강 p.31~36)
+// 세 줄: ① Compile time(VA = PA, P2 로딩 X) ② Load time(로딩 때 call 주소 고쳐 씀, 보호 없음)
+//        ③ Execution time(파일 그대로, CPU 가 실행 중 +100000/+200000)
+// 시간축(초): 0~1.5 소개 → 1.5~4.5 ① → 4.5~8 ② → 8~11.5 ③ → 11.5~13 요점
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["addr_bind_time"] = {
+  title: "주소 변환 시점 셋 — compile time · load time · execution time",
+  desc: "p.31~36 의 swap/main 예제: P1 은 swap 을 0x10052d 에서, P2 는 test 를 0x100320 에서 부른다. [[주소 변환 시점]] — compile time 은 둘째 프로그램을 못 올리고, load time 은 주소를 고쳐 써서 올리지만 '''보호가 없고''', execution time 은 파일을 그대로 두고 CPU([[MMU]])가 실행 중에 더한다",
+  duration: 13,
+  build: function () {
+    var D = 13;
+    var C = { a: "#1d65b3", aL: "#dbe8f7", b: "#2e9e4f", bL: "#dff3e4", cpu: "#3b2f4a", cpuL: "#efe9f6", hw: "#d6465f", muted: "#777", file: "#fbf6d0", fileS: "#9a8a30" };
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function box(x, y, w, h, fill, stroke, extra) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="4" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"' + (extra || "") + '/>';
+    }
+    function txt(x, y, s, size, fill, extra) {
+      var anchor = /text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"';
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + anchor + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(from / D) + ';' + r3(from / D + 0.003) + ';' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function during(from, to, inner) {
+      if (from <= 0) {
+        return '<g>' + inner + '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/></g>';
+      }
+      return '<g opacity="0">' + inner + show(from, to) + '</g>';
+    }
+    function mono(x, y, s, size, fill, extra) {
+      return txt(x, y, s, size || 12, fill || "#222", ' font-family="monospace"' + (extra || ""));
+    }
+    // 실행 파일 상자
+    function exe(x, y, name, sym, call) {
+      return box(x, y, 120, 40, C.file, C.fileS) +
+        mono(x + 6, y + 16, sym, 11, "#333", ' text-anchor="start"') +
+        mono(x + 6, y + 33, call, 11, "#333", ' text-anchor="start"') +
+        txt(x + 60, y + 52, name, 10, C.muted);
+    }
+    function arrow(x1, y1, x2, y2, color) {
+      return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (color || "#555") + '" stroke-width="2" marker-end="url(#abt_arrow)"/>';
+    }
+
+    function curve(x1, y1, cx, cy, x2, y2, color) {
+      return '<path d="M' + x1 + ',' + y1 + ' Q' + cx + ',' + cy + ' ' + x2 + ',' + y2 + '" fill="none" stroke="' + color + '" stroke-width="2" marker-end="url(#abt_arrow)"/>';
+    }
+
+    var s = '<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="주소 변환 시점 비교 애니메이션">';
+    s += '<defs><marker id="abt_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>';
+
+    [
+      [0, 1.5, "같은 실행 파일 두 개: P1(swap @0x10052d), P2(test @0x100320) — 둘 다 0x100000 부터라고 컴파일됨"],
+      [1.5, 3.0, "① Compile time: virtual address = physical address — P1 이 물리 0x100000 에 그대로"],
+      [3.0, 4.5, "P2 도 0x100000 을 원한다 → 이미 P1 자리 → 로딩 불가 (p.32)"],
+      [4.5, 6.2, "② Load time: 로딩하면서 +0x100000 / +0x200000, 코드 안 주소를 고쳐 씀 (p.33)"],
+      [6.2, 8.0, "동시에 올라가지만 고친 주소 = 진짜 물리 주소 → P1 이 P2 메모리를 건드릴 수 있다 (p.34)"],
+      [8.0, 9.8, "③ Execution time: 메모리 속 코드는 그대로 call 10052d / call 100320"],
+      [9.8, 11.5, "CPU 가 실행하는 순간 +100000 / +200000 → 0x20052d / 0x300320 (p.36) → MMU"],
+      [11.5, D, "실행 시점 변환만 '동시 로드 + 보호 + 재배치' 를 모두 얻는다 → base and bounds"]
+    ].forEach(function (c) { s += during(c[0], c[1], txt(380, 24, c[2], 12.5, "#222", ' font-weight="700"')); });
+
+    // ---- 행 라벨 ----
+    var rows = [[60, "① Compile time"], [170, "② Load time"], [280, "③ Execution time"]];
+    rows.forEach(function (r, i) {
+      var active = [[1.5, 4.5], [4.5, 8.0], [8.0, 11.5]][i];
+      s += txt(14, r[0] + 10, r[1], 13, C.cpu, ' font-weight="700" text-anchor="start"');
+      s += during(active[0], active[1], '<rect x="6" y="' + (r[0] - 8) + '" width="748" height="104" rx="8" fill="none" stroke="' + C.hw + '" stroke-width="2"/>');
+      s += '<line x1="6" y1="' + (r[0] + 100) + '" x2="754" y2="' + (r[0] + 100) + '" stroke="#ddd"/>';
+    });
+
+    // ---- ① Compile time ----
+    var y1 = 75;
+    s += exe(30, y1, "Executable P1", "swap: 0x10052d", "call 10052d");
+    s += exe(170, y1, "Executable P2", "test: 0x100320", "call 100320");
+    // 물리 메모리
+    s += box(560, 60, 180, 90, "#fff", "#999") + txt(650, 56, "Physical Memory", 10, C.muted);
+    s += during(1.5, 13, box(565, 80, 170, 34, C.aL, C.a) + mono(570, 95, "0x100000 P1", 10, C.a, ' text-anchor="start"') + mono(570, 108, "call 10052d", 10, C.a, ' text-anchor="start"'));
+    s += during(1.5, 3.0, curve(150, y1 + 5, 300, y1 - 30, 560, 97, C.a));
+    s += during(3.0, 13, arrow(290, y1 + 30, 420, 115, C.hw) + txt(440, 120, "✗", 26, C.hw, ' font-weight="700"') + txt(470, 140, "같은 0x100000 → 충돌", 11, C.hw, ' text-anchor="start"'));
+
+    // ---- ② Load time ----
+    var y2 = 185;
+    s += exe(30, y2, "Executable P1", "swap: 0x10052d", "call 10052d");
+    s += exe(170, y2, "Executable P2", "test: 0x100320", "call 100320");
+    s += box(560, 170, 180, 90, "#fff", "#999");
+    s += during(4.5, 13, curve(150, y2 + 5, 300, y2 - 45, 560, 190, C.a) + txt(345, 205, "+0x100000", 11, C.a, ' font-weight="700"'));
+    s += during(4.5, 13, arrow(290, y2 + 35, 560, 236, C.b) + txt(420, 238, "+0x200000", 11, C.b, ' font-weight="700"'));
+    s += during(5.2, 13, box(565, 175, 170, 38, C.aL, C.a) + mono(570, 190, "0x200000 P1", 10, C.a, ' text-anchor="start"') + mono(570, 205, "call 20052d", 10, C.hw, ' text-anchor="start" font-weight="700"'));
+    s += during(5.2, 13, box(565, 217, 170, 38, C.bL, C.b) + mono(570, 232, "0x300000 P2", 10, C.b, ' text-anchor="start"') + mono(570, 247, "call 300320", 10, C.hw, ' text-anchor="start" font-weight="700"'));
+    s += during(6.2, 8.0, '<path d="M735,198 C756,210 756,228 737,238" fill="none" stroke="' + C.hw + '" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#abt_arrow)"/>' + txt(440, 262, "P1 → P2 메모리 접근을 막을 장치 없음", 11, C.hw, ' font-weight="700"'));
+
+    // ---- ③ Execution time ----
+    var y3 = 295;
+    s += exe(30, y3, "Executable P1", "swap: 0x10052d", "call 10052d");
+    s += exe(170, y3, "Executable P2", "test: 0x100320", "call 100320");
+    // CPU 영역
+    s += box(320, 285, 150, 80, C.cpuL, C.cpu) + txt(395, 300, "CPU (MMU)", 11, C.cpu, ' font-weight="700"');
+    s += box(560, 280, 180, 90, "#fff", "#999");
+    s += during(8.0, 13, box(565, 285, 170, 38, C.aL, C.a) + mono(570, 300, "0x200000 P1", 10, C.a, ' text-anchor="start"') + mono(570, 315, "call 10052d", 10, C.a, ' text-anchor="start"'));
+    s += during(8.0, 13, box(565, 327, 170, 38, C.bL, C.b) + mono(570, 342, "0x300000 P2", 10, C.b, ' text-anchor="start"') + mono(570, 357, "call 100320", 10, C.b, ' text-anchor="start"'));
+    s += during(8.0, 9.8, txt(395, 330, "파일 내용 그대로 로드", 11, C.muted));
+    s += during(9.8, 13, mono(395, 322, "0x10052d +100000", 11, C.a, ' font-weight="700"') + mono(395, 340, "0x100320 +200000", 11, C.b, ' font-weight="700"'));
+    s += during(9.8, 13, arrow(470, 318, 562, 304, C.a) + arrow(470, 336, 562, 346, C.b));
+    s += during(9.8, 13, mono(515, 300, "0x20052d", 10, C.hw, ' font-weight="700"') + mono(515, 362, "0x300320", 10, C.hw, ' font-weight="700"'));
+
+    return s + '</svg>';
+  }
+};
+
 // ===== anims/alarm_tick.js =====
 // ============================================================
 // alarm_tick — 과제1 xv6 alarm: sigalarm(3, handler) 한 주기 (A0, A1~A9)
@@ -12802,6 +13223,124 @@ window.ANIMS = window.ANIMS || {};
     }
   };
 })();
+
+// ===== anims/mmu_base_bounds.js =====
+// ============================================================
+// mmu_base_bounds — VA 가 MMU 의 비교기(< bounds)와 덧셈기(+ base)를 지나 PA 가 되는 흐름 (13강 p.47~49)
+// 시간축(초): 0~1.5 초기(base 32KB, bounds 16KB) → 1.5~4.5 ① fetch 128 → 32896
+//   → 4.5~7.5 ② load 15KB → 47KB → 7.5~10.5 ③ (위키 변형) VA 20KB → no → Raise exception → 10.5~12 요점
+// 배치는 p.48 그대로: 왼쪽 Address Space(0~16KB), 가운데 MMU(bounds·base·<·+), 오른쪽 Physical Memory(0~64KB)
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["mmu_base_bounds"] = {
+  title: "MMU 의 base and bounds — 가상 주소가 '< bounds' 와 '+ base' 를 지나 물리 주소가 되는 12초",
+  desc: "p.48~49 그림 그대로: [[base and bounds|bounds register]] 16KB 와 비교해 통과하면 base register 32KB 를 더한다. fetch 128 → 32896, load 15KB → 47KB. 마지막 장면은 bounds 를 넘는 VA 20KB 가 '''Raise exception''' 으로 막히는 위키 변형",
+  duration: 12,
+  build: function () {
+    var D = 12;
+    var C = { a: "#1d65b3", aL: "#dbe8f7", b: "#2e9e4f", bL: "#dff3e4", cpu: "#3b2f4a", cpuL: "#efe9f6", hw: "#d6465f", muted: "#777", os: "#c9d9f0" };
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function box(x, y, w, h, fill, stroke, extra) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="4" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"' + (extra || "") + '/>';
+    }
+    function txt(x, y, s, size, fill, extra) {
+      var anchor = /text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"';
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + anchor + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(from / D) + ';' + r3(from / D + 0.003) + ';' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function during(from, to, inner) {
+      if (from <= 0) {
+        return '<g>' + inner + '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/></g>';
+      }
+      return '<g opacity="0">' + inner + show(from, to) + '</g>';
+    }
+    // 점 하나가 path 를 따라 이동 (from~to 초)
+    function token(path, from, to, label, color) {
+      var inner = '<circle r="7" fill="' + color + '"/>' + txt(0, -11, label, 11, color, ' font-weight="700"');
+      return '<g opacity="0">' + inner +
+        '<animateMotion path="' + path + '" begin="' + from + 's" dur="' + r3(to - from) + 's" fill="freeze"/>' +
+        show(from, to) + '</g>';
+    }
+
+    var s = '<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MMU base and bounds 애니메이션">';
+    s += '<defs><marker id="mbb_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>';
+
+    // ---- 자막 ----
+    [
+      [0, 1.5, "Process A 가 물리 32KB~48KB 에 로드됨 — OS 가 base = 32KB, bounds = 16KB 설정 (p.42)"],
+      [1.5, 3.0, "① Fetch instruction at address 128 — VA 128 이 MMU 로"],
+      [3.0, 4.5, "128 < 16KB → yes → 128 + 32KB = 32896 (p.48)"],
+      [4.5, 6.0, "② Load from address 15KB — x 의 가상 주소(%ebx)"],
+      [6.0, 7.5, "15KB < 16KB → yes → 15KB + 32KB = 47KB (p.49)"],
+      [7.5, 9.0, "③ (변형) VA 20KB 에 접근하면?"],
+      [9.0, 10.5, "20KB < 16KB → no → Raise exception — B 의 메모리(52KB)에 닿기 전에 막힌다"],
+      [10.5, D, "physical address = virtual address + base,  0 ≤ virtual address < bounds (p.43)"]
+    ].forEach(function (c) { s += during(c[0], c[1], txt(380, 24, c[2], 13, "#222", ' font-weight="700"')); });
+
+    // ---- 왼쪽: Address Space 0~16KB (y 60~300, 1KB = 15px) ----
+    var AX = 40, AW = 130, AY = 60, AH = 240;
+    function ay(k) { return AY + AH * k / 16; }
+    s += txt(AX + AW / 2, 52, "Address Space (VA)", 12, C.a, ' font-weight="700"');
+    s += box(AX, ay(0), AW, ay(2) - ay(0), C.aL, C.a) + txt(AX + AW / 2, ay(1) + 4, "Program Code", 11, C.a);
+    s += box(AX, ay(2), AW, ay(4) - ay(2), "#fff", C.a) + txt(AX + AW / 2, ay(3) + 4, "Heap ↓", 11, C.a);
+    s += box(AX, ay(4), AW, ay(14) - ay(4), "#f6f6f6", "#bbb") + txt(AX + AW / 2, ay(9) + 4, "(free)", 11, C.muted);
+    s += box(AX, ay(14), AW, ay(16) - ay(14), "#fff", C.a) + txt(AX + AW / 2, ay(15) + 4, "Stack ↑  x @15KB", 11, C.a);
+    [0, 16].forEach(function (k) { s += txt(AX - 6, ay(k) + 4, k + "KB", 10, C.muted, ' text-anchor="end"'); });
+    s += txt(AX - 6, ay(15) + 4, "15KB", 10, C.muted, ' text-anchor="end"');
+    // 20KB 표시 (주소 공간 밖)
+    s += during(7.5, 10.5, txt(AX + AW / 2, 322, "VA 20KB = 주소 공간 밖", 11, C.hw, ' font-weight="700"'));
+
+    // ---- 가운데: MMU ----
+    var MX = 250, MY = 70, MW = 230, MH = 190;
+    s += box(MX, MY, MW, MH, "#ececec", "#999") + txt(MX + MW / 2, MY - 6, "MMU", 14, C.cpu, ' font-weight="700"');
+    s += box(MX + 15, MY + 15, 90, 30, "#fff", C.cpu) + txt(MX + 60, MY + 12, "bounds register", 10, C.cpu) + txt(MX + 60, MY + 35, "16KB", 13, C.cpu, ' font-weight="700"');
+    s += box(MX + 125, MY + 15, 90, 30, "#fff", C.cpu) + txt(MX + 170, MY + 12, "base register", 10, C.cpu) + txt(MX + 170, MY + 35, "32KB", 13, C.cpu, ' font-weight="700"');
+    // 비교기 마름모 (60, 120) 기준
+    var CX = MX + 60, CY = MY + 110;
+    s += '<polygon points="' + CX + ',' + (CY - 22) + ' ' + (CX + 22) + ',' + CY + ' ' + CX + ',' + (CY + 22) + ' ' + (CX - 22) + ',' + CY + '" fill="#fff" stroke="' + C.cpu + '" stroke-width="1.5"/>' + txt(CX, CY + 6, "&lt;", 18, C.cpu, ' font-weight="700"');
+    var PX = MX + 170, PY = CY;
+    s += '<circle cx="' + PX + '" cy="' + PY + '" r="18" fill="#fff" stroke="' + C.cpu + '" stroke-width="1.5"/>' + txt(PX, PY + 6, "+", 20, C.cpu, ' font-weight="700"');
+    s += '<line x1="' + CX + '" y1="' + (MY + 45) + '" x2="' + CX + '" y2="' + (CY - 24) + '" stroke="#555" marker-end="url(#mbb_arrow)"/>';
+    s += '<line x1="' + PX + '" y1="' + (MY + 45) + '" x2="' + PX + '" y2="' + (PY - 20) + '" stroke="#555" marker-end="url(#mbb_arrow)"/>';
+    s += '<line x1="' + (CX + 22) + '" y1="' + CY + '" x2="' + (PX - 20) + '" y2="' + PY + '" stroke="#555" marker-end="url(#mbb_arrow)"/>' + txt((CX + PX) / 2, CY - 8, "yes", 11, "#1d6b2a");
+    s += '<line x1="' + CX + '" y1="' + (CY + 22) + '" x2="' + CX + '" y2="' + (MY + MH + 40) + '" stroke="#555" marker-end="url(#mbb_arrow)"/>' + txt(CX + 14, CY + 40, "no", 11, C.hw, ' text-anchor="start"');
+    s += txt(CX, MY + MH + 56, "Raise exception", 13, C.hw, ' font-weight="700"');
+    // exception 강조
+    s += during(9.0, 10.5, '<rect x="' + (CX - 70) + '" y="' + (MY + MH + 38) + '" width="140" height="26" rx="5" fill="none" stroke="' + C.hw + '" stroke-width="3"/>');
+
+    // ---- 오른쪽: Physical Memory 0~64KB (y 60~300, 1KB = 3.75px) ----
+    var RX = 580, RW = 130, RY = 60, RH = 240;
+    function ry(k) { return RY + RH * k / 64; }
+    s += txt(RX + RW / 2, 52, "Physical Memory (PA)", 12, C.cpu, ' font-weight="700"');
+    s += box(RX, ry(0), RW, ry(16) - ry(0), C.os, "#3b5d8f") + txt(RX + RW / 2, ry(8) + 4, "Operating System", 11, "#3b5d8f");
+    s += box(RX, ry(16), RW, ry(32) - ry(16), "#f6f6f6", "#bbb") + txt(RX + RW / 2, ry(24) + 4, "(not in use)", 11, C.muted);
+    s += box(RX, ry(32), RW, ry(48) - ry(32), C.aL, C.a) + txt(RX + RW / 2, ry(40) + 4, "Process A", 11, C.a, ' font-weight="700"');
+    s += box(RX, ry(48), RW, ry(64) - ry(48), C.bL, C.b) + txt(RX + RW / 2, ry(56) + 4, "Process B", 11, C.b);
+    [0, 16, 32, 48, 64].forEach(function (k) { s += txt(RX + RW + 6, ry(k) + 4, k + "KB", 10, C.muted, ' text-anchor="start"'); });
+
+    // ---- 토큰 이동 ----
+    // ① 128: 주소 공간 위쪽 → 비교기 → + → 물리 32896 (32.125KB)
+    var y128 = ay(0.125), y15 = ay(15);
+    s += token("M" + (AX + AW) + "," + y128 + " L" + (CX - 22) + "," + CY, 1.5, 3.0, "VA 128", C.a);
+    s += token("M" + (CX + 22) + "," + CY + " L" + (PX - 18) + "," + PY + " L" + (PX + 18) + "," + PY + " L" + RX + "," + ry(32.125), 3.0, 4.5, "PA 32896", C.hw);
+    // ② 15KB
+    s += token("M" + (AX + AW) + "," + y15 + " L" + (CX - 22) + "," + CY, 4.5, 6.0, "VA 15KB", C.a);
+    s += token("M" + (CX + 22) + "," + CY + " L" + (PX - 18) + "," + PY + " L" + (PX + 18) + "," + PY + " L" + RX + "," + ry(47), 6.0, 7.5, "PA 47KB", C.hw);
+    // ③ 20KB → exception
+    s += token("M" + (AX + AW) + "," + (AY + AH + 10) + " L" + (CX - 22) + "," + CY, 7.5, 9.0, "VA 20KB", C.hw);
+    s += token("M" + CX + "," + (CY + 22) + " L" + CX + "," + (MY + MH + 30), 9.0, 10.5, "✗", C.hw);
+    // 결과 표시 (물리 쪽 마커)
+    s += during(3.0, 12, '<line x1="' + (RX - 14) + '" y1="' + ry(32.125) + '" x2="' + RX + '" y2="' + ry(32.125) + '" stroke="' + C.hw + '" stroke-width="2"/>' + txt(RX - 16, ry(32.125) + 4, "32896", 10, C.hw, ' text-anchor="end"'));
+    s += during(6.0, 12, '<line x1="' + (RX - 14) + '" y1="' + ry(47) + '" x2="' + RX + '" y2="' + ry(47) + '" stroke="' + C.hw + '" stroke-width="2"/>' + txt(RX - 16, ry(47) + 4, "47KB", 10, C.hw, ' text-anchor="end"'));
+    s += during(9.0, 12, '<line x1="' + (RX - 14) + '" y1="' + ry(52) + '" x2="' + RX + '" y2="' + ry(52) + '" stroke="' + C.muted + '" stroke-width="2" stroke-dasharray="3,2"/>' + txt(RX - 16, ry(52) + 4, "52KB ✗", 10, C.muted, ' text-anchor="end"'));
+
+    // ---- 요점 ----
+    s += txt(380, 350, "검사가 먼저(VA < bounds), 더하기가 나중(VA + base) — bounds 는 '길이'다", 12, C.cpu, ' font-weight="700"');
+    return s + '</svg>';
+  }
+};
 
 // ===== anims/park_unpark.js =====
 // ============================================================

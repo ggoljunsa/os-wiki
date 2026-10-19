@@ -1,0 +1,73 @@
+key: 가상 주소 공간
+title: 가상 주소 공간 (Virtual Address Space)
+category: 13강 Virtual Memory
+---
+'''가상 주소 공간'''은 OS가 물리 메모리 위에 만들어 준 '''추상화'''로, 실행 중인 프로세스에 관한 모든 것(code, heap, stack 등)이 들어 있다. 3강의 [[주소 공간]]("set of rights")과 같은 대상인데, 13강은 '''그 안의 주소가 전부 가짜(virtual)'''라는 점을 강조한다.
+
+{def}p.20 '''Address Spaces'''
+* '''Linear address space''': Ordered set of contiguous non-negative integer addresses {0, 1, 2, 3 … }
+* '''Virtual address space''': Set of $N = 2^n$ virtual addresses (n = 32 or 64) — {0, 1, 2, 3, …, N−1}
+* '''Physical address space''': Set of $M = 2^m$ physical addresses — {0, 1, 2, 3, …, M−1}
+* "Clean distinction between '''data (bytes)''' and their '''attributes (addresses)'''"{/def}
+
+{analogy}🎭 '''모든 아파트 단지의 "101동 101호"'''. 주소 형식(동·호)은 어느 단지나 똑같지만 실제 위치는 다르다. 프로그램은 자기 단지 안 주소만 알고, 지도(물리 주소)는 OS가 안다.{/analogy}
+
+== 구성 (p.21~22) ==
+
+<pre class="ascii">
+   0KB ┌──────────────────┐
+       │  Program Code    │  명령어가 사는 곳
+   1KB ├──────────────────┤
+       │  Heap     ↓      │  동적 할당: C 의 malloc, 객체지향 언어의 new
+   2KB ├──────────────────┤
+       │                  │
+       │     (free)       │  heap 과 stack 이 서로를 향해 자란다
+       │                  │
+  15KB ├──────────────────┤
+       │  Stack    ↑      │  return address·값, 지역 변수, 함수 인자
+  16KB └──────────────────┘
+</pre>
+(슬라이드는 heap이 아래로, stack이 위로 자라는 그림. 크기 16KB는 설명용 가정 — 실제는 [[동적 재배치의 한계|훨씬 크다]].)
+
+== "모든 주소는 가상이다" — mem.c (p.23~24) ⭐⭐ ==
+
+<pre class="c">
+#include <stdio.h>
+#include <stdlib.h>
+int main(int argc, char *argv[]){
+    printf("(%d) location of code : %p\n", getpid(), (void *) main);
+    printf("(%d) location of heap : %p\n", getpid(), (void *) malloc(1));
+    int x = 3;
+    printf("(%d) location of stack : %p\n", getpid(), (void *) &x);
+    return x;
+}
+</pre>
+
+`main` 함수 주소 = code, `malloc(1)` 반환값 = heap, 지역 변수 `&x` = stack.
+
+<pre class="sh">
+$ ./mem
+(2134) location of code : 0x40057d
+(2134) location of heap : 0xcf2010
+(2134) location of stack : 0x7fff9ca45fcc
+
+$ ./mem& ; ./mem&
+(2413) location of code : 0x40057d
+(2413) location of heap : 0xcf2010
+(2414) location of code : 0x40057d
+(2413) location of stack : 0x7fff9ca45fcc
+(2414) location of heap : 0xcf2010
+(2414) location of stack : 0x7fff9ca45fcc
+</pre>
+
+두 프로세스 2413, 2414가 '''동시에''' 살아 있는데 code·heap·stack 주소가 '''한 글자도 안 다르다'''. 두 프로세스가 같은 물리 바이트를 쓸 수는 없으므로, 출력된 값은 '''가상 주소'''이고 OS(+[[MMU]])가 각자를 서로 다른 물리 주소로 [[주소 변환|변환]]하고 있다는 증거다. p.23: "'''Every address in a running program is virtual'''. OS translates the virtual address to physical address."
+
+[[img:L13-24.png|p.24 — 64-bit Linux 주소 공간: Code(Text) 0x400000, Data 0x401000, Heap 0xcf2000~0xd13000, 그 아래 128 TB free, Stack 0x7fff9ca28000~0x7fff9ca49000|large]]
+
+{warn}출력 순서(2413, 2413, 2414, 2413, …)가 뒤섞인 것은 두 프로세스가 [[스케줄링|스케줄]]되며 번갈아 printf 한 결과일 뿐, 주소와는 무관하다. 주소가 같다는 것이 요점이다. (요즘 Linux는 ASLR 때문에 실행마다 주소가 달라지지만, 슬라이드는 ASLR을 끈 상황.){/warn}
+
+{quiz}p.24에서 두 프로세스의 heap 주소가 둘 다 `0xcf2010`이다. 이것으로 알 수 있는 것을 한 문장으로.{/quiz}
+{answer}프로그램이 보는 주소는 '''가상 주소'''이며, 같은 가상 주소라도 프로세스마다 OS가 서로 다른 물리 주소로 변환한다(각 프로세스는 private virtual address space를 가진다).{/answer}
+
+== 관련 문서 ==
+* [[주소 공간]](3강) · [[가상 메모리]] · [[주소 변환]] · [[힙]] · [[스택]] · [[동적 재배치의 한계]]

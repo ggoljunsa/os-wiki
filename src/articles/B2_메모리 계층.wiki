@@ -1,0 +1,64 @@
+key: 메모리 계층
+title: 메모리 계층 (Memory Hierarchy)
+category: 13강 Virtual Memory
+---
+'''메모리 계층'''은 작고 빠르고 비싼 저장장치를 위에, 크고 느리고 싼 저장장치를 아래에 쌓아서 '''위층이 아래층의 캐시 역할'''을 하게 만든 구조다. 13강 p.3~10은 "CPU + 평평한 메모리"라는 중간까지의 가정을 깨기 위해 이 그림부터 보여 준다 — '''"OS manages all of them!"'''
+
+{def}p.7 Example Memory Hierarchy
+* L0: Registers — "CPU registers hold words retrieved from L1 cache"
+* L1: L1 cache (SRAM) — "holds cache lines retrieved from L2 cache"
+* L2: L2 cache (SRAM) — "holds cache lines retrieved from main memory"
+* L3: Near main memory (DRAM) — "Main memory holds disk blocks retrieved from local disks"
+* L4: Far main memory (Optane)
+* L5: Local secondary storage (Flash SSDs and HDDs) — "Local disks hold files retrieved from disks on remote network servers"
+위: '''Smaller, faster, costlier per byte''' / 아래: '''Larger, slower, cheaper per byte'''{/def}
+
+{analogy}🎭 '''책상 – 책장 – 도서관 – 국립중앙도서관'''. 지금 쓰는 책은 책상(레지스터·L1)에, 이번 주에 볼 책은 책장(L2·DRAM)에, 가끔 보는 책은 도서관(SSD)에. 자주 쓰는 걸 가까이 두면 대부분의 요청이 책상에서 끝난다 — 이게 통하는 이유가 [[locality]]다.{/analogy}
+
+[[img:L13-07.png|p.7 피라미드 — 각 층 오른쪽 빨간 글씨가 '이 층은 바로 아래층에서 가져온 무엇을 담는가'|large]]
+
+== RAM과 비휘발성 메모리 (p.4~6) ==
+
+{|
+! 종류 || 셀당 트랜지스터 || Access time || Refresh? || Nonvolatile? || $/GB || 용도
+|-
+| '''SRAM''' || 4 or 6 || 10 ns || No || No || 860 || Cache memory
+|-
+| '''DRAM''' || 1 || 100 ns || Yes || No || 8.6 || Main memory, frame buffers
+|-
+| '''Optane''' || 1 || 300 ns || No || Yes || 4.0 || Main memory, disk buffers
+|-
+| '''Flash''' || ~1 || 10 us || No || Yes || 0.25 || Data storage
+|}
+(p.6 표. Flash의 "~1"은 multi-level cell 기술로 셀 하나에 여러 비트 — 2021년 기준 최대 5비트.)
+
+차이의 이유는 [[SRAM과 DRAM]]. Nonvolatile(p.5): ROM(생산 시 프로그램) · PROM(한 번) · EPROM(UV·X-Ray로 통째 지움) · EEPROM(전기적 삭제) · NAND Flash(부분(sector) 삭제 가능한 EEPROM) · Optane(phase-change memory). 쓰임: 펌웨어(BIOS, 디스크 컨트롤러), SSD, 디스크 캐시.
+
+== 계층 곳곳의 캐싱 (p.10) ⭐ ==
+
+{|
+! Cache Type || What is Cached? || Where is it Cached? || Latency (cycles) || Managed By
+|-
+| Registers || 4-8 bytes words || CPU core || 0 || Compiler/HW
+|-
+| L1 cache || 64-bytes block || On-Chip L1 || 1 || Hardware
+|-
+| L2 cache || 64-bytes block || On/Off-Chip L2 || 10 || Hardware
+|-
+| '''Virtual Memory''' || '''4-KB page''' || '''Main memory''' || '''100''' || '''Hardware + OS'''
+|-
+| Buffer cache || Parts of files || Main memory || 100 || OS
+|-
+| Disk cache || Disk sectors || Disk controller || 100,000 || Disk firmware
+|-
+| Network buffer cache || Parts of files || Local disk || 10,000,000 || AFS/NFS client
+|-
+| Browser cache || Web pages || Local disk || 10,000,000 || Web browser
+|-
+| Web cache || Web pages || Remote server disks || 1,000,000,000 || Web proxy server
+|}
+
+{tip}이 표에서 '''Virtual Memory 행만 "Hardware + OS"'''가 같이 관리한다. 캐시는 하드웨어 혼자, 버퍼 캐시는 OS 혼자다. 가상 메모리가 "하드웨어([[MMU]])가 매 접근을 변환하고, OS가 그 규칙(레지스터·테이블)을 설정"하는 협업이라는 13강 전체의 요지가 이 한 칸에 들어 있다. 또 단위가 '''4-KB page''' — 다음 강의(paging)의 예고다.{/tip}
+
+== 관련 문서 ==
+* [[가상 메모리]] · [[SRAM과 DRAM]] · [[locality]] · [[MMU]]
