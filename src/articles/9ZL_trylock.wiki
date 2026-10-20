@@ -95,6 +95,8 @@ p.21 원문: "This type of approach could work well in '''limited circumstances'
 
 {exam}🎯 교수(10/7): "L2를 못 잡으면 L1을 놓는다 — L2를 쥔 쪽에게 L1을 '''양보'''하는 것이라 no preemption을 깬다. 6번 줄을 지나면 두 락을 다 쥔 것이 보장되고, 못 쥐면 놓는 것도 보장된다. T1은 L2를 쥔 채 L1을 기다리지 않으니 '''항상 진행'''이 있다. 단점 둘: ① [[livelock]] ② L1과 L2 사이에서 한 계산·malloc을 놓을 때 '''전부 되돌려야''' 해서 코드가 커진다 — 그래서 널리 못 쓴다."{/exam}
 
+{exam}🎯 '''2026F 중간고사 P9''': '''ticket lock 용 try_lock''' — 기다리지 않고 한 번 시도, 실패한 시도는 '''락 상태(ticket)를 바꾸면 안 된다'''. `CAS(&l->ticket, t, t + 1)` / `old == t`. → [[ticket lock]], [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[데드락]] · [[데드락 4조건]] · [[livelock]] · [[lock ordering]] · [[hold and wait 방지]] · [[lock-free]]
 * [[락]] · [[힙]] · [[spin lock]]

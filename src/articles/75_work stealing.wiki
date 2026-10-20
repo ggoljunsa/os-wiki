@@ -73,6 +73,8 @@ job을 훔쳐 오는 순간 그 job은 CPU를 옮기게 되고, 쌓아 둔 캐�
 
 함께 나올 수 있는 세트: '''Cache affinity''', '''Cache coherence''', '''Bus snooping''', '''Load imbalance'''. → [[2025F 중간고사 족보]]{/exam}
 
+{exam}🎯 '''2026F 중간고사 P2-e''': "load-balancing technique in which a CPU with little work takes jobs from another CPU's more heavily loaded queue" (2 words, w s) → '''work stealing'''. P6 은 마이그레이션 비용 계산 → [[cache affinity]]. → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[MQMS]] · [[로드 밸런싱]] · [[cache affinity]] · [[SQMS]]
 * [[멀티프로세서 스케줄링]] · [[멀티코어]]

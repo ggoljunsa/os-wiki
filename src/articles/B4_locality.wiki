@@ -38,5 +38,9 @@ return sum;
 {quiz}`for (j…) for (i…) sum += a[i][j];` 처럼 C의 2차원 배열을 '''열 우선'''으로 돌면 어떤 locality가 나빠지나?{/quiz}
 {answer}'''Spatial locality'''. C는 row-major라 `a[i][j]` 다음 원소는 `a[i][j+1]`인데, 열 우선으로 돌면 한 행 길이만큼 떨어진 주소로 뛰어서 stride-1 패턴이 깨진다. `sum`의 temporal locality는 그대로다.{/answer}
 
+{tip}🎙 '''10/19 수업''' — "메모리 계층이 통하는 이유는 '''단 하나, locality'''." "'''system programming 수업에서 배웠을 것'''." 요즘은 애플리케이션 명령어가 많아져 '''instruction reference 최적화'''도 중요하고, 프로그램은 대부분의 시간을 루프에서 쓰므로 명령어의 temporal locality 가 크다. 캐시는 '''64-byte block''' 단위로 spatial locality 를 이용한다.{/tip}
+
+{info}📉 교수님이 "system programming 에서 배운 것"이라고 한 단원이다. 사용자 확인(2026-10-20): 이 과목 시험은 시스템 프로그래밍 수업 내용을 내지 않는다 → 정의(temporal/spatial)와 p.9 예제 표만 확인하는 정도로.{/info}
+
 == 관련 문서 ==
 * [[메모리 계층]] · [[SRAM과 DRAM]] · [[가상 메모리]]

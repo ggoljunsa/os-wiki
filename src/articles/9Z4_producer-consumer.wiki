@@ -86,6 +86,8 @@ category: 10강 Condition Variables, 용어, 기출
 {quiz}CV 두 개 버전에서 consumer가 `Pthread_cond_signal(&fill)`을 보내도록 잘못 썼다. 무엇이 고장나는가?{/quiz}
 {answer}fill에는 '''다른 소비자들'''이 잔다. 버퍼를 비운 소비자가 생산자 대신 소비자를 깨우므로, 생산자는 `empty`에서 계속 잠들어 있고, 깨어난 소비자는 빈 버퍼를 보고 다시 잔다 → CV 1개 버전과 같은 "'''모두 잠듦'''" 상황이 될 수 있다.{/answer}
 
+{exam}🎯 '''2026F 중간고사 P8''': 세마포어판 producer/consumer — x(empty)=MAX, y(full)=0, z(mutex)=1, consumer = wait(y), wait(z), get, post(z), post(x). → [[세마포어]], [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[조건 변수]] · [[bounded buffer]] · [[Mesa semantics]] · [[spurious wakeup]] · [[wait와 signal]]
 * [[세마포어]] · [[데드락]] · [[2025F 중간고사 족보]]

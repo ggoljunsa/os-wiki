@@ -71,6 +71,8 @@ lock(&mutex); counter += local; unlock(&mutex);    // critical section을 1회�
 {quiz}[[TLS]] 변수에 접근하는 코드는 critical section인가?{/quiz}
 {answer}'''아니다.''' TLS는 스레드마다 별도의 사본을 가지므로 '''공유 변수가 아니다'''. 정의의 첫 조건("accesses a shared variable")부터 만족하지 않는다.{/answer}
 
+{exam}🎯 '''2026F 중간고사 P7-c''': "read and write form one critical section" → lock immediately before '''A1''' / unlock immediately after '''A2''', 마찬가지로 '''B1''' / '''B2'''. 교수님: "just surround all statements by the lock." → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[race condition]] · [[mutual exclusion]] · [[atomic]]
 * [[counter 예제]] · [[스레드 스택]] · [[TLS]]

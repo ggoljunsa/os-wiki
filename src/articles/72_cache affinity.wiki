@@ -74,6 +74,8 @@ category: 7강 Multi-CPU Scheduling, 용어
 
 Problem 2는 슬라이드의 영어 정의 문장을 거의 그대로 주고 용어를 쓰게 하는 형식이다. 정의 문장 "A process builds up a fair bit of state in the cache of a CPU"를 영어로 외워 둘 것. → [[2025F 중간고사 족보]]{/exam}
 
+{exam}🎯 '''2026F 중간고사 P6''' (10점): 옮긴 작업은 CPU1 에서 warm-up 1 을 먼저 치른다. CPU0: A6 + 대기 B4, C2 / CPU1: D2. neither 12 · move B 8 (CPU1 7) · move C 10 → '''move B, 8'''. warm-up 을 h 로 바꾸면 max(8, 6+h) < 12 → '''0 ≤ h < 6'''. 내가 ≤3 으로 −2. → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[멀티프로세서 스케줄링]] · [[캐시 일관성]] · [[멀티코어]]
 * [[SQMS]] · [[MQMS]] · [[로드 밸런싱]] · [[work stealing]]

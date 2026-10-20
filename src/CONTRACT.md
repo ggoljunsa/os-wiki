@@ -74,7 +74,7 @@ category: 4강 LDE, 용어
 
 ## 5. 정식 문서 키 목록 (링크는 이 키로만)
 ### 안내
-main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복기 · 1단계 오답 노트 · 2025F 중간고사 족보 · 시험 정보
+main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복기 · 1단계 오답 노트 · 2025F 중간고사 족보 · 2026F 중간고사(`EA_`, 실제 시험 복기, 이미지 `_slides/SOL26-*.jpg` = 풀이 슬라이드 사진) · 시험 정보
 ### 1강 Intro / 2강 What is OS
 운영체제란 · 가상화 · 동시성 · 영속성 · 커널 · 시스템 콜 · 유저 모드와 커널 모드 · OS 설계 목표 · OS 역사
 ### 3강 From Program to Process
@@ -135,6 +135,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | dining_trace | 11강 p.37/p.39 dining philosophers 를 같은 최악의 순서로 줄 단위 실행(포크 세마포어 값·주인·기다림 화살표 원탁 SVG). 옵션 version = broken(전원 −1, deadlock) / fixed(P4 만 f0 먼저 → P3→P2→P1→P0→P4) | dining philosophers |
 | p6_xyz | 2025F P6 / 문제집 u12 ④-11·12: x(empty)/y(full)/z(mutex) producer-consumer MAX=3 줄 단위, 버퍼·세마포어 SVG. 옵션 order = correct((−1,3,1)→(0,2,1)→(0,3,1)) / swapped((a)(b) 바꿔 데드락) | 2025F 중간고사 족보 |
 | base_bounds_trace | 13강 p.44~49·p.54: x = x + 3 의 메모리 참조 5번(fetch 128/132/135, load·store 15KB)을 MMU 코드(VA < bounds → PA = VA + base)와 함께, 물리 메모리 막대 SVG. 옵션 scenario = normal(base 32KB → 32896, 47KB) / out_of_bounds(%ebx 20KB → exception) / context_switch(A 의 base/bounds 를 PCB 에 저장, B 48KB 로 같은 코드 → 63KB) | base and bounds, 가상 메모리 |
+| mid26_mlfq | 2026F 중간 P5: 시험지 MLFQ 규칙(slice 2/4/8, I/O 블록 시 우선순위 유지, 상위 도착 선점·head 재개)을 실제로 시뮬레이션해 A·B·C Gantt + 큐 상태 | 2026F 중간고사, MLFQ |
+| mid26_trylock | 2026F 중간 P9: ticket lock try_lock. 옵션 variant = bad(실패한 B 가 ticket 을 올려 C 영원히 spin) / correct(CAS(&ticket, t, t+1), old == t → C 진입) / race(ticket=turn=4, A·B 동시 → A 1, B 0) | 2026F 중간고사, ticket lock, compare-and-swap |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)

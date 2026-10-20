@@ -77,6 +77,8 @@ $$vruntime_i = vruntime_i + \frac{weight_0}{weight_i} \cdot runtime_i$$
 
 그래서 리눅스 6.6(2023.10)에서 코어가 [[EEVDF]]로 교체됐다.
 
+{exam}🎯 '''2026F 중간고사 P1-d''': CFS 가 runnable 프로세스를 담는 자료구조 → '''Red-black tree'''. 교수님: "lookup 을 O(log N) 으로. hash table 은 원소 추가가 무겁다." → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[vruntime]] · [[nice]] · [[weight]] · [[sched_latency]] · [[min_granularity]] · [[레드블랙 트리]]
 * [[EEVDF]] · [[lag]] · [[virtual deadline]]

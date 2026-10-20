@@ -162,6 +162,10 @@ T1이 `unlock()`하면 `FetchAndAdd(&turn)`으로 '''turn=1''' → `myturn`이 1
 # fairness의 근거 = '''고유한 번호 + 1씩 증가하는 turn = FIFO'''
 # 남은 문제 = spin 낭비 → [[yield 락]], [[queue 락]]으로
 
+{exam}🎯 '''2026F 중간고사 P9''' (10점): ticket lock 에 try_lock. ① `bad_try_lock` 은 실패해도 FetchAndAdd 로 '''ticket 을 올려''' 그 번호의 주인이 사라짐 → A 보유(ticket 1, turn 0)에서 B 실패 후 A unlock, C lock → C 번호 2, turn 1, '''C never enters'''. ② 정답: `t = l->turn; old = CAS(&l->ticket, t, t + 1); return old == t;` — "failed try never increases the ticket". ③ ticket=turn=4 에서 A·B 동시 → A old 4/1, B old 5/0. 내가 5점 잃음. → [[2026F 중간고사]]{/exam}
+
+[[sim:mid26_trylock]]
+
 == 관련 문서 ==
 * [[fetch-and-add]] · [[락]] · [[락 평가 기준]] · [[spin lock]]
 * [[yield 락]] · [[queue 락]] · [[fairness]] · [[time slice]]

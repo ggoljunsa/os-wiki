@@ -85,6 +85,8 @@ void *worker(void *arg) {
 {quiz}TLS 변수는 왜 [[락]] 없이 증가시켜도 안전한가?{/quiz}
 {answer}스레드마다 '''별도의 사본'''이 존재해 '''공유 데이터가 아니기''' 때문이다. [[critical section]]의 정의("공유 변수에 접근하는 코드") 자체를 만족하지 않으므로 [[race condition]]이 성립하지 않는다.{/answer}
 
+{exam}🎯 '''2026F 중간고사 P2-c''': "What does TLS stand for?" → '''thread-local storage''' (full term, 8강 p.30). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[스레드]] · [[스레드 스택]] · [[TCB]]
 * [[pthread_create]] · [[race condition]] · [[counter 예제]]

@@ -80,6 +80,8 @@ e.g., Process A has 75 tickets → receive '''75%''' of the CPU / Process B has 
 | [[EEVDF]] || [[weight]] + latency_nice
 |}
 
+{exam}🎯 '''2026F 중간고사 P2-d''': client 가 server 에게 tickets 를 잠시 넘겼다가 돌려받는 기법 (2 words, t t) → '''ticket transfer''' (6강 p.14). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[stride]]
 * [[비례 지분 스케줄링]] · [[weight]] · [[nice]]
