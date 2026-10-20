@@ -72,6 +72,8 @@ p.14 원문: "A deadlock cannot occur if '''any of the four conditions are not m
 
 녹음이 p.15부터라 p.12 설명은 없지만, 뒷부분에서 교수님이 조건을 깨는 네 방법을 하나씩 다루며 "'''4조건 중 하나만 없애면 데드락은 불가능하다'''"(prevention = 강한 보장)와 "avoidance는 '''조건을 다 남긴 채''' 위험한 순서만 피한다"(약한 보장)를 대비시켰다. → [[데드락]] 🎙 절.
 
+{exam}🎯 '''2026F 중간고사 P10-c''': lock ordering 이 없애는 조건 → '''circular wait'''. 그래도 starvation 은 가능(Yes). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[데드락]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[lock-free]]
 * [[livelock]] · [[데드락 avoidance]] · [[데드락 detection]]

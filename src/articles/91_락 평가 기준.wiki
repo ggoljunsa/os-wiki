@@ -55,6 +55,8 @@ category: 9강 Lock, 용어
 {quiz}[[ticket lock]]은 fairness가 Yes인데 performance는 여전히 No다. 왜인가?{/quiz}
 {answer}'''spin 자체가 그대로'''이기 때문이다. 순서는 공평해졌지만, 자기 차례를 기다리는 스레드들은 여전히 `while (turn != myturn)`을 돌며 [[time slice]]를 태운다. 락을 쥔 스레드가 preempt되면 나머지가 전부 낭비한다. (p.29){/answer}
 
+{exam}🎯 '''2026F 중간고사 P1-e''': 기다리는 스레드가 '''starve''' 할 수 있는지 → '''Fairness'''. 교수님: "mutual exclusion·atomicity 는 correctness, cache affinity 는 performance." → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[락]] · [[spin lock]] · [[ticket lock]] · [[queue 락]] · [[futex]]
 * [[mutual exclusion]] · [[time slice]] · [[fairness]]

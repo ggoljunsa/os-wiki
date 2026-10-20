@@ -54,6 +54,8 @@ $$T_{response} = T_{firstrun} - T_{arrival}$$
 
 [[sim:sched_gantt]]
 
+{exam}🎯 '''2026F 중간고사 P4''' (10점): $S = \sum C_i$(turnaround 합), $R_{\max}$ = 최대 response, $J_\lambda = S + \lambda R_{\max}$. A2·B3·C4 에서 SJF(AABBBCCCC)는 S=16·R_max=5. 최소 $J_1$ = '''20''' (AABCBBCCC, R_max 3), 최소 $J_3$ = '''25''' (ABCABBCCC, R_max 2). 풀이 요령: '''R_max 를 2·3·4·5 로 고정하고 각 경우 S 를 최소화'''. 내가 J1=21 로 −4. → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[스케줄링]] — 지표가 정의되는 맥락
 * [[turnaround time]] · [[response time]] · [[fairness]]

@@ -73,6 +73,8 @@ Stride가 비율을 정확히 맞추는데도 Lottery가 의미 있는 이유는
 
 [[sim:stride_lottery]]
 
+{exam}🎯 '''2026F 중간고사 P2-d''': '''ticket transfer''' — "a client temporarily gives its tickets to a server working on its behalf, and receives them back when the work finishes" (6강 p.14). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[tickets]] · [[Stride 스케줄링]] · [[비례 지분 스케줄링]]
 * [[fairness]] · [[CFS]]

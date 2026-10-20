@@ -90,6 +90,8 @@ yield(void)
 
 숫자보다 '''"공짜는 아니지만 마이크로초 단위로 꽤 싸다 — 그래도 자주 하면 p.8의 Performance 문제"'''라는 감각이 중요하다. 5강의 [[time slice]] 길이 선택이 정확히 이 트레이드오프다.
 
+{exam}🎯 '''2026F 중간고사 P3-a''' (4점): A 실행 중 타이머 → C 로 전환, C 가 user mode 로 재개될 때까지 → '''5 Timer interrupt → 6 HW: A user regs → k-stack(A), kernel mode → 10 handler 가 C 선택·switch() → 2 OS: A kernel regs → proc-struct(A) → 9 C kernel regs ← proc-struct(C) → 4 k-stack(C) 로 → 7 return-from-trap → 1 HW: user regs 복원·user mode'''. 풀이 슬라이드: "User state lives on kernel stacks. The software switch also saves and restores kernel registers." → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[타이머 인터럽트]] · [[스케줄러]] · [[커널 스택]] · [[trapframe]] · [[PCB]] · [[struct proc]]
 * [[yield]] · [[usertrap]] · [[프로세스 상태]] · [[제한적 직접 실행]]

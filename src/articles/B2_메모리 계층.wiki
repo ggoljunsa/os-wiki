@@ -60,5 +60,7 @@ category: 13강 Virtual Memory
 
 {tip}이 표에서 '''Virtual Memory 행만 "Hardware + OS"'''가 같이 관리한다. 캐시는 하드웨어 혼자, 버퍼 캐시는 OS 혼자다. 가상 메모리가 "하드웨어([[MMU]])가 매 접근을 변환하고, OS가 그 규칙(레지스터·테이블)을 설정"하는 협업이라는 13강 전체의 요지가 이 한 칸에 들어 있다. 또 단위가 '''4-KB page''' — 다음 강의(paging)의 예고다.{/tip}
 
+{tip}🎙 '''10/19 수업''' — "L1·L2·L3 와 TLB 는 '''CPU 하드웨어'''가, DRAM·SSD·입출력 장치는 '''OS'''가 관리한다." 말로 든 지연: L1 hit 4~5 cycle, L2 10~20, L3 ~100. 레지스터가 "Compiler/HW" 관리인 이유는 '''logical vs physical registers'''. "Optane 은 시장에서 실패, 몰라도 된다." 이 단원은 교수님 표현으로 architecture/system programming 쪽이라 출제 우선순위는 낮다 → [[가상 메모리]] 수업 기록.{/tip}
+
 == 관련 문서 ==
 * [[가상 메모리]] · [[SRAM과 DRAM]] · [[locality]] · [[MMU]]

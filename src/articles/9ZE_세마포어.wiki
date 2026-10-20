@@ -384,6 +384,8 @@ p.23의 요약 한 줄: "'''The producer sleeps until consumer posts mutex, whil
 {quiz}(계산) MAX=3, 초기 empty=3, full=0. producer가 put을 4번 시도하고 consumer는 아직 실행되지 않았다. 네 번째 `sem_wait(&empty)` 직후 empty, full 값과 producer 상태는?{/quiz}
 {answer}세 번 put 후 empty=0, full=3. 네 번째 `sem_wait(&empty)`에서 empty = '''−1''' → producer '''잠듦'''(대기자 1명). full은 그대로 '''3'''. consumer가 `sem_post(&empty)`로 −1→0을 만들면 깨어난다 (p.19).{/answer}
 
+{exam}🎯 '''2026F 중간고사 P8''' (10점) — '''2025F P6 과 같은 x/y/z producer-consumer 가 2년 연속.''' producer `wait(x); wait(z); put; post(z); post(y)` 가 주어지고 init·consumer 를 채움: '''x = MAX, y = 0, z = 1''', consumer '''wait(y); wait(z); get; post(z); post(x)'''. (f)(g) 순서는 바꿔도 되지만 (d)(e) 는 안 됨. 내가 y=1, z=0 으로 바꿔 써 −4 → '''producer 코드에서 역할을 읽어라'''. → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[조건 변수]] · [[producer-consumer]] · [[bounded buffer]] · [[reader-writer lock]] · [[dining philosophers]] · [[데드락]]
 * [[락]] · [[done flag 예제]] · [[mutual exclusion]] · [[critical section]] · [[2025F 중간고사 족보]]

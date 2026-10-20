@@ -525,6 +525,8 @@ Writer 는 8 에 시작해 11 에 끝난다
 # '''Problem 7''': [[fetch-and-add]] 락 빈칸 — (a) FetchAdd (b) 0 (c) FetchAdd(…, −1) (d) 1. '''전원 만점 처리'''됨
 # '''성적''': Mean '''52.4''' / Stdev '''14.4''' / Max '''84'''
 
+{info}📌 '''올해 실제 시험(2026F, 76.5/100)''' 복기는 [[2026F 중간고사]]. 2025F 의 x/y/z producer-consumer(P6)가 '''올해 P8 로 거의 그대로 재출제'''됐고, 계산 문제는 '목적함수를 새로 정의하고 최적 스케줄 찾기'(2025F P3 ↔ 2026F P4) 계열이 이어졌다.{/info}
+
 == 관련 문서 ==
 * [[시험 정보]] · [[퀴즈1 복기]] · [[자주 틀리는 함정 모음]]
 * [[fetch-and-add]] · [[ticket lock]] · [[락]] · [[race condition]] · [[critical section]] · [[mutual exclusion]]

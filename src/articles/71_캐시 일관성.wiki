@@ -88,6 +88,8 @@ int List_Pop() {
 * '''Cache affinity''' — Problem 2 d)에 실제로 출제됨 (Hint: C___ A___)
 → [[2025F 중간고사 족보]]{/exam}
 
+{exam}🎯 '''2026F 중간고사 P2-g''': "maintaining consistent copies of shared memory data across multiple CPU caches" (2 words, c c) → '''cache coherence'''. 풀이: "Cache coherence concerns copies of the '''same memory location''' across caches." → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[cache affinity]] · [[멀티프로세서 스케줄링]] · [[멀티코어]]
 * [[락]] · [[mutual exclusion]] · [[race condition]] · [[critical section]]

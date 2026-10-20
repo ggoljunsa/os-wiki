@@ -83,6 +83,8 @@ int clone(int (*fn)(void *),     // 새 실행 흐름이 시작할 함수
 {quiz}[[counter 예제]]에서 루프 변수 `i`는 왜 [[race condition]]을 일으키지 않는가?{/quiz}
 {answer}`i`는 '''지역 변수'''라 각 스레드의 '''자기 스택'''에 따로 존재한다. 공유되는 것은 전역·static·[[힙]]뿐이고, `counter`가 바로 그 전역이다.{/answer}
 
+{exam}🎯 '''2026F 중간고사 P1-b''': 스레드마다 따로 유지되는 것 = '''Execution stack''' (나머지 보기: program code, virtual address space, heap, ordinary global variables). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[스레드]] · [[TCB]] · [[TLS]] · [[주소 공간]]
 * [[스택]] · [[힙]] · [[pthread_create]]

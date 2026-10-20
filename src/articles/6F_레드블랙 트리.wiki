@@ -61,6 +61,8 @@ category: 6강 Proportional Share, 용어
 
 [[sim:cfs_eevdf]]
 
+{exam}🎯 '''2026F 중간고사 P1-d''': CFS 의 runnable 큐 = '''red-black tree''' (보기: linked list, hash table, stack, circular array). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[CFS]] · [[vruntime]] · [[sched_latency]]
 * [[Lottery 스케줄링]] — O(n) 리스트와의 대비

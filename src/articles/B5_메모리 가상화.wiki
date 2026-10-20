@@ -36,6 +36,8 @@ p.12: 물리 메모리는 '''바이트 배열'''이다. 프로그램은 모든 �
 
 정의는 [[가상 메모리]]의 p.16: '''Virtual Memory = ① [[가상 주소 공간|Virtual Address Space]] + ② [[주소 변환|Address Translation]]'''.
 
+{exam}🎙 '''10/19 수업 강조''' — ① "CPU 는 '''시간적으로'''(time slice) 나누고 메모리는 '''공간적으로''' 나눈다." 이유 둘: 메모리는 '''바이트 단위'''로 쪼갤 수 있어 나눌 자원이 많고, 메모리 내용을 통째로 아래 계층에 썼다 다시 읽는 '''메모리의 context switch 는 CPU context switch 보다 훨씬 비싸다'''. ② 공간으로 나누면 '''protection''' 이 문제 — "CPU 는 limited direct execution 으로 보호했듯 메모리도 spatial 한 보호 메커니즘이 필요하다." ③ 대응: CPU = OS thread + 하드웨어 context + '''context switch''' ↔ 메모리 = physical address + '''virtual address space''' + '''address translation'''.{/exam}
+
 == 이점 (p.18) ⭐⭐ ==
 
 {def}p.18 '''Benefits of Memory Virtualization'''

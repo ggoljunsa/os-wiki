@@ -1,0 +1,305 @@
+key: 2026F 중간고사
+title: 2026F 중간고사 (실제 시험 복기)
+category: 시험, 족보, 기출
+---
+{info}📌 '''2026-10-14(수) 실제 중간고사''' — 채점된 시험지 스캔 `중간고사/족보/Scan_20261019_171550.pdf`(11쪽), 10/19(월) 수업의 교수님 풀이 녹음 `중간고사/녹음본/운체_중간고사 풀이 261019_163027.m4a`(30분), 풀이 슬라이드 사진 2장(`20261019_170853.heic` Problem 2(e-g), `20261019_170854.heic` Problem 3(a)). 풀이 슬라이드는 일부만 찍혔으므로 나머지 정답은 '''녹음 + 직접 검산'''으로 확정했다.{/info}
+
+'''내 점수 76.5 / 100.''' 10문제, 75분, closed-book. 표지 규칙: "'''Write only the requested option, term, value, sequence, or code. No written explanations are required.'''", "Write your answers in '''English and numbers'''", "Code is classroom pseudocode."
+
+{warn}⭐ '''출제 범위에서 빠진 것''' — [[fork]]/[[exec]]/[[wait]] 같은 '''프로세스 API(시스템 프로그래밍 수업에서 배운 내용)'''와 [[과제1 xv6 alarm|과제 1(xv6)]]은 '''한 문제도 나오지 않았다'''. 3강의 프로세스 내용은 '''상태 전이(P1-a)'''만 나왔다. 기말에서도 시스템 프로그래밍 성격의 문제(코드 출력 예측용 fork/exec 등)보다 '''OS 메커니즘·정책 계산'''에 시간을 쓸 것.{/warn}
+
+{analogy}🎭 작년(2025F)이 "정의 외우기 + 긴 계산"이었다면 올해는 '''"정해진 규칙대로 손으로 돌리기"'''였다. 순서 고르기(LDE), 스케줄 직접 짜기(J_λ, MLFQ, 마이그레이션), 인터리빙 나열, 코드 빈칸. 규칙을 문제에서 새로 주고, 그 규칙을 정확히 따라가는지 본다.{/analogy}
+
+== 한눈에 ==
+
+{|
+! # || 주제 || 형식 || 배점 || 내 점수 || 관련 문서
+|-
+| P1 || 객관식 a~e || 5지선다 || 10 || '''10''' || [[프로세스 상태]] · [[스레드]] · [[MLFQ]] · [[CFS]] · [[락 평가 기준]]
+|-
+| P2 || Vocabulary a~g || 정의 → 용어(힌트: 단어 수·첫 글자) || 14 || '''14''' || [[제한적 직접 실행]] · [[TLS]] · [[tickets]] · [[work stealing]] · [[compare-and-swap]] · [[캐시 일관성]]
+|-
+| P3 || Limited Direct Execution || 섞인 단계 목록에서 순서 쓰기 || 8 || 4 || [[컨텍스트 스위치]] · [[트랩]]
+|-
+| P4 || Response-time penalty 스케줄링 || 계산 + 최적 스케줄 || 10 || 6 || [[스케줄링 지표]] · [[STCF]] · [[Round Robin]]
+|-
+| P5 || MLFQ trace || 구간 스케줄 + 값 || 10 || 5.5 || [[MLFQ]]
+|-
+| P6 || Migration with a cache cost || 표 + 부등식 || 10 || 8 || [[cache affinity]] · [[MQMS]]
+|-
+| P7 || Interleavings and lock boundary || 값 나열 + 순서 + 락 위치 || 10 || '''10''' || [[race condition]] · [[critical section]]
+|-
+| P8 || Producer–Consumer || 세마포어 코드 빈칸 || 10 || 6 || [[세마포어]] · [[producer-consumer]]
+|-
+| P9 || Extending a ticket lock (try_lock) || 값 추적 + CAS 코드 빈칸 || 10 || 5 || [[ticket lock]] · [[compare-and-swap]] · [[trylock]]
+|-
+| P10 || A lock-order cycle || 대기 락 + 코드 빈칸 + 조건 || 8 || '''8''' || [[lock ordering]] · [[데드락 4조건]]
+|}
+
+'''잃은 23.5점'''의 위치: P3 4 · P4 4 · P5 4.5 · P6 2 · P8 4 · P9 5. 전부 '''규칙을 손으로 돌리는 문제'''였다. 용어·객관식·락 코드 읽기(P1·P2·P7·P10)는 만점.
+
+----
+
+== P1. Multiple Choice (10) — 10/10 ==
+
+{|
+! || 문제 || 정답 || 교수님 설명 (10/19)
+|-
+| a || three-state process model에서 '''직접''' 일어나지 않는 전이는? || '''③ Blocked → Running''' || "blocked 프로세스는 ready로만 갈 수 있다, running으로 바로 가지 않는다" → [[프로세스 상태]]
+|-
+| b || 프로세스 안에서 '''스레드마다 따로''' 유지되는 것은? || '''④ Execution stack''' || program code · virtual address space · heap · 일반 전역 변수는 같은 가상 메모리라 공유 → [[스레드 스택]]
+|-
+| c || MLFQ가 '''같은 우선순위 안에서''' 쓰는 정책은? || '''② Round Robin''' || "다른 레벨 사이는 높은 쪽, 같은 레벨은 RR" → [[MLFQ]] Rule 2
+|-
+| d || CFS가 runnable 프로세스를 담는 자료구조는? || '''⑤ Red-black tree''' || "lookup을 $O(\log N)$으로. hash table은 원소 추가가 무겁다" → [[레드블랙 트리]]
+|-
+| e || 기다리는 스레드가 '''굶을 수 있는지'''를 따지는 락 평가 기준은? || '''① Fairness''' || "mutual exclusion·atomicity는 correctness, cache affinity는 performance" → [[락 평가 기준]]
+|}
+
+== P2. Vocabulary (14) — 14/14 ==
+
+"Write the '''full term''', not an abbreviation." 교수님: "'''vocabulary는 대체 답을 인정하지 않는다''' — 정확한 단어를 외워서 자기 생각을 표현할 수 있어야 한다."
+
+{|
+! || 정의 (시험지) || 힌트 || 정답
+|-
+| a || A policy decides ''what'' to do. 그것을 ''how''로 구현하는 low-level methods or protocols || 1 word, m || '''mechanism''' → [[제한적 직접 실행]] (4강 p.7)
+|-
+| b || 유저 프로그램을 CPU에서 직접 실행하면서 privilege restriction과 통제된 커널 진입으로 OS가 통제권을 유지하는 CPU 가상화 방식 || 3 words, l d e || '''limited direct execution''' → [[제한적 직접 실행]]
+|-
+| c || TLS의 full name. 스레드마다 함수 호출을 넘어 유지되는 변수 사본 || — || '''thread-local storage''' → [[TLS]]
+|-
+| d || lottery에서 client가 자기 tickets를 일하는 server에게 잠시 넘겼다가 돌려받는 기법 || 2 words, t t || '''ticket transfer''' → [[tickets]]
+|-
+| e || 일이 적은 CPU가 더 바쁜 CPU의 큐에서 작업을 가져오는 load-balancing 기법 || 2 words, w s || '''work stealing''' → [[work stealing]]
+|-
+| f || 현재 값이 expected와 같을 때만 갱신하는 atomic operation, CAS의 full name || — || '''compare-and-swap''' → [[compare-and-swap]]
+|-
+| g || 여러 CPU 캐시에 걸쳐 공유 데이터 사본을 일관되게 유지하는 것 || 2 words, c c || '''cache coherence''' → [[캐시 일관성]]
+|}
+
+[[img:SOL26-P2efg.jpg|풀이 슬라이드 Problem 2(e-g): work stealing / compare-and-swap / cache coherence|medium]]
+
+{tip}풀이 슬라이드(사진 1): "CAS checks the expected value and conditionally updates the location atomically." / "Cache coherence concerns copies of the '''same memory location''' across caches." — 출처 슬라이드: a) 4강 p.7 "Mechanism vs. Policy" — "A mechanism = low-level methods or protocols that implement a needed piece of functionality" (문제 문장 그대로) · b) 4강 · c) 8강 p.30 · d) 6강 p.14 Ticket Transfer · e) 7강 p.41 · f) 9강 · g) 7강 p.26~27.{/tip}
+
+== P3. Limited Direct Execution (8) — 4/8 ==
+
+트랩 테이블·타이머는 이미 초기화, 각 파트는 A가 user mode에서 실행 중인 상태에서 시작. '''공유된 섞인 목록'''에서 필요한 번호만 골라 순서대로.
+
+<pre class="txt">
+ 1. Hardware restores the saved user registers from the current kernel stack, enters user mode, and jumps to the saved user PC.
+ 2. The OS saves A's kernel registers to proc-struct(A).
+ 3. A executes the trap instruction for a system call.
+ 4. The OS switches to C's kernel stack, k-stack(C).
+ 5. A timer interrupt occurs while A is running.
+ 6. Hardware saves A's user registers to k-stack(A), enters kernel mode, and jumps to the appropriate handler.
+ 7. The OS executes the return-from-trap instruction.
+ 8. The OS performs the requested system call's work.
+ 9. The OS restores C's saved kernel registers from proc-struct(C).
+10. The timer handler selects C to run and calls switch().
+</pre>
+
+{|
+! 파트 || 정답 || 내 답 || 어디서 틀렸나
+|-
+| '''a) 타이머 인터럽트 → A에서 C로 전환''' (4) || '''5 → 6 → 10 → 2 → 9 → 4 → 7 → 1''' || 5 → 10 → 8 → 6 → 2 → 4 → 9 → 1 || ① 하드웨어 저장(6)이 핸들러(10)보다 '''먼저''' — 커널에 들어가야 핸들러가 돈다 ② 타이머 경로에 시스템 콜 작업(8)은 '''없다''' ③ 9(C 커널 레지스터 복원) 다음 4(C 커널 스택), 마지막 '''7 → 1''' (OS가 return-from-trap을 실행해야 하드웨어가 복원)
+|-
+| '''b) 시스템 콜 후 복귀''' (4) || '''3 → 6 → 8 → 7 → 1''' || 3 → 6 → 8 → 1 → 7 || '''7(OS가 return-from-trap 명령 실행) → 1(하드웨어가 복원·user mode)''' 순서. 1은 7의 '''결과'''다
+|}
+
+[[img:SOL26-P3a.jpg|풀이 슬라이드 Problem 3(a): 5 → 6 → 10 → 2 → 9 → 4 → 7 → 1. "User state lives on kernel stacks. The software switch also saves and restores kernel registers."|large]]
+
+{warn}'''함정 두 개''': ① '''누가'''(Hardware / OS) 하는 일인지를 먼저 보라. 하드웨어 단계(6, 1)는 항상 OS 단계를 감싼다 — 들어갈 때 6, 나올 때 1. ② 레지스터는 '''두 번''' 저장된다: user registers → k-stack (하드웨어, 6), kernel registers → proc-struct (OS의 switch, 2). 복원은 그 역순(9 → 4 → 7 → 1). 4강 슬라이드의 LDE 타이머 프로토콜 표 그대로다 → [[컨텍스트 스위치]], [[제한적 직접 실행]].{/warn}
+
+[[anim:ctx_switch|타이머 인터럽트 → 하드웨어가 user 레지스터를 k-stack에 → switch()가 kernel 레지스터를 proc-struct에 → C 복원 순서를 다시 확인]]
+
+== P4. Scheduling with a Response-Time Penalty (10) — 6/10 ==
+
+A=2, B=3, C=4, 모두 t=0 도착, 1단위씩 9칸. $C_i$ = 완료 시각(= turnaround), $R_i$ = 첫 실행 시각(= response).
+$$S = C_A + C_B + C_C,\quad R_{\max} = \max(R_A, R_B, R_C),\quad J_\lambda = S + \lambda R_{\max}$$
+
+=== a) AABBBCCCC (2) — 맞음 ===
+$C = 2, 5, 9 → S = 16$, $R = 0, 2, 5 → R_{\max} = 5$, $J_1 = 21$. (이 스케줄 = [[STCF]]/SJF → $S$ 최소)
+
+=== b) λ = 1 의 최소 (4) — 틀림 (21이라고 씀) ===
+교수님 풀이의 핵심: '''$R_{\max}$가 될 수 있는 값이 몇 개 안 되니 경우를 나눠라.'''
+
+{|
+! $R_{\max}$ || 그러려면 앞부분이 || $S$의 하한 (뒤는 SJF) || $J_1$ || $J_3$
+|-
+| '''2''' || ABC 로 시작 (셋이 0·1·2에 시작) || 남은 A1·B2·C3 → A@4, B@6, C@9 → '''19''' || 21 || '''25''' ← 최소
+|-
+| '''3''' || '''AAB C''' 또는 AAC B 로 시작 || AABC + BB + CCC → 2 + 6 + 9 = '''17''' || '''20''' ← 최소 || 26
+|-
+| 4 || AABB C… || 2 + 6 + 9 = 17 (B가 C 시작 뒤에 끝남) || 21 || 29
+|-
+| 5 || AABBB C… (= SJF) || '''16''' || 21 || 31
+|}
+→ '''최소 $J_1 = 20$''', 예: '''AABCBBCCC''' (또는 AACBBBCCC). ''Any optimal schedule is accepted.''
+
+=== c) λ = 3 의 최소 (4) — 맞음 ===
+'''최소 $J_3 = 25$''', 예: '''ABCABBCCC''' (ABC로 시작해 $R_{\max}=2$, 뒤는 짧은 것부터).
+
+{tip}'''왜 내가 21에 멈췄나''': SJF($S$ 최소)와 RR($R_{\max}$ 최소) 두 극단만 계산하고 '''중간(R_max = 3)'''을 안 봤다. 두 지표를 섞은 목적함수는 '''한 지표를 고정하고 다른 지표를 최적화'''하는 식으로 모든 경우를 표로 만들어라 — $R_{\max}$는 2~5 네 가지뿐이다. 2025F P3(turnaround/fairness)와 같은 계열의 문제다 → [[2025F 중간고사 족보]].{/tip}
+
+[[sim:sched_gantt]]
+
+== P5. MLFQ Scheduling (10) — 5.5/10 ==
+
+Q0(최고)·Q1·Q2, time slice '''2 / 4 / 8'''. 새 작업은 Q0 꼬리, 슬라이스를 다 쓰면 한 단계 아래로(Q2는 Q2 꼬리), '''슬라이스 전에 I/O로 블록하면 우선순위 유지''' + I/O 완료 시 같은 큐 꼬리에 '''fresh slice''', 상위 도착은 '''즉시 선점'''(선점당한 작업은 자기 큐 '''head''', 남은 슬라이스로 재개), 같은 시각의 도착·I/O 완료는 선택 전에 보임, boost 없음.
+A: 0 도착 CPU 6 · B: 0 도착 CPU 1, I/O 3, CPU 1, I/O 3, CPU 1 · C: 4 도착 CPU 2
+
+[[sim:mid26_mlfq]]
+
+{|
+! 구간 || 실행 || 이유 (교수님 풀이 순서)
+|-
+| [0, 2) || A || Q0 슬라이스 2를 다 씀 → '''Q1'''로 강등
+|-
+| [2, 3) || B || CPU 1 쓰고 I/O(3~6). 슬라이스 전 블록 → '''Q0 유지'''
+|-
+| [3, 4) || A || Q0 비어 있음 → Q1의 A (슬라이스 4 중 1 사용)
+|-
+| [4, 6) || C || t=4 C 도착(Q0) → A '''선점'''(Q1 head, 남은 슬라이스 3). C는 2만에 끝 → '''C 완료 6'''
+|-
+| [6, 7) || B || t=6 B I/O 완료 → Q0. CPU 1 후 I/O(7~10), Q0 유지
+|-
+| [7, 10) || A || A 남은 일 3 = 남은 슬라이스 3 → '''A 완료 10'''
+|-
+| [10, 11) || B || t=10 I/O 완료 → Q0 → 마지막 CPU 1 → B 완료 11
+|}
+'''b)''' B response = '''2''', A finishes '''10''', C finishes '''6''' (맞음). '''c)''' B의 큐: 첫 I/O 후 '''Q0''', 두 번째 I/O 후 '''Q0''' — 내 답 Q1 ✗. B는 매번 슬라이스(2)를 다 쓰기 전에 I/O로 블록하므로 '''강등될 일이 없다'''. idle 구간도 없다.
+
+{warn}'''내 실수''': a)에서 A를 [6,8)·[8,10) Q1 슬롯으로 나누고 "idle"을 넣었는데, I/O는 CPU와 '''겹쳐서'''(overlaps) 진행되므로 다른 작업이 있으면 CPU는 놀지 않는다. 그리고 B의 우선순위는 '''블록할 때마다 유지'''된다 — Rule 4는 "allotment를 다 써야" 강등.{/warn}
+
+== P6. Migration with a Cache Cost (10) — 8/10 ==
+
+CPU0: A 6 실행 중, 대기 B 4, C 2 / CPU1: D 2 실행 중, 대기 없음. t=0에 B나 C 중 하나만 CPU1로 옮길 수 있고, 옮긴 작업은 CPU1에서 '''warm-up 1'''을 먼저 치른다.
+
+{|
+! 결정 || CPU 0 끝 || CPU 1 끝 || 전체 끝
+|-
+| Move neither || 6 + 4 + 2 = '''12''' || '''2''' || '''12'''
+|-
+| Move B || 6 + 2 = '''8''' || 2 + 1 + 4 = '''7''' || '''8'''
+|-
+| Move C || 6 + 4 = '''10''' || 2 + 1 + 2 = '''5''' || '''10'''
+|}
+'''b)''' move B, 8. '''c)''' warm-up을 $h$로 바꾸면 move B의 전체 끝 = $\max(8,\ 6 + h)$. 이게 12보다 '''strictly''' 작아야 하므로 $6 + h < 12$ → '''$0 \le h < 6$'''. (내 답 "≤ 3" ✗ — CPU0 쪽 8을 기준으로 잘못 세움.) 교수님: "warm-up이 커지면 전체 시간이 늘고, move neither와 '''같아지는 지점이 6'''."
+
+{tip}[[cache affinity]]의 정량판이다: 옮기면 cold cache 비용을 내지만 load imbalance가 줄어든다. 비용이 '''불균형으로 얻는 이득(12 − 6 = 6)'''보다 작을 때만 옮길 가치가 있다 → [[MQMS]], [[work stealing]].{/tip}
+
+== P7. Interleavings and the Lock Boundary (10) — 10/10 ==
+
+x = 10, A: `A1: rA = x` `A2: x = rA + 2`, B: `B1: rB = x` `B2: x = 3 * rB`. 각 라벨 = 한 indivisible step.
+* '''a)''' 가능한 최종값: '''12, 30, 32, 36''' — A1A2B1B2 → 36, B1B2A1A2 → 32, A1B1A2B2·B1A1A2B2 → 30, A1B1B2A2·B1A1B2A2 → 12
+* '''b)''' x = 12: 예 '''A1 → B1 → B2 → A2'''
+* '''c)''' lock 직전 '''A1''', unlock 직후 '''A2''' / lock 직전 '''B1''', unlock 직후 '''B2''' — "read와 write를 하나의 critical section으로 감싸라"
+
+[[sim:counter_race]]
+
+== P8. Producer–Consumer (10) — 6/10 ==
+
+<pre class="c">
+sem_t x, y, z;
+void init_queue(void) {
+    sem_init(&x, 0, MAX);   // (a)  x = empty 칸 수
+    sem_init(&y, 0, 0);     // (b)  y = full 칸 수 (처음엔 비어 있음)
+    sem_init(&z, 0, 1);     // (c)  z = mutex
+}
+void *producer(void *arg) {           // 시험지에 주어진 완성 코드
+    for (i = 0; i < loops; i++) {
+        sem_wait(&x); sem_wait(&z); put(i); sem_post(&z); sem_post(&y);
+    }
+}
+void *consumer(void *arg) {
+    for (i = 0; i < loops; i++) {
+        sem_wait(&y);   // (d)
+        sem_wait(&z);   // (e)
+        int tmp = get();
+        sem_post(&z);   // (f)
+        sem_post(&x);   // (g)
+        printf("%d\n", tmp);
+    }
+}
+</pre>
+
+'''내 답''': (b) 1, (c) 0 ✗ → −4. (d)~(g) y z z x ✓. y와 z의 초기값을 바꾸면: y = 1 이면 빈 큐에서 consumer가 get() (underflow), z = 0 이면 첫 sem_wait(&z)에서 '''모두 영원히 잠든다'''.
+
+{tip}'''역할을 producer 코드에서 읽어 내라.''' producer가 `wait(&x)` → put → `post(&y)` 이므로 x = "빈 칸"(MAX), y = "찬 칸"(0). `wait(&z)`·`post(&z)`가 put을 감싸므로 z = mutex(1). 교수님: "슬라이드 코드 그대로다. (f)·(g) 순서는 바꿔도 되지만 '''(d)·(e)는 바꾸면 안 된다'''(mutex를 쥔 채 y에서 자면 데드락, 11강 p.22~23)." → [[세마포어]], [[2025F 중간고사 족보]] P6과 '''같은 x/y/z 문제가 2년 연속''' 나왔다.{/tip}
+
+[[sim:p6_xyz]]
+
+== P9. Extending a Ticket Lock (10) — 5/10 ==
+
+<pre class="c">
+typedef struct { int ticket, turn; } lock_t;
+void lock(lock_t *l)   { int mine = FetchAndAdd(&l->ticket); while (l->turn != mine) ; }
+void unlock(lock_t *l) { FetchAndAdd(&l->turn); }
+// CAS(p, expected, new): *p == expected 일 때만 new 를 쓰고, 성공 여부와 관계없이 '옛 값'을 돌려준다
+</pre>
+
+=== a) bad_try_lock (3) — 1/3 ===
+<pre class="c">
+int bad_try_lock(lock_t *l) {
+    int mine = FetchAndAdd(&l->ticket);
+    return l->turn == mine;
+}
+</pre>
+A가 락 보유(ticket = 1, turn = 0, A의 번호 0) → B가 bad_try_lock: mine = 1, '''ticket = 2''', turn 0 ≠ 1 → 0 반환 (번호표만 뽑고 떠남) → A unlock: '''turn = 1''' → C lock(): mine = '''2''', ticket = 3.
+→ '''C's ticket 2, turn 1, C can enter: No.''' turn 1은 떠나 버린 B의 번호라서 아무도 unlock 하지 않는다. (내 답 turn 2, Yes ✗)
+교수님: "문제는 '''실패한 시도가 ticket을 올린 것'''. 올바른 try_lock의 조건은 '''failed try never increases the ticket'''."
+
+=== b) 올바른 try_lock (5) — 2/5 ===
+<pre class="c">
+int try_lock(lock_t *l) {
+    int t = l->turn;
+    int old = CAS(&l->ticket, t, t + 1);   // (i)  ticket == turn (= 아무도 없음) 일 때만 번호를 하나 가져감
+    return old == t;                        // (ii) 성공했으면 1
+}
+</pre>
+* "turn을 '''먼저''' 읽어 t에 두고, ticket이 t와 같을 때만(= 락이 비어 있음) ticket을 t+1로 올린다." 실패하면 ticket은 그대로 → 나중 lock()을 막지 않는다.
+* 교수님이 인정한 대안: `CAS(&l->ticket, t, l->ticket + 1)` 도 동작(불변식 때문). '''틀린 예''': (ii)에서 `l->turn`을 '''다시 읽어''' 비교 — 두 접근 사이에 turn이 바뀔 수 있다.
+* 내 답 (i) `CAS(&l->ticket, t, FetchAndAdd(&l->ticket))`, (ii) `old == l->ticket` — (ii)는 CAS 뒤에 ticket 을 '''다시 읽어''' 비교하므로 미리 읽어 둔 t 와 비교하는 정답과 다르다. (i)은 '''CAS 인자 계산 중에 이미 ticket을 올려''' a)의 버그를 그대로 재현한다.
+
+=== c) 동시 호출 (2) — 맞음 ===
+ticket = turn = 4, A·B 둘 다 t = 4를 읽은 뒤 A가 먼저 CAS. A: old '''4''' → 성공, 반환 '''1''' (ticket 5). B: old '''5''' ≠ 4 → 반환 '''0'''. 최종 ticket 5, turn 4.
+
+[[sim:mid26_trylock]]
+
+== P10. A Lock-Order Cycle (8) — 8/8 ==
+
+T0: L1 → L2, T1: L2 → L3, T2: L3 → L1.
+* '''a)''' 셋 다 첫 락을 잡은 뒤: T0 waits '''L2''', T1 '''L3''', T2 '''L1''' → '''Deadlock: Yes''' (circular wait)
+* '''b)''' 전역 순서 L1 < L2 < L3 를 따르는 T2: `lock(L1); lock(L3); work(); unlock(L3); unlock(L1);`
+* '''c)''' 제거된 조건: '''circular wait'''. Starvation still possible: '''Yes''' — "starvation은 데드락·circular wait 문제가 아니라 '''스케줄러와 락 구현(fairness 보장 없음)'''의 문제" (교수님)
+
+[[anim:deadlock_cycle|두 스레드 버전. 시험은 세 스레드 고리(T0→L2→T1→L3→T2→L1→T0)였다]]
+
+----
+
+== 2025F와 비교 — 출제 경향 ==
+
+{|
+! || 2025F || 2026F
+|-
+| 시간·분량 || — || 75분, 10문제 100점
+|-
+| 객관식 || 5문항 (예외 분류, deadlock 조건 등) || 5문항 × 2점
+|-
+| 용어 || 7문항, 힌트 있음 || 7문항 × 2점, '''full term''' 요구, 대체 답 불인정
+|-
+| 스케줄링 계산 || turnaround/fairness 최적화, Stride 표 || '''J_λ = S + λR_max''' 최적화, '''MLFQ trace''', '''마이그레이션 비용'''
+|-
+| 동시성 || RW lock, x/y/z producer-consumer, FetchAdd lock || 인터리빙 값, '''x/y/z producer-consumer(재출제)''', ticket lock + CAS try_lock, 3-스레드 lock-order 데드락
+|-
+| LDE || 객관식(동기 예외) || '''단계 순서 쓰기''' (타이머 전환 · 시스템 콜)
+|-
+| 프로세스 API·과제 || 객관식 1문항(시스템 프로그램) || '''없음'''
+|}
+
+{exam}🎯 '''기말 대비 교훈''' ① 정의는 슬라이드 영어 그대로, '''full term'''으로. ② 계산은 '''문제가 준 규칙'''을 한 칸씩 손으로 — 특히 MLFQ의 "블록하면 우선순위 유지", LDE의 "Hardware 단계가 OS 단계를 감싼다". ③ 두 지표를 섞은 최적화는 '''한쪽을 고정하고 경우 나누기'''. ④ 세마포어 x/y/z는 '''producer 코드에서 역할을 읽기'''. ⑤ fork/exec 같은 시스템 프로그래밍·과제 코드는 나오지 않았다.{/exam}
+
+== 관련 문서 ==
+* [[2025F 중간고사 족보]] · [[시험 정보]] · [[자주 틀리는 함정 모음]] · [[기말고사]]
+* [[컨텍스트 스위치]] · [[MLFQ]] · [[스케줄링 지표]] · [[cache affinity]] · [[세마포어]] · [[ticket lock]] · [[compare-and-swap]] · [[lock ordering]]

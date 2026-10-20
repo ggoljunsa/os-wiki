@@ -332,6 +332,8 @@ printf("main: end\n");
 # 해법 = '''[[mutual exclusion]]''' = critical section에 [[atomic|원자성]] 제공: mutex/lock, semaphore, condition variable(Pthreads), monitor(Java)
 # 락은 '''선점을 막지 않는다'''. `lock()` 자체의 원자성은 하드웨어 원자 명령([[test-and-set]] 등)으로 → 9강 [[락]]
 
+{exam}🎯 '''2026F 중간고사 P1-b''' (2점): "Which one is maintained '''separately for each thread''' in a process?" → '''Execution stack'''. Program code · virtual address space · heap · 일반 전역 변수는 공유 ("같은 가상 메모리를 쓰니까"). → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[TCB]] · [[스레드 스택]] · [[TLS]]
 * [[pthread_create]] · [[pthread_join]]

@@ -2,7 +2,7 @@ key: 가상 메모리
 title: 가상 메모리 (Virtual Memory) — 13강 허브
 category: 13강 Virtual Memory, 핵심
 ---
-{info}📌 '''13강 슬라이드 `13-Virtual_Memory.pdf`(57쪽) 기준.''' 표지는 "12. Virtual Memory", 마지막 장은 "End of Lecture 12"지만 파일명이 13이라 위키에서는 13강이라 부른다(12강 Deadlock 덱이 표지 "11."이었던 것과 같은 한 칸 밀림). 녹음본 아직 없음. 덱 구성: p.2~10 '''Beyond CPU and Flat Memory'''(RAM·계층·locality) → p.11~18 '''Memory Virtualization''' → p.19~24 '''Virtual Address Space''' → p.25~38 '''Address Translation'''(설계 목표·변환 시점 셋·MMU) → p.39~55 '''Dynamic Relocation'''(base and bounds, OS가 할 일, 한계) → p.56 참고문헌(OSTEP 13·14·15장).{/info}
+{info}📌 '''13강 슬라이드 `13-Virtual_Memory.pdf`(57쪽) 기준.''' 표지는 "12. Virtual Memory", 마지막 장은 "End of Lecture 12"지만 파일명이 13이라 위키에서는 13강이라 부른다(12강 Deadlock 덱이 표지 "11."이었던 것과 같은 한 칸 밀림). '''2026-10-19(월) 수업 녹음 `기말고사/강의자료/운체 261019_171833.m4a`(34분, 중간고사 풀이 30분 뒤) 반영 — 이날은 p.1~18(Benefits)까지''', p.19 Virtual Address Space 부터 다음 시간. 덱 구성: p.2~10 '''Beyond CPU and Flat Memory'''(RAM·계층·locality) → p.11~18 '''Memory Virtualization''' → p.19~24 '''Virtual Address Space''' → p.25~38 '''Address Translation'''(설계 목표·변환 시점 셋·MMU) → p.39~55 '''Dynamic Relocation'''(base and bounds, OS가 할 일, 한계) → p.56 참고문헌(OSTEP 13·14·15장).{/info}
 
 '''가상 메모리'''(Virtual Memory)는 OS가 물리 메모리를 가상화해서, 각 [[프로세스]]에게 '''자기만의 private한, 0번지부터 시작하는 큰 메모리'''가 있는 것처럼 보이게 하는 기법이다. 지금까지(1~12강)는 "CPU에 레지스터 몇 개 + 평평한(flat) 메모리"라는 큰 가정 아래에서 OS를 봤다(p.3). 13강은 그 가정을 깨고, '''메모리는 계층이고 여러 프로세스가 나눠 써야 한다'''는 현실에서 출발한다.
 
@@ -124,7 +124,52 @@ $$0 \le \text{virtual address} < \text{bounds}$$
 
 "We have assumed that the virtual space size is limited to 16 KB. '''In reality, it is huge!'''" — 64-bit Linux의 heap~stack 사이 free 영역이 128 TB. base and bounds는 주소 공간 '''통째로''' 연속 배치하므로 "'''Big chunk of "free" space takes up physical memory'''". → [[동적 재배치의 한계]]
 
+== 🎙 실제 수업 기록 (10/19 월, 녹음본 기준) ==
+
+진도: '''p.1 ~ p.18'''. 마지막 말: "let's finish the lecture here because we don't have much time" → 다음 시간 p.19 Virtual Address Space 부터.
+
+{|
+! 시각 || 교수님 말 (요지) || 슬라이드
+|-
+| 00:07 || "'''기말까지 시간이 많지 않다'''(다른 일정이 있다)" — 진도가 빠듯할 예정 || —
+|-
+| 00:25 || 지금까지는 CPU 가상화와 concurrency, 즉 전부 CPU 이야기. 이제 메모리. "CPU는 '''time slice'''로 나눠 줬다. 메모리는 다른 방식" || p.2
+|-
+| 02:51 || "L1·L2·L3 와 '''TLB 는 CPU 하드웨어'''가 관리한다. DRAM·SSD·키보드·마우스는 '''OS 책임'''." 가상 메모리 단원은 주로 RAM 이야기 || p.3
+|-
+| 04:00 || DRAM 내부 구조는 "architecture 주제지 software system 주제가 아니다" → 간단히만 || p.4
+|-
+| 08:33 || 퀴즈: "SRAM 과 DRAM 중 '''전력을 더 쓰는 쪽'''은?" → '''SRAM''' — "SRAM 셀은 '''항상''' 전원이 걸려 있고(static current), DRAM 셀은 '''주기적으로만'''(refresh)" || p.4
+|-
+| 12:05 || "'''Optane 은 시장에서 실패했다. 몰라도 된다'''" || p.5~7
+|-
+| 13:19 || SRAM 은 DRAM 보다 access 10배 빠르고 refresh 가 없어 '''일정한 access time''' 보장, 대신 DRAM 의 약 100배 비쌈. Flash 는 DRAM 보다 100배 느리지만 $0.25/GB || p.6
+|-
+| 16:25 || L1 hit 4~5 cycle, L2 10~20, L3 ~100 cycle(말로 든 수치). 용량은 L1 KB · L2 MB · DRAM GB · SSD TB || p.7
+|-
+| 17:35 || "계층이 통하는 이유는 '''단 하나''' — '''locality'''." "'''system programming 수업에서 배웠을 것'''" || p.8
+|-
+| 20:11 || 요즘은 '''instruction reference 최적화'''도 중요(애플리케이션 명령어가 많아짐). 루프가 대부분의 시간을 쓴다 → temporal || p.9
+|-
+| 22:26 || 레지스터가 "Compiler/HW" 관리인 이유: '''logical registers vs physical registers''' — 컴파일러는 logical 을 배정, CPU 내부 로직이 physical 로 || p.10
+|-
+| 23:59 || CPU 는 메모리를 '''load / store''' 두 연산으로만 접근(x86 은 둘 다 `mov` 지만 내부적으로 분리) || p.12
+|-
+| 26:03 || CPU 가상화처럼 한 프로세스에 메모리를 통째로 주면 → '''poor CPU utilization''' + '''memory space waste''' || p.13
+|-
+| 27:03 || ⭐ "CPU 는 '''시간적으로'''(temporal) 나누고, 메모리는 '''공간적으로'''(spatial) 나눈다." 메모리는 '''바이트 단위'''로 쪼갤 수 있어 자원 수가 많다. 그리고 '''메모리의 context switch(내용 전체를 아래 계층에 썼다 읽기)는 CPU context switch 보다 훨씬 비싸다''' → 그래서 공간 분할 || p.14
+|-
+| 29:13 || "CPU 는 [[제한적 직접 실행]]으로 프로세스를 보호했다. 메모리도 '''spatial 한 보호 메커니즘'''이 필요하다" — C 가 A 영역을 고치면 A 가 망가진다 || p.14
+|-
+| 30:30 || ⭐ 대응 관계: CPU 가상화 = 가상 스레드(OS thread) + 하드웨어 context + '''context switch''' 메커니즘 ↔ 메모리 가상화 = physical memory/address + '''virtual address space'''(프로세스마다 인터페이스) + '''address translation''' 메커니즘 || p.16~17
+|-
+| 32:22 || Benefits 셋: memory efficiency(여러 프로세스 데이터로 DRAM 을 채움) · protection("올바른 address translation 이면 남의 메모리 접근을 막는다 — very clever mechanism") · ease of programming(같은 uniform linear address space) || p.18
+|}
+
+{info}📉 p.3~10(메모리 계층·SRAM/DRAM·locality)은 교수님이 직접 "architecture 주제", "system programming 에서 배웠을 것", "Optane 은 몰라도 된다"고 한 부분이다. 사용자 확인 규칙(2026-10-20: '''시스템 프로그래밍 수업 내용은 이 과목 시험에 안 나온다''')과 합치면 '''출제 우선순위는 낮다'''. 다만 "SRAM 이 전력을 더 쓴다"처럼 수업에서 따로 물어본 것과 "CPU 는 temporal, 메모리는 spatial 로 나눈다"는 13강 고유의 관점이니 챙길 것.{/info}
+
 == 시험 대비 핵심 요약 ==
+# 🎙 '''CPU 는 time slice 로(temporal), 메모리는 공간을 나눠(spatial) 공유한다''' — 메모리는 바이트 단위로 쪼갤 수 있고, 메모리 내용을 통째로 바꾸는 context switch 는 너무 비싸기 때문 (10/19 수업).
 # '''Virtual Memory = Virtual Address Space + Address Translation''' (p.16). 가상화 = 물리 메모리를 가상 메모리로 바꿔 각 프로세스에 illusion 제공.
 # 가상화의 이점 셋: '''Memory efficiency · Protection · Ease of programming''' (p.18).
 # 설계 목표 넷: '''Transparency · Protection · Flexibility · Efficiency'''(time + space) (p.27).

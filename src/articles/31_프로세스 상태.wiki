@@ -132,6 +132,8 @@ Blocked → Running 화살표는 '''없다'''.
 Ready = '''`RUNNABLE`'''. 대응이 없는 것은 '''`UNUSED`'''(빈 슬롯), '''`EMBRYO`'''(생성 중), '''`ZOMBIE`'''(종료 후 회수 대기) — 셋 중 둘을 고르면 된다. `SLEEPING`은 Blocked, `RUNNING`은 Running.
 {/answer}
 
+{exam}🎯 '''2026F 중간고사 P1-a''' (2점): "Which transition does '''not''' occur directly in the three-state process model?" → '''Blocked → Running'''. 교수님: "blocked 프로세스는 ready 로만 간다." I/O 가 끝나면 Ready 를 거쳐 스케줄러가 골라야 Running. → [[2026F 중간고사]]{/exam}
+
 == 관련 문서 ==
 * [[프로세스]] — 본문
 * [[프로세스 목록]] / [[PCB]] / [[struct proc]]
