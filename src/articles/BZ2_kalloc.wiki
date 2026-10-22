@@ -1,0 +1,177 @@
+key: kalloc
+title: kalloc — xv6 물리 페이지 할당기 (원본)
+category: 과제2
+---
+'''`kalloc`'''은 [[xv6]] 커널이 '''물리 메모리를 4096 바이트 페이지 단위로''' 나눠 주는 할당기다(`kernel/kalloc.c`, 82줄). 유저 프로세스 메모리(`sbrk`), [[커널 스택]], 페이지 테이블 페이지, pipe 버퍼가 전부 여기서 나온다. 자료구조는 '''빈 페이지들의 단일 연결 리스트([[free list]]) 하나 + 그것을 지키는 [[spin lock]] 하나'''. [[과제2 xv6 lock]] Problem 1 은 이 "하나"를 CPU 수만큼으로 늘리는 일이다 → [[per-CPU free list]].
+
+{def}
+"The allocator's data structure is a '''free list of physical memory pages''' that are available for allocation. Each free page's list element is a '''struct run'''. … It store each free page's run structure '''in the free page itself''', since there's nothing else stored there. The free list is protected by a spin lock." (PDF p.1)
+{/def}
+
+{analogy}
+🎭 '''빈 방마다 "다음 빈 방은 304호" 쪽지를 붙여 둔 호텔'''. 프런트(kmem)는 '''첫 번째 빈 방 번호 하나만''' 기억한다. 손님이 오면 그 방을 내주고 방 안의 쪽지를 읽어 "다음 첫 빈 방"을 갱신한다. 방이 비면 그 방 안에 쪽지를 써 붙이고 프런트의 첫 빈 방으로 등록한다. 쪽지는 '''빈 방 안'''에 붙어 있으니 따로 장부가 필요 없다 — 방이 차면 손님이 쪽지를 버려도(덮어써도) 상관없다. 문제는 '''프런트 직원이 한 명뿐'''이라는 것.
+{/analogy}
+
+<pre class="ascii">
+  물리 메모리 (128 MB, KERNBASE 0x80000000 ~ PHYSTOP 0x88000000)
+
+  0x80000000           end                                                 PHYSTOP
+  ├── kernel 코드·데이터 ─┤▒▒ 4096 ▒▒│▒▒ 4096 ▒▒│ 사용중 │▒▒ 4096 ▒▒│ … │
+                            ▲            ▲                    ▲
+  kmem.freelist ──────────┐ │            │                    │
+                          ▼ │            │                    │
+                       ┌────┴──┐    ┌────┴──┐            ┌────┴──┐
+                       │ next ─┼───▶│ next ─┼───────────▶│ next=0│
+                       │ 1111… │    │ 1111… │            │ 1111… │   (kfree 가 1 로 채워 둠)
+                       └───────┘    └───────┘            └───────┘
+                       struct run 은 "빈 페이지의 첫 8 바이트" 그 자체
+</pre>
+
+== 1. 자료구조 (17–24줄) ==
+
+<pre class="c">
+17  struct run {
+18    struct run *next;
+19  };
+20
+21  struct {
+22    struct spinlock lock;
+23    struct run *freelist;
+24  } kmem;
+</pre>
+
+* `struct run` — 필드가 `next` 하나뿐. 빈 페이지 주소 `pa` 를 `(struct run*)pa` 로 '''캐스팅만''' 하면 그 페이지의 첫 8 바이트가 `next` 가 된다. 별도 메모리를 할당하지 않는다 — 할당기가 할당기용 메모리를 할당할 수는 없으니까.
+* `kmem` — lock 과 리스트를 '''한 구조체로 묶은''' 것은 "이 lock 이 이 필드들을 지킨다"를 코드 모양으로 보여 주려는 것 (PDF: "The list and the lock are wrapped in a struct to make clear that the lock protects the fields in the struct").
+* 과제 후에는 이 구조체가 '''배열'''이 된다 → [[per-CPU free list]].
+
+== 2. 초기화 — kinit → freerange → kfree (26–40줄) ==
+
+<pre class="c">
+26  void
+27  kinit()
+28  {
+29    initlock(&kmem.lock, "kmem");
+30    freerange(end, (void*)PHYSTOP);
+31  }
+32
+33  void
+34  freerange(void *pa_start, void *pa_end)
+35  {
+36    char *p;
+37    p = (char*)PGROUNDUP((uint64)pa_start);
+38    for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+39      kfree(p);
+40  }
+</pre>
+
+{| class="table"
+! 줄 || 무엇 || 왜
+|-
+| 29 || `initlock(&kmem.lock, "kmem")` || lock 이름 "kmem" — 테스트가 이 접두어로 lock 을 골라 센다 ([[lock contention]] 2절)
+|-
+| 30 || `freerange(end, PHYSTOP)` || `end` = 커널 이미지 바로 뒤(`kernel.ld` 가 정의), `PHYSTOP` = `KERNBASE + 128*1024*1024`. xv6 는 하드웨어에 물어보지 않고 '''RAM 이 128 MB 라고 가정'''한다
+|-
+| 37 || `PGROUNDUP(pa_start)` || PTE 는 '''4096 정렬된''' 물리 주소만 가리킬 수 있다. `end` 가 페이지 중간일 수 있으므로 올림
+|-
+| 38–39 || 페이지마다 `kfree(p)` || 할당기는 '''빈손으로 시작'''한다. 부팅 때 "가짜 free" 로 전 메모리를 한 장씩 넣어 주는 것 (PDF: "these calls to kfree give it some to manage")
+|}
+
+{info}
+`main()` 에서 `kinit()` 을 부르는 것은 '''CPU 0 하나뿐'''이다(`if(cpuid() == 0){ … kinit(); … }`, main.c). 다른 CPU 는 `started` 가 1 이 될 때까지 기다린다. 그래서 `freerange` 안의 `kfree` 는 전부 CPU 0 에서 실행된다 — Problem 1 힌트 "Let freerange give all free memory to the CPU running freerange" 가 자연스럽게 성립하는 이유. → [[per-CPU free list]]
+{/info}
+
+{tip}
+PDF p.2 "dual use of addresses": `freerange` 에서는 주소를 '''정수'''로 더하고(`p += PGSIZE`), `kfree` 에서는 같은 주소를 '''포인터'''로 쓴다(`r->next = …`). 그래서 이 파일에 `(uint64)`, `(char*)`, `(struct run*)` 캐스트가 잔뜩 있다.
+{/tip}
+
+== 3. kfree — 1 로 채우고 앞에 끼운다 (46–63줄) ==
+
+<pre class="c">
+46  void
+47  kfree(void *pa)
+48  {
+49    struct run *r;
+50
+51    if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+52      panic("kfree");
+53
+54    // Fill with junk to catch dangling refs.
+55    memset(pa, 1, PGSIZE);
+56
+57    r = (struct run*)pa;
+58
+59    acquire(&kmem.lock);
+60    r->next = kmem.freelist;
+61    kmem.freelist = r;
+62    release(&kmem.lock);
+63  }
+</pre>
+
+* 51–52 — 정렬 안 됐거나 커널 영역/범위 밖이면 panic. 엉뚱한 주소를 free 하는 버그를 즉시 잡는다.
+* 55 — '''모든 바이트를 1 로'''. 해제된 메모리를 계속 쓰는 코드(dangling reference)가 옛 값 대신 쓰레기를 읽어 '''빨리 망가지게''' 하려는 것. `memset` 은 '''lock 밖'''이다 — 4096 바이트 쓰기를 critical section 에 넣지 않는다.
+* 59–62 — '''critical section 은 딱 두 줄''': 리스트 맨 앞에 push. 단일 연결 리스트의 head 삽입.
+
+== 4. kalloc — 맨 앞 하나를 뗀다 (68–82줄) ==
+
+<pre class="c">
+68  void *
+69  kalloc(void)
+70  {
+71    struct run *r;
+72
+73    acquire(&kmem.lock);
+74    r = kmem.freelist;
+75    if(r)
+76      kmem.freelist = r->next;
+77    release(&kmem.lock);
+78
+79    if(r)
+80      memset((char*)r, 5, PGSIZE); // fill with junk
+81    return (void*)r;
+82  }
+</pre>
+
+* 73–77 — head pop. 리스트가 비었으면 `r == 0` 이고 그대로 0 을 돌려준다 ("Returns 0 if the memory cannot be allocated").
+* 80 — 5 로 채운다. 초기화 안 된 메모리를 0 이라고 믿는 코드를 잡기 위함. 역시 '''lock 밖'''.
+
+<pre class="ascii">
+  kfree(P)                                    kalloc()
+  before: freelist → [A] → [B] → 0            before: freelist → [P] → [A] → [B] → 0
+  ① P->next = freelist (=A)                   ① r = freelist (=P)
+  ② freelist = P                              ② freelist = r->next (=A)
+  after:  freelist → [P] → [A] → [B] → 0      after:  freelist → [A] → [B] → 0,  return P
+          (LIFO — 방금 버린 페이지가 다음에 제일 먼저 나간다)
+</pre>
+
+== 5. 왜 contention 이 생기나 ==
+
+critical section 은 두 줄로 아주 짧다. 그런데도 `kalloctest` 에서 `#test-and-set 83375` 가 나온다. 이유는 '''호출 빈도'''다.
+
+* kalloctest test1 은 자식 2개가 각각 `sbrk(4096)` → `sbrk(-4096)` 을 '''10만 번''' 반복한다. 한 번에 kalloc 1번(+ 페이지 테이블용 가능) + kfree 1번. CPU 2~3개가 '''같은 한 lock''' 을 초당 수십만 번 잡는다.
+* lock 이 하나이므로 "CPU1 은 자기 페이지를 kfree, CPU2 는 자기 페이지를 kalloc" 처럼 '''서로 상관없는 작업도''' 직렬화된다. 데이터는 독립인데 lock 이 공유된 것 — 이게 개선 여지다.
+
+{analogy}
+🎭 은행 창구가 하나면, 입금하러 온 손님과 출금하러 온 손님이 서로 상관없는 계좌를 쓰는데도 한 줄로 선다. 업무 하나가 10초밖에 안 걸려도 손님이 초당 수십 명이면 줄은 늘 길다.
+{/analogy}
+
+{| class="table"
+! 원본 || 문제 || 과제 후 ([[per-CPU free list]])
+|-
+| `kmem` 하나 || 모든 CPU 가 같은 lock || `kmem[NCPU]` — CPU 마다 lock
+|-
+| `kfree` → 전역 리스트 || 직렬화 || `kfree` → '''지금 CPU''' 리스트 ([[cpuid]])
+|-
+| `kalloc` ← 전역 리스트 || 직렬화 || `kalloc` ← 내 리스트, 비면 [[steal]]
+|}
+
+== 시험 대비 핵심 요약 ==
+
+# 자료구조 = '''`struct run` 단일 연결 리스트 + spinlock 하나'''(`kmem.lock`, 이름 "kmem").
+# `struct run` 은 '''빈 페이지 자기 자신 안'''에 저장된다 — 별도 메모리 없음.
+# `kinit` → `freerange(end, PHYSTOP)` → 페이지마다 `kfree`. 128 MB 가정, `PGROUNDUP` 으로 4096 정렬. CPU 0 만 실행.
+# `kfree`: 1 로 채움(dangling reference 를 빨리 드러내기) → head push. `kalloc`: head pop → 5 로 채움. 둘 다 `memset` 은 '''lock 밖'''.
+# contention 원인 = '''리스트 하나·lock 하나''' — 서로 다른 CPU 의 독립적인 alloc/free 도 직렬화된다.
+
+== 관련 문서 ==
+* [[per-CPU free list]] · [[steal]] · [[cpuid]] · [[lock contention]] · [[과제2 xv6 lock]]
+* [[free list]] (13강) · [[spin lock]] · [[xv6]]

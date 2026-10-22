@@ -1,0 +1,34 @@
+key: NBUF
+title: NBUF (버퍼 캐시 크기)
+category: 과제2, 용어
+---
+'''`NBUF`'''는 [[xv6]] [[buffer cache]] 의 '''버퍼 개수'''를 정하는 상수로, 값은 '''30''' 이다. 버퍼는 `bcache.buf[NBUF]` 정적 배열에 고정돼 있고 실행 중에 늘거나 줄지 않는다. [[과제2 xv6 lock]] Problem 2 는 '''이 숫자를 바꾸지 말라'''고 못 박는다.
+
+{def}
+`#define NBUF (MAXOPBLOCKS*3)  // size of disk block cache` — kernel/param.h. `MAXOPBLOCKS` = 10 ("max # of blocks any FS op writes") 이므로 NBUF = 30.
+PDF p.10: "'''You must not increase the number of buffers; there must be exactly NBUF (30) of them.'''"
+{/def}
+
+{analogy}
+🎭 열람실 '''복사본 서가의 자리 수가 30 칸'''으로 고정된 것. 서가를 13 구역(버킷)으로 나눠도 '''칸 수는 그대로 30''' — 구역마다 칸을 2~3 개씩 새로 만드는 게 아니라, 기존 30 칸을 구역 사이에서 옮겨 쓴다. 칸을 늘리면 경합이 줄어 보이겠지만 그건 문제를 푼 게 아니라 피한 것이다.
+{/analogy}
+
+<pre class="ascii">
+  NBUF = MAXOPBLOCKS × 3 = 10 × 3 = 30
+
+  bcache.buf[0] … bcache.buf[29]    ← 실제 메모리는 이 30 개뿐 (각 data[BSIZE = 1024])
+
+  버킷이 13 개여도:
+  bucket[0]: buf ⇄ buf ⇄ buf        bucket[1]: buf        …   bucket[12]: (빈 버킷)
+             └────────── 다 합쳐 정확히 30 개. 버킷 사이를 옮겨 다닐 뿐 ──────────┘
+</pre>
+
+== 왜 늘리면 안 되나 ==
+
+* 요구사항 위반이다 — 과제의 목표는 '''같은 자원으로''' lock 을 잘게 쪼개는 것.
+* "버킷마다 버퍼 몇 개씩 따로" 같은 설계는 버퍼를 늘리거나, 아니면 한 버킷의 버퍼가 다 쓰였을 때 다른 버킷의 빈 버퍼를 못 쓰게 된다. PDF 는 반대로 요구한다: "it must be able to '''use any of the NBUF struct bufs with zero refcnt''' when it misses in the cache".
+* `bcachetest` test3 이 이것을 검사한다 — 소스 주석 "generate big log transactions to check that bget() can make use of '''any of the NBUF buffers for any block number'''". 로그 트랜잭션은 블록을 `bpin` 으로 붙잡아 두므로 버퍼 여유가 적고, 빈 버퍼를 버킷 경계 넘어 찾지 못하면 `panic: bget: no buffers`.
+* `LOGSIZE` 도 `MAXOPBLOCKS*3` = 30 이다. log 는 커밋 전까지 블록을 캐시에 핀으로 꽂아 두므로, 캐시 크기와 log 크기가 같은 기준으로 정해져 있다.
+
+== 관련 문서 ==
+* [[buffer cache]] · [[bcache 해시 버킷]] · [[refcnt]] · [[과제2 xv6 lock]]

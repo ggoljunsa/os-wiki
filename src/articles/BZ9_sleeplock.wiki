@@ -1,0 +1,64 @@
+key: sleeplock
+title: Sleeplock (xv6 sleeping lock)
+category: 과제2, 용어
+---
+'''Sleeplock'''은 [[xv6]] 의 '''기다리는 쪽이 spin 하지 않고 잠드는''' lock 이다. [[buffer cache]] 의 버퍼마다 하나씩(`b->lock`) 있어 '''버퍼 내용(`data`)을 한 번에 한 스레드만''' 쓰게 한다. 디스크 I/O 처럼 오래 걸리는 일 동안 쥐고 있어야 하므로 [[spin lock]] 대신 이것을 쓴다.
+
+{def}
+"The buffer cache uses a '''per-buffer sleep-lock''' to ensure that only one thread at a time uses each buffer (and thus each disk block); bread returns a locked buffer, and brelse releases the lock." (PDF p.2)
+"The sleep-lock protects reads and writes of the block's buffered content, while the bcache.lock protects information about which blocks are cached." (PDF p.4)
+{/def}
+
+{analogy}
+🎭 spinlock 은 '''화장실 문 앞에서 문고리를 계속 당기며 서 있기''', sleeplock 은 '''대기표 받고 의자에서 자다가 "다음 분" 소리에 깨기'''. 안에 있는 사람이 금방 나오면 서 있는 게 낫지만(spinlock: 문맥 전환 비용 없음), 안에서 디스크를 기다리느라 수 밀리초를 쓴다면 서서 당기는 건 CPU 낭비다.
+{/analogy}
+
+== 코드 (원본 kernel/sleeplock.c) ==
+
+<pre class="c">
+void
+acquiresleep(struct sleeplock *lk)
+{
+  acquire(&lk->lk);              // 내부 spinlock — locked/pid 필드를 지킴 (이름 "sleep lock")
+  while (lk->locked) {
+    sleep(lk, &lk->lk);          // 잠들면서 lk->lk 를 놓고, 깨면 다시 잡는다
+  }
+  lk->locked = 1;
+  lk->pid = myproc()->pid;
+  release(&lk->lk);
+}
+
+void
+releasesleep(struct sleeplock *lk)
+{
+  acquire(&lk->lk);
+  lk->locked = 0;
+  lk->pid = 0;
+  wakeup(lk);                    // 자는 쪽을 깨움
+  release(&lk->lk);
+}
+</pre>
+
+이 모양은 10강 [[조건 변수]] 그대로다 — `while (조건) sleep(…, lock)` 은 `while (조건) wait(cv, mutex)`, `wakeup` 은 모두 깨우는 [[broadcast]]. 9강의 "spin 대신 잠들기"([[queue 락]], [[two-phase lock]])를 xv6 가 구현한 것.
+
+<pre class="ascii">
+   spinlock (bcache.lock, bucket lock)         sleeplock (b->lock)
+   ┌──────────────────────────────┐            ┌──────────────────────────────────────┐
+   │ 지키는 것: 어느 블록이 캐시됐나  │            │ 지키는 것: 버퍼 내용 data, valid        │
+   │ 쥐는 시간: 리스트 훑기 (짧음)   │            │ 쥐는 시간: bread ~ brelse (디스크 I/O)  │
+   │ 기다림: spin, 인터럽트 꺼짐     │            │ 기다림: sleep, CPU 를 남에게 줌          │
+   │ 쥔 채 잠들기: ✗ 금지           │            │ 쥔 채 잠들기: ✓ (그게 목적)              │
+   └──────────────────────────────┘            └──────────────────────────────────────┘
+</pre>
+
+{warn}
+'''spinlock 을 쥔 채 `acquiresleep` 을 부르면 안 된다.''' `sleep` → `sched()` 가 `mycpu()->noff != 1` 을 검사해 `panic("sched locks")` 를 낸다. 그래서 `bget` 은 항상 bcache/버킷 spinlock 을 '''놓은 뒤''' sleeplock 을 잡는다 — 그 사이는 [[refcnt]] 가 지킨다.
+{/warn}
+
+{info}
+sleeplock 안의 spinlock 이름은 `"sleep lock"` 이라 [[lock contention]] 통계의 `tot`(kmem/bcache 접두어만 합산)에 '''들어가지 않는다'''. 과제는 sleeplock 을 건드리지 않는다.
+{/info}
+
+== 관련 문서 ==
+* [[buffer cache]] · [[refcnt]] · [[bcache 해시 버킷]]
+* [[spin lock]] · [[two-phase lock]] · [[조건 변수]] · [[wait와 signal]]

@@ -1,0 +1,197 @@
+key: per-CPU free list
+title: Per-CPU free list — Problem 1 설계
+category: 과제2, 핵심
+---
+'''Per-CPU free list'''는 [[과제2 xv6 lock]] Problem 1 의 해법이다. [[kalloc]] 의 free list 하나·lock 하나를 '''CPU 마다 free list 하나·lock 하나'''로 바꾸면, 서로 다른 CPU 의 `kalloc`/`kfree` 는 서로 다른 lock 을 잡으므로 '''병렬로''' 돈다. 남은 문제는 하나 — 내 리스트가 비었는데 남의 리스트에는 페이지가 있을 때. 그때는 남의 것을 가져온다([[steal]]).
+
+{def}
+"The basic idea is to maintain '''a free list per CPU, each list with its own lock'''. Allocations and frees on different CPUs can run in parallel, because each CPU will operate on a different list. The main challenge will be to deal with the case in which one CPU's free list is empty, but another CPU's list has free memory; in that case, the one CPU must '''"steal" part of the other CPU's free list'''. Stealing may introduce lock contention, but that will hopefully be infrequent." (PDF p.6)
+{/def}
+
+{analogy}
+🎭 '''사무실 공용 비품함 하나 → 책상마다 서랍.''' 볼펜이 필요할 때마다 공용 비품함 앞에 줄 서던 직원들이, 이제 자기 서랍에서 꺼내고 다 쓰면 자기 서랍에 넣는다. 처음엔 신입(CPU0)이 비품을 전부 받아 서랍에 넣어 두므로, 다른 직원 서랍은 비어 있다. 서랍이 빈 직원은 '''옆 사람 서랍에서 한 움큼 집어 온다'''(steal). 집어 올 때만 옆 사람과 잠깐 부딪힌다. 7강 [[work stealing]] 과 똑같은 구조 — 큐 대신 free list, 잡(job) 대신 페이지.
+{/analogy}
+
+[[anim:kmem_percpu|CPU 셋이 kmem.lock 하나에 줄 서던 것이 CPU별 kmem 세 칸으로 갈라져 각자 자기 lock 만 잡는 모습, 그리고 CPU1 의 리스트가 비었을 때 CPU0 리스트에서 페이지를 steal 해 오는 순간을 본 뒤 아래 시뮬레이터로 lock 순서를 확인하라]]
+
+== 1. 자료구조 ==
+
+PDF Tips: "For the memory allocator, the table would have '''NCPU''' entries, and each entry in the table is dedicated to each processor."
+
+<pre class="c">
+// 스케치 — 원래 kmem 구조체를 NCPU 개짜리 배열로
+struct {
+  struct spinlock lock;
+  struct run *freelist;
+} kmem[NCPU];          // NCPU = 8 (kernel/param.h). qemu 기본 CPUS=3 이라 0~2 만 쓰인다
+</pre>
+
+<pre class="ascii">
+  kmem[0].lock "kmem…"   kmem[0].freelist → [pg] → [pg] → [pg] → … (부팅 직후엔 32000여 장 전부 여기)
+  kmem[1].lock "kmem…"   kmem[1].freelist → 0
+  kmem[2].lock "kmem…"   kmem[2].freelist → 0
+  kmem[3..7]             (CPU 가 없어 안 쓰임 — 그래도 initlock 은 해 둔다)
+
+  규칙: kmem[i].freelist 를 읽거나 쓰려면 '''kmem[i].lock''' 을 쥐고 있어야 한다.  (i 가 내 번호든 아니든)
+</pre>
+
+{warn}
+'''lock 이름은 전부 "kmem" 으로 시작'''해야 한다. 전부 `"kmem"` 이어도 된다(PDF). CPU 별로 다르게 짓고 싶다면 `initlock` 이 '''포인터만 저장'''한다는 점에 주의 — 이름 버퍼가 함수 지역 변수면 dangling ([[lock contention]] 2절).
+{/warn}
+
+== 2. 함수별로 할 일 ==
+
+{| class="table"
+! 함수 || 해야 할 일 || 함정
+|-
+| `kinit` || `NCPU` 개 lock 을 모두 `initlock(…, "kmem…")` → `freerange(end, PHYSTOP)` || lock 을 하나라도 init 안 하면 `acquire` 가 쓰레기 lock 을 잡는다
+|-
+| `freerange` || 바꿀 필요가 거의 없다 — 페이지마다 `kfree` 를 부르면 '''지금 CPU(=CPU0)''' 리스트에 들어간다 || PDF 힌트 "Let freerange give all free memory to the CPU running freerange" 가 이것. 리스트에 직접 넣는 방식도 가능
+|-
+| `kfree` || 검사 → `memset(pa, 1, …)` → '''지금 CPU''' 의 리스트 head 에 push || [[cpuid]] 는 인터럽트를 끈 상태에서만 (3절)
+|-
+| `kalloc` || 내 리스트에서 pop → 비었으면 다른 CPU 리스트에서 [[steal]] → 그래도 없으면 0 || lock 두 개 문제 (4절), 다 돌았는데도 없으면 '''0 반환'''(무한 루프 금지)
+|}
+
+== 3. cpuid 는 push_off ~ pop_off 사이에서 ⭐⭐ ==
+
+PDF 힌트: "The function '''cpuid''' returns the current core number, but it's '''only safe to call it and use its result when interrupts are turned off'''. You should use push_off() and pop_off() to turn interrupts off and on."
+
+<pre class="c">
+push_off();          // 인터럽트 끄기 (중첩 카운트 +1)
+int id = cpuid();    // 이제 이 값은 pop_off 전까지 "지금 내 CPU" 가 보장된다
+...                  // id 로 kmem[id] 를 쓰는 부분
+pop_off();           // 인터럽트 원래대로
+</pre>
+
+왜? [[cpuid]] 는 `tp` 레지스터(부팅 때 hartid 를 넣어 둔 것)를 읽을 뿐이다. 읽은 '''직후''' [[타이머 인터럽트]] 가 오면 `usertrap`/`kerneltrap` → [[yield]] → 스케줄러가 이 프로세스를 '''다른 CPU 에서''' 이어 실행할 수 있다. 그러면 지역 변수 `id` 에는 '''옛 CPU 번호'''가 남는다.
+
+<pre class="ascii">
+  push_off 없이:
+  CPU1:  id = cpuid();  → id = 1
+         ── 타이머 인터럽트 → yield → (이 프로세스는 잠시 쉼) ──
+  CPU2:  (같은 프로세스가 CPU2 에서 재개)  kmem[id=1] 을 만진다  ← 지금 CPU 는 2 인데!
+
+  push_off 있으면:
+  CPU1:  push_off → id = cpuid() = 1 → … kmem[1] … → pop_off      (그 사이 인터럽트 없음 = 이동 없음)
+</pre>
+
+{tip}
+'''옛 번호를 쓰면 정확히 무엇이 망가지나?''' — `kmem[1].lock` 을 제대로 잡고 `kmem[1]` 을 만지는 한, '''리스트 자체는 안 망가진다'''(lock 이 지키므로). 손해는 "CPU2 가 CPU1 리스트를 건드려 CPU1 과 부딪힐 수 있다" = contention·locality 손실이다. 진짜 위험한 것은 "내 리스트니까 lock 없이 만져도 된다"고 생각하는 것 — 그러면 race. 그래서 per-CPU 리스트에도 '''lock 은 여전히 필요'''하다(steal 하는 남이 내 리스트를 만지기 때문이기도 하다).
+{/tip}
+
+참고로 `acquire()` 자체가 맨 앞에서 `push_off()` 를 하고 `release()` 가 끝에서 `pop_off()` 를 한다. `push_off`/`pop_off` 는 '''짝을 세는''' 함수라(`mycpu()->noff`) 이렇게 겹쳐 불러도 안전하다 → [[cpuid]].
+
+== 4. steal — lock 두 개를 어떻게 잡나 ⭐⭐⭐ ==
+
+[[steal]] 은 '''남의 리스트(kmem[j])''' 를 만지므로 `kmem[j].lock` 이 필요하다. 그런데 훔친 페이지를 '''내 리스트(kmem[id])''' 에 넣으려면 `kmem[id].lock` 도 필요하다. 이 둘을 '''동시에''' 쥐는 순간 12강의 [[데드락]] 조건이 생긴다.
+
+<pre class="ascii">
+  위험한 순서 — "내 lock 을 쥔 채 남의 lock 을 기다림" (hold and wait)
+
+  CPU0: acquire(kmem[0]) ─ 비었네 ─ acquire(kmem[1]) …… 기다림 ─┐
+                                                                  │  circular wait → 영원히
+  CPU1: acquire(kmem[1]) ─ 비었네 ─ acquire(kmem[0]) …… 기다림 ─┘
+
+        CPU0 ──holds──▶ kmem[0] ◀──wants── CPU1
+          │                                  │
+        wants                              holds
+          ▼                                  ▼
+        kmem[1] ◀────────────────────────── CPU1          (12강 p.10 그림과 같은 고리)
+</pre>
+
+"둘 다 비어 있는데 서로 훔치러 간다"는 상황이 실제로 생긴다 — 부팅 직후 CPU1·CPU2 는 둘 다 빈 리스트다. 막는 방법은 두 가지이고, 둘 다 [[데드락 4조건]] 중 하나를 깬다.
+
+{| class="table"
+! 방법 || 무엇을 하나 || 깨는 조건 || trade-off
+|-
+| '''A. 번호 순서로 잡기''' ([[lock ordering]]) || 두 lock 이 필요하면 '''항상 번호 작은 lock 먼저'''. 내 번호가 더 크면 내 lock 을 먼저 놓고 순서대로 다시 잡는다 || circular wait || 두 리스트를 한 번에 옮길 수 있어 깔끔. 대신 "놓았다 다시 잡는" 틈에 내 리스트 상태가 바뀔 수 있음을 염두에
+|-
+| '''B. 한 번에 하나만 잡기''' ([[hold and wait 방지]]) || 내 lock 을 '''놓은 뒤''' 남의 lock 만 잡아 페이지를 떼어 와 지역 변수에 들고 → 남의 lock 을 놓고 → (필요하면) 내 lock 을 잡아 넣는다 || hold and wait || lock 을 동시에 둘 쥐는 일이 아예 없다. 훔친 것 중 '''하나는 바로 반환값으로''' 쓰면 다시 잡을 필요도 줄어든다
+|}
+
+{info}
+'''2025 제출물은 A 방식'''이었다: steal 함수에서 두 lock 을 `min(i, j)` → `max(i, j)` 순서로 잡고 8 페이지씩 옮김. 정확성은 문제없다. 다만 steal 이 끝나 '''lock 을 다 놓은 뒤''' `kalloc` 이 내 lock 을 '''다시''' 잡아 pop 하는 구조라, 그 틈에 (드물게) 방금 옮겨 온 페이지가 다시 사라져 "훔쳐 왔는데 비어 있음"이 생길 수 있었고, 그래서 다음 CPU 를 계속 보는 루프로 감쌌다. '''훔친 페이지 하나를 lock 을 쥔 채 바로 반환'''하면 그 틈이 없어진다.
+{/info}
+
+=== steal 알고리즘 (의사코드) ===
+
+<pre class="txt">
+kalloc():
+  1. 인터럽트 끄고 id = cpuid()
+  2. kmem[id].lock 잡고 → 내 freelist 에서 하나 pop → kmem[id].lock 놓기
+  3. 얻었으면 → 6
+  4. 못 얻었으면: 다른 CPU j = id+1, id+2, … (NCPU 개를 한 바퀴) 에 대해
+       · lock 규칙(A 또는 B)을 지키며 kmem[j] 에서 페이지를 떼어 온다
+       · 하나라도 얻었으면 멈춤
+  5. 한 바퀴를 다 돌았는데도 없으면 r = 0  (메모리 진짜 없음 — sbrk 가 실패를 돌려받는다)
+  6. 인터럽트 원래대로 (pop_off)
+  7. r 이 0 이 아니면 memset(r, 5, PGSIZE)  ← lock 밖에서
+  8. return r
+</pre>
+
+[[sim:kalloc_steal]]
+
+=== 몇 개를 훔칠까 ===
+
+{| class="table"
+! 양 || 장점 || 단점
+|-
+| '''1 개''' || 가장 단순. 남의 리스트를 짧게 잡는다 || 리스트가 빈 CPU 는 '''매번''' 남에게 간다 — 단, 그 페이지를 나중에 kfree 하면 '''내''' 리스트로 돌아오므로, kalloctest 처럼 alloc/free 를 반복하는 작업에서는 금방 자급자족이 된다
+|-
+| '''여러 개 (예: 8, 16, 절반)''' || steal 횟수 자체가 줄어든다 || 남의 lock 을 쥐고 리스트를 따라가는 시간이 길어진다. "절반"은 리스트 길이를 세야 하므로 O(n)
+|-
+| '''전부''' || 한 번이면 끝 || 피해자 CPU 가 곧바로 빈손이 되어 '''되훔치기 핑퐁'''
+|}
+
+PDF 는 "steal '''part of''' the other CPU's free list" 라고만 한다 — 양은 설계 선택이고, 보고서에 이유를 쓰면 된다.
+
+== 5. 테스트가 잡는 버그 ==
+
+{| class="table"
+! 증상 || 원인 후보
+|-
+| `test1 FAIL` (tot 큼) || 아직 한 lock 에 몰림 — `kfree` 가 항상 kmem[0] 에 넣는다거나, `kalloc` 이 내 리스트를 안 보고 매번 steal 부터
+|-
+| `test1 OK` 인데 `tot=` 줄에 kmem lock 이 '''안 보임''' || lock 이름이 "kmem" 으로 시작하지 않음 / `initlock` 안 함 → 요구사항 위반
+|-
+| `test2 FAIL: losing pages` || `kfree` 에서 페이지를 리스트에 안 넣는 경로가 있음, steal 중 떼어 낸 페이지를 어디에도 안 붙임, 리스트 끝을 잘못 이어 일부가 끊김
+|-
+| `test2 FAILED: cannot allocate enough memory` / `usertests sbrkmuch` FAIL || '''steal 이 없거나 덜 돈다''' — CPU1 이 빈 리스트만 보고 0 을 반환. sbrkmuch 는 100 MB 를 요구하므로 CPU0 리스트를 못 쓰면 실패
+|-
+| `test3 FAIL m … n …` || steal 이 너무 잦다(매 kalloc 마다 남의 lock), 또는 호스트가 바빴다 ([[lock contention]] 4절)
+|-
+| 멈춤 (무응답) || 4절의 circular wait — 두 lock 을 순서 없이 잡음
+|-
+| `panic: acquire` || 같은 lock 을 두 번 — `j == id` 인 경우를 안 걸렀다
+|-
+| `panic: pop_off` / `pop_off - interruptible` || `push_off`/`pop_off` 짝이 안 맞음 (early return 경로에서 pop_off 누락 등)
+|}
+
+== 6. race detector (KCSAN, 선택) ==
+
+<pre class="sh">
+make clean
+make KCSAN=1 qemu
+$ kalloctest            # FAIL 이 나와도 되지만 "== race detected ==" 가 나오면 안 된다
+</pre>
+
+* race 가 보이면 스택 주소 두 묶음(racing load / watchpoint)이 찍힌다. 호스트에서 `riscv64-linux-gnu-addr2line -e kernel/kernel` 에 붙여 넣으면 `kernel/kalloc.c:174` 처럼 줄 번호가 나온다(PDF p.9).
+* 대표적인 race: lock 없이 남의 `freelist` 를 읽어 "비었나" 확인하기. '''읽기도 lock 아래에서.'''
+* 매우 느리므로 `usertests` 에는 쓰지 말 것. 다 보고 나면 다시 `make clean`.
+
+== 시험 대비 핵심 요약 ==
+
+# 구조: `kmem[NCPU]` — CPU 마다 `{ lock, freelist }`. 모든 lock 이름 "kmem…".
+# `freerange` 는 실행 중인 CPU(부팅 CPU0)에게 전부, `kfree` 는 '''지금 CPU''' 리스트에, `kalloc` 은 내 리스트 → 비면 [[steal]] → 없으면 0.
+# '''[[cpuid]] 는 `push_off()`~`pop_off()` 사이에서만 믿는다''' — 타이머 인터럽트로 다른 CPU 로 옮겨질 수 있으니까.
+# per-CPU 인데도 lock 이 필요한 이유: '''steal 하는 다른 CPU 가 내 리스트를 만진다''' (그리고 cpuid 가 낡을 수 있다).
+# steal 에서 lock 두 개 → '''번호 순서로''' 잡거나([[lock ordering]], circular wait 깨기) '''한 번에 하나만''' 잡는다([[hold and wait 방지]]). 아니면 CPU0·CPU1 이 서로 훔치러 가며 deadlock.
+# steal 은 contention 을 다시 만들지만 "리스트가 빌 때만" 일어나 드물다 (PDF "hopefully infrequent").
+# steal 이 없으면 `sbrkmuch`·test2 가 실패한다 — 메모리 대부분이 CPU0 리스트에 있으므로.
+
+== 관련 문서 ==
+* [[과제2 xv6 lock]] · [[kalloc]] · [[steal]] · [[cpuid]] · [[lock contention]]
+* [[work stealing]] · [[MQMS]] · [[sloppy counter]]
+* [[lock ordering]] · [[hold and wait 방지]] · [[데드락 4조건]] · [[데드락]]
+* [[과제2 퀴즈 대비]]

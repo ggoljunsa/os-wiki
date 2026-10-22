@@ -55,6 +55,18 @@ category: 기말고사
 | 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다
 |}
 
+== 과제 2 — xv6 Lock ==
+
+{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}
+
+# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서
+# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법
+# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off
+# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]
+# [[과제2 퀴즈 대비]] — 예상문제 20개
+
+강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.
+
 == 시험 정보 ==
 
 기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.
@@ -62,3 +74,4 @@ category: 기말고사
 == 관련 문서 ==
 * [[main|대문]] · [[읽는 순서]] · [[시험 정보]]
 * [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]
+* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]

@@ -710,7 +710,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
+  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
  },
  "읽는 순서": {
   "title": "읽는 순서",
@@ -1964,7 +1964,7 @@ const ARTICLES = {
   "category": [
    "기말고사"
   ],
-  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| 14강~ || (아직 배포 전) || OSTEP 순서상 다음은 segmentation → free-space management → paging → TLB (p.55의 \"free 공간 낭비\" 문제가 출발점) || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]"
+  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| 14강~ || (아직 배포 전) || OSTEP 순서상 다음은 segmentation → free-space management → paging → TLB (p.55의 \"free 공간 낭비\" 문제가 출발점) || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2 — xv6 Lock ==\n\n{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]] — 예상문제 20개\n\n강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
  },
  "가상 메모리": {
   "title": "가상 메모리 (Virtual Memory) — 13강 허브",
@@ -2065,6 +2065,99 @@ const ARTICLES = {
    "13강 Virtual Memory"
   ],
   "body": "13강의 마지막 내용 슬라이드(p.55). [[base and bounds]]가 왜 실제 시스템에 그대로 쓰일 수 없는지, 그래서 다음 강의에서 무엇을 배워야 하는지를 한 장으로 보여 준다.\n\n{def}p.55 '''Problems of Dynamic Relocation'''\n* We have assumed that the virtual space size is '''limited to 16 KB'''\n* '''In reality, it is huge!'''\n* \"Big chunk of \"free\" space '''takes up physical memory'''\" — 64-bit Linux machine, heap과 stack 사이 '''128 TB'''{/def}\n\n{analogy}🎭 '''침대 하나 쓰려고 호텔 층 전체를 빌리는 것'''. 실제로 쓰는 건 1층 로비(code·data)와 꼭대기 방 하나(stack)인데, base and bounds는 \"연속 구간 하나\"밖에 못 빌려 주니 그 사이 빈 층 전부를 빌려야 한다.{/analogy}\n\n[[img:L13-55.png|p.55 — 64-bit Linux 주소 공간: Code/Data/Heap 은 위쪽 몇 MB, Stack 은 0x7fff... 아래쪽, 그 사이 (free) 가 128 TB|large]]\n\n== 왜 문제인가 ==\n\nbase and bounds는 주소 공간을 '''하나의 연속 덩어리'''로 물리 메모리에 놓는다(p.41의 \"allocated but not in use\"). 16KB 장난감 주소 공간에서는 가운데 free 몇 KB를 낭비하는 정도지만, 실제 64-bit 주소 공간은 heap~stack 사이가 128 TB다. 이걸 통째로 물리 메모리에 잡을 수는 없다.\n\n* [[VM 설계 목표]] 중 '''Space efficiency ①''' — \"not wasting available physical memory\" — 위반\n* 주소 공간이 물리 메모리보다 크면 '''아예 로드할 수 없다'''\n\n{info}OSTEP 15장은 이 낭비를 '''internal fragmentation'''(할당된 칸 '''안'''에서 안 쓰이는 공간)이라고 부른다. 슬라이드에는 이 용어가 없으니 답안에는 슬라이드 표현(\"free space takes up physical memory\")을 먼저 쓰고, 용어는 덧붙이는 정도로.{/info}\n\n== 다음 강의로 ==\n\nOSTEP 순서(그리고 p.10 표가 \"Virtual Memory — '''4-KB page'''\"라고 예고한 것)대로라면 해결책은:\n# '''Segmentation''' (OSTEP 16장) — code·heap·stack '''세그먼트마다''' base/bounds 쌍을 따로 → 가운데 free를 물리 메모리에 안 올림\n# '''Free-space management''' (17장) — 크기가 제각각인 빈 칸을 [[free list]]로 관리 (external fragmentation)\n# '''Paging''' (18장~) — 고정 크기(4KB) page로 잘라 page table로 변환 → TLB\n\n(아직 배포되지 않은 강의 내용이므로 예고일 뿐 — 실제 14강 슬라이드가 오면 이 절을 고친다.)\n\n== 관련 문서 ==\n* [[base and bounds]] · [[가상 주소 공간]] · [[VM 설계 목표]] · [[free list]] · [[기말고사]]"
+ },
+ "과제2 xv6 lock": {
+  "title": "과제 2 — xv6 Lock (per-CPU kalloc · bcache 해시 버킷)",
+  "category": [
+   "과제2",
+   "핵심"
+  ],
+  "body": "'''과제 2 \"Lock\"'''은 [[xv6]] 커널에서 '''모든 CPU가 lock 하나에 줄 서는 곳 두 군데'''를 찾아, lock을 여러 개로 쪼개 [[lock contention]]을 없애는 과제다. 한 곳은 물리 페이지 할당기 [[kalloc]](`kernel/kalloc.c`), 다른 한 곳은 디스크 블록 캐시 [[buffer cache]](`kernel/bio.c`). 고칠 파일은 이 둘뿐이고 코드량도 많지 않지만, 9강 [[spin lock]]·12강 [[lock ordering]]·7강 [[work stealing]]을 '''실제 커널 코드에서''' 한꺼번에 쓰게 된다.\n\n'''한 줄 요약: lock 하나에 다 줄 서는 contention 을 lock 여러 개로 쪼개라.'''\n\n{def}\n\"The root cause of lock contention in kalloctest is that kalloc() has '''a single free list, protected by a single lock'''. To remove lock contention, you will have to redesign the memory allocator to avoid a single lock and list. The basic idea is to maintain '''a free list per CPU''', each list with its own lock.\" (PDF p.6)\n\"If multiple processes use the file system intensively, they will likely '''contend for bcache.lock''' … We suggest you look up block numbers in the cache with '''a hash table that has a lock per hash bucket'''.\" (PDF p.10, p.12)\n→ Problem 1 = [[per-CPU free list]] + [[steal]], Problem 2 = [[bcache 해시 버킷]].\n{/def}\n\n{analogy}\n🎭 원래 xv6는 '''편의점 계산대가 하나뿐인''' 가게다. 손님(CPU)이 셋이면 둘은 줄 서서 기다린다(spin). 과제 2는 계산대를 늘리는 일이다.\n* '''kalloc''' — 손님마다 '''전용 계산대'''(CPU별 free list)를 준다. 자기 계산대 물건이 떨어지면 옆 계산대에서 몇 개 '''빌려 온다'''([[steal]]). 빌릴 때만 잠깐 남의 계산대에 들른다.\n* '''bcache''' — 이건 손님마다 줄 수가 없다. 모두가 '''같은 책'''(같은 디스크 블록)을 봐야 하니까. 그래서 '''책 번호 끝자리별로 서가를 나누고''' 서가마다 사서를 한 명씩 둔다(해시 버킷별 lock). 다른 서가의 책을 찾는 손님끼리는 안 부딪힌다.\n{/analogy}\n\n[[anim:kmem_percpu|먼저 lock 하나(kmem.lock)에 CPU 셋이 줄 서는 모습과, CPU별 free list 로 바꾼 뒤 각자 자기 lock 만 잡다가 리스트가 비면 steal 하는 모습을 비교해 보고, 아래 사양표로 들어가라]]\n\n<pre class=\"ascii\">\n   원래 (lock 1개)                                   과제 후 (lock 여러 개)\n   ─────────────────────────────                     ──────────────────────────────────────────\n   CPU0 ─┐                                           CPU0 ── kmem[0].lock ── freelist0\n   CPU1 ─┼─▶ '''kmem.lock''' ── freelist               CPU1 ── kmem[1].lock ── freelist1   (비면 steal)\n   CPU2 ─┘    ↑ 둘은 여기서 spin                       CPU2 ── kmem[2].lock ── freelist2\n\n   CPU0 ─┐                                           blockno % 13 = 0 ── bucket[0].lock ── buf ⇄ buf\n   CPU1 ─┼─▶ '''bcache.lock''' ── buf 30개 LRU 리스트    blockno % 13 = 1 ── bucket[1].lock ── buf\n   CPU2 ─┘                                           …                   (다른 버킷끼리는 안 부딪힘)\n<\/pre>\n\n== 1. 과제 사양 ==\n\n{| class=\"table\"\n! 항목 || 내용\n|-\n| 마감 || '''2026-10-25 (토) 23:00'''\n|-\n| TA || Kyungmin Kim (kkm2029@dgist.ac.kr)\n|-\n| 저장소 || `coruslab-src/xv6-lab` 의 '''`lock` 브랜치''' (`git fetch` → `git checkout lock` → `make clean`). 과제 1의 `traps` 브랜치와 같은 저장소, 다른 브랜치\n|-\n| 고칠 파일 || '''`kernel/kalloc.c`''', '''`kernel/bio.c`''' 두 개뿐 (PDF p.14 \"Source lists you may be concerned\")\n|-\n| 고칠 함수 || `kinit`, `freerange`, `kfree`, `kalloc` / `binit`, `bget`, `brelse`, `bpin`, `bunpin` (PDF p.14 Tips 1)\n|-\n| lock 이름 규칙 || kalloc 쪽 lock은 전부 '''\"kmem\"''' 으로, bcache 쪽 lock은 전부 '''\"bcache\"''' 로 시작 — 채점 숫자가 이름 접두어로 모인다 ([[lock contention]])\n|-\n| 지켜야 할 불변식 || 블록당 캐시 사본 '''최대 하나''' / 버퍼 수는 '''정확히 [[NBUF]] (30)'''\n|-\n| 정답 기준 || `kalloctest` test1~3 OK, `usertests sbrkmuch` OK, `bcachetest` test0~3 OK, `usertests -q` ALL TESTS PASSED, `make grade` 100\n|-\n| 제출 || 보고서 '''4~8쪽''' + `make zipball` 결과 `lab.zip` → '''`{학번}_{이름}.zip`''' 으로 개명\n|}\n\nPDF p.14 Tips 1 이 과제 전체를 요약한다: \"Basically, both problem requires '''a table whose elements are linked lists'''. For the memory allocator, the table would have '''NCPU''' entries … For the block cache, the table would have larger entries and would also be a '''hash table'''. Both of them synchronize the access to each entry. You may want to prevent the deadlock by '''preventing the circular wait (i.e., ordering the locks)'''.\"\n\n<pre class=\"ascii\">\n   두 문제는 같은 모양이다 — \"연결 리스트들의 표, 칸마다 lock 하나\"\n\n   Problem 1 (kalloc)                    Problem 2 (bcache)\n   표 크기 = NCPU (8, 실제 사용 3)         표 크기 = 버킷 수 (소수, 예: 13)\n   칸 번호 = cpuid()                      칸 번호 = blockno % 13\n   칸 내용 = struct run 단일 연결 리스트    칸 내용 = struct buf 이중 연결 리스트\n   칸이 비면 = 남의 칸에서 steal            찾는 블록이 없으면 = 남의 칸에서 refcnt==0 버퍼를 옮겨 옴\n<\/pre>\n\n== 2. 채점표 (grade-lab-lock, 100점) ==\n\n{| class=\"table\"\n! 테스트 || 점수 || 시간 제한 || 원본 상태 || 무엇을 보나\n|-\n| `kalloctest` test1 || 10 || 300 s (한 번 실행) || '''FAIL''' || 자식 2개가 `sbrk(±4096)` 를 10만 번씩 — kmem/bcache lock 의 `#test-and-set` 증가량 '''< 10'''\n|-\n| `kalloctest` test2 || 10 || (위와 같은 실행) || OK || `countfree()` 50번 — 셀 때마다 같아야 함 (\"losing pages\" 금지), 32768쪽 중 1000쪽 넘게 모자라면 FAIL\n|-\n| `kalloctest` test3 || 10 || (위와 같은 실행) || '''FAIL''' || sbrk 반복 + 다른 자식이 countfree 반복 — 증가량 '''< 10000'''\n|-\n| `usertests sbrkmuch` || 5 || 90 s || OK || 100 MB 까지 sbrk — '''[[steal]] 이 없으면 여기서 죽는다'''\n|-\n| `bcachetest` test0 || 20 || 150 s || '''FAIL''' || 3 프로세스가 각자 다른 파일을 읽을 때 kmem/bcache lock 의 `#test-and-set` 증가량 '''< 500'''\n|-\n| `bcachetest` test1 / test2 / test3 || 10 / 10 / 10 || (위와 같은 실행) || OK || NBUF 보다 많은 블록 eviction / 동시 create / 큰 log transaction — '''정확성'''\n|-\n| `usertests -q` || 15 || 300 s || OK || 커널의 다른 곳을 안 망가뜨렸나\n|}\n\n원본 그대로 `make grade` 하면 '''60/100''' 이 나온다 (Windows Docker 2분 25초, Mac 네이티브 3분 20초 실측). 남은 40점 = kalloctest test1·test3 (20) + bcachetest test0 (20) — '''contention 을 없애야만''' 얻는 점수다. 나머지 60점은 \"고치다가 망가뜨리지 않았나\"를 보는 점수다.\n\n{warn}\n숫자 기반 테스트(test1, test3, bcache test0)는 '''기계가 바쁘면 엉망'''이 된다. PDF p.6: \"you must use a '''dedicated unloaded machine''' with multiple cores.\" 채점 돌릴 때 영상·빌드·다른 qemu 를 끌 것. 같은 코드인데 점수가 오락가락하면 이것부터 의심. → [[lock contention]] 4절\n{/warn}\n\n== 3. 환경 ==\n\n=== Windows 데스크톱 (Docker, 과제 PDF 방식) ===\n\n{| class=\"table\"\n! 항목 || 값\n|-\n| 저장소 || '''`C:\\Users\\jangm\\xv6-lock`''' (`lock` 브랜치 `66ff622`, `core.autocrlf false`)\n|-\n| 컨테이너 || '''`lab2`''' (이미지 `xv6-lab1:snap` = `sinasadeghi83/xv6-env` + python3), 저장소를 `/home/xv6/xv6-riscv` 에 마운트\n|-\n| 툴체인 || `riscv64-unknown-elf-gcc` 13.2, QEMU 8.2.2, Python 3.12\n|}\n\n<pre class=\"sh\">\ndocker start lab2\ndocker exec -it -u root lab2 bash      # 마운트가 root 소유라 -u root 필수\ncd /home/xv6/xv6-riscv\nmake qemu                              # CPUS=3 (Makefile 기본). 종료: Ctrl-a 누르고 x\nmake grade                             # 전체 채점\n./grade-lab-lock kalloctest            # kalloctest 3개 + sbrkmuch 만\n./grade-lab-lock bcachetest            # bcachetest 4개만\n<\/pre>\n\n* 과제 1 컨테이너 `lab1` (`C:\\Users\\jangm\\xv6-lab`)과는 '''별개'''다. 건드리지 말 것.\n* 편집은 Windows VS Code 로 `C:\\Users\\jangm\\xv6-lock` 을 바로 열어도 된다(마운트라 즉시 반영). 줄바꿈이 CRLF 로 바뀌지 않게 `autocrlf=false` 유지.\n\n=== Mac (네이티브) ===\n\nHomebrew `qemu` + `riscv64-elf-gcc` 로 Docker 없이 된다. 저장소는 '''OneDrive 밖'''(`~/os/xv6-lab`)에 두고, 매 터미널 `xv6env.sh` 를 source 해서 ① TOOLPREFIX 자동 탐지 실패 ② GCC 16 의 C23 기본값으로 인한 `-Werror` ③ Python 3.14 의 `pipes` 삭제를 '''저장소 파일을 고치지 않고''' 환경변수로 우회한다. `Makefile`·`gradelib.py` 를 직접 고치면 그대로 제출물(`git archive HEAD`)에 들어가니 금지.\n\n== 4. 강의 연결 ==\n\n{| class=\"table\"\n! 과제에서 쓰는 것 || 강의 || 문서\n|-\n| `acquire()` 의 `__sync_lock_test_and_set` 루프 → `#test-and-set` 카운트 || 9강 || [[test-and-set]] · [[spin lock]] · [[lock contention]]\n|-\n| lock 이 하나라 코어가 늘수록 느려진다 (performance 평가) || 9강 · OSTEP 29장 || [[락 평가 기준]] · [[sloppy counter]] (CPU별 local + 가끔 global = 같은 발상)\n|-\n| CPU별 free list, 비면 남의 것을 가져옴 || 7강 || [[MQMS]] · [[work stealing]] (큐 → free list 로 바꾸면 그대로 [[steal]])\n|-\n| 버킷마다 lock 하나인 해시 테이블 || OSTEP 29장 || [[concurrent hash table]] — bcache 해시 버킷과 '''같은 구조'''\n|-\n| steal·eviction 때 lock 두 개 → 순서 고정 || 12강 || [[lock ordering]] · [[데드락 4조건]] (circular wait 깨기) · [[hold and wait 방지]]\n|-\n| free list 자체 (OS 가 안 쓰는 물리 메모리 목록) || 13강 || [[free list]] — 13강은 base/bounds 칸 단위, xv6 는 4096 B 페이지 단위\n|-\n| `cpuid()` 전에 인터럽트 끄기 (`push_off`) || 4강 || [[타이머 인터럽트]] · [[인터럽트 비활성화]] · [[cpuid]]\n|-\n| 버퍼 내용 보호는 잠드는 lock || 9강 후반 · 10강 || [[sleeplock]] · [[two-phase lock]] (spin 대신 잠들기)\n|}\n\n== 5. 문서 지도 ==\n\n# '''[[lock contention]]''' — `#test-and-set` / `#acquire()` 가 무엇을 세는지, `kalloctest`·`bcachetest` 출력 읽는 법. '''여기부터.'''\n# '''[[kalloc]]''' — 원래 할당기 82줄을 한 줄씩. [[free list]] 가 페이지 '''안'''에 저장되는 트릭.\n# '''[[per-CPU free list]]''' — Problem 1 설계. [[cpuid]] · [[steal]] · lock 순서. steal 시뮬레이터.\n# '''[[buffer cache]]''' — 원래 `bio.c`. [[refcnt]] · [[sleeplock]] · LRU, \"블록당 사본 하나\" 불변식.\n# '''[[bcache 해시 버킷]]''' — Problem 2 설계. hit/miss 경로, eviction lock, same-bucket 함정, 2025 풀이 버그. bget 시뮬레이터.\n# '''[[과제2 퀴즈 대비]]''' — 과제 1 때 퀴즈가 100% 과제에서 나왔다. 예상문제.\n# 용어: [[cpuid]] · [[refcnt]] · [[sleeplock]] · [[steal]] · [[NBUF]]\n\n== 6. 권장 작업 순서 ==\n\n# '''원본 확인''' — 손대기 전에 `make grade` 를 한 번 돌려 '''60/100''' 을 본다. 이게 나오면 환경은 정상이다.\n# '''[[kalloc]] 원본 읽기''' — 82줄 전부. `struct run` 이 어디에 사는지, `freerange` 가 왜 `kfree` 를 부르는지.\n# '''Problem 1 구현''' — [[per-CPU free list]] 문서의 설계 순서대로 `kinit` → `kfree` → `kalloc`(steal 없이) → steal 추가.\n# '''검증''' — `make qemu` 안에서 `kalloctest` → `usertests sbrkmuch` → 밖에서 `./grade-lab-lock kalloctest`. 선택: `make clean; make KCSAN=1 qemu` 로 race detector.\n# '''커밋''' — `git add -A; git commit -m \"kalloc: per-CPU freelist + steal\"`. (Problem 2 는 독립이라 이 상태에서 시작해도 된다.)\n# '''[[buffer cache]] 원본 읽기''' — `bget` 의 두 루프와 `brelse` 의 LRU 이동.\n# '''Problem 2 구현 1단계''' — PDF 디버깅 팁 그대로: 버킷과 버킷 lock 을 만들되, '''전역 `bcache.lock` 을 `bget` 처음~끝에 그대로 남겨 둔 채''' 맞는지부터 본다. `make CPUS=1 qemu` 로도 확인.\n# '''Problem 2 구현 2단계''' — 전역 lock 을 '''miss 때 eviction 에만''' 쓰도록 줄인다. [[bcache 해시 버킷]] 4절의 lock 순서 규칙을 지킬 것.\n# '''검증''' — `bcachetest` → `./grade-lab-lock bcachetest` → `make grade` (100 목표) → `usertests -q`.\n# '''보고서''' 4~8쪽 — \"왜 이렇게 나눴나 / 왜 이 순서로 lock 을 잡나 / 왜 miss 후 다시 찾나\"를 '''본인 말로'''. 과제 1 때처럼 그게 곧 퀴즈다 → [[과제2 퀴즈 대비]].\n\n== 7. 제출 ==\n\n<pre class=\"sh\">\ngit status                              # 깨끗한지 (lock 브랜치인지)\ngit add -A\ngit commit -m \"Assignment 2 finished\"\nmake zipball                            # lab.zip 생성 → {학번}_{이름}.zip 으로 개명\n<\/pre>\n\n* '''`make zipball` 전에 반드시 `git commit`''' — zipball 은 `git archive HEAD` 기준이라 커밋 안 한 변경은 빠진다. 커밋 안 된 변경이 있거나 브랜치가 `lock` 이 아니면 `submit-check` 가 멈춘다.\n* `Makefile` 은 고칠 필요가 없다. `LAB=lock` 일 때 `_kalloctest`, `_bcachetest` 가 이미 `UPROGS` 에 들어 있다.\n\n== 실제 제출 구현 ==\n\n{info}\n이 절은 '''제출 마감(2026-10-25 23:00) 이후'''에 채운다 — 위키는 공개(GitHub Pages)이고 과제는 본인이 직접 구현해 퀴즈를 대비하는 중이므로, 그 전까지는 완성된 `kalloc.c`/`bio.c` 코드를 싣지 않는다. 지금은 원본 코드, 자료구조 스케치, 단계별 의사코드, 함정 예시만 있다.\n{/info}\n\n== 시험 대비 핵심 요약 ==\n\n# 과제의 한 문장: '''lock 하나(kmem.lock, bcache.lock)에 모든 CPU가 줄 서는 [[lock contention]] 을, lock 여러 개로 쪼개 없앤다.'''\n# `#test-and-set` = `acquire()` 의 `while(__sync_lock_test_and_set(...))` 가 '''실패해서 다시 돈 횟수''' = contention 척도. `#acquire()` 는 호출 횟수라 많아도 괜찮다.\n# 테스트는 이름이 '''\"kmem\"/\"bcache\"''' 로 시작하는 lock 만 합산(`statslock` 의 `strncmp`) → lock 이름이 채점에 직결.\n# Problem 1: '''CPU마다 free list + lock''' ([[per-CPU free list]]). `freerange` 는 실행 중인 CPU 에게 전부, `kfree` 는 지금 CPU 에, `kalloc` 은 내 것 → 비면 [[steal]].\n# [[cpuid]] 는 '''인터럽트를 끈 상태'''(`push_off`~`pop_off`)에서만 믿을 수 있다 — 타이머 인터럽트로 다른 CPU 로 옮겨질 수 있으니까.\n# Problem 2: bcache 는 per-CPU 로 못 나눈다(모든 CPU 가 '''같은 블록'''을 공유). 그래서 '''블록 번호로''' 나눈다 — `blockno % 13` 해시 버킷마다 lock ([[bcache 해시 버킷]]).\n# 불변식 \"'''at most one cached buffer per block'''\" — \"찾기 + 없으면 자리 잡기\"가 atomic 해야 지켜진다. 그래서 miss 후 eviction lock 을 잡고 '''한 번 더 찾는다'''.\n# lock 두 개를 잡는 곳(steal, 버퍼 옮기기)은 '''순서 고정''' 또는 '''한 번에 하나만''' → circular wait 차단 ([[lock ordering]]). 같은 버킷이면 같은 lock 을 두 번 잡아 `panic: acquire`.\n# 버퍼 수는 정확히 '''[[NBUF]] = 30'''. LRU 는 버려도 되고, miss 때 '''어느 버킷의''' refcnt==0 버퍼든 쓸 수 있어야 한다.\n# 채점 100 = kalloctest 10+10+10 + sbrkmuch 5 + bcachetest 20+10+10+10 + usertests 15. 원본 60.\n\n== 관련 문서 ==\n* [[lock contention]] · [[kalloc]] · [[per-CPU free list]] · [[buffer cache]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n* [[cpuid]] · [[refcnt]] · [[sleeplock]] · [[steal]] · [[NBUF]]\n* [[spin lock]] · [[test-and-set]] · [[락 평가 기준]] · [[sloppy counter]] · [[concurrent hash table]]\n* [[MQMS]] · [[work stealing]] · [[lock ordering]] · [[데드락 4조건]] · [[free list]]\n* [[과제1 xv6 alarm]] · [[퀴즈1 복기]] · [[기말고사]] · [[xv6]]"
+ },
+ "lock contention": {
+  "title": "Lock contention — #test-and-set 은 무엇을 세나",
+  "category": [
+   "과제2"
+  ],
+  "body": "'''Lock contention'''(락 경합)은 '''한 CPU가 쥔 lock을 다른 CPU가 동시에 원해서 기다리는 상황'''이다. [[spin lock]]에서 기다림 = 헛도는 루프이므로, \"얼마나 헛돌았나\"를 세면 contention의 크기가 된다. [[과제2 xv6 lock]]의 채점은 전부 이 숫자로 이뤄진다 — 그래서 이 문서가 과제의 '''점수판 읽는 법'''이다.\n\n{def}\n\"kalloctest prints (as '''\"#test-and-set\"''') the number of loop iterations in acquire due to attempts to acquire a lock that another core already holds … '''The number of loop iterations in acquire is a rough measure of lock contention.'''\" (PDF p.4)\n\"acquire maintains, for each lock, the count of calls to acquire for that lock, and the number of times the loop in acquire tried but failed to set the lock.\" (PDF p.5)\n{/def}\n\n{analogy}\n🎭 화장실 문 앞의 '''노크 횟수 기록계'''. `#acquire()` 는 \"화장실에 가려고 한 횟수\", `#test-and-set` 은 \"문을 당겼는데 잠겨 있어서 '''다시 당긴''' 횟수\"다. 하루에 화장실을 100번 가는 건 문제가 아니다(#acquire 큼). 문제는 갈 때마다 문 앞에서 50번씩 당기며 서 있는 것(#test-and-set 큼) — 그게 contention 이다. 과제는 '''화장실을 여러 개로 늘려서''' 당기는 횟수를 0 으로 만드는 일이다.\n{/analogy}\n\n== 1. 카운터는 acquire() 안에 있다 ==\n\n[[xv6]]의 `kernel/spinlock.c` 는 `LAB_LOCK` 으로 빌드될 때(lock 브랜치) [[spin lock]] 마다 카운터 두 개를 단다.\n\n<pre class=\"c\">\n// kernel/spinlock.h\nstruct spinlock {\n  uint locked;       // Is the lock held?\n  char *name;        // Name of lock.\n  struct cpu *cpu;   // The cpu holding the lock.\n#ifdef LAB_LOCK\n  int nts;           // ← \"#test-and-set\"\n  int n;             // ← \"#acquire()\"\n#endif\n};\n<\/pre>\n\n<pre class=\"c\">\n// kernel/spinlock.c  (원본, 줄 번호 그대로)\n61  void\n62  acquire(struct spinlock *lk)\n63  {\n64    push_off(); // disable interrupts to avoid deadlock.\n65    if(holding(lk))\n66      panic(\"acquire\");\n67\n68  #ifdef LAB_LOCK\n69      __sync_fetch_and_add(&(lk->n), 1);\n70  #endif\n71\n72    // On RISC-V, sync_lock_test_and_set turns into an atomic swap:\n73    //   a5 = 1\n74    //   s1 = &lk->locked\n75    //   amoswap.w.aq a5, a5, (s1)\n76    while(__sync_lock_test_and_set(&lk->locked, 1) != 0) {\n77  #ifdef LAB_LOCK\n78      __sync_fetch_and_add(&(lk->nts), 1);\n79  #else\n80     ;\n81  #endif\n82    }\n83    ...\n91    lk->cpu = mycpu();\n92  }\n<\/pre>\n\n{| class=\"table\"\n! 줄 || 코드 || 의미\n|-\n| 64 || `push_off()` || 인터럽트 끄기. lock 을 쥔 CPU 가 인터럽트 핸들러에서 같은 lock 을 또 잡으면 자기 자신과 deadlock. → [[cpuid]]\n|-\n| 65–66 || `if(holding(lk)) panic(\"acquire\")` || '''이미 내가 쥔 lock 을 또 잡으면 즉시 panic''' — xv6 spinlock 은 재진입 불가. bcache 의 same-bucket 함정이 바로 이것 ([[bcache 해시 버킷]])\n|-\n| 69 || `lk->n += 1` (atomic) || '''#acquire()''' — 호출될 때마다 1. 기다렸든 안 기다렸든\n|-\n| 76 || `while(test_and_set(&locked, 1) != 0)` || 9강 [[test-and-set]] 그대로. 옛 값이 1이면 남이 쥐고 있는 것 → 다시 시도\n|-\n| 78 || `lk->nts += 1` (atomic) || '''#test-and-set''' — '''실패해서 루프를 한 번 더 돈 횟수'''. 첫 시도에 성공하면 0 이 더해진다\n|}\n\n<pre class=\"ascii\">\n  acquire(lk) 한 번에 일어나는 일\n\n  lock 이 비어 있을 때:   n += 1 → TAS → 옛 값 0 (성공)               → nts 그대로   ✓ contention 없음\n  lock 을 남이 쥐었을 때: n += 1 → TAS 1 → nts+1 → TAS 1 → nts+1 → … → TAS 0 (성공)\n                                         └──── 이 횟수가 \"#test-and-set\" ────┘\n<\/pre>\n\n{tip}\n같은 CPU 가 lock 을 잡고 놓기를 아무리 많이 해도 `nts` 는 늘지 않는다. '''두 개 이상의 CPU가 같은 순간 같은 lock 을 원할 때만''' 늘어난다. 그래서 `make CPUS=1 qemu` 에서는 어떤 구현이든 `#test-and-set` 이 0 이다 — CPUS=1 은 정확성 디버깅용이지 contention 측정용이 아니다.\n{/tip}\n\n== 2. 누가 합산되나 — 이름 접두어 ⭐ ==\n\n`kalloctest`/`bcachetest` 는 `statistics()` 로 커널의 `statslock()` 결과 문자열을 받아, 그 안의 `tot=` 값을 읽는다.\n\n<pre class=\"c\">\n// kernel/spinlock.c  statslock() 중\n186    acquire(&lock_locks);\n187    n = snprintf(buf, sz, \"--- lock kmem/bcache stats\\n\");\n188    for(int i = 0; i < NLOCK; i++) {\n189      if(locks[i] == 0)\n190        break;\n191      if(strncmp(locks[i]->name, \"bcache\", strlen(\"bcache\")) == 0 ||\n192         strncmp(locks[i]->name, \"kmem\", strlen(\"kmem\")) == 0) {\n193        tot += locks[i]->nts;\n194        n += snprint_lock(buf +n, sz-n, locks[i]);\n195      }\n196    }\n     ...\n213    n += snprintf(buf+n, sz-n, \"tot= %d\\n\", tot);\n<\/pre>\n\n* 191–193 — 이름이 '''\"bcache\" 또는 \"kmem\" 으로 시작하는''' lock 의 `nts` 만 `tot` 에 더한다. `strncmp(name, \"kmem\", 4)` 이므로 `\"kmem\"`, `\"kmem0\"`, `\"kmem_cpu2\"` 모두 걸린다.\n* 그래서 PDF 요구사항이 \"You must give all of your locks names that start with '''\"kmem\"'''\" / \"… start with '''\"bcache\"'''\" 다. 이름을 `\"freelist0\"` 처럼 지으면 그 lock 의 contention 이 '''아예 안 보인다''' — 점수는 잘 나올지 몰라도 요구사항 위반이고, 반대로 출력의 \"lock kmem/bcache stats\" 에 아무것도 안 찍혀 디버깅도 못 한다.\n* lock 이 등록되는 곳은 `initlock()` 안의 `findslot(lk)` (전역 배열 `locks[NLOCK]`, `NLOCK 500`). '''`initlock` 을 부르지 않은 lock 은 통계에 안 나온다.'''\n\n{warn}\n`initlock(lk, name)` 은 이름 '''문자열을 복사하지 않고 포인터만''' 저장한다(`lk->name = name;`, spinlock.c 49줄). CPU별로 `\"kmem0\"`, `\"kmem1\"` 처럼 다른 이름을 만들고 싶어 `snprintf` 를 '''함수 지역 배열'''에 하고 그 주소를 넘기면, 함수가 끝나는 순간 이름이 쓰레기가 된다. 이름 버퍼는 lock 과 함께 '''전역/구조체 안'''에 두거나, PDF 말대로 \"It is OK to just name all locks \"kmem\" though\" — 전부 같은 문자열 리터럴 `\"kmem\"` 이어도 된다.\n{/warn}\n\n`bcache` 의 버퍼 30개는 각자 [[sleeplock]] 을 갖고, 그 안에도 spinlock 이 하나씩 있지만 그 이름은 `\"sleep lock\"` 이다(`initsleeplock` → `initlock(&lk->lk, \"sleep lock\")`). 그래서 '''버퍼 내용 lock 의 경합은 tot 에 안 들어간다''' — 과제가 보는 것은 \"어느 블록이 캐시돼 있나\"를 지키는 spinlock 쪽뿐이다.\n\n== 3. 출력 읽는 법 ==\n\n=== kalloctest — 원본 상태 (PDF p.4–5) ===\n\n<pre class=\"txt\">\n$ kalloctest\nstart test1\ntest1 results:\n--- lock kmem/bcache stats\nlock: kmem: #test-and-set 83375 #acquire() 433015      ← lock 하나에 43만 번, 그중 8만 번 헛돎\nlock: bcache: #test-and-set 0 #acquire() 1260\n--- top 5 contended locks:\nlock: kmem: #test-and-set 83375 #acquire() 433015      ← 전체 1위가 kmem\nlock: proc: #test-and-set 23737 #acquire() 130718\nlock: virtio_disk: #test-and-set 11159 #acquire() 114\nlock: proc: #test-and-set 5937 #acquire() 130786\nlock: proc: #test-and-set 4080 #acquire() 130786\ntot= 83375                                             ← kmem*/bcache* 의 nts 합\ntest1 FAIL\n<\/pre>\n\n=== kalloctest — 과제 후 (PDF p.6–7) ===\n\n<pre class=\"txt\">\nlock: kmem: #test-and-set 0 #acquire() 94703           ← kmem lock 이 여러 개(CPU 별)\nlock: kmem: #test-and-set 0 #acquire() 173699\nlock: kmem: #test-and-set 0 #acquire() 164725\nlock: bcache: #test-and-set 0 #acquire() 32\nlock: bcache.bucket: #test-and-set 0 #acquire() 38     ← (Problem 2 까지 끝낸 상태)\n...\ntot= 0\ntest1 OK\n<\/pre>\n\n{| class=\"table\"\n! 테스트 || 판정 코드 (실제 소스) || 뜻\n|-\n| kalloctest test1 || `if(n-m < 10) printf(\"test1 OK\\n\");` || 테스트 전후 `tot` 증가량이 '''10 미만'''. 사실상 0 이어야 한다\n|-\n| kalloctest test2 || `if(n - free0 > 1000)` → \"cannot allocate enough memory\" / `if(free1 != free0)` → \"'''losing pages'''\" || 숫자 테스트가 아니라 '''정확성'''. n = (PHYSTOP−KERNBASE)/PGSIZE = '''32768'''\n|-\n| kalloctest test3 || `if(n-m < 10000) printf(\"\\ntest3 OK\\n\"); else printf(\"test3 FAIL m %d n %d\\n\", m, n);` || 증가량 '''10000 미만'''. steal 이 동시에 일어나므로 0 까지는 안 요구한다\n|-\n| bcachetest test0 || `if (n-m < 500) printf(\"test0: OK\\n\");` || 증가량 '''500 미만'''. PDF: \"Ideally … zero, but it's OK if the sum is less than 500\"\n|}\n\n{info}\n`m` 은 테스트 '''시작 전''' `tot`, `n` 은 '''끝난 후''' `tot`. 원본 PDF 예시의 \"test3 FAIL m 11720 n 28002\" 는 test3 동안 kmem 에서 16282 번 헛돌았다는 뜻이다 (≥ 10000 이라 FAIL). 그리고 '''kalloctest 의 tot 에도 bcache lock 이, bcachetest 의 tot 에도 kmem lock 이 들어간다''' — 같은 `statslock()` 을 쓰기 때문. Problem 1 만 했을 때 bcachetest 숫자가 바뀌는 이유.\n{/info}\n\n=== bcachetest — 원본 (PDF p.10) ===\n\n<pre class=\"txt\">\nstart test0\ntest0 results:\n--- lock kmem/bcache stats\nlock: kmem: #test-and-set 0 #acquire() 33099\nlock: bcache: #test-and-set 10273 #acquire() 65964     ← 파일 읽기 3개가 bcache.lock 하나에 줄 섬\n--- top 5 contended locks:\nlock: virtio_disk: #test-and-set 814630 #acquire() 1221   ← 디스크 lock — 과제와 무관, 무시\n...\ntot= 10273\ntest0: FAIL\n<\/pre>\n\n{tip}\n\"top 5 contended locks\" 에 '''`proc`, `virtio_disk`, `pr`, `wait_lock`''' 이 크게 나와도 신경 쓰지 말 것. 이 lock 들은 이름이 kmem/bcache 로 시작하지 않아 `tot` 에 안 들어가고, 과제 대상도 아니다. 과제 후 PDF 예시에서도 `proc` 은 13만, `virtio_disk` 는 8만이다.\n{/tip}\n\n== 4. \"dedicated unloaded machine\" ==\n\nPDF p.6: \"For this lab, you must use a dedicated unloaded machine with multiple cores. If you use a machine that is doing other things, '''the counts that kalloctest prints will be nonsense'''.\"\n\n왜 그런가? qemu 의 가상 CPU 3개는 호스트의 스레드 3개다. 호스트가 바쁘면 '''lock 을 쥔 가상 CPU 의 호스트 스레드가 호스트 스케줄러에 의해 잠깐 멈출 수 있다'''. 그동안 다른 가상 CPU 는 그 lock 을 계속 test-and-set 하며 `nts` 를 올린다 — 9강의 \"spin 하는 동안 lock 보유자가 preempt 되면 time slice 를 통째로 낭비\"([[spin lock]] 의 성능 문제)가 '''가상 머신 층에서''' 똑같이 일어나는 것.\n\n<pre class=\"ascii\">\n  host 가 한가할 때                      host 가 바쁠 때 (영상, 빌드, 다른 qemu)\n  vCPU0 ██ lock ██ (짧게 쥐고 놓음)        vCPU0 ██ lock ░░░░ host 가 멈춤 ░░░░ ██\n  vCPU1    ──TAS 성공                     vCPU1    TAS✗TAS✗TAS✗TAS✗TAS✗TAS✗ … nts 폭증\n                                                    └ 내 코드는 그대로인데 숫자만 커진다\n<\/pre>\n\n그래서 같은 코드가 어떤 때는 100점, 어떤 때는 test3 FAIL 이 될 수 있다. 채점 전에 다른 무거운 프로그램을 끄고, 숫자가 '''가끔만''' 튀면 설계보다 환경을 먼저 의심하라. 반대로 '''항상''' 큰 숫자가 나오면 아직 lock 하나에 다 몰리고 있는 것이다.\n\n== 5. contention 을 줄이는 두 가지 길 ==\n\n{| class=\"table\"\n! 방법 || 과제에서 || 강의\n|-\n| '''lock 을 쪼갠다''' (fine-grained locking) — 서로 다른 데이터를 다른 lock 으로 || kmem → `kmem[NCPU]`, bcache.lock → 버킷별 lock || OSTEP 29장 [[concurrent hash table]] (버킷마다 lock), [[sloppy counter]] (CPU마다 local)\n|-\n| '''lock 을 짧게 잡는다''' — critical section 안의 일을 줄인다 || `memset` 은 lock 밖에서 (원본 [[kalloc]] 도 이미 그렇다), eviction 만 전역 lock || 9강 [[락 평가 기준]] performance\n|}\n\n== 시험 대비 핵심 요약 ==\n\n# '''#acquire()''' = `acquire()` 호출 횟수(`lk->n`), '''#test-and-set''' = `while(__sync_lock_test_and_set(&lk->locked,1) != 0)` 가 '''실패해서 다시 돈 횟수'''(`lk->nts`). contention 척도는 후자.\n# `tot=` 는 이름이 '''\"kmem\" 또는 \"bcache\" 로 시작하는''' lock 의 `nts` 합 (`statslock` 의 `strncmp`). 그래서 lock 이름 규칙이 채점에 직결된다.\n# 통과 기준(소스 그대로): kalloctest test1 '''n−m < 10''', test3 '''n−m < 10000''', bcachetest test0 '''n−m < 500'''. test2 는 \"losing pages\" 정확성.\n# contention 은 '''둘 이상의 CPU가 같은 순간 같은 lock''' 을 원할 때만 생긴다. CPUS=1 이면 항상 0.\n# 호스트가 바쁘면 lock 보유 vCPU 가 멈춰 숫자가 엉망 → \"dedicated unloaded machine\".\n# `initlock` 은 이름 포인터만 저장 — 지역 배열에 만든 이름은 dangling.\n\n== 관련 문서 ==\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n* [[spin lock]] · [[test-and-set]] · [[락 평가 기준]] · [[락]]\n* [[sloppy counter]] · [[concurrent hash table]] · [[cpuid]] · [[sleeplock]]"
+ },
+ "kalloc": {
+  "title": "kalloc — xv6 물리 페이지 할당기 (원본)",
+  "category": [
+   "과제2"
+  ],
+  "body": "'''`kalloc`'''은 [[xv6]] 커널이 '''물리 메모리를 4096 바이트 페이지 단위로''' 나눠 주는 할당기다(`kernel/kalloc.c`, 82줄). 유저 프로세스 메모리(`sbrk`), [[커널 스택]], 페이지 테이블 페이지, pipe 버퍼가 전부 여기서 나온다. 자료구조는 '''빈 페이지들의 단일 연결 리스트([[free list]]) 하나 + 그것을 지키는 [[spin lock]] 하나'''. [[과제2 xv6 lock]] Problem 1 은 이 \"하나\"를 CPU 수만큼으로 늘리는 일이다 → [[per-CPU free list]].\n\n{def}\n\"The allocator's data structure is a '''free list of physical memory pages''' that are available for allocation. Each free page's list element is a '''struct run'''. … It store each free page's run structure '''in the free page itself''', since there's nothing else stored there. The free list is protected by a spin lock.\" (PDF p.1)\n{/def}\n\n{analogy}\n🎭 '''빈 방마다 \"다음 빈 방은 304호\" 쪽지를 붙여 둔 호텔'''. 프런트(kmem)는 '''첫 번째 빈 방 번호 하나만''' 기억한다. 손님이 오면 그 방을 내주고 방 안의 쪽지를 읽어 \"다음 첫 빈 방\"을 갱신한다. 방이 비면 그 방 안에 쪽지를 써 붙이고 프런트의 첫 빈 방으로 등록한다. 쪽지는 '''빈 방 안'''에 붙어 있으니 따로 장부가 필요 없다 — 방이 차면 손님이 쪽지를 버려도(덮어써도) 상관없다. 문제는 '''프런트 직원이 한 명뿐'''이라는 것.\n{/analogy}\n\n<pre class=\"ascii\">\n  물리 메모리 (128 MB, KERNBASE 0x80000000 ~ PHYSTOP 0x88000000)\n\n  0x80000000           end                                                 PHYSTOP\n  ├── kernel 코드·데이터 ─┤▒▒ 4096 ▒▒│▒▒ 4096 ▒▒│ 사용중 │▒▒ 4096 ▒▒│ … │\n                            ▲            ▲                    ▲\n  kmem.freelist ──────────┐ │            │                    │\n                          ▼ │            │                    │\n                       ┌────┴──┐    ┌────┴──┐            ┌────┴──┐\n                       │ next ─┼───▶│ next ─┼───────────▶│ next=0│\n                       │ 1111… │    │ 1111… │            │ 1111… │   (kfree 가 1 로 채워 둠)\n                       └───────┘    └───────┘            └───────┘\n                       struct run 은 \"빈 페이지의 첫 8 바이트\" 그 자체\n<\/pre>\n\n== 1. 자료구조 (17–24줄) ==\n\n<pre class=\"c\">\n17  struct run {\n18    struct run *next;\n19  };\n20\n21  struct {\n22    struct spinlock lock;\n23    struct run *freelist;\n24  } kmem;\n<\/pre>\n\n* `struct run` — 필드가 `next` 하나뿐. 빈 페이지 주소 `pa` 를 `(struct run*)pa` 로 '''캐스팅만''' 하면 그 페이지의 첫 8 바이트가 `next` 가 된다. 별도 메모리를 할당하지 않는다 — 할당기가 할당기용 메모리를 할당할 수는 없으니까.\n* `kmem` — lock 과 리스트를 '''한 구조체로 묶은''' 것은 \"이 lock 이 이 필드들을 지킨다\"를 코드 모양으로 보여 주려는 것 (PDF: \"The list and the lock are wrapped in a struct to make clear that the lock protects the fields in the struct\").\n* 과제 후에는 이 구조체가 '''배열'''이 된다 → [[per-CPU free list]].\n\n== 2. 초기화 — kinit → freerange → kfree (26–40줄) ==\n\n<pre class=\"c\">\n26  void\n27  kinit()\n28  {\n29    initlock(&kmem.lock, \"kmem\");\n30    freerange(end, (void*)PHYSTOP);\n31  }\n32\n33  void\n34  freerange(void *pa_start, void *pa_end)\n35  {\n36    char *p;\n37    p = (char*)PGROUNDUP((uint64)pa_start);\n38    for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)\n39      kfree(p);\n40  }\n<\/pre>\n\n{| class=\"table\"\n! 줄 || 무엇 || 왜\n|-\n| 29 || `initlock(&kmem.lock, \"kmem\")` || lock 이름 \"kmem\" — 테스트가 이 접두어로 lock 을 골라 센다 ([[lock contention]] 2절)\n|-\n| 30 || `freerange(end, PHYSTOP)` || `end` = 커널 이미지 바로 뒤(`kernel.ld` 가 정의), `PHYSTOP` = `KERNBASE + 128*1024*1024`. xv6 는 하드웨어에 물어보지 않고 '''RAM 이 128 MB 라고 가정'''한다\n|-\n| 37 || `PGROUNDUP(pa_start)` || PTE 는 '''4096 정렬된''' 물리 주소만 가리킬 수 있다. `end` 가 페이지 중간일 수 있으므로 올림\n|-\n| 38–39 || 페이지마다 `kfree(p)` || 할당기는 '''빈손으로 시작'''한다. 부팅 때 \"가짜 free\" 로 전 메모리를 한 장씩 넣어 주는 것 (PDF: \"these calls to kfree give it some to manage\")\n|}\n\n{info}\n`main()` 에서 `kinit()` 을 부르는 것은 '''CPU 0 하나뿐'''이다(`if(cpuid() == 0){ … kinit(); … }`, main.c). 다른 CPU 는 `started` 가 1 이 될 때까지 기다린다. 그래서 `freerange` 안의 `kfree` 는 전부 CPU 0 에서 실행된다 — Problem 1 힌트 \"Let freerange give all free memory to the CPU running freerange\" 가 자연스럽게 성립하는 이유. → [[per-CPU free list]]\n{/info}\n\n{tip}\nPDF p.2 \"dual use of addresses\": `freerange` 에서는 주소를 '''정수'''로 더하고(`p += PGSIZE`), `kfree` 에서는 같은 주소를 '''포인터'''로 쓴다(`r->next = …`). 그래서 이 파일에 `(uint64)`, `(char*)`, `(struct run*)` 캐스트가 잔뜩 있다.\n{/tip}\n\n== 3. kfree — 1 로 채우고 앞에 끼운다 (46–63줄) ==\n\n<pre class=\"c\">\n46  void\n47  kfree(void *pa)\n48  {\n49    struct run *r;\n50\n51    if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)\n52      panic(\"kfree\");\n53\n54    // Fill with junk to catch dangling refs.\n55    memset(pa, 1, PGSIZE);\n56\n57    r = (struct run*)pa;\n58\n59    acquire(&kmem.lock);\n60    r->next = kmem.freelist;\n61    kmem.freelist = r;\n62    release(&kmem.lock);\n63  }\n<\/pre>\n\n* 51–52 — 정렬 안 됐거나 커널 영역/범위 밖이면 panic. 엉뚱한 주소를 free 하는 버그를 즉시 잡는다.\n* 55 — '''모든 바이트를 1 로'''. 해제된 메모리를 계속 쓰는 코드(dangling reference)가 옛 값 대신 쓰레기를 읽어 '''빨리 망가지게''' 하려는 것. `memset` 은 '''lock 밖'''이다 — 4096 바이트 쓰기를 critical section 에 넣지 않는다.\n* 59–62 — '''critical section 은 딱 두 줄''': 리스트 맨 앞에 push. 단일 연결 리스트의 head 삽입.\n\n== 4. kalloc — 맨 앞 하나를 뗀다 (68–82줄) ==\n\n<pre class=\"c\">\n68  void *\n69  kalloc(void)\n70  {\n71    struct run *r;\n72\n73    acquire(&kmem.lock);\n74    r = kmem.freelist;\n75    if(r)\n76      kmem.freelist = r->next;\n77    release(&kmem.lock);\n78\n79    if(r)\n80      memset((char*)r, 5, PGSIZE); // fill with junk\n81    return (void*)r;\n82  }\n<\/pre>\n\n* 73–77 — head pop. 리스트가 비었으면 `r == 0` 이고 그대로 0 을 돌려준다 (\"Returns 0 if the memory cannot be allocated\").\n* 80 — 5 로 채운다. 초기화 안 된 메모리를 0 이라고 믿는 코드를 잡기 위함. 역시 '''lock 밖'''.\n\n<pre class=\"ascii\">\n  kfree(P)                                    kalloc()\n  before: freelist → [A] → [B] → 0            before: freelist → [P] → [A] → [B] → 0\n  ① P->next = freelist (=A)                   ① r = freelist (=P)\n  ② freelist = P                              ② freelist = r->next (=A)\n  after:  freelist → [P] → [A] → [B] → 0      after:  freelist → [A] → [B] → 0,  return P\n          (LIFO — 방금 버린 페이지가 다음에 제일 먼저 나간다)\n<\/pre>\n\n== 5. 왜 contention 이 생기나 ==\n\ncritical section 은 두 줄로 아주 짧다. 그런데도 `kalloctest` 에서 `#test-and-set 83375` 가 나온다. 이유는 '''호출 빈도'''다.\n\n* kalloctest test1 은 자식 2개가 각각 `sbrk(4096)` → `sbrk(-4096)` 을 '''10만 번''' 반복한다. 한 번에 kalloc 1번(+ 페이지 테이블용 가능) + kfree 1번. CPU 2~3개가 '''같은 한 lock''' 을 초당 수십만 번 잡는다.\n* lock 이 하나이므로 \"CPU1 은 자기 페이지를 kfree, CPU2 는 자기 페이지를 kalloc\" 처럼 '''서로 상관없는 작업도''' 직렬화된다. 데이터는 독립인데 lock 이 공유된 것 — 이게 개선 여지다.\n\n{analogy}\n🎭 은행 창구가 하나면, 입금하러 온 손님과 출금하러 온 손님이 서로 상관없는 계좌를 쓰는데도 한 줄로 선다. 업무 하나가 10초밖에 안 걸려도 손님이 초당 수십 명이면 줄은 늘 길다.\n{/analogy}\n\n{| class=\"table\"\n! 원본 || 문제 || 과제 후 ([[per-CPU free list]])\n|-\n| `kmem` 하나 || 모든 CPU 가 같은 lock || `kmem[NCPU]` — CPU 마다 lock\n|-\n| `kfree` → 전역 리스트 || 직렬화 || `kfree` → '''지금 CPU''' 리스트 ([[cpuid]])\n|-\n| `kalloc` ← 전역 리스트 || 직렬화 || `kalloc` ← 내 리스트, 비면 [[steal]]\n|}\n\n== 시험 대비 핵심 요약 ==\n\n# 자료구조 = '''`struct run` 단일 연결 리스트 + spinlock 하나'''(`kmem.lock`, 이름 \"kmem\").\n# `struct run` 은 '''빈 페이지 자기 자신 안'''에 저장된다 — 별도 메모리 없음.\n# `kinit` → `freerange(end, PHYSTOP)` → 페이지마다 `kfree`. 128 MB 가정, `PGROUNDUP` 으로 4096 정렬. CPU 0 만 실행.\n# `kfree`: 1 로 채움(dangling reference 를 빨리 드러내기) → head push. `kalloc`: head pop → 5 로 채움. 둘 다 `memset` 은 '''lock 밖'''.\n# contention 원인 = '''리스트 하나·lock 하나''' — 서로 다른 CPU 의 독립적인 alloc/free 도 직렬화된다.\n\n== 관련 문서 ==\n* [[per-CPU free list]] · [[steal]] · [[cpuid]] · [[lock contention]] · [[과제2 xv6 lock]]\n* [[free list]] (13강) · [[spin lock]] · [[xv6]]"
+ },
+ "per-CPU free list": {
+  "title": "Per-CPU free list — Problem 1 설계",
+  "category": [
+   "과제2",
+   "핵심"
+  ],
+  "body": "'''Per-CPU free list'''는 [[과제2 xv6 lock]] Problem 1 의 해법이다. [[kalloc]] 의 free list 하나·lock 하나를 '''CPU 마다 free list 하나·lock 하나'''로 바꾸면, 서로 다른 CPU 의 `kalloc`/`kfree` 는 서로 다른 lock 을 잡으므로 '''병렬로''' 돈다. 남은 문제는 하나 — 내 리스트가 비었는데 남의 리스트에는 페이지가 있을 때. 그때는 남의 것을 가져온다([[steal]]).\n\n{def}\n\"The basic idea is to maintain '''a free list per CPU, each list with its own lock'''. Allocations and frees on different CPUs can run in parallel, because each CPU will operate on a different list. The main challenge will be to deal with the case in which one CPU's free list is empty, but another CPU's list has free memory; in that case, the one CPU must '''\"steal\" part of the other CPU's free list'''. Stealing may introduce lock contention, but that will hopefully be infrequent.\" (PDF p.6)\n{/def}\n\n{analogy}\n🎭 '''사무실 공용 비품함 하나 → 책상마다 서랍.''' 볼펜이 필요할 때마다 공용 비품함 앞에 줄 서던 직원들이, 이제 자기 서랍에서 꺼내고 다 쓰면 자기 서랍에 넣는다. 처음엔 신입(CPU0)이 비품을 전부 받아 서랍에 넣어 두므로, 다른 직원 서랍은 비어 있다. 서랍이 빈 직원은 '''옆 사람 서랍에서 한 움큼 집어 온다'''(steal). 집어 올 때만 옆 사람과 잠깐 부딪힌다. 7강 [[work stealing]] 과 똑같은 구조 — 큐 대신 free list, 잡(job) 대신 페이지.\n{/analogy}\n\n[[anim:kmem_percpu|CPU 셋이 kmem.lock 하나에 줄 서던 것이 CPU별 kmem 세 칸으로 갈라져 각자 자기 lock 만 잡는 모습, 그리고 CPU1 의 리스트가 비었을 때 CPU0 리스트에서 페이지를 steal 해 오는 순간을 본 뒤 아래 시뮬레이터로 lock 순서를 확인하라]]\n\n== 1. 자료구조 ==\n\nPDF Tips: \"For the memory allocator, the table would have '''NCPU''' entries, and each entry in the table is dedicated to each processor.\"\n\n<pre class=\"c\">\n// 스케치 — 원래 kmem 구조체를 NCPU 개짜리 배열로\nstruct {\n  struct spinlock lock;\n  struct run *freelist;\n} kmem[NCPU];          // NCPU = 8 (kernel/param.h). qemu 기본 CPUS=3 이라 0~2 만 쓰인다\n<\/pre>\n\n<pre class=\"ascii\">\n  kmem[0].lock \"kmem…\"   kmem[0].freelist → [pg] → [pg] → [pg] → … (부팅 직후엔 32000여 장 전부 여기)\n  kmem[1].lock \"kmem…\"   kmem[1].freelist → 0\n  kmem[2].lock \"kmem…\"   kmem[2].freelist → 0\n  kmem[3..7]             (CPU 가 없어 안 쓰임 — 그래도 initlock 은 해 둔다)\n\n  규칙: kmem[i].freelist 를 읽거나 쓰려면 '''kmem[i].lock''' 을 쥐고 있어야 한다.  (i 가 내 번호든 아니든)\n<\/pre>\n\n{warn}\n'''lock 이름은 전부 \"kmem\" 으로 시작'''해야 한다. 전부 `\"kmem\"` 이어도 된다(PDF). CPU 별로 다르게 짓고 싶다면 `initlock` 이 '''포인터만 저장'''한다는 점에 주의 — 이름 버퍼가 함수 지역 변수면 dangling ([[lock contention]] 2절).\n{/warn}\n\n== 2. 함수별로 할 일 ==\n\n{| class=\"table\"\n! 함수 || 해야 할 일 || 함정\n|-\n| `kinit` || `NCPU` 개 lock 을 모두 `initlock(…, \"kmem…\")` → `freerange(end, PHYSTOP)` || lock 을 하나라도 init 안 하면 `acquire` 가 쓰레기 lock 을 잡는다\n|-\n| `freerange` || 바꿀 필요가 거의 없다 — 페이지마다 `kfree` 를 부르면 '''지금 CPU(=CPU0)''' 리스트에 들어간다 || PDF 힌트 \"Let freerange give all free memory to the CPU running freerange\" 가 이것. 리스트에 직접 넣는 방식도 가능\n|-\n| `kfree` || 검사 → `memset(pa, 1, …)` → '''지금 CPU''' 의 리스트 head 에 push || [[cpuid]] 는 인터럽트를 끈 상태에서만 (3절)\n|-\n| `kalloc` || 내 리스트에서 pop → 비었으면 다른 CPU 리스트에서 [[steal]] → 그래도 없으면 0 || lock 두 개 문제 (4절), 다 돌았는데도 없으면 '''0 반환'''(무한 루프 금지)\n|}\n\n== 3. cpuid 는 push_off ~ pop_off 사이에서 ⭐⭐ ==\n\nPDF 힌트: \"The function '''cpuid''' returns the current core number, but it's '''only safe to call it and use its result when interrupts are turned off'''. You should use push_off() and pop_off() to turn interrupts off and on.\"\n\n<pre class=\"c\">\npush_off();          // 인터럽트 끄기 (중첩 카운트 +1)\nint id = cpuid();    // 이제 이 값은 pop_off 전까지 \"지금 내 CPU\" 가 보장된다\n...                  // id 로 kmem[id] 를 쓰는 부분\npop_off();           // 인터럽트 원래대로\n<\/pre>\n\n왜? [[cpuid]] 는 `tp` 레지스터(부팅 때 hartid 를 넣어 둔 것)를 읽을 뿐이다. 읽은 '''직후''' [[타이머 인터럽트]] 가 오면 `usertrap`/`kerneltrap` → [[yield]] → 스케줄러가 이 프로세스를 '''다른 CPU 에서''' 이어 실행할 수 있다. 그러면 지역 변수 `id` 에는 '''옛 CPU 번호'''가 남는다.\n\n<pre class=\"ascii\">\n  push_off 없이:\n  CPU1:  id = cpuid();  → id = 1\n         ── 타이머 인터럽트 → yield → (이 프로세스는 잠시 쉼) ──\n  CPU2:  (같은 프로세스가 CPU2 에서 재개)  kmem[id=1] 을 만진다  ← 지금 CPU 는 2 인데!\n\n  push_off 있으면:\n  CPU1:  push_off → id = cpuid() = 1 → … kmem[1] … → pop_off      (그 사이 인터럽트 없음 = 이동 없음)\n<\/pre>\n\n{tip}\n'''옛 번호를 쓰면 정확히 무엇이 망가지나?''' — `kmem[1].lock` 을 제대로 잡고 `kmem[1]` 을 만지는 한, '''리스트 자체는 안 망가진다'''(lock 이 지키므로). 손해는 \"CPU2 가 CPU1 리스트를 건드려 CPU1 과 부딪힐 수 있다\" = contention·locality 손실이다. 진짜 위험한 것은 \"내 리스트니까 lock 없이 만져도 된다\"고 생각하는 것 — 그러면 race. 그래서 per-CPU 리스트에도 '''lock 은 여전히 필요'''하다(steal 하는 남이 내 리스트를 만지기 때문이기도 하다).\n{/tip}\n\n참고로 `acquire()` 자체가 맨 앞에서 `push_off()` 를 하고 `release()` 가 끝에서 `pop_off()` 를 한다. `push_off`/`pop_off` 는 '''짝을 세는''' 함수라(`mycpu()->noff`) 이렇게 겹쳐 불러도 안전하다 → [[cpuid]].\n\n== 4. steal — lock 두 개를 어떻게 잡나 ⭐⭐⭐ ==\n\n[[steal]] 은 '''남의 리스트(kmem[j])''' 를 만지므로 `kmem[j].lock` 이 필요하다. 그런데 훔친 페이지를 '''내 리스트(kmem[id])''' 에 넣으려면 `kmem[id].lock` 도 필요하다. 이 둘을 '''동시에''' 쥐는 순간 12강의 [[데드락]] 조건이 생긴다.\n\n<pre class=\"ascii\">\n  위험한 순서 — \"내 lock 을 쥔 채 남의 lock 을 기다림\" (hold and wait)\n\n  CPU0: acquire(kmem[0]) ─ 비었네 ─ acquire(kmem[1]) …… 기다림 ─┐\n                                                                  │  circular wait → 영원히\n  CPU1: acquire(kmem[1]) ─ 비었네 ─ acquire(kmem[0]) …… 기다림 ─┘\n\n        CPU0 ──holds──▶ kmem[0] ◀──wants── CPU1\n          │                                  │\n        wants                              holds\n          ▼                                  ▼\n        kmem[1] ◀────────────────────────── CPU1          (12강 p.10 그림과 같은 고리)\n<\/pre>\n\n\"둘 다 비어 있는데 서로 훔치러 간다\"는 상황이 실제로 생긴다 — 부팅 직후 CPU1·CPU2 는 둘 다 빈 리스트다. 막는 방법은 두 가지이고, 둘 다 [[데드락 4조건]] 중 하나를 깬다.\n\n{| class=\"table\"\n! 방법 || 무엇을 하나 || 깨는 조건 || trade-off\n|-\n| '''A. 번호 순서로 잡기''' ([[lock ordering]]) || 두 lock 이 필요하면 '''항상 번호 작은 lock 먼저'''. 내 번호가 더 크면 내 lock 을 먼저 놓고 순서대로 다시 잡는다 || circular wait || 두 리스트를 한 번에 옮길 수 있어 깔끔. 대신 \"놓았다 다시 잡는\" 틈에 내 리스트 상태가 바뀔 수 있음을 염두에\n|-\n| '''B. 한 번에 하나만 잡기''' ([[hold and wait 방지]]) || 내 lock 을 '''놓은 뒤''' 남의 lock 만 잡아 페이지를 떼어 와 지역 변수에 들고 → 남의 lock 을 놓고 → (필요하면) 내 lock 을 잡아 넣는다 || hold and wait || lock 을 동시에 둘 쥐는 일이 아예 없다. 훔친 것 중 '''하나는 바로 반환값으로''' 쓰면 다시 잡을 필요도 줄어든다\n|}\n\n{info}\n'''2025 제출물은 A 방식'''이었다: steal 함수에서 두 lock 을 `min(i, j)` → `max(i, j)` 순서로 잡고 8 페이지씩 옮김. 정확성은 문제없다. 다만 steal 이 끝나 '''lock 을 다 놓은 뒤''' `kalloc` 이 내 lock 을 '''다시''' 잡아 pop 하는 구조라, 그 틈에 (드물게) 방금 옮겨 온 페이지가 다시 사라져 \"훔쳐 왔는데 비어 있음\"이 생길 수 있었고, 그래서 다음 CPU 를 계속 보는 루프로 감쌌다. '''훔친 페이지 하나를 lock 을 쥔 채 바로 반환'''하면 그 틈이 없어진다.\n{/info}\n\n=== steal 알고리즘 (의사코드) ===\n\n<pre class=\"txt\">\nkalloc():\n  1. 인터럽트 끄고 id = cpuid()\n  2. kmem[id].lock 잡고 → 내 freelist 에서 하나 pop → kmem[id].lock 놓기\n  3. 얻었으면 → 6\n  4. 못 얻었으면: 다른 CPU j = id+1, id+2, … (NCPU 개를 한 바퀴) 에 대해\n       · lock 규칙(A 또는 B)을 지키며 kmem[j] 에서 페이지를 떼어 온다\n       · 하나라도 얻었으면 멈춤\n  5. 한 바퀴를 다 돌았는데도 없으면 r = 0  (메모리 진짜 없음 — sbrk 가 실패를 돌려받는다)\n  6. 인터럽트 원래대로 (pop_off)\n  7. r 이 0 이 아니면 memset(r, 5, PGSIZE)  ← lock 밖에서\n  8. return r\n<\/pre>\n\n[[sim:kalloc_steal]]\n\n=== 몇 개를 훔칠까 ===\n\n{| class=\"table\"\n! 양 || 장점 || 단점\n|-\n| '''1 개''' || 가장 단순. 남의 리스트를 짧게 잡는다 || 리스트가 빈 CPU 는 '''매번''' 남에게 간다 — 단, 그 페이지를 나중에 kfree 하면 '''내''' 리스트로 돌아오므로, kalloctest 처럼 alloc/free 를 반복하는 작업에서는 금방 자급자족이 된다\n|-\n| '''여러 개 (예: 8, 16, 절반)''' || steal 횟수 자체가 줄어든다 || 남의 lock 을 쥐고 리스트를 따라가는 시간이 길어진다. \"절반\"은 리스트 길이를 세야 하므로 O(n)\n|-\n| '''전부''' || 한 번이면 끝 || 피해자 CPU 가 곧바로 빈손이 되어 '''되훔치기 핑퐁'''\n|}\n\nPDF 는 \"steal '''part of''' the other CPU's free list\" 라고만 한다 — 양은 설계 선택이고, 보고서에 이유를 쓰면 된다.\n\n== 5. 테스트가 잡는 버그 ==\n\n{| class=\"table\"\n! 증상 || 원인 후보\n|-\n| `test1 FAIL` (tot 큼) || 아직 한 lock 에 몰림 — `kfree` 가 항상 kmem[0] 에 넣는다거나, `kalloc` 이 내 리스트를 안 보고 매번 steal 부터\n|-\n| `test1 OK` 인데 `tot=` 줄에 kmem lock 이 '''안 보임''' || lock 이름이 \"kmem\" 으로 시작하지 않음 / `initlock` 안 함 → 요구사항 위반\n|-\n| `test2 FAIL: losing pages` || `kfree` 에서 페이지를 리스트에 안 넣는 경로가 있음, steal 중 떼어 낸 페이지를 어디에도 안 붙임, 리스트 끝을 잘못 이어 일부가 끊김\n|-\n| `test2 FAILED: cannot allocate enough memory` / `usertests sbrkmuch` FAIL || '''steal 이 없거나 덜 돈다''' — CPU1 이 빈 리스트만 보고 0 을 반환. sbrkmuch 는 100 MB 를 요구하므로 CPU0 리스트를 못 쓰면 실패\n|-\n| `test3 FAIL m … n …` || steal 이 너무 잦다(매 kalloc 마다 남의 lock), 또는 호스트가 바빴다 ([[lock contention]] 4절)\n|-\n| 멈춤 (무응답) || 4절의 circular wait — 두 lock 을 순서 없이 잡음\n|-\n| `panic: acquire` || 같은 lock 을 두 번 — `j == id` 인 경우를 안 걸렀다\n|-\n| `panic: pop_off` / `pop_off - interruptible` || `push_off`/`pop_off` 짝이 안 맞음 (early return 경로에서 pop_off 누락 등)\n|}\n\n== 6. race detector (KCSAN, 선택) ==\n\n<pre class=\"sh\">\nmake clean\nmake KCSAN=1 qemu\n$ kalloctest            # FAIL 이 나와도 되지만 \"== race detected ==\" 가 나오면 안 된다\n<\/pre>\n\n* race 가 보이면 스택 주소 두 묶음(racing load / watchpoint)이 찍힌다. 호스트에서 `riscv64-linux-gnu-addr2line -e kernel/kernel` 에 붙여 넣으면 `kernel/kalloc.c:174` 처럼 줄 번호가 나온다(PDF p.9).\n* 대표적인 race: lock 없이 남의 `freelist` 를 읽어 \"비었나\" 확인하기. '''읽기도 lock 아래에서.'''\n* 매우 느리므로 `usertests` 에는 쓰지 말 것. 다 보고 나면 다시 `make clean`.\n\n== 시험 대비 핵심 요약 ==\n\n# 구조: `kmem[NCPU]` — CPU 마다 `{ lock, freelist }`. 모든 lock 이름 \"kmem…\".\n# `freerange` 는 실행 중인 CPU(부팅 CPU0)에게 전부, `kfree` 는 '''지금 CPU''' 리스트에, `kalloc` 은 내 리스트 → 비면 [[steal]] → 없으면 0.\n# '''[[cpuid]] 는 `push_off()`~`pop_off()` 사이에서만 믿는다''' — 타이머 인터럽트로 다른 CPU 로 옮겨질 수 있으니까.\n# per-CPU 인데도 lock 이 필요한 이유: '''steal 하는 다른 CPU 가 내 리스트를 만진다''' (그리고 cpuid 가 낡을 수 있다).\n# steal 에서 lock 두 개 → '''번호 순서로''' 잡거나([[lock ordering]], circular wait 깨기) '''한 번에 하나만''' 잡는다([[hold and wait 방지]]). 아니면 CPU0·CPU1 이 서로 훔치러 가며 deadlock.\n# steal 은 contention 을 다시 만들지만 \"리스트가 빌 때만\" 일어나 드물다 (PDF \"hopefully infrequent\").\n# steal 이 없으면 `sbrkmuch`·test2 가 실패한다 — 메모리 대부분이 CPU0 리스트에 있으므로.\n\n== 관련 문서 ==\n* [[과제2 xv6 lock]] · [[kalloc]] · [[steal]] · [[cpuid]] · [[lock contention]]\n* [[work stealing]] · [[MQMS]] · [[sloppy counter]]\n* [[lock ordering]] · [[hold and wait 방지]] · [[데드락 4조건]] · [[데드락]]\n* [[과제2 퀴즈 대비]]"
+ },
+ "buffer cache": {
+  "title": "Buffer cache — xv6 bio.c (원본)",
+  "category": [
+   "과제2"
+  ],
+  "body": "'''Buffer cache'''(block cache, `bcache`)는 [[xv6]] 파일 시스템의 가장 아래층으로, '''디스크 블록의 메모리 사본'''을 [[NBUF]] = 30 개까지 들고 있는 캐시다(`kernel/bio.c`, 152줄). 파일을 읽고 쓰는 모든 경로가 결국 `bread`/`brelse` 를 거친다. 원본은 버퍼 30개를 '''LRU 순서의 원형 이중 연결 리스트''' 하나로 엮고, 그 리스트·[[refcnt]]·블록 번호를 '''spinlock `bcache.lock` 하나'''로 지킨다 — [[과제2 xv6 lock]] Problem 2 가 쪼개야 할 lock 이 이것이다 → [[bcache 해시 버킷]].\n\n{def}\n\"The buffer cache has two jobs: (1) '''synchronize access to disk blocks''' to ensure that only one copy of a block is in memory and that only one kernel thread at a time uses that copy; (2) '''cache popular blocks''' so that they don't need to be re-read from the slow disk.\" (PDF p.2)\n\"It is important that there is '''at most one cached buffer per disk sector''', to ensure that readers see writes, and because the file system uses locks on buffers for synchronization.\" (PDF p.3)\n{/def}\n\n{analogy}\n🎭 '''도서관 열람실의 복사본 서가 (자리 30개)'''. 손님이 책(블록) 번호를 말하면 사서가 서가에서 찾고, 없으면 '''아무도 안 보고 있는 가장 오래된 복사본'''을 치우고 그 자리에 새로 복사해 온다(디스크 read). 손님은 복사본을 받아 '''혼자''' 본다(sleeplock). 같은 책의 복사본이 서가에 '''두 장''' 있으면 큰일이다 — A 가 한 장에 메모를 하고, B 는 다른 장을 보며 메모가 없다고 믿는다. 원본 사서는 '''한 명'''(`bcache.lock`)이라 \"찾기\"와 \"자리 잡기\"를 한 사람이 연달아 해서 두 장이 생길 틈이 없다. 대신 줄이 길다.\n{/analogy}\n\n[[anim:bcache_hash|원본의 bcache.lock 하나 + LRU 리스트에서 모든 bget 이 줄 서는 모습과, 해시 버킷별 lock 으로 바꾼 뒤 서로 다른 버킷의 블록을 찾는 프로세스끼리 안 부딪히는 모습을 비교해 보라]]\n\n== 1. struct buf (buf.h) ==\n\n<pre class=\"c\">\n// kernel/buf.h (원본 전체)\n1  struct buf {\n2    int valid;   // has data been read from disk?\n3    int disk;    // does disk \"own\" buf?\n4    uint dev;\n5    uint blockno;\n6    struct sleeplock lock;\n7    uint refcnt;\n8    struct buf *prev; // LRU cache list\n9    struct buf *next;\n10   uchar data[BSIZE];\n11 };\n<\/pre>\n\n{| class=\"table\"\n! 필드 || 뜻 || 누가 지키나 (원본)\n|-\n| `valid` || 1 = `data` 에 블록 내용이 이미 들어 있음. 0 이면 `bread` 가 디스크에서 읽는다 || 버퍼 [[sleeplock]]\n|-\n| `disk` || 1 = 디스크 드라이버(virtio)가 지금 이 버퍼를 쓰고 있음 (I/O 진행 중) || 드라이버\n|-\n| `dev`, `blockno` || '''이 버퍼가 어느 블록의 사본인가''' — 캐시의 \"키\" || `bcache.lock`\n|-\n| `lock` || '''[[sleeplock]]''' — 버퍼 '''내용'''을 한 번에 한 스레드만 쓰게 || (자기 자신)\n|-\n| `refcnt` || '''[[refcnt]]''' — 지금 이 버퍼를 들고 있거나 기다리는 쪽의 수. 0 이어야 재사용 가능 || `bcache.lock`\n|-\n| `prev`, `next` || LRU 원형 이중 연결 리스트 링크 || `bcache.lock`\n|-\n| `data[BSIZE]` || 블록 내용 (BSIZE = 1024) || 버퍼 sleeplock\n|}\n\n== 2. bcache 와 binit (26–53줄) ==\n\n<pre class=\"c\">\n26  struct {\n27    struct spinlock lock;\n28    struct buf buf[NBUF];\n29\n30    // Linked list of all buffers, through prev/next.\n31    // Sorted by how recently the buffer was used.\n32    // head.next is most recent, head.prev is least.\n33    struct buf head;\n34  } bcache;\n35\n36  void\n37  binit(void)\n38  {\n39    struct buf *b;\n40\n41    initlock(&bcache.lock, \"bcache\");\n42\n43    // Create linked list of buffers\n44    bcache.head.prev = &bcache.head;\n45    bcache.head.next = &bcache.head;\n46    for(b = bcache.buf; b < bcache.buf+NBUF; b++){\n47      b->next = bcache.head.next;\n48      b->prev = &bcache.head;\n49      initsleeplock(&b->lock, \"buffer\");\n50      bcache.head.next->prev = b;\n51      bcache.head.next = b;\n52    }\n53  }\n<\/pre>\n\n* 28 — 버퍼 '''30개는 정적 배열'''에 고정. 동적 할당하지 않는다. 과제에서 이 개수를 늘리면 안 된다 ([[NBUF]]).\n* 33 — `head` 는 데이터 없는 '''보초(sentinel)''' 노드. 빈 리스트 = `head.next == head.prev == &head`. 경계 검사가 필요 없어진다.\n* 46–52 — 버퍼를 하나씩 '''head 바로 뒤에''' 끼운다. 이후 모든 접근은 배열이 아니라 `bcache.head` 리스트로 한다 (PDF: \"All other access to the buffer cache refer to the linked list via bcache.head, not the buf array\").\n\n<pre class=\"ascii\">\n  원형 이중 연결 리스트 (NBUF = 30)\n\n        ┌───────────────────────────────────────────────────────────────┐\n        ▼                                                               │\n     [head] ⇄ [b 최근 사용] ⇄ [b] ⇄ [b] ⇄ … ⇄ [b] ⇄ [b 가장 오래됨] ⇄─┘\n        │      ▲ head.next = MRU                     ▲ head.prev = LRU\n        │      brelse 가 refcnt 0 된 버퍼를 여기로     bget miss 때 여기부터 거꾸로 refcnt==0 찾기\n        └─ bcache.lock 하나가 이 리스트 전체 + 각 buf 의 dev/blockno/refcnt 를 지킨다\n<\/pre>\n\n== 3. bget — 두 개의 루프 (58–89줄) ⭐⭐⭐ ==\n\n<pre class=\"c\">\n58  static struct buf*\n59  bget(uint dev, uint blockno)\n60  {\n61    struct buf *b;\n62\n63    acquire(&bcache.lock);\n64\n65    // Is the block already cached?\n66    for(b = bcache.head.next; b != &bcache.head; b = b->next){\n67      if(b->dev == dev && b->blockno == blockno){\n68        b->refcnt++;\n69        release(&bcache.lock);\n70        acquiresleep(&b->lock);\n71        return b;\n72      }\n73    }\n74\n75    // Not cached.\n76    // Recycle the least recently used (LRU) unused buffer.\n77    for(b = bcache.head.prev; b != &bcache.head; b = b->prev){\n78      if(b->refcnt == 0) {\n79        b->dev = dev;\n80        b->blockno = blockno;\n81        b->valid = 0;\n82        b->refcnt = 1;\n83        release(&bcache.lock);\n84        acquiresleep(&b->lock);\n85        return b;\n86      }\n87    }\n88    panic(\"bget: no buffers\");\n89  }\n<\/pre>\n\n{| class=\"table\"\n! 줄 || 무엇 || 왜\n|-\n| 63 || `acquire(&bcache.lock)` || '''여기서 잡아서 83/69 까지 안 놓는다''' — 이게 불변식의 열쇠 (4절)\n|-\n| 66–73 || '''첫 루프 (hit 찾기)''' — MRU 쪽(`next`)부터 같은 `dev`·`blockno` 찾기 || locality 가 좋으면 앞쪽에서 빨리 찾는다\n|-\n| 68 || `refcnt++` || \"내가 쓸 거다\" 표시. '''이 순간부터 이 버퍼는 재사용 금지''' (78줄 조건에 안 걸림)\n|-\n| 69–70 || spinlock 놓고 '''그다음에''' sleeplock || 버퍼를 다른 스레드가 쓰는 중이면 `acquiresleep` 에서 '''잠든다'''. spinlock 을 쥔 채 잠들면 안 된다 (xv6 는 `sched` 에서 `panic(\"sched locks\")`)\n|-\n| 77–87 || '''둘째 루프 (miss → 재사용)''' — LRU 쪽(`prev`)부터 거꾸로 `refcnt == 0` 찾기 || 가장 오래 안 쓴 버퍼를 희생\n|-\n| 79–82 || 키(`dev`, `blockno`)를 바꾸고 `valid = 0`, `refcnt = 1` || `valid = 0` 이어야 `bread` 가 '''옛 블록 내용을 새 블록인 척 돌려주지 않고''' 디스크에서 다시 읽는다\n|-\n| 88 || `panic(\"bget: no buffers\")` || 30개가 전부 사용 중. PDF: \"A more graceful response might be to sleep until a buffer became free, though there would then be a possibility of deadlock.\"\n|}\n\n== 4. \"블록당 사본 하나\" 를 지키는 방법 ⭐⭐⭐ ==\n\nPDF p.3: \"bget ensures this invariant by '''holding the bcache.lock continuously from the first loop's check''' of whether the block is cached '''through the second loop's declaration''' that the block is now cached (by setting dev, blockno, and refcnt). This causes the check for a block's presence and (if not present) the designation of a buffer to hold the block to be '''atomic'''.\"\n\n<pre class=\"ascii\">\n  원본 bget 의 critical section (bcache.lock)\n\n  acquire ─┬─ 첫 루프: \"블록 B 가 있나?\"  ── 없음 ──┬─ 둘째 루프: 빈 버퍼에 B 라고 이름 붙임 ─┬─ release\n           │                                         │                                          │\n           └──────────── 이 사이에 다른 누구도 bcache 를 못 본다 ─────────────────────────────┘\n           ⇒ \"없음을 확인\" 과 \"내 것으로 등록\" 이 한 덩어리(atomic)\n\n  만약 사이에 lock 을 놓았다면:\n  P: 첫 루프 \"B 없음\" → release ┐\n  Q:                             └→ acquire → 첫 루프 \"B 없음\" → 버퍼 x 에 B 등록 → release\n  P: acquire → 버퍼 y 에 B 등록     ⇒ '''B 의 사본이 x, y 두 개''' — 불변식 위반\n<\/pre>\n\n두 사본이 생기면 무엇이 망가지나: P 가 y 에 쓰고 `bwrite` 해도, Q 는 x 를 보고 있으므로 '''쓰기를 못 본다'''. 그리고 파일 시스템은 \"버퍼 sleeplock 을 잡으면 그 블록을 독점한다\"고 믿는데(inode 갱신 등), 사본이 둘이면 두 스레드가 '''각자 다른 사본의 lock''' 을 잡고 같은 블록을 동시에 고친다 → 마지막 쓰기가 앞의 것을 덮는다. 9강 [[race condition]] 이 디스크 블록 단위로 일어나는 것.\n\n{warn}\n과제에서 lock 을 쪼개면 이 \"한 lock 으로 두 루프를 감싸기\"가 '''그대로는 불가능'''해진다 — 첫 루프는 내 버킷만 보면 되지만, 둘째 루프(빈 버퍼 찾기)는 '''모든 버킷'''을 봐야 하기 때문. PDF 힌트: \"You probably won't be able to atomically check for a cached buf and (if not cached) find an unused buf; you will likely have to '''drop all locks and start from scratch''' if the buffer isn't in the cache.\" → [[bcache 해시 버킷]] 3절\n{/warn}\n\n== 5. spinlock 과 sleeplock 의 역할 분담 ==\n\nPDF p.3–4: \"It is safe for bget to acquire the buffer's sleep-lock outside of the bcache.lock critical section, since '''the non-zero b->refcnt prevents the buffer from being re-used''' for a different disk block. The sleep-lock protects reads and writes of the block's buffered content, while the bcache.lock protects information about which blocks are cached.\"\n\n{| class=\"table\"\n! || `bcache.lock` (spinlock) || `b->lock` ([[sleeplock]])\n|-\n| 지키는 것 || '''어느 블록이 캐시돼 있나''' — 리스트 링크, `dev`/`blockno`, [[refcnt]] || 버퍼 '''내용''' — `data`, `valid`\n|-\n| 잡는 시간 || 리스트 한 번 훑는 정도 (짧음) || 디스크 I/O 포함, 호출자가 `brelse` 할 때까지 (김)\n|-\n| 기다리는 방식 || spin (CPU 를 쥐고 돎) || sleep (CPU 를 내놓고 잠듦)\n|-\n| 하나당 || 캐시 전체에 1개 (과제 후: 버킷마다 1개) || 버퍼마다 1개 (30개)\n|}\n\n<pre class=\"ascii\">\n  bget 의 \"바통 넘기기\"\n\n  bcache.lock: ━━━━ 찾기 · refcnt++ ━━━━┓ release\n                                        ┃  ← 이 틈에 다른 스레드가 이 버퍼를 재사용? → 불가: refcnt ≥ 1\n  b->lock    :                          ┗━━ acquiresleep ━━━━━━ (호출자가 data 사용) ━━━━━━ brelse\n<\/pre>\n\nrefcnt 가 '''두 lock 사이의 다리'''다. spinlock 을 놓기 직전에 refcnt 를 올려 두었기 때문에, sleeplock 을 기다리며 자는 동안에도 이 버퍼는 다른 블록으로 바뀌지 않는다.\n\n== 6. bread, bwrite, brelse, bpin, bunpin (91–151줄) ==\n\n<pre class=\"c\">\n92  struct buf*\n93  bread(uint dev, uint blockno)\n94  {\n95    struct buf *b;\n96\n97    b = bget(dev, blockno);\n98    if(!b->valid) {\n99      virtio_disk_rw(b, 0);\n100     b->valid = 1;\n101   }\n102   return b;\n103 }\n106 void\n107 bwrite(struct buf *b)\n108 {\n109   if(!holdingsleep(&b->lock))\n110     panic(\"bwrite\");\n111   virtio_disk_rw(b, 1);\n112 }\n116 void\n117 brelse(struct buf *b)\n118 {\n119   if(!holdingsleep(&b->lock))\n120     panic(\"brelse\");\n121\n122   releasesleep(&b->lock);\n123\n124   acquire(&bcache.lock);\n125   b->refcnt--;\n126   if (b->refcnt == 0) {\n127     // no one is waiting for it.\n128     b->next->prev = b->prev;\n129     b->prev->next = b->next;\n130     b->next = bcache.head.next;\n131     b->prev = &bcache.head;\n132     bcache.head.next->prev = b;\n133     bcache.head.next = b;\n134   }\n135\n136   release(&bcache.lock);\n137 }\n139 void\n140 bpin(struct buf *b) {\n141   acquire(&bcache.lock);\n142   b->refcnt++;\n143   release(&bcache.lock);\n144 }\n146 void\n147 bunpin(struct buf *b) {\n148   acquire(&bcache.lock);\n149   b->refcnt--;\n150   release(&bcache.lock);\n151 }\n<\/pre>\n\n* '''bread''' (93) — `bget` 으로 '''잠긴 버퍼'''를 받고, `valid == 0` 이면 디스크에서 읽어 채운다. 과제와 무관해서 '''고칠 필요 없다'''.\n* '''bwrite''' (107) — sleeplock 을 쥐고 있어야만 쓸 수 있다. 역시 그대로.\n* '''brelse''' (117) — sleeplock 먼저 놓고(122), `bcache.lock` 아래에서 `refcnt--`. 0 이 되면 리스트에서 떼어 '''맨 앞(MRU)''' 에 다시 붙인다(128–133). 이것 때문에 리스트가 사용 순서로 정렬된다. 과제에서는 LRU 를 버려도 되므로 brelse 는 \"자기 버킷 lock 아래 refcnt--\" 만 남는다.\n* '''bpin / bunpin''' (140, 147) — log 계층이 쓴다. `log_write` 가 트랜잭션에 블록을 넣을 때 `bpin` 으로 refcnt 를 올려 '''커밋될 때까지 이 버퍼가 재사용되지 않게''' 하고(log.c 231줄), 설치가 끝나면 `bunpin`(log.c 79줄). sleeplock 은 안 잡고 refcnt 만 만진다 → 과제에서는 '''refcnt 를 지키는 lock = 그 버퍼가 속한 버킷의 lock''' 으로 바꿔야 한다.\n\n{tip}\n'''brelse·bpin·bunpin·bget 이 refcnt 를 지킬 때 쓰는 lock 이 반드시 같아야 한다.''' 과제 후 bget 은 버킷 lock 아래에서 refcnt 를 보는데 bunpin 이 아직 전역 lock 을 쓰면, 두 lock 이 다르므로 refcnt++ 와 refcnt-- 가 동시에 일어나 값이 틀어진다 (counter 예제와 같은 lost update) → 언젠가 `panic: bget: no buffers` 또는 사용 중 버퍼 재사용.\n{/tip}\n\n== 7. 왜 contention 이 생기나 ==\n\n`bcachetest` test0 은 프로세스 3개가 '''각자 다른 디렉터리의 다른 파일'''을 1 바이트씩 읽는다. 블록은 전부 다르고 캐시에 다 들어가므로 hit 만 난다. 그런데도 `bget` 첫 줄의 `acquire(&bcache.lock)` 과 `brelse` 의 `acquire(&bcache.lock)` 에 '''셋 다''' 줄 선다 — PDF 예시 `#test-and-set 10273`. 서로 다른 블록을 찾는 lookup 이 같은 lock 을 공유하는 것이 문제이고, 그래서 과제 요구사항이 \"concurrent lookups and releases for '''different blocks''' … are unlikely to conflict on locks\" 다.\n\n{| class=\"table\"\n! || [[kalloc]] || buffer cache\n|-\n| 데이터 || 아무 페이지나 같다 (서로 바꿔 써도 됨) || 블록마다 '''고유''' (블록 7 은 블록 7 이어야 함)\n|-\n| CPU 별로 나눌 수 있나 || ✅ 각 CPU 가 자기 페이지 더미 || ❌ CPU1 이 캐시한 블록을 CPU2 도 '''같은 사본'''으로 봐야 함\n|-\n| 그래서 나누는 기준 || CPU 번호 → [[per-CPU free list]] || '''블록 번호''' → [[bcache 해시 버킷]]\n|}\n\n== 시험 대비 핵심 요약 ==\n\n# bcache 의 두 일: ① 블록 접근 '''동기화'''(블록당 사본 하나, 한 번에 한 스레드) ② 자주 쓰는 블록 '''캐싱'''.\n# 원본 = 버퍼 30개([[NBUF]])의 '''LRU 원형 이중 연결 리스트''' + `bcache.lock` 하나. `head.next` = MRU, `head.prev` = LRU.\n# `bget`: 첫 루프(앞→뒤) hit 찾기 → `refcnt++`. 둘째 루프(뒤→앞) `refcnt == 0` 재사용 → `dev`·`blockno` 갱신, '''`valid = 0`''', `refcnt = 1`.\n# '''\"at most one cached buffer per block\"''' — `bcache.lock` 을 첫 루프부터 둘째 루프의 등록까지 '''계속''' 쥐어 \"확인+등록\"을 atomic 하게.\n# spinlock(`bcache.lock`) = '''어느 블록이 캐시돼 있나''', sleeplock(`b->lock`) = '''버퍼 내용'''. sleeplock 인 이유: 디스크 I/O 동안 오래 쥐므로 spin 하면 CPU 낭비.\n# sleeplock 을 spinlock 밖에서 잡아도 안전한 이유: '''refcnt ≠ 0''' 이라 그 사이 재사용되지 않는다.\n# `brelse`: sleeplock 놓고 → refcnt-- → 0 이면 MRU 로 이동. `bpin`/`bunpin` 은 log 가 커밋 전 버퍼를 붙잡아 두는 refcnt 조정.\n# per-CPU 로 못 나누는 이유: 버퍼는 모든 CPU 가 '''같은 블록 사본을 공유'''해야 한다.\n\n== 관련 문서 ==\n* [[bcache 해시 버킷]] · [[refcnt]] · [[sleeplock]] · [[NBUF]] · [[과제2 xv6 lock]]\n* [[lock contention]] · [[spin lock]] · [[race condition]] · [[영속성]]\n* [[과제2 퀴즈 대비]]"
+ },
+ "bcache 해시 버킷": {
+  "title": "bcache 해시 버킷 — Problem 2 설계",
+  "category": [
+   "과제2",
+   "핵심"
+  ],
+  "body": "'''bcache 해시 버킷'''은 [[과제2 xv6 lock]] Problem 2 의 해법이다. [[buffer cache]] 의 전역 `bcache.lock` 하나를 '''블록 번호로 나눈 해시 버킷마다 lock 하나'''로 바꾸면, 서로 다른 버킷에 속한 블록을 찾고(`bget` hit) 놓는(`brelse`) 프로세스끼리는 부딪히지 않는다. 어려운 부분은 '''miss''' — 빈 버퍼는 다른 버킷에 있을 수 있는데, 그사이에도 \"블록당 사본 하나\" 불변식을 지켜야 한다.\n\n{def}\n\"Modify bget and brelse so that '''concurrent lookups and releases for different blocks''' that are in the bcache are unlikely to conflict on locks … '''You must maintain the invariant that at most one copy of each block is cached.''' You must not increase the number of buffers; there must be exactly '''NBUF (30)''' of them. Your modified cache does not need to use LRU replacement, but it must be able to '''use any of the NBUF struct bufs with zero refcnt''' when it misses in the cache.\" (PDF p.10–11)\n\"We suggest you look up block numbers in the cache with '''a hash table that has a lock per hash bucket'''.\" (PDF p.12)\n{/def}\n\n{analogy}\n🎭 '''사서 한 명이던 도서관을 서가 13개로 나누고 서가마다 사서를 둔다.''' 책 번호를 13 으로 나눈 나머지로 서가가 정해진다. 7번 책과 8번 책을 찾는 손님은 다른 사서에게 가므로 안 기다린다(hit). 문제는 '''찾는 책이 서가에 없을 때'''(miss)다. 빈 자리는 다른 서가에 있을 수 있어서 그 서가 사서에게도 가야 하고, 그동안 다른 손님이 '''같은 책을 먼저 들여놓았을 수도''' 있다. 그래서 \"자리 옮기기\"만 담당하는 '''총괄 사서'''(eviction lock) 한 명을 두고, 총괄 사서 앞에서 '''한 번 더 서가를 확인'''한다.\n{/analogy}\n\n[[anim:bcache_hash|블록 번호 % 13 으로 버킷이 정해지고, 다른 버킷을 찾는 bget 들이 각자의 버킷 lock 만 잡아 동시에 진행되는 모습, 그리고 miss 가 나면 버킷 lock 을 놓고 eviction lock 을 잡은 뒤 다시 찾고 다른 버킷의 빈 버퍼를 옮겨 오는 순서를 본 뒤 아래 시뮬레이터로 들어가라]]\n\n== 1. 왜 per-CPU 가 아니라 해시인가 ==\n\nPDF p.12: \"Reducing contention in the block cache is more tricky than for kalloc, because '''bcache buffers are truly shared among processes''' (and thus CPUs). For kalloc, one could eliminate most contention by giving each CPU its own allocator; '''that won't work for the block cache'''.\"\n\n[[kalloc]] 의 페이지는 아무거나 서로 바꿔 써도 되지만, 블록 7 의 사본은 '''하나'''여야 하고 '''모든 CPU 가 그 하나'''를 봐야 한다. CPU 마다 캐시를 두면 CPU1·CPU2 가 블록 7 을 각자 캐시해 사본이 둘이 된다. 그래서 나누는 기준이 '''CPU''' 가 아니라 '''블록 번호'''다. 같은 블록은 언제나 같은 버킷에 가므로, \"블록 7 이 캐시돼 있나\"는 '''버킷 하나만 보면''' 답할 수 있다. OSTEP 29장 [[concurrent hash table]] 과 똑같은 구조.\n\n== 2. 자료구조 ==\n\nPDF 힌트: \"It is OK to use a fixed number of buckets … Use a '''prime number of buckets (e.g., 13)''' to reduce the likelihood of hashing conflicts.\" / \"'''Remove the list of all buffers''' (bcache.head etc.) and '''don't implement LRU'''. With this change brelse doesn't need to acquire the bcache lock. In bget you can select any block that has refcnt == 0 instead of the least-recently used one.\"\n\n<pre class=\"c\">\n// 스케치 — 이름·배치는 자유. 핵심은 \"버킷 = lock + 리스트 머리\"\n#define NBUCKET 13\n\nstruct {\n  struct spinlock lock;            // (선택) eviction 직렬화 전용 — 이름 \"bcache\"\n  struct buf buf[NBUF];            // 버퍼 30개 그대로 (늘리면 안 됨)\n  struct {\n    struct spinlock lock;          // 이름 \"bcache.bucket\" (또는 \"bcache\" 로 시작하는 아무거나)\n    struct buf head;               // 이 버킷 리스트의 보초 노드\n  } bucket[NBUCKET];\n} bcache;\n\n// 블록 → 버킷:  blockno % NBUCKET\n<\/pre>\n\n<pre class=\"ascii\">\n  blockno % 13\n\n  bucket[0]  lock ─ head ⇄ [blk 26] ⇄ [blk 0? 미사용]\n  bucket[1]  lock ─ head ⇄ [blk 14] ⇄ [blk 1]\n  bucket[2]  lock ─ head ⇄ (비어 있음)\n  bucket[3]  lock ─ head ⇄ [blk 33] ⇄ [blk 46] ⇄ [blk 20]\n  …\n  bucket[12] lock ─ head ⇄ [blk 38]\n  + bcache.lock  ── miss 때 \"빈 버퍼 고르기 + 옮기기\" 만 한 번에 하나씩\n\n  규칙: 버킷 i 리스트의 링크와, 그 안 버퍼들의 dev / blockno / refcnt 는 '''bucket[i].lock''' 이 지킨다.\n        버퍼 내용(data, valid)은 여전히 버퍼마다의 [[sleeplock]].\n<\/pre>\n\n{tip}\n'''왜 소수(13)인가.''' (PDF 근거는 \"to reduce the likelihood of hashing conflicts\" 한 문장뿐이고, 아래는 일반론이다.) `blockno % N` 에서 N 이 2 의 거듭제곱(8, 16)이면 블록 번호의 '''아래 비트만''' 보게 되어, 일정 간격(stride)으로 배치된 블록들(예: inode 블록 · 비트맵 · 데이터 블록이 규칙적으로 떨어진 경우)이 한 버킷에 몰리기 쉽다. 소수로 나누면 그런 규칙적인 패턴이 버킷 전체에 고르게 퍼진다. 그래도 test0 에서 충돌이 보이면 PDF 말대로 \"change the size of your hash table\".\n{/tip}\n\n== 3. bget — hit 경로와 miss 경로 ⭐⭐⭐ ==\n\n=== hit 경로 (거의 모든 호출) ===\n\n<pre class=\"txt\">\nbget(dev, blockno):\n  h = blockno % NBUCKET\n  H1. bucket[h].lock 잡기\n  H2. bucket[h] 리스트에서 (dev, blockno) 찾기\n  H3. 찾으면: refcnt++ → bucket[h].lock 놓기 → acquiresleep(&b->lock) → return b\n<\/pre>\n\n원본 `bget` 첫 루프와 같은 일을 '''버킷 하나 안에서만''' 한다. 다른 블록을 찾는 프로세스는 다른 `h` 의 lock 을 잡으므로 test0 의 contention 이 사라진다. H3 의 순서(refcnt++ → spinlock 놓기 → sleeplock)는 원본과 같다 — [[refcnt]] 가 두 lock 사이의 다리.\n\n=== miss 경로 — \"놓고, 직렬화하고, 다시 찾는다\" ===\n\nPDF 힌트 셋이 이 경로의 설계 그 자체다:\n* \"Searching in the hash table for a buffer and allocating an entry for that buffer when the buffer is not found '''must be atomic'''.\"\n* \"You probably won't be able to atomically check for a cached buf and (if not cached) find an unused buf; you will likely have to '''drop all locks and start from scratch''' if the buffer isn't in the cache. It is OK to '''serialize finding an unused buf''' in bget.\"\n* \"Your solution might need to hold two locks in some cases; for example, during eviction you may need to hold the bcache lock and a lock per bucket. '''Make sure you avoid deadlock.'''\"\n\n<pre class=\"txt\">\n  (H2 에서 못 찾음)\n  M1. bucket[h].lock 놓기                      ← 버킷 lock 을 쥔 채 bcache.lock 을 기다리면 안 된다 (4절 규칙 1)\n  M2. bcache.lock 잡기                         ← 이제부터 miss 처리는 한 번에 한 프로세스\n  M3. bucket[h].lock 잡고 '''한 번 더 찾기'''      ← M1~M2 사이에 누가 같은 블록을 넣었을 수 있다\n        찾으면: refcnt++ → 버킷 lock·bcache.lock 놓기 → acquiresleep → return\n  M4. 그래도 없으면: refcnt == 0 인 버퍼를 고른다\n        · 먼저 bucket[h] 안에서 (이미 쥐고 있으므로 lock 추가 없음)\n        · 없으면 다른 버킷 k 를 차례로: 그 버킷의 lock 아래에서 refcnt == 0 을 확인하고 떼어 낸다\n  M5. 고른 버퍼를 bucket[h] 에 붙이고 dev, blockno, valid = 0, refcnt = 1 설정  (bucket[h].lock 아래)\n  M6. 버킷 lock 들, bcache.lock 놓기 → acquiresleep(&b->lock) → return\n  M7. 30 개 전부 refcnt > 0 이면 panic(\"bget: no buffers\")  (원본과 같은 동작)\n<\/pre>\n\n[[sim:bget_trace]]\n\n==== M3 — 왜 다시 찾나 ====\n\n<pre class=\"ascii\">\n  재검색이 없으면 (2025 제출물의 ①→② 틈):\n\n  P: H1 bucket[7] 잡음 → 블록 B 없음 → M1 놓음 ┐\n  Q:                                           └→ H1 bucket[7] 잡음 → B 없음 → 놓음\n  P: 빈 버퍼 x 에 B 등록\n  Q: 빈 버퍼 y 에 B 등록                         ⇒  bucket[7]: … ⇄ [x: B] ⇄ [y: B]   ✗ 사본 둘\n\n  재검색이 있으면:\n  P: miss → bcache.lock 잡음 → 다시 찾기: 없음 → x 에 B 등록 → bcache.lock 놓음\n  Q: miss → bcache.lock 기다림 ………………………………→ 잡음 → 다시 찾기: '''x 에 B 있음''' → refcnt++ ✓\n<\/pre>\n\n핵심은 '''\"새 블록을 캐시에 등록하는 일\"은 bcache.lock 아래에서만 일어난다'''는 것이다. 그러므로 bcache.lock 을 잡은 뒤의 재검색 결과는 내가 bcache.lock 을 놓을 때까지 '''변하지 않는다''' — 다른 누구도 B 를 새로 넣을 수 없다. 이게 \"찾기 + 없으면 할당\"을 atomic 하게 만드는 방법이다. 원본은 lock 하나로 두 루프를 감쌌고, 과제 후에는 '''eviction lock 으로 \"등록\"을 직렬화 + 그 안에서 재검색'''으로 같은 효과를 낸다.\n\n==== M4 — 다른 버킷에서 빌려 오기 ====\n\n* refcnt 는 그 버퍼가 속한 버킷의 lock 이 지킨다. 그러니 '''버킷 k 의 lock 을 쥐고''' refcnt == 0 을 확인하고, '''같은 lock 을 쥔 채''' 리스트에서 떼어 내야 한다. 확인과 떼어 내기 사이에 lock 을 놓으면, 그 틈에 누가 hit 해서 refcnt++ 한 버퍼를 훔쳐 오게 된다.\n* 떼어 낸 버퍼는 아직 옛 블록 X 의 이름을 갖고 있다. 이것을 bucket[h] 에 붙이며 이름을 B 로 바꾼다. 떼어 냄 ~ 붙임 사이에 X 를 찾는 프로세스는 X 를 못 찾고 miss 경로로 가는데, bcache.lock 에서 기다렸다가 재검색하면 X 는 이미 사라진 뒤라 새 버퍼에 X 를 등록한다 — 사본은 여전히 하나. (eviction 이 직렬화돼 있기 때문에 이 틈이 무해하다.)\n* PDF 요구: '''\"any of the NBUF struct bufs with zero refcnt\"''' — 내 버킷에 빈 버퍼가 없다고 포기하면 안 된다. 30 개 중 어디에 있든 찾아야 test3(\"generate big log transactions to check that bget() can make use of any of the NBUF buffers for any block number\")이 통과한다.\n\n== 4. lock 순서 규칙 ⭐⭐⭐ ==\n\n{| class=\"table\"\n! 규칙 || 내용 || 어기면\n|-\n| '''1. bcache.lock → 버킷 lock''' || 둘 다 필요하면 항상 bcache.lock 을 '''먼저'''. 버킷 lock 을 쥔 채 bcache.lock 을 기다리지 않는다 (그래서 M1 에서 놓는다) || P 가 bucket[h] 쥐고 bcache.lock 대기, E 가 bcache.lock 쥐고 bucket[h] 대기 → deadlock\n|-\n| '''2. 버킷 lock 두 개''' || 동시에 쥐는 것은 '''bcache.lock 을 쥔 eviction 경로만'''. 그 밖의 경로(hit, brelse, bpin, bunpin)는 버킷 lock 을 '''하나만''' 쥐고, 쥔 채 다른 spinlock 을 기다리지 않는다 || 두 evictor 가 서로의 버킷을 원하면 circular wait. eviction 을 직렬화하지 않는 설계라면 '''버킷 번호 작은 것 먼저'''로 고정해야 한다\n|-\n| '''3. 같은 버킷이면 한 번만''' || 빌려 올 버킷 k 가 내 버킷 h 와 같으면 lock 을 '''다시 잡지 않는다''' || `acquire` 65줄 `if(holding(lk)) panic(\"acquire\");` — '''즉시 panic''' (자기 자신과의 deadlock 을 xv6 가 잡아 준 것)\n|-\n| '''4. spinlock 을 쥔 채 잠들지 않는다''' || `acquiresleep` 은 모든 spinlock 을 놓은 뒤에 || `sched()` 에서 `panic(\"sched locks\")`\n|}\n\n<pre class=\"ascii\">\n  허용되는 lock 그래프 (화살표 = \"쥔 채로 기다려도 되는 방향\")\n\n        bcache.lock ─────▶ bucket[h] ─────▶ bucket[k]     (k ≠ h, eviction 경로에서만)\n             ▲                 │\n             └────── ✗ ───────┘   ← 이 방향(버킷 쥐고 bcache.lock 기다림)이 생기면 고리 = deadlock\n\n  hit / brelse / bpin / bunpin:   bucket[h] 하나만  (기다리는 다른 spinlock 없음)\n<\/pre>\n\nPDF Tips 의 문장 그대로: \"You may want to prevent the deadlock by '''preventing the circular wait (i.e., ordering the locks)'''.\" → 12강 [[lock ordering]], [[데드락 4조건]]\n\n{warn}\n'''same-bucket 함정''' (PDF: \"the new block might hash to the same bucket as the old block. Make sure you avoid deadlock in that case.\") — 블록 B(→ 버킷 h)를 위해 빈 버퍼를 찾다가 그 버퍼가 '''이미 버킷 h''' 에 있는 경우. \"옛 버킷 lock 잡고 떼어 내기 → 새 버킷 lock 잡고 붙이기\"를 기계적으로 짜면 bucket[h] 를 두 번 잡게 된다.\n<pre class=\"c\">\n/* ✗ 함정 예시 — h == k 를 안 거름 */\nacquire(&bcache.bucket[h].lock);       /* 이미 쥐고 있는데 */\n...\nacquire(&bcache.bucket[k].lock);       /* k == h 이면 → panic: acquire */\n<\/pre>\n`k == h` 를 따로 처리(이미 쥔 lock 이니 그냥 그 자리에서 이름만 바꾸기)하거나, 내 버킷을 먼저 뒤지는 순서(M4 첫 줄)로 설계하면 자연스럽게 피해진다.\n{/warn}\n\n== 5. brelse, bpin, bunpin ==\n\n* LRU 를 버렸으므로 `brelse` 는 '''sleeplock 놓기 → 자기 버킷 lock 아래 refcnt-- → 놓기''' 가 전부다. 전역 lock 을 안 잡는다 — 그래서 test0 의 brelse 쪽 contention 도 사라진다.\n* 버킷 번호는 `b->blockno % NBUCKET`. lock 없이 `b->blockno` 를 읽어도 되나? — '''된다.''' 호출자가 이 버퍼를 쥐고 있으므로 refcnt ≥ 1 이고, refcnt ≥ 1 인 버퍼는 eviction 대상이 아니라 `blockno` 가 바뀌지 않는다.\n* `bpin`/`bunpin` 도 같은 패턴: '''자기 버킷 lock''' 아래 refcnt++/--. 전역 lock 을 그대로 두면 bget 과 다른 lock 으로 refcnt 를 만지게 되어 lost update ([[buffer cache]] 6절 tip).\n\n== 6. binit — 처음 배치 ==\n\n* 버킷 13 개의 lock 을 `\"bcache…\"` 이름으로 init, 각 head 를 빈 원형 리스트로.\n* 버퍼 30 개를 '''어딘가''' 버킷에 넣는다. 전부 버킷 0 에 넣든(2025 제출물), 돌아가며 나눠 넣든 상관없다 — miss 때 '''어느 버킷의''' refcnt==0 버퍼든 가져올 수 있으므로 시간이 지나면 저절로 퍼진다.\n* 각 버퍼의 sleeplock 은 원본처럼 `initsleeplock(&b->lock, \"buffer\")`.\n* 처음엔 모든 버퍼가 `dev = 0, blockno = 0` 이라 키가 겹치지만 무해하다 — xv6 의 디스크는 `ROOTDEV = 1` 이라 dev 0 을 찾는 bget 이 없고, `valid = 0` 이기도 하다.\n\n== 7. 허용되는 conflict 세 가지 (PDF p.12) ==\n\n{| class=\"table\"\n! 경우 || 왜 피할 수 없나 || test0 에서\n|-\n| 두 프로세스가 '''같은 블록 번호'''를 동시에 쓸 때 || 같은 블록 = 같은 버킷 = 같은 lock. 블록 사본이 하나이니 당연 || 안 일어남 (\"test0 doesn't ever do this\")\n|-\n| 두 프로세스가 동시에 '''miss''' 해서 빈 버퍼를 찾을 때 || eviction 을 직렬화했으므로 bcache.lock 에서 만남 || 안 일어남\n|-\n| 블록 번호가 '''같은 버킷으로 해시'''될 때 || 분할 방식의 한계 || '''일어날 수 있음''' → 버킷 수를 바꿔 조정 (\"change the size of your hash table\")\n|}\n\n== 8. 2025 제출물의 bget 버그 ⭐⭐ ==\n\n작년 풀이(올해와 같은 브랜치·같은 채점기)는 버킷 13 개, `\"bcache.bucket%d\"` 이름, 전부 버킷 0 에서 시작 — 구조는 맞았다. 그러나 `bget` 의 miss 경로가 atomic 하지 않았다.\n\n<pre class=\"txt\">\nacquire(bucket); 찾기 → 없으면 release(bucket);           ① 여기서 lock 을 놓는다\nacquire(bucket); refcnt==0 인 것 재사용 → …             ② 다시 잡았지만 '그 사이 누가 같은 블록을 넣었는지' 재확인 안 함\nfor(다른 버킷) { acquire(old); 찾음 → 떼어 냄; release(old);\n                 acquire(bucket); 붙임; release(bucket); }  ③ old 를 놓고 bucket 을 잡기 전 틈\n<\/pre>\n\n{| class=\"table\"\n! 틈 || 무엇이 잘못되나\n|-\n| ①→② || P, Q 가 같은 블록 B 를 동시에 찾다가 둘 다 \"없음\"으로 lock 을 놓는다 → 각자 빈 버퍼를 하나씩 잡아 '''B 가 캐시에 두 개'''\n|-\n| ③ || 떼어 냈지만 아직 새 버킷에 안 붙은 순간에 다른 프로세스가 새 버킷을 뒤지면 B 를 못 찾고 또 하나 만든다 — eviction 직렬화(bcache.lock)가 없어서 이 틈이 위험해진다\n|}\n\n'''그런데 이 코드도 `make grade` 100/100 이 나온다'''(2026-10-22 실측). 왜 bcachetest 가 못 잡나?\n* test0 은 프로세스마다 '''다른 파일'''을 읽는다 — 같은 블록 동시 miss 가 원리상 없다.\n* test1 은 큰 파일 하나를 읽는 프로세스와 작은 파일 하나를 읽는 프로세스 — 블록이 겹치지 않는다.\n* test2·test3 은 같은 디렉터리 `d2` 에 동시에 create/write 해서 '''디렉터리·inode·비트맵 블록'''은 공유하지만, 이런 블록은 늘 쓰이는 중이라 '''대부분 hit''' 이다. 같은 블록을 '''동시에 miss''' 하려면 ① 그 블록이 막 쫓겨났고 ② 두 프로세스가 수 명령어 차이로 동시에 찾아야 한다 — 창이 매우 좁다.\n* 사본 두 개가 생겨도 '''바로 티가 나지 않는다''' — 한쪽의 쓰기가 사라지는 것은 나중에 파일 내용 검사에서나 드러난다.\n\n즉 '''테스트 통과 ≠ 정확성'''. 과제 요구사항(\"You must maintain the invariant that at most one copy of each block is cached\")과 힌트(\"must be atomic\")를 위반한 코드이고, 퀴즈에서 \"왜 miss 후에 다시 찾아야 하나\"를 물으면 이 코드로는 답할 수 없다. 9강 [[race condition]] 의 교훈 — 인터리빙 버그는 테스트로 증명할 수 없다 — 그대로.\n\n== 9. 디버깅 팁 ==\n\nPDF p.13 그대로, 순서가 중요하다.\n\n# '''먼저 직렬화된 상태에서 맞추기''': 버킷과 버킷 lock 을 다 만들되, '''전역 bcache.lock 의 acquire/release 를 bget 처음·끝에 그대로 남긴다'''. 이러면 동시성 문제 없이 \"해시·옮기기·refcnt\" 로직만 검증할 수 있다. `bcachetest` test1~3 과 `usertests -q` 가 통과해야 다음 단계로.\n# '''코어 1 개로 돌려 보기''': `make CPUS=1 qemu`. 여기서 실패하면 동시성이 아니라 '''로직''' 버그다.\n# '''그다음 전역 lock 을 줄이기''': hit 경로에서 빼고 miss 경로(M2~M6)에만 남긴다. 4절 규칙을 하나씩 확인.\n# '''race detector''': `make clean; make KCSAN=1 qemu` → `bcachetest`. 느리다.\n\n{| class=\"table\"\n! 증상 || 원인 후보\n|-\n| `panic: acquire` || 같은 버킷 lock 두 번 (4절 규칙 3), 또는 이미 쥔 bcache.lock 다시\n|-\n| `panic: release` || 안 쥔 lock 을 놓음 — 예: hit 경로에서 bcache.lock 을 안 잡았는데 놓음\n|-\n| `panic: sched locks` || spinlock 을 쥔 채 `acquiresleep` (규칙 4)\n|-\n| 멈춤 (무응답) || 규칙 1 위반 — 버킷 lock 쥔 채 bcache.lock 대기\n|-\n| `panic: bget: no buffers` || brelse/bpin/bunpin 이 refcnt 를 '''다른 버킷 lock''' 으로 만짐, 또는 다른 버킷의 빈 버퍼를 못 찾음\n|-\n| test0 FAIL (tot ≥ 500) || hit 경로가 아직 전역 lock 을 잡음 / brelse 가 전역 lock / 버킷 충돌\n|-\n| test0 OK 인데 bcache lock 이 출력에 안 보임 || 버킷 lock 이름이 \"bcache\" 로 시작하지 않음\n|}\n\n== 시험 대비 핵심 요약 ==\n\n# bcache 는 per-CPU 로 못 나눈다 — 버퍼는 모든 CPU 가 '''같은 블록 사본'''을 공유. 그래서 '''블록 번호'''로 나눈다: `blockno % 13`(소수 → 충돌 감소) 버킷마다 lock.\n# 모든 lock 이름은 '''\"bcache\"''' 로 시작. 버퍼는 정확히 '''[[NBUF]] = 30''' 개. LRU 는 버린다 → brelse 는 버킷 lock 만.\n# hit: 버킷 lock → 찾기 → refcnt++ → 버킷 lock 놓기 → `acquiresleep`.\n# miss: '''버킷 lock 놓기 → bcache.lock(eviction 전용) → 버킷 lock 잡고 다시 찾기''' → 없으면 '''어느 버킷이든''' refcnt==0 버퍼를 그 버킷 lock 아래에서 떼어 와 내 버킷에 붙이고 `valid = 0`, `refcnt = 1`.\n# 다시 찾는 이유: 놓은 틈에 다른 프로세스가 같은 블록을 넣었을 수 있다 → 안 찾으면 '''사본 둘'''. 새 블록 등록이 bcache.lock 아래에서만 일어나므로, 그 안의 재검색은 믿을 수 있다.\n# lock 순서: '''bcache.lock → 버킷 lock''' (반대 금지). 버킷 둘은 eviction 경로에서만. '''같은 버킷이면 한 번만''' — 아니면 `panic: acquire`.\n# 허용되는 conflict: 같은 블록 / 동시 miss / 같은 버킷 해시 (PDF p.12).\n# 2025 풀이는 miss 경로에 재검색이 없어 사본 둘이 가능하지만 bcachetest 는 같은 블록 동시 miss 를 거의 안 만들어 '''100점이 나온다''' — 테스트 통과 ≠ 정확성.\n\n== 관련 문서 ==\n* [[buffer cache]] · [[refcnt]] · [[sleeplock]] · [[NBUF]] · [[과제2 xv6 lock]]\n* [[concurrent hash table]] · [[lock contention]] · [[race condition]]\n* [[lock ordering]] · [[데드락 4조건]] · [[hold and wait 방지]] · [[데드락]]\n* [[과제2 퀴즈 대비]]"
+ },
+ "과제2 퀴즈 대비": {
+  "title": "과제 2 퀴즈 대비 — 예상문제",
+  "category": [
+   "과제2",
+   "시험"
+  ],
+  "body": "과제 1 때 '''2026-09-23 퀴즈 1 은 100점 전부가 [[과제1 xv6 alarm|과제 1]] 에서 나왔다''' — 이론 문제는 하나도 없었다([[퀴즈1 복기]]). 형식은 15분, '''한 문장 서술'''(\"Limit each written explanation to one sentence\"), '''코드 빈칸''', '''출력·상태 추적'''. 과제 2 퀴즈(일정 미공지)도 같은 방식이라고 보고, [[과제2 xv6 lock]] 에서 \"코드를 돌아가게 만든 사람\"과 \"이해한 사람\"을 가르는 지점을 문제로 만들었다.\n\n{analogy}\n🎭 퀴즈 1 은 '''\"채점기 80점과 퀴즈 100점은 다른 시험\"''' 임을 보여 줬다. 과제 2 도 마찬가지다 — 2025 제출물은 bget 에 race 가 있는데도 채점기 100점을 받았다([[bcache 해시 버킷]] 8절). 채점기는 '''동작'''을 보고, 퀴즈는 '''이유'''를 본다. 아래 문제를 한 문장으로 답할 수 없다면, 코드가 통과했어도 아직 끝난 게 아니다.\n{/analogy}\n\n<pre class=\"ascii\">\n  퀴즈 1 의 배분 (실제)                      과제 2 에 대응시키면\n  ─────────────────────────────────          ───────────────────────────────────────────\n  1. 개념 한 문장 (10)                        → A. 개념 한 문장 (Q1~Q8)\n  2. 코드 빈칸 3개 (20)                        → B. 코드 빈칸 (Q9~Q12)\n  3. 왜 필요한가 (a)(b)(c) (20)                → A 와 같은 형식\n  4. 값 추적 (20)                              → C. 출력 해석·값 추적 (Q13~Q15)\n  5. 프로그램 출력 예측 (30)                   → D. 인터리빙·deadlock 시나리오 (Q16~Q19)\n<\/pre>\n\n== A. 개념 — 한 문장으로 ==\n\n{quiz}\n'''Q1.''' `kalloctest` 가 출력하는 `#test-and-set` 과 `#acquire()` 는 각각 무엇을 세는가? 어느 쪽이 lock contention 의 척도인가?\n{/quiz}\n{answer}\n`#acquire()` 는 그 lock 의 `acquire()` '''호출 횟수'''(`lk->n`)이고, `#test-and-set` 은 `while(__sync_lock_test_and_set(&lk->locked, 1) != 0)` 루프가 '''이미 다른 CPU 가 쥔 lock 때문에 실패해서 다시 돈 횟수'''(`lk->nts`)이며, contention 척도는 '''`#test-and-set`''' 이다. → [[lock contention]]\n{/answer}\n\n{quiz}\n'''Q2.''' 과제는 모든 lock 이름을 \"kmem\" 또는 \"bcache\" 로 시작하라고 요구한다. 왜 이것이 채점에 직결되는가?\n{/quiz}\n{answer}\n커널의 `statslock()` 이 '''`strncmp(name, \"kmem\", 4)` / `strncmp(name, \"bcache\", 6)` 으로 이름 접두어가 맞는 lock 의 `nts` 만 `tot` 에 합산'''하고 테스트는 그 `tot` 증가량으로 OK/FAIL 을 정하기 때문이다. (이름이 다르면 그 lock 의 contention 은 아예 측정되지 않는다.)\n{/answer}\n\n{quiz}\n'''Q3.''' `cpuid()` 의 결과를 쓰기 전에 왜 `push_off()` 로 인터럽트를 꺼야 하는가?\n{/quiz}\n{answer}\n인터럽트가 켜져 있으면 `cpuid()` 직후 '''타이머 인터럽트 → yield 로 프로세스가 다른 CPU 로 옮겨져''' 지역 변수에 남은 CPU 번호가 지금 CPU 와 달라질 수 있기 때문이다. → [[cpuid]]\n{/answer}\n\n{quiz}\n'''Q4.''' free list 를 CPU 마다 따로 두었는데도 각 리스트에 여전히 lock 이 필요한 이유는?\n{/quiz}\n{answer}\n'''내 리스트가 빈 다른 CPU 가 steal 하러 와서 내 리스트를 동시에 만질 수 있기 때문'''이다 (또 cpuid 결과가 낡으면 두 CPU 가 같은 리스트를 쓸 수도 있다). → [[steal]]\n{/answer}\n\n{quiz}\n'''Q5.''' per-CPU 방식이 kalloc 에는 통하는데 buffer cache 에는 통하지 않는 이유는? 대신 무엇으로 나누는가?\n{/quiz}\n{answer}\nfree page 는 아무거나 서로 바꿔 써도 되지만 '''버퍼는 모든 CPU 가 같은 블록의 단 하나의 사본을 공유해야''' 해서 CPU 별 캐시를 두면 사본이 여럿 생기므로, CPU 번호 대신 '''블록 번호(해시 버킷 `blockno % 13`)''' 로 나눈다. → [[bcache 해시 버킷]] 1절\n{/answer}\n\n{quiz}\n'''Q6.''' 원본 `bget` 은 \"at most one cached buffer per block\" 불변식을 어떻게 보장하는가?\n{/quiz}\n{answer}\n'''`bcache.lock` 을 첫 루프(캐시돼 있나 확인)부터 둘째 루프의 등록(dev·blockno·refcnt 설정)까지 계속 쥐어''' \"확인 + 없으면 자리 잡기\"를 atomic 하게 만든다. → [[buffer cache]] 4절\n{/answer}\n\n{quiz}\n'''Q7.''' `bget` 이 `b->lock`(sleeplock)을 `bcache.lock` 을 '''놓은 뒤에''' 잡아도 안전한 이유는? 그리고 왜 버퍼 lock 은 spinlock 이 아니라 sleeplock 인가?\n{/quiz}\n{answer}\n놓기 전에 '''`refcnt` 를 올려 두었으므로 그 사이 버퍼가 다른 블록으로 재사용되지 않고''', 버퍼 lock 은 '''디스크 I/O 동안 오래 쥐어야 해서 spin 하면 CPU 를 낭비'''하므로 기다리는 쪽이 잠드는 sleeplock 이다. → [[refcnt]], [[sleeplock]]\n{/answer}\n\n{quiz}\n'''Q8.''' 해시 버킷 수로 13 같은 소수를 권하는 이유는? 그래도 두 블록이 같은 버킷에 가면 어떻게 되는가?\n{/quiz}\n{answer}\n`blockno % N` 에서 N 이 소수면 규칙적인 간격의 블록 번호들이 '''한 버킷에 몰리지 않고 고르게 퍼져''' 충돌이 줄며, 같은 버킷에 가면 '''그 버킷 lock 에서 contention 이 생기는데 이는 PDF 가 허용하는 경우'''(필요하면 버킷 수 조정)다.\n{/answer}\n\n== B. 코드 빈칸 ==\n\n{quiz}\n'''Q9.''' 원본 `kernel/kalloc.c` 의 `kfree`. 빈칸 (a)(b)(c) 를 채워라.\n<pre class=\"c\">\nvoid\nkfree(void *pa)\n{\n  struct run *r;\n  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)\n    panic(\"kfree\");\n  memset(pa, __(a)__, PGSIZE);     // Fill with junk to catch dangling refs.\n  r = (struct run*)pa;\n  acquire(&kmem.lock);\n  r->next = __(b)__;\n  kmem.freelist = __(c)__;\n  release(&kmem.lock);\n}\n<\/pre>\n{/quiz}\n{answer}\n(a) `1` (kalloc 은 5 로 채운다) (b) `kmem.freelist` (c) `r` — 리스트 '''맨 앞(head)에 push'''. `memset` 이 lock '''밖'''에 있다는 것도 볼 것. → [[kalloc]] 3절\n{/answer}\n\n{quiz}\n'''Q10.''' 원본 `bget` 둘째 루프. 빈칸을 채우고, (c) 가 빠지면 어떤 일이 생기는지 한 문장으로.\n<pre class=\"c\">\nfor(b = bcache.head.prev; b != &bcache.head; b = b->prev){\n  if(b->refcnt == __(a)__) {\n    b->dev = dev;\n    b->blockno = blockno;\n    b->valid = __(c)__;\n    b->refcnt = __(b)__;\n    release(&bcache.lock);\n    acquiresleep(&b->lock);\n    return b;\n  }\n}\n<\/pre>\n{/quiz}\n{answer}\n(a) `0` (b) `1` (c) `0`. (c) 가 빠지면 `bread` 가 `valid == 1` 로 보고 디스크를 읽지 않아 '''옛 블록의 내용을 새 블록인 것처럼 돌려준다'''. 그리고 루프가 `prev` 방향(LRU 쪽부터)이라는 것도 빈칸 후보다. → [[buffer cache]] 3절\n{/answer}\n\n{quiz}\n'''Q11.''' Problem 1 설계에서 `kfree` 가 지금 CPU 의 리스트를 고르는 부분이다. 빈칸 (a)(b)(c) 를 채워라.\n<pre class=\"c\">\n__(a)__;\nint id = __(b)__;\nacquire(&kmem[id].lock);\n/* id 번 리스트 head 에 push */\nrelease(&kmem[id].lock);\n__(c)__;\n<\/pre>\n{/quiz}\n{answer}\n(a) `push_off()` (b) `cpuid()` (c) `pop_off()`. `acquire` 도 내부에서 `push_off` 를 하지만, '''cpuid 를 읽는 순간은 acquire 보다 앞'''이므로 그 전에 따로 꺼야 한다. `push_off`/`pop_off` 는 중첩을 세므로 겹쳐도 안전하다. → [[cpuid]]\n{/answer}\n\n{quiz}\n'''Q12.''' Problem 2 의 `bget` miss 경로 순서다. 빈칸에 들어갈 동작을 쓰라.\n<pre class=\"txt\">\n1. bucket[h].lock 잡고 찾기 → 없음\n2. ____(a)____\n3. bcache.lock 잡기\n4. bucket[h].lock 잡고 ____(b)____\n5. 없으면 어느 버킷이든 refcnt == ____(c)____ 인 버퍼를 그 버킷 lock 아래에서 떼어 와 bucket[h] 에 붙임\n6. dev, blockno 설정, valid = 0, refcnt = 1\n7. 모든 spinlock 놓고 ____(d)____\n<\/pre>\n{/quiz}\n{answer}\n(a) '''bucket[h].lock 놓기''' — 버킷 lock 을 쥔 채 bcache.lock 을 기다리면 lock 순서가 뒤집혀 deadlock. (b) '''한 번 더 찾기''' — 1~3 사이에 누가 같은 블록을 넣었을 수 있다. (c) `0` (d) `acquiresleep(&b->lock)` 후 반환. → [[bcache 해시 버킷]] 3절\n{/answer}\n\n== C. 출력 해석 · 값 추적 ==\n\n{quiz}\n'''Q13.''' 원본 커널에서 `kalloctest` 를 돌렸더니 다음이 나왔다. test1 은 OK 인가 FAIL 인가? 판정 기준을 소스 그대로 쓰라.\n<pre class=\"txt\">\nstart test1\ntest1 results:\n--- lock kmem/bcache stats\nlock: kmem: #test-and-set 83375 #acquire() 433015\nlock: bcache: #test-and-set 0 #acquire() 1260\n...\ntot= 83375\n<\/pre>\n{/quiz}\n{answer}\n'''FAIL.''' kalloctest.c 의 판정은 `if(n-m < 10) printf(\"test1 OK\\n\");` — 테스트 시작 전 `tot`(m)과 끝난 뒤 `tot`(n)의 차이가 '''10 미만'''이어야 한다. 원본은 lock 이 `kmem` 하나뿐이라 8만 번 넘게 헛돌았다. (test3 기준은 `n-m < 10000`, bcachetest test0 은 `n-m < 500`.)\n{/answer}\n\n{quiz}\n'''Q14.''' Problem 1 을 끝낸 커널에서 `make CPUS=1 qemu` 로 `kalloctest` 를 돌리면 kmem lock 들의 `#test-and-set` 은 어떻게 되는가? 이 실행으로 contention 이 해결됐다고 말할 수 있는가?\n{/quiz}\n{answer}\n'''전부 0''' 이다 — CPU 가 하나면 lock 을 쥔 CPU 와 기다리는 CPU 가 동시에 있을 수 없어 test-and-set 이 실패하지 않는다(쥔 채로 인터럽트도 꺼져 있다). 그래서 CPUS=1 은 '''로직 정확성 확인용'''일 뿐 contention 측정으로는 아무것도 증명하지 못한다. → [[lock contention]] 1절\n{/answer}\n\n{quiz}\n'''Q15.''' 부팅 직후 CPU0, CPU1, CPU2 의 free list 길이는 대략 어떻게 되는가? CPU1 에서 처음 `kalloc()` 이 불리면 무슨 일이 일어나는가?\n{/quiz}\n{answer}\n`kinit` → `freerange` → `kfree` 가 '''CPU0 에서만''' 실행되므로 CPU0 리스트에 거의 전부(약 32000 쪽), CPU1·CPU2 는 '''0''' 이다. CPU1 의 첫 `kalloc` 은 자기 리스트가 비어 있으므로 '''CPU0 의 리스트에서 steal''' 한다 — 그리고 그 페이지가 CPU1 에서 kfree 되면 CPU1 리스트로 들어가 이후로는 자급자족한다. → [[per-CPU free list]]\n{/answer}\n\n== D. 인터리빙 · deadlock 시나리오 ==\n\n{quiz}\n'''Q16.''' 다음 steal 구현에서 CPU0 과 CPU1 의 리스트가 둘 다 비어 있다. 두 CPU 가 동시에 `kalloc` 을 부르면 어떻게 되는가? 고치는 방법 두 가지를 쓰라.\n<pre class=\"c\">\n/* ✗ 잘못된 예 */\nacquire(&kmem[id].lock);\nif(kmem[id].freelist == 0){\n  for(int j = 0; j < NCPU; j++){\n    if(j == id) continue;\n    acquire(&kmem[j].lock);     /* 내 lock 을 쥔 채 남의 lock 대기 */\n    /* … kmem[j] 에서 옮겨 오기 … */\n    release(&kmem[j].lock);\n  }\n}\n...\n<\/pre>\n{/quiz}\n{answer}\nCPU0 은 kmem[0] 을 쥐고 kmem[1] 을, CPU1 은 kmem[1] 을 쥐고 kmem[0] 을 기다려 '''circular wait → deadlock''' (둘 다 spin 하며 영원히 멈춤). 고치는 법: ① '''lock 을 항상 번호 작은 것 먼저''' 잡는다([[lock ordering]] — circular wait 깨기). ② '''내 lock 을 놓은 뒤''' 남의 lock 만 잡고 페이지를 떼어 온다(한 번에 lock 하나 — [[hold and wait 방지]]).\n{/answer}\n\n{quiz}\n'''Q17.''' Problem 2 에서 블록 40 (→ 버킷 40 % 13 = 1)이 miss 났다. 빈 버퍼를 찾다 보니 refcnt == 0 인 버퍼가 블록 27 (→ 27 % 13 = 1)의 사본이었다. \"옛 버킷 lock 을 잡고 떼어 낸다\" 를 그대로 실행하면 어떻게 되는가?\n{/quiz}\n{answer}\n옛 버킷과 새 버킷이 '''둘 다 1''' 이라 이미 쥔 `bucket[1].lock` 을 다시 `acquire` 하게 되고, xv6 의 `acquire` 는 `if(holding(lk)) panic(\"acquire\");` 이므로 '''즉시 `panic: acquire`''' 다. 같은 버킷이면 lock 을 다시 잡지 말고 그 자리에서 이름만 바꿔야 한다. → [[bcache 해시 버킷]] 4절 same-bucket 함정\n{/answer}\n\n{quiz}\n'''Q18.''' 2025 제출물의 bget 은 miss 시 버킷 lock 을 놓았다가 다시 잡은 뒤 '''재검색 없이''' 빈 버퍼를 재사용한다. 프로세스 P, Q 가 같은 블록 B 를 동시에 읽을 때 문제가 되는 인터리빙을 쓰고, 그 결과 무엇이 깨지는지 한 문장으로.\n{/quiz}\n{answer}\nP: 버킷 lock 잡고 B 없음 → 놓음 / Q: 버킷 lock 잡고 B 없음 → 놓음 / P: 빈 버퍼 x 에 B 등록 / Q: 빈 버퍼 y 에 B 등록. 결과 '''B 의 사본이 x, y 두 개가 되어 \"at most one cached buffer per block\" 불변식이 깨지고''', 한쪽이 쓴 내용을 다른 쪽이 보지 못한다. (그런데도 bcachetest 는 같은 블록 동시 miss 를 거의 만들지 않아 100점이 나온다.)\n{/answer}\n\n{quiz}\n'''Q19.''' miss 경로에서 bucket[h].lock 을 '''쥔 채로''' `acquire(&bcache.lock)` 을 하면 왜 deadlock 이 생길 수 있는가? 관여하는 두 프로세스를 들어 설명하라.\n{/quiz}\n{answer}\n프로세스 E 가 eviction 중이라 '''bcache.lock 을 쥐고 bucket[h].lock 을 기다리는데''', 프로세스 P 가 '''bucket[h].lock 을 쥐고 bcache.lock 을 기다리면''' 서로가 상대의 lock 을 기다리는 고리가 된다. 규칙: '''bcache.lock → 버킷 lock''' 한 방향만 허용 (그래서 miss 시 버킷 lock 을 먼저 놓는다).\n{/answer}\n\n{quiz}\n'''Q20.''' 과제 후 `bunpin` 을 원본 그대로(전역 `bcache.lock` 아래에서 `refcnt--`) 두고, `bget` 은 버킷 lock 아래에서 `refcnt++` 하도록 바꿨다. 무엇이 잘못될 수 있는가?\n{/quiz}\n{answer}\n두 함수가 '''서로 다른 lock 으로 같은 `refcnt` 를 고치므로''' 동시에 실행되면 counter 예제처럼 '''lost update''' 가 생겨 refcnt 값이 틀어진다 — 사용 중인 버퍼가 0 으로 보여 재사용되거나, 영원히 0 이 안 돼 결국 `panic: bget: no buffers`. 같은 데이터는 '''같은 lock''' 으로 지켜야 한다. → [[refcnt]]\n{/answer}\n\n== 정리 — 한 문장 답안 모음 ==\n\n{| class=\"table\"\n! 질문 || 한 문장\n|-\n| #test-and-set? || acquire 의 test-and-set 루프가 다른 CPU 가 쥔 lock 때문에 실패해 다시 돈 횟수 = contention\n|-\n| 이름 \"kmem\"/\"bcache\"? || statslock 이 그 접두어의 lock 만 tot 에 합산한다\n|-\n| cpuid 전 push_off? || 인터럽트로 다른 CPU 로 옮겨지면 번호가 낡는다\n|-\n| per-CPU 인데 lock? || steal 하는 다른 CPU 가 내 리스트를 만진다\n|-\n| steal deadlock? || 서로의 lock 을 쥐고 기다리는 circular wait → 번호 순서 또는 한 번에 하나\n|-\n| bcache 는 왜 per-CPU 안 됨? || 모든 CPU 가 같은 블록의 단 하나의 사본을 공유해야 한다\n|-\n| miss 후 다시 찾기? || lock 을 놓은 틈에 누가 같은 블록을 넣었을 수 있어서 — 안 하면 사본 둘\n|-\n| 버킷 lock 놓고 bcache.lock? || 반대 순서로 잡는 evictor 와 circular wait 가 생기지 않게\n|-\n| same bucket? || 같은 spinlock 두 번 → panic: acquire\n|-\n| sleeplock 인 이유? || 디스크 I/O 동안 오래 쥐므로 spin 은 CPU 낭비\n|-\n| refcnt 의 역할? || 0 이 아니면 재사용 금지 — spinlock 을 놓고 sleeplock 을 잡는 사이를 이어 준다\n|}\n\n== 관련 문서 ==\n* [[과제2 xv6 lock]] · [[lock contention]] · [[kalloc]] · [[per-CPU free list]] · [[buffer cache]] · [[bcache 해시 버킷]]\n* [[cpuid]] · [[refcnt]] · [[sleeplock]] · [[steal]] · [[NBUF]]\n* [[퀴즈1 복기]] · [[과제1 xv6 alarm]] · [[lock ordering]] · [[데드락 4조건]]"
+ },
+ "cpuid": {
+  "title": "cpuid와 push_off",
+  "category": [
+   "과제2",
+   "용어"
+  ],
+  "body": "'''`cpuid()`'''는 [[xv6]] 커널에서 '''지금 이 코드를 실행 중인 CPU(hart)의 번호'''를 돌려주는 함수다. [[per-CPU free list]] 에서 \"내 리스트\"를 고를 때 쓴다. 단, '''인터럽트를 끈 상태에서만''' 그 결과를 믿을 수 있어서 항상 `push_off()`/`pop_off()` 와 짝으로 나온다.\n\n{def}\n\"The function cpuid returns the current core number, but it's '''only safe to call it and use its result when interrupts are turned off'''. You should use '''push_off() and pop_off()''' to turn interrupts off and on.\" (Assignment 2 PDF p.8)\nxv6 소스 주석: \"Must be called with interrupts disabled, to prevent race with process being moved to a different CPU.\"\n{/def}\n\n{analogy}\n🎭 `cpuid()` 는 '''\"지금 내가 몇 번 창구에 앉아 있지?\"''' 하고 명패를 보는 것이다. 그런데 이 은행은 직원이 잠깐 졸면(타이머 인터럽트) 매니저가 '''다른 창구로 옮겨 앉힐 수 있다'''. 명패를 보고 메모한 직후 옮겨지면 메모는 틀린 번호가 된다. `push_off()` 는 '''\"지금부터 나 옮기지 마세요\"''' 팻말, `pop_off()` 는 팻말 치우기.\n{/analogy}\n\n== 코드 (원본) ==\n\n<pre class=\"c\">\n// kernel/proc.c\nint\ncpuid()\n{\n  int id = r_tp();      // tp 레지스터 = 부팅 때 start() 가 w_tp(hartid) 로 넣어 둔 값\n  return id;\n}\n\n// kernel/spinlock.c\nvoid\npush_off(void)\n{\n  int old = intr_get();          // 지금 인터럽트가 켜져 있었나\n  intr_off();\n  if(mycpu()->noff == 0)\n    mycpu()->intena = old;       // 가장 바깥 push_off 일 때만 원래 상태를 기억\n  mycpu()->noff += 1;            // 중첩 깊이\n}\n\nvoid\npop_off(void)\n{\n  struct cpu *c = mycpu();\n  if(intr_get())\n    panic(\"pop_off - interruptible\");\n  if(c->noff < 1)\n    panic(\"pop_off\");\n  c->noff -= 1;\n  if(c->noff == 0 && c->intena)  // 가장 바깥 pop_off 에서만, 원래 켜져 있었으면 다시 켬\n    intr_on();\n}\n<\/pre>\n\n* `cpuid` 자체는 레지스터 하나 읽기라 아주 싸다. 문제는 '''읽은 다음'''이다.\n* `push_off`/`pop_off` 는 '''짝을 센다'''(`noff`). 그래서 `push_off(); … acquire(…); … release(…); … pop_off();` 처럼 `acquire`(내부에서 push_off)와 겹쳐 써도 인터럽트가 엉뚱한 때 켜지지 않는다. 소스 주석: \"it takes two pop_off()s to undo two push_off()s\".\n* 짝이 안 맞으면(early return 경로에서 `pop_off` 누락 등) 나중에 `panic: pop_off` 나 \"인터럽트가 영영 꺼진 CPU\" 가 된다.\n\n== 왜 인터럽트를 꺼야 하나 ==\n\n<pre class=\"ascii\">\n   시간 →\n   CPU1 │ id = cpuid() → 1 │ ⚡ timer → trap → yield → 스케줄러 …\n   CPU2 │                                  … 같은 프로세스 재개 │ kmem[id=1] 사용  ✗ 지금은 CPU2\n                                                                 (lock 은 지키므로 손상은 없지만 '''남의 리스트''')\n\n   push_off ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ pop_off\n   CPU1 │ id = cpuid() → 1 │ kmem[1] 사용 │        ⚡ 인터럽트는 pop_off 뒤에야 처리\n<\/pre>\n\n[[타이머 인터럽트]] 가 꺼져 있으면 이 커널 코드는 '''선점되지 않고''', 그러면 다른 CPU 로 옮겨질 수도 없다. 9강 [[인터럽트 비활성화]] 가 단일 CPU 에서 critical section 을 만들던 바로 그 도구를, 여기서는 '''\"CPU 번호가 변하지 않는 구간\"''' 을 만드는 데 쓴다.\n\n{warn}\n인터럽트를 끄는 것은 '''lock 을 대신하지 않는다'''. 인터럽트를 꺼도 다른 CPU 는 계속 돈다 — steal 하러 온 다른 CPU 는 내 리스트를 그대로 만질 수 있다. 그래서 per-CPU 리스트에도 `kmem[id].lock` 이 필요하다. (9강: 인터럽트 비활성화는 멀티프로세서에서는 상호 배제를 주지 못한다.)\n{/warn}\n\n== 관련 문서 ==\n* [[per-CPU free list]] · [[steal]] · [[과제2 xv6 lock]]\n* [[인터럽트 비활성화]] · [[타이머 인터럽트]] · [[myproc]] (같은 이유로 push_off 안에서 mycpu 를 읽는다)"
+ },
+ "refcnt": {
+  "title": "refcnt (struct buf)",
+  "category": [
+   "과제2",
+   "용어"
+  ],
+  "body": "'''`refcnt`'''는 `struct buf` 의 필드로, '''이 버퍼를 지금 쓰고 있거나 쓰려고 기다리는 쪽의 수'''다. [[buffer cache]] 에서 '''0 이어야만 다른 블록용으로 재사용(evict)할 수 있다'''. 원본에서는 `bcache.lock` 이, 과제 후에는 그 버퍼가 속한 '''버킷의 lock''' 이 지킨다.\n\n{def}\n`uint refcnt;` (kernel/buf.h 7줄). PDF p.3: \"It scans the buffer list a second time, looking for a buffer that is not in use ('''b->refcnt = 0'''); any such buffer can be used.\" / \"the '''non-zero b->refcnt prevents the buffer from being re-used''' for a different disk block.\"\n{/def}\n\n{analogy}\n🎭 열람실 복사본에 꽂힌 '''\"보는 중\" 집게 개수'''. 손님이 받아 가거나 줄을 서면 집게 하나(`refcnt++`), 다 보고 반납하면 집게 하나 뺌(`refcnt--`). 집게가 '''하나도 없는 복사본만''' 사서가 치우고 다른 책 자리로 쓸 수 있다. 로그 담당(`bpin`)은 \"커밋 끝날 때까지 치우지 마\" 하고 집게를 하나 더 꽂아 둔다.\n{/analogy}\n\n== 누가 올리고 내리나 (원본 bio.c) ==\n\n{| class=\"table\"\n! 함수 || 변화 || 의미\n|-\n| `bget` hit (68줄) || `refcnt++` || 이미 캐시된 블록을 내가 쓰겠다 (sleeplock 을 기다리는 중이어도 이미 셈에 들어감)\n|-\n| `bget` miss (82줄) || `refcnt = 1` || 빈 버퍼(`refcnt == 0`)를 새 블록용으로 잡았다\n|-\n| `brelse` (125줄) || `refcnt--` || 다 썼다. 0 이 되면 원본은 MRU 위치로 옮김\n|-\n| `bpin` (142줄) || `refcnt++` || log 가 트랜잭션에 넣은 블록 — 커밋 전에 evict 되면 안 됨 (log.c `log_write`)\n|-\n| `bunpin` (149줄) || `refcnt--` || 설치 완료, 풀어 줌 (log.c `install_trans`)\n|}\n\n== 두 lock 사이의 다리 ==\n\n<pre class=\"ascii\">\n   bcache.lock / bucket lock (spinlock)        b->lock (sleeplock)\n   ━━━ 찾기 → refcnt++ ━━━┓ release\n                           ┃   ← 이 틈: 다른 프로세스가 이 버퍼를 evict 하려 해도 refcnt ≥ 1 이라 대상이 아님\n                           ┗━━━━━━━━━━━━━━━ acquiresleep ━━ 사용 ━━ brelse\n<\/pre>\n\nrefcnt 덕분에 [[sleeplock]] 을 spinlock '''밖에서''' 잡을 수 있다. 그리고 refcnt ≥ 1 인 동안 `dev`/`blockno` 는 바뀌지 않으므로, `brelse`·`bpin`·`bunpin` 이 lock 없이 `b->blockno` 로 버킷 번호를 계산해도 안전하다.\n\n{warn}\n'''refcnt 를 만지는 모든 곳이 같은 lock 을 써야 한다.''' 과제에서 `bget`·`brelse` 만 버킷 lock 으로 바꾸고 `bpin`·`bunpin` 을 전역 lock 으로 남기면, 두 lock 이 다르므로 동시에 `++`/`--` 가 일어나 8강 [[counter 예제]] 의 lost update 가 refcnt 에서 생긴다.\n{/warn}\n\n== 관련 문서 ==\n* [[buffer cache]] · [[bcache 해시 버킷]] · [[sleeplock]] · [[NBUF]]\n* [[race condition]] · [[counter 예제]]"
+ },
+ "sleeplock": {
+  "title": "Sleeplock (xv6 sleeping lock)",
+  "category": [
+   "과제2",
+   "용어"
+  ],
+  "body": "'''Sleeplock'''은 [[xv6]] 의 '''기다리는 쪽이 spin 하지 않고 잠드는''' lock 이다. [[buffer cache]] 의 버퍼마다 하나씩(`b->lock`) 있어 '''버퍼 내용(`data`)을 한 번에 한 스레드만''' 쓰게 한다. 디스크 I/O 처럼 오래 걸리는 일 동안 쥐고 있어야 하므로 [[spin lock]] 대신 이것을 쓴다.\n\n{def}\n\"The buffer cache uses a '''per-buffer sleep-lock''' to ensure that only one thread at a time uses each buffer (and thus each disk block); bread returns a locked buffer, and brelse releases the lock.\" (PDF p.2)\n\"The sleep-lock protects reads and writes of the block's buffered content, while the bcache.lock protects information about which blocks are cached.\" (PDF p.4)\n{/def}\n\n{analogy}\n🎭 spinlock 은 '''화장실 문 앞에서 문고리를 계속 당기며 서 있기''', sleeplock 은 '''대기표 받고 의자에서 자다가 \"다음 분\" 소리에 깨기'''. 안에 있는 사람이 금방 나오면 서 있는 게 낫지만(spinlock: 문맥 전환 비용 없음), 안에서 디스크를 기다리느라 수 밀리초를 쓴다면 서서 당기는 건 CPU 낭비다.\n{/analogy}\n\n== 코드 (원본 kernel/sleeplock.c) ==\n\n<pre class=\"c\">\nvoid\nacquiresleep(struct sleeplock *lk)\n{\n  acquire(&lk->lk);              // 내부 spinlock — locked/pid 필드를 지킴 (이름 \"sleep lock\")\n  while (lk->locked) {\n    sleep(lk, &lk->lk);          // 잠들면서 lk->lk 를 놓고, 깨면 다시 잡는다\n  }\n  lk->locked = 1;\n  lk->pid = myproc()->pid;\n  release(&lk->lk);\n}\n\nvoid\nreleasesleep(struct sleeplock *lk)\n{\n  acquire(&lk->lk);\n  lk->locked = 0;\n  lk->pid = 0;\n  wakeup(lk);                    // 자는 쪽을 깨움\n  release(&lk->lk);\n}\n<\/pre>\n\n이 모양은 10강 [[조건 변수]] 그대로다 — `while (조건) sleep(…, lock)` 은 `while (조건) wait(cv, mutex)`, `wakeup` 은 모두 깨우는 [[broadcast]]. 9강의 \"spin 대신 잠들기\"([[queue 락]], [[two-phase lock]])를 xv6 가 구현한 것.\n\n<pre class=\"ascii\">\n   spinlock (bcache.lock, bucket lock)         sleeplock (b->lock)\n   ┌──────────────────────────────┐            ┌──────────────────────────────────────┐\n   │ 지키는 것: 어느 블록이 캐시됐나  │            │ 지키는 것: 버퍼 내용 data, valid        │\n   │ 쥐는 시간: 리스트 훑기 (짧음)   │            │ 쥐는 시간: bread ~ brelse (디스크 I/O)  │\n   │ 기다림: spin, 인터럽트 꺼짐     │            │ 기다림: sleep, CPU 를 남에게 줌          │\n   │ 쥔 채 잠들기: ✗ 금지           │            │ 쥔 채 잠들기: ✓ (그게 목적)              │\n   └──────────────────────────────┘            └──────────────────────────────────────┘\n<\/pre>\n\n{warn}\n'''spinlock 을 쥔 채 `acquiresleep` 을 부르면 안 된다.''' `sleep` → `sched()` 가 `mycpu()->noff != 1` 을 검사해 `panic(\"sched locks\")` 를 낸다. 그래서 `bget` 은 항상 bcache/버킷 spinlock 을 '''놓은 뒤''' sleeplock 을 잡는다 — 그 사이는 [[refcnt]] 가 지킨다.\n{/warn}\n\n{info}\nsleeplock 안의 spinlock 이름은 `\"sleep lock\"` 이라 [[lock contention]] 통계의 `tot`(kmem/bcache 접두어만 합산)에 '''들어가지 않는다'''. 과제는 sleeplock 을 건드리지 않는다.\n{/info}\n\n== 관련 문서 ==\n* [[buffer cache]] · [[refcnt]] · [[bcache 해시 버킷]]\n* [[spin lock]] · [[two-phase lock]] · [[조건 변수]] · [[wait와 signal]]"
+ },
+ "steal": {
+  "title": "Steal (free page 훔쳐 오기)",
+  "category": [
+   "과제2",
+   "용어"
+  ],
+  "body": "'''Steal'''은 [[per-CPU free list]] 에서 '''내 CPU 의 free list 가 비었을 때 다른 CPU 의 free list 에서 페이지를 가져오는 것'''이다. 이게 없으면 부팅 직후 CPU0 만 메모리를 갖고 있어 다른 CPU 의 `kalloc` 이 전부 실패한다. 7강 [[work stealing]] 과 같은 발상(큐 대신 free list).\n\n{def}\n\"The main challenge will be to deal with the case in which one CPU's free list is empty, but another CPU's list has free memory; in that case, the one CPU must '''\"steal\" part of the other CPU's free list'''. Stealing may introduce lock contention, but that will '''hopefully be infrequent'''.\" (PDF p.6)\n\"Your job is to implement per-CPU freelists, and '''stealing when a CPU's free list is empty'''.\" (PDF p.6 Requirement)\n{/def}\n\n{analogy}\n🎭 책상 서랍에 볼펜이 떨어지면 옆자리 서랍에서 '''한 움큼''' 집어 온다. 매번 한 자루씩 빌리러 가면 옆 사람이 귀찮고(contention), 한 번에 서랍째 들고 오면 옆 사람이 곧 내 서랍을 털러 온다(핑퐁). 집어 올 때는 '''내 서랍을 열어 둔 채 옆 서랍을 기다리지 않는 것'''이 예의다 — 옆 사람도 똑같이 내 서랍을 기다리면 둘 다 영원히 서 있게 된다.\n{/analogy}\n\n<pre class=\"ascii\">\n  steal 전                                      steal 후 (예: 몇 장 옮김)\n  kmem[0].freelist → [a][b][c][d][e] … (많음)    kmem[0].freelist → [d][e] …\n  kmem[1].freelist → 0     ← CPU1 이 kalloc     kmem[1].freelist → [b][c]      ([a] 는 kalloc 반환값)\n  kmem[2].freelist → 0                          kmem[2].freelist → 0\n\n  steal 동안 잡는 lock:  kmem[0].lock (피해자)  ±  kmem[1].lock (나)\n  → 둘을 동시에 쥔다면 '''항상 번호 작은 것 먼저'''. 아니면 '''한 번에 하나만'''.\n<\/pre>\n\n== 설계 선택지 ==\n\n{| class=\"table\"\n! 질문 || 선택지 || 생각할 점\n|-\n| 누구에게서? || `id+1, id+2, …` 순서로 한 바퀴 / 항상 0 번부터 || 항상 0 번부터면 CPU0 에 steal 이 몰린다. 어느 쪽이든 '''나 자신(j == id)은 건너뛰기''' — 안 그러면 `panic: acquire`\n|-\n| 몇 장? || 1 장 / 고정 N 장 / 절반 || 많이 옮길수록 steal 횟수는 줄지만 남의 lock 을 오래 쥔다. kalloctest 처럼 alloc·free 를 반복하는 작업에서는 1 장이어도 kfree 가 내 리스트에 돌려주므로 금방 자급자족\n|-\n| lock 은? || 번호 순서로 둘 다 / 내 것 놓고 남의 것만 || [[lock ordering]] 은 circular wait 를, \"한 번에 하나\"는 [[hold and wait 방지|hold and wait]] 를 깬다 — 12강 [[데드락 4조건]]\n|-\n| 다 돌았는데 없으면? || 0 반환 || 메모리가 정말 없는 것. 무한 재시도하면 sbrkmuch·countfree 가 끝나지 않는다\n|}\n\n{warn}\n'''남의 리스트가 비었는지 lock 없이 들여다보지 말 것.''' \"lock 잡기 전에 `kmem[j].freelist == 0` 이면 건너뛰자\"는 최적화는 그 읽기 자체가 다른 CPU 의 쓰기와 race 다 — KCSAN(`make KCSAN=1 qemu`)이 바로 잡아낸다. 확인도 lock 아래에서.\n{/warn}\n\n== 테스트에서 ==\n\n* `usertests sbrkmuch` — 한 프로세스가 100 MB 를 요구한다. 그 프로세스가 CPU1 에서 돌면 '''거의 모든 페이지를 CPU0 리스트에서 steal''' 해야 한다. steal 이 없거나 일부 CPU 만 보면 여기서 실패.\n* `kalloctest` test2 — `countfree()` 가 모든 메모리를 다 받아 낼 수 있어야 하고(32768 쪽 중 1000 쪽 넘게 모자라면 FAIL), 셀 때마다 같아야 한다 — steal 중 페이지를 잃으면 \"losing pages\".\n* `kalloctest` test3 — steal 이 '''동시에''' 일어나는 상황. 그래서 기준이 test1(< 10) 보다 느슨한 '''< 10000'''.\n\n== 관련 문서 ==\n* [[per-CPU free list]] · [[kalloc]] · [[cpuid]] · [[과제2 xv6 lock]]\n* [[work stealing]] · [[MQMS]] · [[lock ordering]] · [[데드락]]"
+ },
+ "NBUF": {
+  "title": "NBUF (버퍼 캐시 크기)",
+  "category": [
+   "과제2",
+   "용어"
+  ],
+  "body": "'''`NBUF`'''는 [[xv6]] [[buffer cache]] 의 '''버퍼 개수'''를 정하는 상수로, 값은 '''30''' 이다. 버퍼는 `bcache.buf[NBUF]` 정적 배열에 고정돼 있고 실행 중에 늘거나 줄지 않는다. [[과제2 xv6 lock]] Problem 2 는 '''이 숫자를 바꾸지 말라'''고 못 박는다.\n\n{def}\n`#define NBUF (MAXOPBLOCKS*3)  // size of disk block cache` — kernel/param.h. `MAXOPBLOCKS` = 10 (\"max # of blocks any FS op writes\") 이므로 NBUF = 30.\nPDF p.10: \"'''You must not increase the number of buffers; there must be exactly NBUF (30) of them.'''\"\n{/def}\n\n{analogy}\n🎭 열람실 '''복사본 서가의 자리 수가 30 칸'''으로 고정된 것. 서가를 13 구역(버킷)으로 나눠도 '''칸 수는 그대로 30''' — 구역마다 칸을 2~3 개씩 새로 만드는 게 아니라, 기존 30 칸을 구역 사이에서 옮겨 쓴다. 칸을 늘리면 경합이 줄어 보이겠지만 그건 문제를 푼 게 아니라 피한 것이다.\n{/analogy}\n\n<pre class=\"ascii\">\n  NBUF = MAXOPBLOCKS × 3 = 10 × 3 = 30\n\n  bcache.buf[0] … bcache.buf[29]    ← 실제 메모리는 이 30 개뿐 (각 data[BSIZE = 1024])\n\n  버킷이 13 개여도:\n  bucket[0]: buf ⇄ buf ⇄ buf        bucket[1]: buf        …   bucket[12]: (빈 버킷)\n             └────────── 다 합쳐 정확히 30 개. 버킷 사이를 옮겨 다닐 뿐 ──────────┘\n<\/pre>\n\n== 왜 늘리면 안 되나 ==\n\n* 요구사항 위반이다 — 과제의 목표는 '''같은 자원으로''' lock 을 잘게 쪼개는 것.\n* \"버킷마다 버퍼 몇 개씩 따로\" 같은 설계는 버퍼를 늘리거나, 아니면 한 버킷의 버퍼가 다 쓰였을 때 다른 버킷의 빈 버퍼를 못 쓰게 된다. PDF 는 반대로 요구한다: \"it must be able to '''use any of the NBUF struct bufs with zero refcnt''' when it misses in the cache\".\n* `bcachetest` test3 이 이것을 검사한다 — 소스 주석 \"generate big log transactions to check that bget() can make use of '''any of the NBUF buffers for any block number'''\". 로그 트랜잭션은 블록을 `bpin` 으로 붙잡아 두므로 버퍼 여유가 적고, 빈 버퍼를 버킷 경계 넘어 찾지 못하면 `panic: bget: no buffers`.\n* `LOGSIZE` 도 `MAXOPBLOCKS*3` = 30 이다. log 는 커밋 전까지 블록을 캐시에 핀으로 꽂아 두므로, 캐시 크기와 log 크기가 같은 기준으로 정해져 있다.\n\n== 관련 문서 ==\n* [[buffer cache]] · [[bcache 해시 버킷]] · [[refcnt]] · [[과제2 xv6 lock]]"
  },
  "퀴즈1 복기": {
   "title": "퀴즈 1 복기 (2026-09-23)",
@@ -2486,6 +2579,23 @@ const NAV_ORDER = [
    "base and bounds",
    "free list",
    "동적 재배치의 한계"
+  ]
+ },
+ {
+  "group": "과제2",
+  "items": [
+   "과제2 xv6 lock",
+   "lock contention",
+   "kalloc",
+   "per-CPU free list",
+   "buffer cache",
+   "bcache 해시 버킷",
+   "과제2 퀴즈 대비",
+   "cpuid",
+   "refcnt",
+   "sleeplock",
+   "steal",
+   "NBUF"
   ]
  },
  {
@@ -3548,6 +3658,405 @@ window.SIMS = window.SIMS || {};
         ],
         steps: steps
       };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/bget_trace.js =====
+// bget_trace — 과제 2 (xv6 Lock) Problem 2: buffer cache 를 해시 버킷으로 나눈 bget 을 줄 단위로.
+// 코드 패널은 '설계 수준 의사코드' (과제 정답 bio.c 가 아님). 원본 xv6 bio.c 는 bcache.lock 하나 + LRU 리스트 하나.
+// 작은 모형: 버퍼 4개(b0~b3), 버킷 3개(blockno % 3). 실제 과제는 NBUF = 30, 버킷 13개(소수).
+// scenario: hit / miss_move / same_bucket / race_2025 / race_fixed
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var COL = { P: "#1d65b3", Q: "#2e9e4f", X: "#888" };
+  var WARN = "#d6465f";
+  var NB = 3;
+
+  var GOOD = [
+    "bget(dev, blockno):",
+    "  k = blockno % NBUCKET            // 실제 13개, 여기선 3개",
+    "  acquire(bucket[k].lock)",
+    "  bucket[k] 체인에서 (dev, blockno) 찾기",
+    "  hit → b->refcnt++; release(bucket[k].lock)",
+    "        acquiresleep(&b->lock); return b",
+    "  miss → release(bucket[k].lock)",
+    "  acquire(bcache.lock)             // eviction 은 한 번에 하나",
+    "  acquire(bucket[k].lock); 다시 찾기  // 그 사이 누가 넣었을 수 있다",
+    "  이번엔 hit → refcnt++; lock 들 놓고 6번 줄로",
+    "  victim 찾기: v = k, k+1, … 의 bucket[v] 에서 refcnt == 0 (v ≠ k 일 때만 acquire)",
+    "  victim 을 bucket[v] 에서 떼어 bucket[k] 에 붙임 (v == k 면 그대로); release(bucket[v].lock)",
+    "  victim: dev·blockno 설정, valid = 0, refcnt = 1",
+    "  release(bucket[k].lock); release(bcache.lock)",
+    "  acquiresleep(&victim->lock); return victim"
+  ];
+  var BUGGY_SAME = GOOD.slice();
+  BUGGY_SAME[10] = "  victim 찾기: v = k, k+1, … 마다 acquire(bucket[v].lock) 후 refcnt == 0 찾기";
+  var R2025 = [
+    "bget(dev, blockno):   // 2025 제출물의 흐름 (요약)",
+    "  k = blockno % NBUCKET",
+    "  acquire(bucket[k].lock); bucket[k] 에서 찾기",
+    "  hit → refcnt++; release; acquiresleep; return b",
+    "  miss → release(bucket[k].lock)          // ① 여기서 놓는다",
+    "  acquire(bucket[k].lock)                  // ② 다시 잡지만 '다시 찾기' 없음",
+    "  bucket[k] 안의 refcnt == 0 buf → 재사용 (없으면 아래로)",
+    "  release(bucket[k].lock)",
+    "  다른 bucket[v]: acquire(v); refcnt == 0 buf 떼어 냄; release(v)",
+    "  acquire(bucket[k].lock); 붙이고 blockno 설정·valid = 0·refcnt = 1; release",
+    "  acquiresleep(&b->lock); return b"
+  ];
+
+  // ---------------- 상태 ----------------
+  function World(sameBucket) {
+    this.buf = {
+      b0: { blk: 3, ref: 0, valid: 1, sl: null },
+      b1: { blk: 4, ref: sameBucket ? 0 : 1, valid: 1, sl: null },
+      b2: { blk: 5, ref: 0, valid: 1, sl: null },
+      b3: { blk: 8, ref: 0, valid: 1, sl: null }
+    };
+    this.bk = [["b0"], ["b1"], ["b2", "b3"]];
+    this.transit = [];
+    this.lk = [null, null, null];
+    this.gl = null;               // bcache.lock
+    this.tas = 0;
+    this.spin = {};               // who -> "bucket[1]" / "bcache"
+    this.loc = { P: {}, Q: {} };
+    this.st = { P: "ready", Q: "ready" };
+    this.target = null;           // 강조할 blockno
+    this.steps = [];
+    this.who = ["P", "Q"];
+    this.panelSt = {};
+  }
+  World.prototype.bucketOf = function (id) {
+    for (var k = 0; k < NB; k++) if (this.bk[k].indexOf(id) >= 0) return k;
+    return null;
+  };
+  World.prototype.copies = function () {
+    var self = this, n = 0;
+    if (this.target === null) return "–";
+    Object.keys(this.buf).forEach(function (id) {
+      if (self.buf[id].blk === self.target && self.bucketOf(id) !== null) n++;
+    });
+    return n;
+  };
+  World.prototype.svg = function () {
+    var self = this, W = 760, top = 56, rowH = 76, H = top + NB * rowH + 8;
+    var dup = this.copies() > 1;
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:760px" font-family="sans-serif">';
+    o += '<defs><marker id="bg-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="#999"/></marker></defs>';
+    function lockIcon(x, y, holder) {
+      var c = holder ? (COL[holder] || COL.X) : "#b8b8b8";
+      return '<path d="M' + (x + 4) + ',' + (y + 10) + ' v-4 a6,6 0 0 1 12,0 v4" fill="none" stroke="' + c + '" stroke-width="2.4"/>' +
+        '<rect x="' + x + '" y="' + (y + 10) + '" width="20" height="14" rx="2" fill="' + c + '"/>';
+    }
+    // bcache.lock
+    o += '<rect x="8" y="8" width="250" height="38" rx="5" fill="#fafafa" stroke="#999"/>';
+    o += lockIcon(18, 10, this.gl);
+    o += '<text x="48" y="24" font-size="12" font-weight="700" fill="#333">bcache.lock (eviction 전용)</text>';
+    o += '<text x="48" y="39" font-size="10" fill="#555">주인: ' + (this.gl || "free") + '</text>';
+    // spin / 범례
+    var sx = 276;
+    this.who.forEach(function (p) {
+      var t = self.spin[p] ? p + " spin → " + self.spin[p] : p + ": " + (self.st[p] || "");
+      o += '<rect x="' + sx + '" y="14" width="12" height="12" rx="2" fill="' + COL[p] + '"/>';
+      o += '<text x="' + (sx + 17) + '" y="24" font-size="11" fill="' + (self.spin[p] || self.st[p] === "panic" ? WARN : "#333") + '">' + t + '</text>';
+      sx += 190;
+    });
+    if (this.target !== null) {
+      o += '<text x="276" y="42" font-size="11" fill="' + (dup ? WARN : "#555") + '"' + (dup ? ' font-weight="700"' : '') + '>block ' + this.target + ' 사본 수: ' + this.copies() + (dup ? '  ← 불변식 위반!' : '') + '</text>';
+    }
+    function bufBox(id, x, y) {
+      var b = self.buf[id], hit = self.target !== null && b.blk === self.target;
+      var stroke = hit ? (dup ? WARN : "#e09a40") : "#999";
+      var o2 = '<rect x="' + x + '" y="' + y + '" width="104" height="56" rx="4" fill="' + (hit && dup ? "#fde2e6" : "#fff") + '" stroke="' + stroke + '" stroke-width="' + (hit ? 2.4 : 1.2) + '"/>';
+      o2 += '<text x="' + (x + 8) + '" y="' + (y + 15) + '" font-size="11" font-weight="700" fill="#333">' + id + '</text>';
+      o2 += '<text x="' + (x + 96) + '" y="' + (y + 15) + '" font-size="11" text-anchor="end" fill="#333">blk ' + b.blk + '</text>';
+      o2 += '<text x="' + (x + 8) + '" y="' + (y + 31) + '" font-size="10" fill="#555">refcnt ' + b.ref + ' · valid ' + b.valid + '</text>';
+      if (b.sl) o2 += '<text x="' + (x + 8) + '" y="' + (y + 47) + '" font-size="10" fill="' + COL[b.sl] + '">sleeplock: ' + b.sl + '</text>';
+      return o2;
+    }
+    for (var k = 0; k < NB; k++) {
+      var y = top + k * rowH, h = this.lk[k];
+      o += '<rect x="8" y="' + y + '" width="156" height="56" rx="4" fill="#fafafa" stroke="' + (h ? COL[h] : "#999") + '" stroke-width="' + (h ? 2 : 1) + '"/>';
+      o += '<text x="16" y="' + (y + 19) + '" font-size="12" font-weight="700" fill="#333">bucket[' + k + ']</text>';
+      o += '<text x="16" y="' + (y + 34) + '" font-size="10" fill="#666">blockno % 3 = ' + k + '</text>';
+      o += '<text x="16" y="' + (y + 49) + '" font-size="10" fill="#555">lock: ' + (h || "free") + '</text>';
+      o += lockIcon(134, y + 4, h);
+      var ids = this.bk[k];
+      if (!ids.length) o += '<text x="186" y="' + (y + 33) + '" font-size="11" fill="#999">(비어 있음)</text>';
+      ids.forEach(function (id, n) {
+        var x = 180 + n * 124;
+        o += '<line x1="' + (n === 0 ? 164 : x - 20) + '" y1="' + (y + 28) + '" x2="' + x + '" y2="' + (y + 28) + '" stroke="#999" marker-end="url(#bg-ar)"/>';
+        o += bufBox(id, x, y);
+      });
+    }
+    // 이동 중
+    o += '<rect x="560" y="' + top + '" width="192" height="' + (NB * rowH - 20) + '" rx="6" fill="none" stroke="#bbb" stroke-dasharray="5,4"/>';
+    o += '<text x="656" y="' + (top + 16) + '" font-size="10" text-anchor="middle" fill="#888">이동 중 (어느 버킷에도 없음)</text>';
+    this.transit.forEach(function (id, n) { o += bufBox(id, 604, top + 26 + n * 66); });
+    return o + '</svg>';
+  };
+  World.prototype.snap = function (desc, pc, note) {
+    var self = this, v = {};
+    v.gl = this.gl || "free";
+    for (var k = 0; k < NB; k++) v["lk" + k] = this.lk[k] || "free";
+    Object.keys(this.buf).forEach(function (id) {
+      var b = self.buf[id], bk = self.bucketOf(id);
+      v[id] = "blk " + b.blk + " · ref " + b.ref + " · valid " + b.valid + " · " + (bk === null ? "이동 중" : "bkt " + bk) + (b.sl ? " · sleep:" + b.sl : "");
+    });
+    this.who.forEach(function (p) {
+      var l = self.loc[p];
+      v[p + ".blk"] = l.blk !== undefined ? l.blk : "–";
+      v[p + ".k"] = l.k !== undefined ? l.k : "–";
+      v[p + ".b"] = l.b || "–";
+    });
+    v.tas = this.tas;
+    v.copies = this.copies();
+    var status = {};
+    Object.keys(pc).forEach(function (id) {
+      var who = id.charAt(0);
+      if (self.panelSt[id]) status[id] = self.panelSt[id];
+      else if (pc[id] === null) status[id] = "ready";
+      else status[id] = self.spin[who] ? "spinning" : (self.st[who] || "ready");
+    });
+    var s = { desc: desc, pc: pc, vars: v, status: status, svg: this.svg() };
+    if (note) s.note = note;
+    this.steps.push(s);
+  };
+  World.prototype.vars = function () {
+    var vs = [{ name: "gl", label: "bcache.lock", group: "lock" }];
+    for (var k = 0; k < NB; k++) vs.push({ name: "lk" + k, label: "bucket[" + k + "].lock", group: "lock" });
+    vs.push({ name: "tas", label: "#test-and-set (bcache 계열 합)", group: "lock" });
+    ["b0", "b1", "b2", "b3"].forEach(function (id) { vs.push({ name: id, label: id, group: "struct buf" }); });
+    this.who.forEach(function (p) {
+      vs.push({ name: p + ".blk", label: p + " blockno", group: "프로세스 " + p });
+      vs.push({ name: p + ".k", label: p + " k", group: "프로세스 " + p });
+      vs.push({ name: p + ".b", label: p + " b", group: "프로세스 " + p });
+    });
+    vs.push({ name: "copies", label: "목표 블록 사본 수", group: "불변식" });
+    return vs;
+  };
+  World.prototype.lock = function (p, k) { this.lk[k] = p; delete this.spin[p]; };
+  World.prototype.wait = function (p, name, n) { this.spin[p] = name; this.tas += n; };
+  World.prototype.detach = function (id) {
+    var k = this.bucketOf(id); this.bk[k].splice(this.bk[k].indexOf(id), 1); this.transit.push(id);
+  };
+  World.prototype.attach = function (id, k) {
+    var i = this.transit.indexOf(id); if (i >= 0) this.transit.splice(i, 1);
+    this.bk[k].push(id);
+  };
+
+  // ---------------- hit ----------------
+  function buildHit() {
+    var w = new World(false);
+    var pc = function (a, b) { return { P: a, Q: b }; };
+    w.loc.P.blk = 5; w.loc.Q.blk = 3; w.st.P = w.st.Q = "running";
+    w.snap("[[bcache 해시 버킷]]: 원본 xv6 [[buffer cache]] 는 `bcache.lock` 하나로 전체 LRU 리스트를 지킨다 → 모든 bget/brelse 가 한 lock 에서 경쟁. 과제는 버퍼를 '''blockno 의 해시 버킷'''에 나눠 담고 버킷마다 lock 을 둔다. 여기선 버퍼 4개·버킷 3개(실제는 [[NBUF]] = 30, 버킷 13개). P 는 block 5, Q 는 block 3 을 동시에 bread.",
+      pc(1, 1));
+    w.loc.P.k = 2; w.loc.Q.k = 0;
+    w.snap("P: k = 5 % 3 = 2. Q: k = 3 % 3 = 0.", pc(2, 2));
+    w.lock("P", 2); w.lock("Q", 0);
+    w.snap("P 는 bucket[2], Q 는 bucket[0] 의 lock — '''서로 다른 lock 이라 동시에 성공''', #test-and-set 0. 원본이었다면 Q 가 bcache.lock 에서 spin 했다.", pc(3, 3));
+    w.loc.P.b = "b2"; w.loc.Q.b = "b0";
+    w.snap("체인을 훑어 P 는 b2(blk 5), Q 는 b0(blk 3) 을 찾았다 — '''hit'''.", pc(4, 4));
+    w.buf.b2.ref = 1; w.buf.b0.ref = 1; w.lk[2] = null; w.lk[0] = null;
+    w.snap("[[refcnt]]++ (0 → 1) 후 버킷 lock 을 놓는다. refcnt ≥ 1 인 동안은 이 버퍼가 다른 블록용으로 재활용(evict)되지 않는다.", pc(5, 5));
+    w.buf.b2.sl = "P"; w.buf.b0.sl = "Q"; w.st.P = w.st.Q = "done";
+    w.snap("`acquiresleep(&b->lock)` — 버퍼 '''내용'''을 독점하는 [[sleeplock]]. 디스크 I/O 동안 잡고 있어야 하니 spin 이 아니라 sleep 하는 lock 이다. 둘 다 반환.", pc(6, 6));
+    w.loc.P = { blk: 8 }; w.loc.Q = { blk: 5 }; w.st.P = w.st.Q = "running";
+    w.snap("2라운드: P 가 block 8, Q 가 block 5 를 bread. 이번엔 '''둘 다 버킷 2'''다.", pc(1, 1));
+    w.loc.P.k = 2; w.loc.Q.k = 2;
+    w.snap("P: k = 8 % 3 = 2. Q: k = 5 % 3 = 2.", pc(2, 2));
+    w.lock("P", 2); w.wait("Q", "bucket[2]", 3);
+    w.snap("P 가 bucket[2].lock 을 잡고, Q 는 같은 lock 이라 spin ([[lock contention]]). 해시가 같은 버킷으로 몰릴 때만 이런 경쟁이 생긴다 — 버킷 수를 소수 13 으로 두는 이유.", pc(3, 3));
+    w.loc.P.b = "b3"; w.tas += 2;
+    w.snap("P: b3(blk 8) hit. Q 는 계속 spin.", pc(4, 3));
+    w.buf.b3.ref = 1; w.lk[2] = null; w.lock("Q", 2);
+    w.snap("P: refcnt++, release → Q 가 bucket[2].lock 획득.", pc(5, 3));
+    w.buf.b3.sl = "P"; w.st.P = "done"; w.loc.Q.b = "b2";
+    w.snap("P: acquiresleep(b3) 반환. Q: b2(blk 5) hit — refcnt 는 이미 1 (P 가 1라운드에서 받아 아직 쓰는 중).", pc(6, 4));
+    w.buf.b2.ref = 2; w.lk[2] = null;
+    w.snap("Q: refcnt 1 → 2, release. 같은 블록의 버퍼는 '''하나'''이고 두 사람이 refcnt 로 붙잡고 있다.", pc(6, 5));
+    w.st.Q = "sleeping";
+    w.snap("Q: `acquiresleep(&b2->lock)` — P 가 sleeplock 을 쥐고 있으니 Q 는 '''잠든다'''(spin 아님). P 가 brelse 하면 깨어난다. refcnt = '캐시에서 쫓겨나지 않게', sleeplock = '내용은 한 명씩'.",
+      pc(6, 6));
+    return { w: w, panels: [
+      { id: "P", title: "P: bget", lang: "c", lines: GOOD },
+      { id: "Q", title: "Q: bget", lang: "c", lines: GOOD }] };
+  }
+
+  // ---------------- miss_move ----------------
+  function buildMiss() {
+    var w = new World(false);
+    w.who = ["P"]; w.target = 7;
+    var pc = function (a) { return { P: a }; };
+    w.loc.P.blk = 7; w.st.P = "running";
+    w.snap("P 가 block 7 을 bget. 캐시에 없다(miss). 버킷 1 에는 b1(blk 4, 누군가 사용 중 refcnt 1)만 있다.", pc(1));
+    w.loc.P.k = 1;
+    w.snap("k = 7 % 3 = 1.", pc(2));
+    w.lock("P", 1);
+    w.snap("`acquire(bucket[1].lock)`.", pc(3));
+    w.snap("체인 검색: b1 은 blk 4 → 없다.", pc(4));
+    w.lk[1] = null;
+    w.snap("'''miss → 버킷 lock 을 먼저 놓는다'''. 왜? eviction 경로의 lock 순서는 언제나 `bcache.lock` → 버킷 lock 이다. 버킷 lock 을 쥔 채 bcache.lock 을 기다리면, bcache.lock 을 쥐고 이 버킷을 원하는 다른 프로세스와 [[데드락]]이 난다.",
+      pc(7));
+    w.gl = "P";
+    w.snap("`acquire(bcache.lock)` — 빈 버퍼를 찾아 옮기는 일(eviction)은 한 번에 한 프로세스만. 과제 힌트: \"It is OK to serialize finding an unused buf\".", pc(8));
+    w.lock("P", 1);
+    w.snap("bucket[1] 을 다시 잡고 '''한 번 더 찾는다''' — 7번 줄에서 lock 을 놓은 틈에 누가 block 7 을 넣었을 수 있다(옵션 race_2025). 이번엔 여전히 없음.", pc(9));
+    w.lk[2] = "P";
+    w.snap("victim 찾기: v = 1 (이미 쥔 lock, 다시 acquire 하지 않음) — b1 은 refcnt 1 이라 안 됨. v = 2: `acquire(bucket[2].lock)`, b2 는 refcnt 0 → '''victim = b2'''. (bcache.lock 이 eviction 을 직렬화하니 버킷 lock 두 개를 동시에 쥐는 건 언제나 한 명뿐이다. 번호 순서로 잡도록 짜도 좋다 — [[lock ordering]].)",
+      pc(11));
+    w.loc.P.b = "b2"; w.detach("b2");
+    w.snap("b2 를 bucket[2] 체인에서 떼어 낸다. 두 버킷 lock 을 다 쥐고 있으니 이 '이동 중' 상태를 아무도 볼 수 없다.", pc(12));
+    w.attach("b2", 1); w.lk[2] = null;
+    w.snap("bucket[1] 체인에 붙이고 `release(bucket[2].lock)`.", pc(12));
+    w.buf.b2.blk = 7; w.buf.b2.valid = 0; w.buf.b2.ref = 1;
+    w.snap("b2 를 block 7 용으로: blockno = 7, '''valid = 0'''(아직 디스크에서 안 읽음), refcnt = 1. 사본 수 1.", pc(13));
+    w.lk[1] = null; w.gl = null;
+    w.snap("bucket[1].lock, bcache.lock 을 놓는다.", pc(14));
+    w.buf.b2.sl = "P"; w.st.P = "done";
+    w.snap("`acquiresleep(&b2->lock)` 후 반환. bread 가 valid == 0 을 보고 디스크에서 읽어 채운다. 전역 LRU 는 없어졌다 — refcnt == 0 인 아무 버퍼나 victim (과제 허용).", pc(15));
+    return { w: w, panels: [{ id: "P", title: "P: bget(dev, 7)", lang: "c", lines: GOOD }] };
+  }
+
+  // ---------------- same_bucket ----------------
+  function buildSame() {
+    var w = new World(true);
+    w.who = ["P"]; w.target = 7;
+    var pc = function (a, b) { return { PA: a, PB: b }; };
+    w.loc.P.blk = 7; w.st.P = "running";
+    w.snap("이번엔 b1(blk 4) 의 refcnt 가 0 — 목표 블록 7 과 '''같은 버킷 1''' 에 쓸 수 있는 victim 이 있다. 먼저 왼쪽 '버그' 버전.", pc(1, null));
+    w.loc.P.k = 1; w.lock("P", 1);
+    w.snap("k = 1, `acquire(bucket[1].lock)`.", pc(3, null));
+    w.snap("검색: block 7 없음.", pc(4, null));
+    w.lk[1] = null;
+    w.snap("miss → 버킷 lock 놓기.", pc(7, null));
+    w.gl = "P";
+    w.snap("`acquire(bcache.lock)`.", pc(8, null));
+    w.lock("P", 1);
+    w.snap("bucket[1] 다시 잡고 재검색 — 없음. 지금 P 는 '''bucket[1].lock 을 쥐고 있다'''.", pc(9, null));
+    w.st.P = "panic";
+    w.snap("victim 찾기가 v = 1 부터 '''무조건''' `acquire(bucket[1].lock)` → 이미 이 CPU 가 쥔 lock. xv6 `acquire` 는 `if(holding(lk)) panic(\"acquire\")` 로 막는다 → '''panic: acquire'''. ([[spin lock]] 은 재진입이 안 된다 — 검사가 없으면 자기 자신을 영원히 기다린다.)",
+      pc(11, null), "panic: acquire — 같은 버킷 lock 을 두 번 잡았다");
+    w = (function (old) {
+      var n = new World(true); n.who = ["P"]; n.target = 7; n.steps = old.steps; n.panelSt = { PA: "panic" }; return n;
+    })(w);
+    w.loc.P = { blk: 7, k: 1 }; w.st.P = "running"; w.gl = "P"; w.lock("P", 1);
+    w.snap("오른쪽 '고친' 설계로 같은 상황을 다시: 9번 줄까지 똑같이 와서 bcache.lock + bucket[1].lock 을 쥐고 재검색 miss.", pc(null, 9));
+    w.loc.P.b = "b1";
+    w.snap("v = 1 == k → '''이미 쥔 lock 이니 acquire 하지 않고''' 그대로 훑는다. b1 refcnt 0 → victim = b1.", pc(null, 11));
+    w.snap("v == k 라 옮길 필요가 없다 — 같은 체인에 그대로 둔다. (두 lock 을 '번호 순서로' 잡는 코드라면, 두 번호가 같을 때 한 번만 잡도록 따로 처리해야 한다.)", pc(null, 12));
+    w.buf.b1.blk = 7; w.buf.b1.valid = 0; w.buf.b1.ref = 1;
+    w.snap("b1: blockno = 7, valid = 0, refcnt = 1.", pc(null, 13));
+    w.lk[1] = null; w.gl = null;
+    w.snap("release(bucket[1].lock), release(bcache.lock).", pc(null, 14));
+    w.buf.b1.sl = "P"; w.st.P = "done";
+    w.snap("acquiresleep(b1) 후 반환. 사본 수 1. 요점: '''victim 이 목표와 같은 버킷인 경우'''를 꼭 따로 생각할 것 — bcachetest 에서 실제로 자주 나온다.", pc(null, 15));
+    return { w: w, panels: [
+      { id: "PA", title: "버그: v 마다 무조건 acquire", lang: "c", lines: BUGGY_SAME },
+      { id: "PB", title: "고친 설계", lang: "c", lines: GOOD }] };
+  }
+
+  // ---------------- race_2025 ----------------
+  function buildRace2025() {
+    var w = new World(false);
+    w.target = 7;
+    var pc = function (a, b) { return { P: a, Q: b }; };
+    w.loc.P.blk = 7; w.loc.Q.blk = 7; w.st.P = w.st.Q = "running";
+    w.snap("2025 제출물의 bget 흐름(요약). P 와 Q 가 '''같은 block 7''' 을 거의 동시에 bread 한다(예: 같은 파일을 여는 두 프로세스). block 7 은 캐시에 없다.", pc(1, 1));
+    w.loc.P.k = 1; w.loc.Q.k = 1;
+    w.snap("둘 다 k = 1.", pc(2, 2));
+    w.lock("P", 1); w.wait("Q", "bucket[1]", 2);
+    w.snap("P 가 bucket[1] 을 잡고 검색 → 없음. Q 는 spin.", pc(3, 3));
+    w.lk[1] = null; w.lock("Q", 1);
+    w.snap("P: ① miss → lock 을 놓는다. 그 틈에 Q 가 bucket[1] 을 잡고 검색 → '''역시 없음'''.", pc(5, 3));
+    w.lk[1] = null; w.lock("P", 1);
+    w.snap("Q 도 ① lock 을 놓는다. P 는 ② bucket[1] 을 다시 잡는다 — 그런데 '''다시 찾지 않는다'''.", pc(6, 5));
+    w.lk[1] = null;
+    w.snap("P: bucket[1] 의 b1 은 refcnt 1 → 재사용 불가, release.", pc(8, 5));
+    w.lk[0] = "P"; w.detach("b0"); w.lk[0] = null; w.loc.P.b = "b0";
+    w.lock("Q", 1);
+    w.snap("P: 다른 버킷 v = 0 을 잠그고 b0(refcnt 0) 을 떼어 낸 뒤 bucket[0] 을 놓는다 — '''b0 는 어느 버킷에도 없다'''(③ 틈). Q: ② bucket[1] 다시 잡음.", pc(9, 6));
+    w.lk[1] = null;
+    w.snap("Q: bucket[1] 안에 쓸 버퍼 없음, release.", pc(9, 8));
+    w.lk[2] = "Q"; w.detach("b2"); w.lk[2] = null; w.loc.Q.b = "b2";
+    w.snap("Q: v = 0 은 비었다(b0 는 P 가 들고 이동 중), v = 2 에서 b2(refcnt 0) 를 떼어 낸다.", pc(9, 9));
+    w.lock("P", 1); w.attach("b0", 1); w.buf.b0.blk = 7; w.buf.b0.valid = 0; w.buf.b0.ref = 1; w.lk[1] = null;
+    w.snap("P: bucket[1] 을 잡고 b0 를 붙여 block 7 로 설정, refcnt 1, release.", pc(10, 9));
+    w.lock("Q", 1); w.attach("b2", 1); w.buf.b2.blk = 7; w.buf.b2.valid = 0; w.buf.b2.ref = 1; w.lk[1] = null;
+    w.snap("Q: bucket[1] 을 잡고 b2 를 붙여 '''또 block 7''' 로 설정. bucket[1] 에 block 7 이 '''두 개''' 생겼다.", pc(10, 10),
+      "불변식 위반: \"at most one copy of each block is cached\" — block 7 사본이 2개.");
+    w.buf.b0.sl = "P"; w.buf.b2.sl = "Q";
+    w.snap("둘 다 acquiresleep — '''서로 다른 버퍼의 sleeplock''' 이라 둘 다 바로 성공. P 와 Q 가 block 7 을 '''동시에 독점'''한다고 믿는다.", pc(11, 11));
+    w.st.P = w.st.Q = "done";
+    w.snap("결과: P 가 b0 에 쓴 내용과 Q 가 b2 에 쓴 내용이 따로 디스크로 간다 → 한쪽 갱신이 사라진다(lost update). 그런데 bcachetest 는 같은 블록을 동시에 miss 하는 경우를 거의 만들지 않아 '''채점은 100/100''' 이 나온다.",
+      pc(11, 11), "테스트 통과 ≠ 정확함. 과제 힌트: searching and allocating must be atomic.");
+    return { w: w, panels: [
+      { id: "P", title: "P: bget(dev, 7) — 2025 흐름", lang: "c", lines: R2025 },
+      { id: "Q", title: "Q: bget(dev, 7) — 2025 흐름", lang: "c", lines: R2025 }] };
+  }
+
+  // ---------------- race_fixed ----------------
+  function buildRaceFixed() {
+    var w = new World(false);
+    w.target = 7;
+    var pc = function (a, b) { return { P: a, Q: b }; };
+    w.loc.P.blk = 7; w.loc.Q.blk = 7; w.st.P = w.st.Q = "running";
+    w.snap("race_2025 와 같은 출발: P·Q 가 동시에 block 7 을 bget, 캐시에 없음. 이번엔 eviction lock(`bcache.lock`) + '''재검색''' 설계.", pc(1, 1));
+    w.loc.P.k = 1; w.loc.Q.k = 1;
+    w.snap("둘 다 k = 1.", pc(2, 2));
+    w.lock("P", 1); w.wait("Q", "bucket[1]", 2);
+    w.snap("P 가 bucket[1] 획득, Q spin.", pc(3, 3));
+    w.snap("P: 검색 → 없음.", pc(4, 3));
+    w.lk[1] = null; w.lock("Q", 1); w.gl = "P";
+    w.snap("P: 버킷 lock 을 놓고 `acquire(bcache.lock)`. Q 는 bucket[1] 을 잡아 검색 → 없음.", pc(8, 4));
+    w.lk[1] = null;
+    w.snap("Q: miss → 버킷 lock 놓기.", pc(8, 7));
+    w.lock("P", 1); w.wait("Q", "bcache.lock", 4);
+    w.snap("Q: `acquire(bcache.lock)` → P 가 쥐고 있다 → spin. '''eviction 이 직렬화'''된다. P: bucket[1] 다시 잡고 재검색 → 없음.", pc(9, 8));
+    w.lk[2] = "P"; w.loc.P.b = "b2"; w.tas += 3;
+    w.snap("P: victim 찾기 — v = 1 의 b1 은 refcnt 1, v = 2 의 b2 는 refcnt 0 → victim = b2.", pc(11, 8));
+    w.detach("b2"); w.attach("b2", 1); w.lk[2] = null;
+    w.snap("P: b2 를 bucket[2] 에서 bucket[1] 로 옮기고 bucket[2].lock 놓기.", pc(12, 8));
+    w.buf.b2.blk = 7; w.buf.b2.valid = 0; w.buf.b2.ref = 1;
+    w.snap("P: b2 = block 7, valid 0, refcnt 1.", pc(13, 8));
+    w.lk[1] = null; w.gl = null; w.spin = {}; w.gl = "Q";
+    w.snap("P: bucket[1].lock, bcache.lock release → Q 가 bcache.lock 획득.", pc(14, 8));
+    w.buf.b2.sl = "P"; w.st.P = "done"; w.lock("Q", 1); w.loc.Q.b = "b2";
+    w.snap("P: acquiresleep(b2) 반환. Q: bucket[1] 을 잡고 '''다시 찾는다''' → P 가 방금 넣은 b2(blk 7) 를 찾았다!", pc(15, 9));
+    w.buf.b2.ref = 2; w.lk[1] = null; w.gl = null;
+    w.snap("Q: hit → refcnt 1 → 2, 두 lock 을 놓고 6번 줄로. 새 버퍼를 만들지 않으니 '''사본은 하나'''.", pc(15, 10));
+    w.st.Q = "sleeping";
+    w.snap("Q: `acquiresleep(&b2->lock)` — P 가 쥐고 있으니 잠든다. P 가 디스크에서 읽고(valid = 1) brelse 하면 Q 가 깨어나 '''같은 내용'''을 본다.", pc(15, 6));
+    w.buf.b2.sl = "Q"; w.buf.b2.valid = 1; w.buf.b2.ref = 1; w.st.Q = "done";
+    w.snap("P 의 brelse 후: refcnt 1(Q), sleeplock 은 Q. 정리: miss 후 lock 을 놓은 틈은 '''bcache.lock 아래에서 다시 찾기'''로 메운다 → \"searching and allocating an entry\" 가 atomic.", pc(15, 6));
+    return { w: w, panels: [
+      { id: "P", title: "P: bget(dev, 7)", lang: "c", lines: GOOD },
+      { id: "Q", title: "Q: bget(dev, 7)", lang: "c", lines: GOOD }] };
+  }
+
+  global.SIMS["bget_trace"] = {
+    title: "bcache 해시 버킷 bget (과제 2 Problem 2)",
+    desc: "버퍼 4개 · 버킷 3개(blockno % 3) 모형으로 [[bcache 해시 버킷]] 의 bget 을 줄 단위로 돌린다. 코드는 '''설계 수준 의사코드'''. hit, miss 후 eviction 이동, victim 이 같은 버킷인 함정, 2025 제출물의 사본 2개 race 와 그 해결.",
+    options: [
+      {
+        key: "scenario", label: "시나리오",
+        values: [
+          { value: "hit", label: "hit — 다른 버킷은 동시에, 같은 버킷은 spin" },
+          { value: "miss_move", label: "miss_move — bcache.lock 아래 재검색 + 버퍼 이동" },
+          { value: "same_bucket", label: "same_bucket — victim 이 같은 버킷 (panic: acquire)" },
+          { value: "race_2025", label: "race_2025 — 재검색 없음 → block 사본 2개" },
+          { value: "race_fixed", label: "race_fixed — eviction lock + 재검색 → 사본 1개" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      var s = opts.scenario || "hit";
+      var r = s === "miss_move" ? buildMiss() : s === "same_bucket" ? buildSame() : s === "race_2025" ? buildRace2025() : s === "race_fixed" ? buildRaceFixed() : buildHit();
+      return { panels: r.panels, vars: r.w.vars(), steps: r.w.steps };
     }
   };
 })(typeof window !== "undefined" ? window : globalThis);
@@ -5963,6 +6472,400 @@ window.SIMS = window.SIMS || {};
     }
   };
 })();
+
+// ===== sims/kalloc_steal.js =====
+// kalloc_steal — 과제 2 (xv6 Lock) Problem 1: per-CPU free list + steal 을 줄 단위로.
+// 코드 패널은 일부러 '설계 수준 의사코드' 다 (과제 정답 kalloc.c 가 아님). 원본 xv6 kalloc.c 는 kmem 하나 + kmem.lock 하나.
+// scenario: normal(freerange → CPU1 steal → CPU2 kfree → CPU0·CPU2 동시 kalloc, contention 0)
+//           deadlock(내 lock 을 쥔 채 남의 lock → CPU0↔CPU1 circular wait)
+//           ordered(두 lock 을 번호 작은 것부터 → 한쪽이 아무것도 쥐지 않고 spin → 풀림)
+//           cpuid_race(인터럽트 켠 채 cpuid() → 다른 CPU 로 옮겨져 틀린 리스트를 lock 없이 수정 → panic: release, push_off/pop_off 로 고침)
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var COL = { CPU0: "#1d65b3", CPU1: "#2e9e4f", CPU2: "#e09a40", P: "#7a4fc0" };
+  var WARN = "#d6465f";
+  var CPUS = ["CPU0", "CPU1", "CPU2"];
+
+  // ---------------- 코드 패널 (의사코드) ----------------
+  var NORMAL = [
+    "freerange():   // 부팅 때 한 번 — 지금 도는 CPU 가 전부 받는다",
+    "  push_off(); id = cpuid(); 모든 페이지를 kmem[id] 에 push; pop_off()",
+    "kalloc():",
+    "  push_off(); id = cpuid()          // 인터럽트 끄고 내 CPU 번호",
+    "  acquire(kmem[id].lock)",
+    "  r = kmem[id].freelist; r 있으면 kmem[id].freelist = r->next",
+    "  release(kmem[id].lock)",
+    "  r == 0 이면 → steal: 다른 CPU j 를 하나씩",
+    "    acquire(kmem[j].lock)             // 한 번에 lock 하나만",
+    "    kmem[j] 에서 한 장 떼어 r 로 (없으면 다음 j)",
+    "    release(kmem[j].lock)",
+    "  pop_off(); return r",
+    "kfree(pa):",
+    "  push_off(); id = cpuid()",
+    "  acquire(kmem[id].lock)",
+    "  pa 를 kmem[id] 리스트 맨 앞에 push",
+    "  release(kmem[id].lock); pop_off()"
+  ];
+  var NAIVE = [
+    "kalloc():   // 순진한 steal",
+    "  push_off(); id = cpuid()",
+    "  acquire(kmem[id].lock)               // 내 lock",
+    "  내 리스트가 비었으면 → steal (j = 0,1,2 중 나 빼고)",
+    "    acquire(kmem[j].lock)              // 내 lock 을 쥔 채로 남의 lock!",
+    "    kmem[j] 에서 몇 장 떼어 내 리스트로",
+    "    release(kmem[j].lock)",
+    "  r = 내 리스트에서 pop",
+    "  release(kmem[id].lock)",
+    "  pop_off(); return r"
+  ];
+  var ORDERED = [
+    "kalloc():   // lock ordering 버전",
+    "  push_off(); id = cpuid()",
+    "  acquire(kmem[id].lock); r = 내 리스트에서 pop; release(kmem[id].lock)",
+    "  r == 0 이면 → steal (j = 0,1,2 중 나 빼고, 하나씩):",
+    "    a = min(id, j); b = max(id, j)     // 번호 작은 lock 먼저",
+    "    acquire(kmem[a].lock)",
+    "    acquire(kmem[b].lock)",
+    "    kmem[j] 에서 몇 장 떼어 내 리스트로, 그중 한 장 → r",
+    "    release(kmem[b].lock); release(kmem[a].lock)",
+    "    r 이 생겼으면 break",
+    "  pop_off(); return r"
+  ];
+  var RACE_P = [
+    "kfree(pa):   // 버그: 인터럽트 켠 채 cpuid() 를 매번 부름",
+    "  acquire(kmem[cpuid()].lock)      // 인자 계산 때는 인터럽트 ON",
+    "  pa->next = kmem[cpuid()].freelist",
+    "  kmem[cpuid()].freelist = pa",
+    "  release(kmem[cpuid()].lock)",
+    "── 고친 설계 ──",
+    "  push_off(); id = cpuid()         // 이제 다른 CPU 로 못 옮겨 간다",
+    "  acquire(kmem[id].lock); pa 를 kmem[id] 에 push; release(kmem[id].lock)",
+    "  pop_off()                         // 미뤄 둔 인터럽트는 여기서"
+  ];
+  var RACE_C2 = [
+    "kalloc() on CPU2: 내 리스트 빔 → steal j = 1",
+    "  acquire(kmem[1].lock)",
+    "  r = kmem[1].freelist",
+    "  kmem[1].freelist = r->next",
+    "  release(kmem[1].lock); return r"
+  ];
+
+  // ---------------- 상태 ----------------
+  function World(lists) {
+    this.L = lists;                 // L[i] = 페이지 id 배열 (앞 = freelist head)
+    this.lock = [null, null, null];
+    this.tas = [0, 0, 0];
+    this.loc = { CPU0: {}, CPU1: {}, CPU2: {} };
+    this.st = { CPU0: "ready", CPU1: "ready", CPU2: "ready" };
+    this.spin = {};                 // who -> lock index
+    this.arrows = [];               // 이번 step 의 steal 화살표 {from,to,label}
+    this.hl = {};                   // 방금 움직인 페이지
+    this.bad = {};                  // 깨진 페이지
+    this.cardNote = {};             // CPU 카드 둘째 줄 덧말
+    this.steps = [];
+    this.raceVars = false;
+  }
+  World.prototype.svg = function () {
+    var self = this, W = 760, rowH = 78, top = 14, H = top + 3 * rowH + 10;
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:760px" font-family="sans-serif">';
+    o += '<defs><marker id="ks-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#555"/></marker>' +
+      '<marker id="ks-rd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="' + WARN + '"/></marker></defs>';
+    function rowY(i) { return top + i * rowH; }
+    CPUS.forEach(function (c, i) {
+      var y = rowY(i), col = COL[c];
+      // CPU 카드
+      o += '<rect x="8" y="' + y + '" width="128" height="56" rx="7" fill="' + col + '" fill-opacity="0.10" stroke="' + col + '" stroke-width="2"/>';
+      o += '<text x="72" y="' + (y + 20) + '" font-size="13" font-weight="700" text-anchor="middle" fill="' + col + '">' + c + '</text>';
+      var sub = self.cardNote[c] || self.st[c];
+      o += '<text x="72" y="' + (y + 40) + '" font-size="11" text-anchor="middle" fill="' + (self.st[c] === "spinning" || self.st[c] === "panic" ? WARN : "#444") + '">' + sub + '</text>';
+      // kmem[i] + 자물쇠
+      var h = self.lock[i], hc = h ? (/^P@/.test(h) ? COL.P : COL[h]) : "#b8b8b8";
+      o += '<rect x="176" y="' + y + '" width="118" height="56" rx="4" fill="#fafafa" stroke="#999"/>';
+      o += '<text x="186" y="' + (y + 19) + '" font-size="12" font-weight="700" fill="#333">kmem[' + i + ']</text>';
+      var lx = 264, ly = y + 8;
+      o += '<path d="M' + (lx + 4) + ',' + (ly + 10) + ' v-4 a6,6 0 0 1 12,0 v4" fill="none" stroke="' + hc + '" stroke-width="2.4"/>';
+      o += '<rect x="' + lx + '" y="' + (ly + 10) + '" width="20" height="14" rx="2" fill="' + hc + '"/>';
+      o += '<text x="186" y="' + (y + 36) + '" font-size="10" fill="#555">lock: ' + (h || "free") + '</text>';
+      o += '<text x="186" y="' + (y + 50) + '" font-size="10" fill="#555">#tas ' + self.tas[i] + '</text>';
+      // 페이지 상자
+      o += '<text x="308" y="' + (y + 10) + '" font-size="9" fill="#888">freelist →</text>';
+      if (!self.L[i].length) o += '<text x="314" y="' + (y + 38) + '" font-size="11" fill="#999">(비어 있음, 0)</text>';
+      self.L[i].forEach(function (p, k) {
+        var x = 308 + k * 58, bad = self.bad[p], hl = self.hl[p];
+        o += '<rect x="' + x + '" y="' + (y + 16) + '" width="48" height="34" rx="3" fill="' + (bad ? "#fde2e6" : "#fff") + '" stroke="' + (bad ? WARN : hl ? "#333" : "#999") + '" stroke-width="' + (bad || hl ? 2.4 : 1.2) + '"/>';
+        o += '<text x="' + (x + 24) + '" y="' + (y + 38) + '" font-size="12" text-anchor="middle" fill="#333">' + p + '</text>';
+        if (k < self.L[i].length - 1) o += '<line x1="' + (x + 48) + '" y1="' + (y + 33) + '" x2="' + (x + 58) + '" y2="' + (y + 33) + '" stroke="#999" marker-end="url(#ks-ar)"/>';
+      });
+      // spin 표시: 이 CPU 가 다른 줄의 lock 을 기다림
+      if (self.spin[c] !== undefined) {
+        var j = self.spin[c], ty = rowY(j) + 28, sy = y + 28;
+        if (j === i) {
+          o += '<text x="140" y="' + (y + 70) + '" font-size="10" fill="' + WARN + '">spin on kmem[' + j + '].lock</text>';
+        } else {
+          var ey = ty + (j > i ? -10 : 10);
+          o += '<path d="M136,' + sy + ' C160,' + sy + ' 152,' + ey + ' 175,' + ey + '" fill="none" stroke="' + WARN + '" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ks-rd)"/>';
+          o += '<text x="140" y="' + (sy + (j > i ? 14 : -6)) + '" font-size="10" fill="' + WARN + '">spin→' + j + '</text>';
+        }
+      }
+    });
+    // steal 화살표: 오른쪽 여백에서 줄 사이를 잇는다
+    self.arrows.forEach(function (a, n) {
+      var y1 = rowY(a.from) + 33, y2 = rowY(a.to) + 33, lo = Math.min(a.from, a.to), hi = Math.max(a.from, a.to), m = 1;
+      for (var r = lo; r <= hi; r++) m = Math.max(m, self.L[r].length || 2);
+      var x0 = 308 + m * 58 + 4 + n * 16, xc = x0 + 46;
+      o += '<path d="M' + x0 + ',' + y1 + ' C' + xc + ',' + y1 + ' ' + xc + ',' + y2 + ' ' + x0 + ',' + y2 + '" fill="none" stroke="#333" stroke-width="2" marker-end="url(#ks-ar)"/>';
+      o += '<text x="' + (xc - 2) + '" y="' + ((y1 + y2) / 2 + 4) + '" font-size="11" font-weight="700" fill="#333">' + a.label + '</text>';
+    });
+    return o + '</svg>';
+  };
+  World.prototype.snap = function (desc, pc, note) {
+    var self = this, v = {};
+    [0, 1, 2].forEach(function (i) {
+      v["L" + i] = self.L[i].slice();
+      v["lk" + i] = self.lock[i] || "free";
+      v["tas" + i] = self.tas[i];
+    });
+    CPUS.forEach(function (c) {
+      v[c + ".id"] = self.loc[c].id !== undefined ? self.loc[c].id : "–";
+      v[c + ".r"] = self.loc[c].r !== undefined ? self.loc[c].r : "–";
+    });
+    if (this.raceVars) {
+      v["P.cpu"] = this.loc.P.cpu; v["P.intr"] = this.loc.P.intr; v["P.cpuid"] = this.loc.P.cpuid;
+    }
+    var status = {};
+    Object.keys(pc).forEach(function (k) { status[k] = self.st[k] || (self.loc[k] && self.loc[k].st) || "ready"; });
+    var s = { desc: desc, pc: pc, vars: v, status: status, svg: this.svg() };
+    if (note) s.note = note;
+    this.steps.push(s);
+    this.arrows = []; this.hl = {};
+  };
+  World.prototype.vars = function () {
+    var vs = [];
+    [0, 1, 2].forEach(function (i) {
+      var g = "kmem[" + i + "]";
+      vs.push({ name: "L" + i, label: "freelist (head 먼저)", group: g });
+      vs.push({ name: "lk" + i, label: "lock 주인", group: g });
+      vs.push({ name: "tas" + i, label: "#test-and-set", group: g });
+    });
+    CPUS.forEach(function (c) {
+      vs.push({ name: c + ".id", label: c + " id", group: "CPU 지역 변수" });
+      vs.push({ name: c + ".r", label: c + " r", group: "CPU 지역 변수" });
+    });
+    if (this.raceVars) {
+      vs.push({ name: "P.cpu", label: "P 가 지금 도는 CPU", group: "프로세스 P" });
+      vs.push({ name: "P.intr", label: "P 인터럽트", group: "프로세스 P" });
+      vs.push({ name: "P.cpuid", label: "방금 cpuid() 값", group: "프로세스 P" });
+    }
+    return vs;
+  };
+  World.prototype.take = function (who, i) {    // lock 획득 (비어 있을 때만 호출)
+    this.lock[i] = who; delete this.spin[who.replace(/^P@/, "")];
+  };
+  World.prototype.wait = function (c, i, n) {   // spin
+    this.spin[c] = i; this.st[c] = "spinning"; this.tas[i] += n;
+  };
+
+  function pages(n, from) { var a = []; for (var k = n - 1; k >= 0; k--) a.push("p" + (k + from)); return a; }
+
+  // ---------------- normal ----------------
+  function buildNormal() {
+    var w = new World([[], [], []]);
+    w.snap("'''[[per-CPU free list]]''': 원본 xv6 는 `kmem` 하나와 `kmem.lock` 하나 → 모든 CPU 의 [[kalloc]]/kfree 가 같은 [[spin lock]] 을 두고 경쟁한다([[lock contention]]). 과제는 이걸 CPU 마다 `kmem[i]`(리스트 + lock) 로 쪼갠다. kinit 이 lock 3개를 초기화(이름은 \"kmem\" 으로 시작). 페이지는 6장(p0~p5)만 있다고 하자.",
+      { CPU0: 1, CPU1: null, CPU2: null });
+    w.L[0] = pages(6, 0); w.loc.CPU0.id = 0; w.st.CPU0 = "running";
+    w.snap("CPU0 이 freerange 를 돈다. 과제 힌트대로 '''freerange 를 실행하는 CPU 에게 전부''' 준다 → kmem[0] = p5→p4→…→p0, 나머지 CPU 리스트는 비어 있다. (헤드가 p5 인 건 앞에 push 했기 때문)",
+      { CPU0: 2, CPU1: null, CPU2: null });
+    w.st.CPU0 = "ready"; w.st.CPU1 = "running"; w.loc.CPU1.id = 1;
+    w.snap("CPU1 에서 [[kalloc]]. 먼저 `push_off()` 로 인터럽트를 끄고 `cpuid()` = 1. 인터럽트를 끄는 이유는 [[cpuid]] 를 읽은 뒤 다른 CPU 로 옮겨지면 id 가 틀어지기 때문이다(옵션 cpuid_race).",
+      { CPU0: null, CPU1: 4, CPU2: null });
+    w.take("CPU1", 1);
+    w.snap("`acquire(kmem[1].lock)` — 자기 lock 이라 아무도 경쟁하지 않는다. #test-and-set 0 그대로.",
+      { CPU0: null, CPU1: 5, CPU2: null });
+    w.loc.CPU1.r = 0;
+    w.snap("내 리스트 head 를 본다 → '''비어 있다''' (r = 0).", { CPU0: null, CPU1: 6, CPU2: null });
+    w.lock[1] = null;
+    w.snap("내 lock 을 '''먼저 놓는다'''. (내 lock 을 쥔 채 남의 lock 을 잡으면 옵션 deadlock 의 상황이 된다.)",
+      { CPU0: null, CPU1: 7, CPU2: null });
+    w.snap("r == 0 → '''[[steal]]''': 다른 CPU 의 리스트를 j = 0, 2 순으로 본다. j = 0.", { CPU0: null, CPU1: 8, CPU2: null });
+    w.take("CPU1", 0);
+    w.snap("`acquire(kmem[0].lock)` — '''이 순간 쥐고 있는 lock 은 이것 하나뿐'''이라 circular wait 가 생길 수 없다. 지금 CPU0 은 kalloc 중이 아니므로 바로 획득.",
+      { CPU0: null, CPU1: 9, CPU2: null });
+    w.L[0].shift(); w.loc.CPU1.r = "p5"; w.arrows.push({ from: 0, to: 1, label: "steal p5" });
+    w.snap("kmem[0] 의 head p5 를 떼어 r 로. (한 장만 가져와도 되고, 여러 장을 내 리스트로 옮겨 다음 steal 을 줄여도 된다 — 설계 선택.)",
+      { CPU0: null, CPU1: 10, CPU2: null });
+    w.lock[0] = null;
+    w.snap("`release(kmem[0].lock)`.", { CPU0: null, CPU1: 11, CPU2: null });
+    w.st.CPU1 = "done";
+    w.snap("`pop_off()` 후 p5 반환. CPU1 이 p5 를 쓴다.", { CPU0: null, CPU1: 12, CPU2: null });
+    w.st.CPU2 = "running"; w.loc.CPU2.id = 2; w.st.CPU1 = "ready";
+    w.snap("p5 를 쓰던 프로세스가 '''CPU2 로 옮겨 가서''' kfree(p5). `push_off(); cpuid()` = 2.", { CPU0: null, CPU1: null, CPU2: 14 });
+    w.take("CPU2", 2);
+    w.snap("`acquire(kmem[2].lock)` — 역시 자기 lock.", { CPU0: null, CPU1: null, CPU2: 15 });
+    w.L[2].unshift("p5"); w.hl.p5 = true;
+    w.snap("p5 를 '''kfree 하는 CPU 의 리스트'''(kmem[2]) 앞에 push. 누가 kalloc 했던 페이지든 상관없다.", { CPU0: null, CPU1: null, CPU2: 16 });
+    w.lock[2] = null; w.st.CPU2 = "ready";
+    w.snap("release, pop_off. 이제 kmem[0] 에 5장, kmem[2] 에 1장.", { CPU0: null, CPU1: null, CPU2: 17 });
+    w.st.CPU0 = "running"; w.st.CPU2 = "running"; w.loc.CPU0.id = 0; w.loc.CPU2.id = 2;
+    w.snap("CPU0 과 CPU2 가 '''동시에''' kalloc. 각자 `cpuid()` = 0, 2.", { CPU0: 4, CPU1: null, CPU2: 4 });
+    w.take("CPU0", 0); w.take("CPU2", 2);
+    w.snap("둘 다 `acquire` — '''서로 다른 lock''' 이라 같은 순간에 둘 다 성공. #test-and-set 이 전부 0 이다. 원본 xv6 였다면 둘 중 하나가 `kmem.lock` 에서 spin 했을 것.",
+      { CPU0: 5, CPU1: null, CPU2: 5 });
+    w.L[0].shift(); w.L[2].shift(); w.loc.CPU0.r = "p4"; w.loc.CPU2.r = "p5";
+    w.snap("CPU0 은 p4, CPU2 는 p5 를 pop.", { CPU0: 6, CPU1: null, CPU2: 6 });
+    w.lock[0] = null; w.lock[2] = null;
+    w.snap("release. r ≠ 0 이라 steal 은 건너뛴다.", { CPU0: 7, CPU1: null, CPU2: 7 });
+    w.st.CPU0 = "done"; w.st.CPU2 = "done";
+    w.snap("둘 다 반환. 정리: '''평소엔 자기 lock 만''' 잡으니 contention 이 거의 0 이고, 경쟁은 steal 할 때만 생긴다. kalloctest 가 출력하는 `kmem` lock 의 `#test-and-set` 이 바로 이 spin 횟수다.",
+      { CPU0: 12, CPU1: null, CPU2: 12 });
+    return { w: w, panels: CPUS.map(function (c) { return { id: c, title: c, lang: "c", lines: NORMAL }; }) };
+  }
+
+  // ---------------- deadlock ----------------
+  function buildDeadlock() {
+    var w = new World([[], [], pages(4, 0)]);
+    w.snap("순진한 [[steal]]: '''내 lock 을 쥔 채로''' 남의 리스트 lock 을 잡는다. 상황: kmem[0]·kmem[1] 은 비었고 페이지 4장은 전부 kmem[2] 에 있다. CPU0 과 CPU1 이 동시에 kalloc 한다.",
+      { CPU0: 1, CPU1: 1, CPU2: null });
+    w.st.CPU0 = w.st.CPU1 = "running"; w.loc.CPU0.id = 0; w.loc.CPU1.id = 1;
+    w.snap("둘 다 `push_off(); cpuid()` → id 0, 1.", { CPU0: 2, CPU1: 2, CPU2: null });
+    w.take("CPU0", 0); w.take("CPU1", 1);
+    w.snap("각자 자기 lock 획득: CPU0 → kmem[0], CPU1 → kmem[1]. 여기까진 문제없다.", { CPU0: 3, CPU1: 3, CPU2: null });
+    w.snap("둘 다 리스트가 비었다 → steal. j 를 0,1,2 순서로 보되 자기는 건너뛰니 '''CPU0 은 j = 1, CPU1 은 j = 0''' 부터.", { CPU0: 4, CPU1: 4, CPU2: null });
+    w.wait("CPU0", 1, 1);
+    w.snap("CPU0: `acquire(kmem[1].lock)` — CPU1 이 쥐고 있다 → [[test-and-set]] 실패, '''spin'''. CPU0 은 kmem[0] 을 쥔 채다 (hold and wait).",
+      { CPU0: 5, CPU1: 4, CPU2: null });
+    w.wait("CPU1", 0, 1); w.tas[1] += 1;
+    w.snap("CPU1: `acquire(kmem[0].lock)` — CPU0 이 쥐고 있다 → spin. CPU0 → kmem[1] → CPU1 → kmem[0] → CPU0 고리가 닫혔다: '''circular wait'''.",
+      { CPU0: 5, CPU1: 5, CPU2: null }, "[[데드락]]: CPU0 은 kmem[0] 을 쥔 채 kmem[1] 을, CPU1 은 kmem[1] 을 쥔 채 kmem[0] 을 기다린다.");
+    w.tas[0] += 4096; w.tas[1] += 4096;
+    w.snap("시간이 흘러도 둘 다 [[spin lock]] 에서 돈다. `acquire` 가 인터럽트를 꺼 두었으니 타이머도 이 CPU 들을 다른 일로 돌려 주지 못한다. #test-and-set 만 계속 오른다.",
+      { CPU0: 5, CPU1: 5, CPU2: null }, "spin 은 영원히 끝나지 않는다 — kalloctest 는 시간 초과로 실패한다.");
+    w.st.CPU2 = "running"; w.loc.CPU2.id = 2;
+    w.snap("한편 CPU2 의 kalloc 은 자기 lock 만 쓰니 멀쩡히 돈다. 페이지는 CPU2 에 남아 있는데 CPU0·CPU1 은 못 가져간다.", { CPU0: 5, CPU1: 5, CPU2: 2 });
+    w.take("CPU2", 2);
+    w.snap("CPU2: `acquire(kmem[2].lock)` 성공, 리스트가 비지 않았다.", { CPU0: 5, CPU1: 5, CPU2: 3 });
+    w.L[2].shift(); w.loc.CPU2.r = "p3";
+    w.snap("CPU2: p3 pop.", { CPU0: 5, CPU1: 5, CPU2: 8 });
+    w.lock[2] = null; w.st.CPU2 = "done";
+    w.snap("CPU2 반환. 하지만 이후 kmem[0] 이나 kmem[1] 을 잡으려는 CPU 는 전부 같이 멈춘다.", { CPU0: 5, CPU1: 5, CPU2: 10 },
+      "고치는 법은 12강 [[lock ordering]]: lock 두 개를 쥘 거면 모두가 같은 순서(번호 작은 것부터)로. 또는 한 번에 lock 하나만 쥐도록(옵션 normal). → 옵션 ordered");
+    return { w: w, panels: CPUS.map(function (c) { return { id: c, title: c, lang: "c", lines: NAIVE }; }) };
+  }
+
+  // ---------------- ordered ----------------
+  function buildOrdered() {
+    var w = new World([[], [], pages(4, 0)]);
+    var pc = function (a, b) { return { CPU0: a, CPU1: b, CPU2: null }; };
+    w.snap("옵션 deadlock 과 같은 상황(kmem[0]·kmem[1] 빔, 페이지는 kmem[2]). 이번엔 steal 할 때 lock 두 개를 '''항상 번호 작은 것부터''' 잡는다([[lock ordering]]).", pc(1, 1));
+    w.st.CPU0 = w.st.CPU1 = "running"; w.loc.CPU0.id = 0; w.loc.CPU1.id = 1;
+    w.snap("`push_off(); cpuid()` → 0, 1.", pc(2, 2));
+    w.loc.CPU0.r = 0; w.loc.CPU1.r = 0;
+    w.snap("각자 자기 lock 을 잠깐 잡고 pop 시도 → 비었음, '''바로 놓는다'''. 지금 쥔 lock 없음.", pc(3, 3));
+    w.snap("steal: CPU0 은 j = 1, CPU1 은 j = 0.", pc(4, 4));
+    w.snap("둘 다 (a, b) = (0, 1). '''누가 훔치든 kmem[0] 부터''' 잡는다.", pc(5, 5));
+    w.take("CPU0", 0); w.wait("CPU1", 0, 3);
+    w.snap("CPU0 이 kmem[0] 획득. CPU1 도 kmem[0] 을 원하니 spin — 그런데 CPU1 은 '''아무 lock 도 쥐고 있지 않다'''. 그러니 CPU0 을 막을 수 없다.", pc(6, 6));
+    w.take("CPU0", 1); w.tas[0] += 5;
+    w.snap("CPU0: `acquire(kmem[1].lock)` — 비어 있으므로 성공. 옵션 deadlock 에선 여기서 막혔다.", pc(7, 6));
+    w.snap("CPU0: kmem[1] 도 비었다 → 가져올 게 없음.", pc(8, 6));
+    w.lock[0] = null; w.lock[1] = null; w.take("CPU1", 0); w.st.CPU1 = "running";
+    w.snap("CPU0 이 둘 다 release → CPU1 의 spin 이 끝나 kmem[0] 획득.", pc(9, 6));
+    w.take("CPU1", 1);
+    w.snap("CPU0: r 없음 → 다음 j = 2, (a, b) = (0, 2). CPU1 은 kmem[1] 획득 (쥔 것: kmem[0], kmem[1]).", pc(5, 7));
+    w.wait("CPU0", 0, 2);
+    w.snap("CPU0 이 kmem[0] 을 원하지만 CPU1 이 쥐고 있다 → spin (역시 빈손). CPU1: kmem[0] 비었음.", pc(6, 8));
+    w.lock[0] = null; w.lock[1] = null; w.take("CPU0", 0); w.st.CPU0 = "running";
+    w.snap("CPU1 release → CPU0 이 kmem[0] 획득. CPU1 은 다음 j = 2, (a, b) = (1, 2).", pc(6, 5));
+    w.take("CPU0", 2); w.take("CPU1", 1);
+    w.snap("CPU0: kmem[2] 획득 (쥔 것: kmem[0], kmem[2]). CPU1: kmem[1] 획득.", pc(7, 6));
+    w.L[2].splice(0, 2); w.L[0] = ["p2"]; w.loc.CPU0.r = "p3"; w.hl.p2 = true; w.arrows.push({ from: 2, to: 0, label: "steal p3,p2" });
+    w.wait("CPU1", 2, 2);
+    w.snap("CPU0: kmem[2] 에서 2장(p3, p2) 을 옮겨 p3 → r, p2 는 내 리스트에. CPU1: kmem[2] 를 원함 → spin (kmem[1] 을 쥐고 있지만, 더 작은 번호를 기다리는 사람은 없다).", pc(8, 7));
+    w.lock[0] = null; w.lock[2] = null; w.take("CPU1", 2); w.st.CPU1 = "running";
+    w.snap("CPU0 release → CPU1 이 kmem[2] 획득.", pc(9, 7));
+    w.st.CPU0 = "done"; w.L[2].splice(0, 2); w.L[1] = ["p0"]; w.loc.CPU1.r = "p1"; w.hl.p0 = true; w.arrows.push({ from: 2, to: 1, label: "steal p1,p0" });
+    w.snap("CPU0 은 r = p3 → break → 반환. CPU1 은 kmem[2] 에서 p1, p0 을 옮겨 p1 → r.", pc(11, 8));
+    w.lock[1] = null; w.lock[2] = null;
+    w.snap("CPU1 release.", pc(11, 9));
+    w.st.CPU1 = "done";
+    w.snap("CPU1 반환. 대기 그래프에 '''큰 번호 → 작은 번호''' 방향 화살표가 생길 수 없으니 고리도 생길 수 없다 = circular wait 조건을 깼다 (12강 [[lock ordering]]). 남은 페이지: kmem[0] p2, kmem[1] p0.",
+      pc(11, 11));
+    return { w: w, panels: CPUS.map(function (c) { return { id: c, title: c, lang: "c", lines: ORDERED }; }) };
+  }
+
+  // ---------------- cpuid_race ----------------
+  function buildRace() {
+    var w = new World([["p1"], ["p3", "p4"], []]);
+    w.raceVars = true;
+    w.loc.P = { cpu: "CPU0", intr: "on", cpuid: "–", st: "running" };
+    w.cardNote.CPU0 = "P 실행 중";
+    var pc = function (p, c) { return { P: p, CPU2: c }; };
+    w.st.P = "running";
+    w.snap("[[cpuid]] 함정. 프로세스 P 가 CPU0 에서 kfree(p7) 을 부른다. 이 버전은 `push_off()` 없이 '''인터럽트를 켠 채''' `cpuid()` 를 줄마다 다시 부른다. (원본 xv6 `cpuid()` 주석: \"Must be called with interrupts disabled\")",
+      pc(1, null));
+    w.loc.P.cpuid = 0;
+    w.snap("`acquire(kmem[cpuid()].lock)` 의 '''인자'''를 먼저 계산 → cpuid() = 0. 아직 acquire 전이라 인터럽트는 켜져 있다.", pc(2, null));
+    w.loc.P.cpu = "CPU1"; w.cardNote.CPU0 = "다른 일"; w.cardNote.CPU1 = "P 실행 중";
+    w.snap("바로 그때 '''타이머 인터럽트''' → yield. 스케줄러가 P 를 다시 고를 때는 '''CPU1''' 에서 돈다. P 손에 든 값은 여전히 0.", pc(2, null));
+    w.take("P@CPU1", 0); w.loc.P.intr = "off";
+    w.snap("CPU1 위에서 `acquire(kmem[0].lock)` — 0번 lock 을 잡았다. acquire 가 인터럽트를 끄니 이제부터는 안 옮겨진다.", pc(2, null));
+    w.st.CPU2 = "running"; w.loc.CPU2.id = 2; w.take("CPU2", 1);
+    w.snap("한편 CPU2 는 자기 리스트가 비어 kmem[1] 에서 steal 중: `acquire(kmem[1].lock)` — 정상적으로 1번 lock 을 쥔다.", pc(2, 2));
+    w.loc.CPU2.r = "p3";
+    w.snap("CPU2: r = kmem[1].freelist = p3.", pc(2, 3));
+    w.loc.P.cpuid = 1;
+    w.snap("P: `pa->next = kmem[cpuid()].freelist` — 지금 cpuid() 는 '''1''' 이다! P 는 0번 lock 만 쥔 채 '''kmem[1] 을 lock 없이''' 읽는다 → p7->next = p3.", pc(3, 3),
+      "kmem[1].lock 은 CPU2 가 쥐고 있는데 P 도 kmem[1] 을 만진다 = race condition.");
+    w.L[1] = ["p4"];
+    w.snap("CPU2: `kmem[1].freelist = r->next` → head = p4. p3 은 CPU2 가 가져간다.", pc(3, 4));
+    w.L[1] = ["p7", "p3"]; w.bad.p3 = true; w.bad.p7 = true;
+    w.snap("P: `kmem[cpuid()].freelist = pa` → kmem[1] = p7 → p3. '''p3 은 CPU2 가 쓰는 중인데 free list 에도 있다'''(다음 kalloc 이 또 줌 → 두 곳이 같은 페이지를 씀), '''p4 는 리스트에서 사라졌다'''(lost page).",
+      pc(4, 4), "free list 가 깨졌다: 이중 할당 + 페이지 누수.");
+    w.lock[1] = null; w.st.CPU2 = "done";
+    w.snap("CPU2: release(kmem[1].lock), p3 반환.", pc(4, 5));
+    w.loc.P.st = "panic"; w.st.P = "panic"; w.cardNote.CPU1 = "panic";
+    w.snap("P: `release(kmem[cpuid()].lock)` = release(kmem[1].lock) — 이 CPU 가 쥔 lock 이 아니다 → xv6 `release` 의 `holding()` 검사에 걸려 '''panic: release'''. kmem[0].lock 은 영영 안 풀린다.",
+      pc(5, 5), "panic: release");
+    // 고친 설계
+    w.L = [["p1"], ["p3", "p4"], []]; w.bad = {}; w.lock = [null, null, null]; w.tas = [0, 0, 0];
+    w.loc.P = { cpu: "CPU0", intr: "off", cpuid: 0, st: "running" }; w.st.P = "running";
+    w.loc.CPU2 = {}; w.st.CPU2 = "ready"; w.cardNote = { CPU0: "P 실행 중" };
+    w.snap("'''같은 순간을 고친 설계로''' 다시. P(CPU0): `push_off()` 로 인터럽트를 끄고 `id = cpuid()` = 0. 타이머 인터럽트가 와도 '''pending''' 으로 미뤄진다.", pc(7, null));
+    w.take("P@CPU0", 0);
+    w.snap("`acquire(kmem[0].lock)` — '''id 로 고른 리스트와 lock 이 언제나 같은 번호'''.", pc(8, null));
+    w.L[0] = ["p7", "p1"]; w.hl.p7 = true; w.lock[0] = null;
+    w.snap("p7 을 kmem[0] 에 push, release. CPU2 가 kmem[1] 에서 무엇을 하든 서로 다른 lock·다른 리스트라 안전하다.", pc(8, null));
+    w.loc.P.intr = "on"; w.loc.P.cpu = "CPU1"; w.cardNote = { CPU1: "P 실행 중" };
+    w.snap("`pop_off()` → 미뤄 둔 인터럽트가 이제 처리되고 P 가 CPU1 로 옮겨 가도 괜찮다. 이미 일이 끝났으니까. 요점: '''cpuid() 는 push_off() 와 pop_off() 사이에서 한 번 읽고, 그 값만 쓴다'''.",
+      pc(9, null));
+    var panels = [
+      { id: "P", title: "프로세스 P: kfree(p7)", lang: "c", lines: RACE_P },
+      { id: "CPU2", title: "CPU2: kalloc (steal)", lang: "c", lines: RACE_C2 }];
+    return { w: w, panels: panels };
+  }
+
+  global.SIMS["kalloc_steal"] = {
+    title: "per-CPU free list 와 steal (과제 2 Problem 1)",
+    desc: "CPU 3개 · 페이지 몇 장으로 [[per-CPU free list]] 의 [[kalloc]]/kfree 를 줄 단위로 돌린다. 코드는 '''설계 수준 의사코드''' 다. 순진한 [[steal]] 의 [[데드락]], [[lock ordering]] 으로 푸는 법, [[cpuid]] 를 인터럽트 켠 채 읽을 때의 함정까지.",
+    options: [
+      {
+        key: "scenario", label: "시나리오",
+        values: [
+          { value: "normal", label: "normal — freerange → steal → kfree → 동시 kalloc" },
+          { value: "deadlock", label: "deadlock — 내 lock 쥔 채 남의 lock (circular wait)" },
+          { value: "ordered", label: "ordered — 번호 작은 lock 먼저 (데드락 없음)" },
+          { value: "cpuid_race", label: "cpuid_race — 인터럽트 켠 채 cpuid() → push_off 로 고침" }
+        ]
+      }
+    ],
+    build: function (opts) {
+      var s = opts.scenario || "normal";
+      var r = s === "deadlock" ? buildDeadlock() : s === "ordered" ? buildOrdered() : s === "cpuid_race" ? buildRace() : buildNormal();
+      return { panels: r.panels, vars: r.w.vars(), steps: r.w.steps };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/lockfree_cas3.js =====
 // lockfree_cas3 — 12강 p.22~24 AtomicIncrement 를 스레드 3개로: 문제집 u11 ③-08 의 스케줄을 한 줄씩.
@@ -11228,6 +12131,236 @@ ANIMS["alarm_tick"] = {
   }
 };
 
+// ===== anims/bcache_hash.js =====
+// ============================================================
+// bcache_hash — 과제 2 ② buffer cache: bcache.lock 하나 → blockno % 13 해시 버킷마다 lock
+// 시간축(초): 0 Before: bcache.lock 하나 + LRU 이중 연결 리스트, P1·P2·P3 줄서기 → 4.4 After: 13 bucket
+//   → 5.8 bget(27)=bucket 1 hit(refcnt 1→2) ‖ bget(18)=bucket 5 → 8 bget(40) miss → 9 bcache.lock,
+//   refcnt==0 인 bucket 7 의 blk 59 → 9.9 lock 1→7 순서 → 10.4 buf 를 bucket 1 로, blockno=40 → 14 끝
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["bcache_hash"] = {
+  title: "bcache 해시 버킷 — 블록 번호로 lock 을 나눈다",
+  desc: "Before: '''bcache.lock''' 하나가 LRU 리스트 전체를 지켜서 bget() 이 모두 줄을 선다 → After: '''blockno % 13''' 버킷마다 lock → 다른 블록은 동시에 hit, miss 때만 bcache.lock 을 잡고 refcnt==0 인 buf 를 다른 버킷에서 옮겨 온다 (같은 블록은 사본 하나)",
+  duration: 14,
+  build: function () {
+    var D = 14;
+    var C = {
+      p1: "#1d65b3", p1L: "#dbe8f7", p2: "#2e9e4f", p2L: "#dff3e4", p3: "#e09a40", p3L: "#fdeec2",
+      k: "#3b2f4a", kL: "#efe9f6", hw: "#d6465f", spinF: "#ffd9d9", spinT: "#a52f2f",
+      ok: "#1d6b2a", okL: "#cdefd2", muted: "#777", line: "#b9c4d8"
+    };
+    var P = [[C.p1, C.p1L], [C.p2, C.p2L], [C.p3, C.p3L]];
+    function f(x) { return Math.round(x * 10000) / 10000; }
+    function txt(x, y, s, size, fill, extra) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + (/text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"') + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      var a = from / D, b = to / D;
+      if (from <= 0 && to >= D) return '<set attributeName="opacity" to="1" dur="' + D + 's" fill="freeze"/>';
+      if (from <= 0) return '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + f(b) + ';' + f(b + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+      if (to >= D) return '<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;' + f(a) + ';' + f(a + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + f(a) + ';' + f(a + 0.003) + ';' + f(b) + ';' + f(b + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function win(from, to, inner) { return '<g opacity="' + (from <= 0 ? 1 : 0) + '">' + inner + show(from, to) + '</g>'; }
+    function kf(attr, fr) {
+      var ts = [], vs = [];
+      if (fr[0][0] > 0) { ts.push(0); vs.push(fr[0][1]); }
+      fr.forEach(function (p) { ts.push(f(p[0] / D)); vs.push(p[1]); });
+      if (fr[fr.length - 1][0] < D) { ts.push(1); vs.push(fr[fr.length - 1][1]); }
+      return '<animate attributeName="' + attr + '" values="' + vs.join(";") + '" keyTimes="' + ts.join(";") + '" dur="' + D + 's" fill="freeze"/>';
+    }
+    function mv(fr) {
+      var ts = [], vs = [];
+      if (fr[0][0] > 0) { ts.push(0); vs.push(fr[0][1] + " " + fr[0][2]); }
+      fr.forEach(function (p) { ts.push(f(p[0] / D)); vs.push(p[1] + " " + p[2]); });
+      if (fr[fr.length - 1][0] < D) { ts.push(1); vs.push(fr[fr.length - 1][1] + " " + fr[fr.length - 1][2]); }
+      return '<animateTransform attributeName="transform" type="translate" values="' + vs.join(";") + '" keyTimes="' + ts.join(";") + '" dur="' + D + 's" fill="freeze"/>';
+    }
+    function steps(attr, base, ch) {
+      var fr = [[0, base]], cur = base;
+      ch.forEach(function (c) { fr.push([c[0], cur]); fr.push([c[0] + 0.05, c[1]]); cur = c[1]; });
+      return kf(attr, fr);
+    }
+    function badge(cx, y, w, fillc, strokec, label) {
+      return '<rect x="' + (cx - w / 2) + '" y="' + y + '" width="' + w + '" height="17" rx="8" fill="' + fillc + '" stroke="' + strokec + '"/>' +
+        txt(cx, y + 13, label, 11, strokec, ' font-weight="700"');
+    }
+
+    var s = '<svg viewBox="0 0 760 372" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="bcache 해시 버킷 애니메이션">';
+    s += '<defs><marker id="bh_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + C.p1 + '"/></marker></defs>';
+
+    // ---- 단계 자막 ----
+    var caps = [
+      [0, 0.6, "Before: bcache.lock 하나가 LRU 이중 연결 리스트 전체를 지킨다"],
+      [0.6, 2.1, "P1 이 bget() — lock 을 쥔 채 head 부터 리스트를 훑는다, P2·P3 는 spinning"],
+      [2.1, 4.4, "찾는 block 이 서로 달라도 전부 같은 lock 앞에 줄을 선다 (lock contention)"],
+      [4.4, 5.8, "After: blockno % 13 으로 bucket 을 정한다 — bucket 마다 lock 하나"],
+      [5.8, 7.6, "bget(27) → bucket 1 hit (refcnt 1→2) · 동시에 bget(18) → bucket 5 — 서로 다른 lock"],
+      [7.6, 9.0, "bget(40) → 40 % 13 = 1, bucket 1 을 뒤졌지만 없다 → miss"],
+      [9.0, 10.4, "miss: bcache.lock 을 잡고 refcnt == 0 인 buf 를 찾는다 → bucket 7 의 blk 59"],
+      [10.4, 11.8, "bucket 1 → 7 순서(번호 작은 것 먼저)로 lock, buf 를 bucket 1 로 옮기고 blockno = 40"],
+      [11.8, 14, "블록 40 은 bucket 1 에만, 사본 하나 — 그동안 P2 는 bucket 5 에서 따로 일했다"]
+    ];
+    caps.forEach(function (c) { s += win(c[0], c[1], txt(380, 24, c[2], 14, "#222", ' font-weight="700"')); });
+
+    // ================= Before =================
+    var B = '<g>';
+    B += '<rect x="10" y="38" width="740" height="236" rx="10" fill="#fafafa" stroke="#ddd"/>';
+    B += txt(22, 58, "Before — bcache.lock 하나 + LRU 리스트 하나", 12, C.k, ' font-weight="700" text-anchor="start"');
+    B += '<rect x="330" y="84" width="140" height="36" rx="7" stroke="' + C.k + '" stroke-width="2.5" fill="' + C.kL + '">' +
+      steps("fill", C.kL, [[0.3, C.p1L], [1.8, C.kL], [2.1, C.p2L], [3.3, C.kL], [3.6, C.p3L], [4.4, C.kL]]) + '</rect>';
+    B += txt(400, 107, "🔒 bcache.lock", 13, C.k, ' font-weight="700"');
+    var holdIv = [[0.3, 1.8], [2.1, 3.3], [3.6, 4.4]];
+    holdIv.forEach(function (h, k) { B += win(h[0], h[1], txt(400, 138, "holder: P" + (k + 1), 11, P[k][0], ' font-weight="700"')); });
+    // 프로세스 줄 (holder 250, 대기 170, 90)
+    var SX = [250, 170, 90], TY = 88;
+    var order = [[0, 1, 2], [1, 2, 0], [2, 0, 1]], rotT = [1.8, 3.3];
+    for (var k = 0; k < 3; k++) {
+      var fr = [[0, SX[order[0].indexOf(k)], TY]];
+      for (var r = 0; r < 2; r++) {
+        fr.push([rotT[r], SX[order[r].indexOf(k)], TY]);
+        if (order[r].indexOf(k) === 0) fr.push([rotT[r] + 0.15, 170, TY + 34]);
+        fr.push([rotT[r] + 0.3, SX[order[r + 1].indexOf(k)], TY]);
+      }
+      var h = holdIv[k];
+      var spin = [[0, h[0] > 0.3 ? 1 : 0]];
+      if (h[0] > 0.3) { spin.push([h[0] - 0.35, 1]); spin.push([h[0] - 0.3, 0]); }
+      spin.push([h[1], 0]);
+      if (h[1] + 0.35 < 4.4) { spin.push([h[1] + 0.3, 0]); spin.push([h[1] + 0.35, 1]); spin.push([4.4, 1]); spin.push([4.45, 0]); }
+      var g = '<g>';
+      g += '<g>' + badge(33, -21, 62, C.spinF, C.spinT, "spinning") + kf("opacity", spin) + '</g>';
+      g += win(h[0], h[1], badge(33, -21, 62, C.okL, C.ok, "bget()"));
+      g += '<rect x="0" y="0" width="66" height="28" rx="14" fill="' + P[k][1] + '" stroke="' + P[k][0] + '" stroke-width="2"/>';
+      g += txt(33, 19, "P" + (k + 1), 13, P[k][0], ' font-weight="700"') + mv(fr) + '</g>';
+      B += g;
+    }
+    // #test-and-set
+    B += txt(640, 108, "#test-and-set (bcache):", 12, C.spinT, ' text-anchor="end"');
+    var v = 0, cnt = [];
+    for (var t = 0.3, n = 0; t < 4.4 - 1e-6; t += 0.3, n++) { cnt.push([t, v]); v += 520 + (n * 211) % 380; }
+    cnt.push([4.4, v]);
+    cnt.forEach(function (c, j) {
+      var end = j + 1 < cnt.length ? cnt[j + 1][0] : D;
+      B += win(j === 0 ? 0 : c[0], end, txt(646, 108, String(c[1]).replace(/\B(?=(\d{3})+(?!\d))/g, ","), 14, C.spinT, ' font-weight="700" text-anchor="start"'));
+    });
+    // LRU 리스트
+    var LB = [27, 5, 18, 13, 59, 30, 12], LY = 168;
+    function lx(i) { return 104 + i * 92; }
+    B += '<rect x="26" y="' + LY + '" width="58" height="34" rx="6" fill="' + C.kL + '" stroke="' + C.k + '" stroke-width="1.5"/>' + txt(55, LY + 22, "head", 12, C.k, ' font-weight="700"');
+    B += txt(94, LY + 22, "⇄", 13, C.muted);
+    LB.forEach(function (b, i) {
+      B += '<rect x="' + lx(i) + '" y="' + LY + '" width="70" height="34" rx="6" fill="#fff" stroke="' + C.line + '" stroke-width="1.5"/>';
+      B += txt(lx(i) + 35, LY + 22, "blk " + b, 12, "#222", ' font-weight="700"');
+      if (i < LB.length - 1) B += txt(lx(i) + 81, LY + 22, "⇄", 13, C.muted);
+    });
+    B += txt(lx(0) + 35, LY + 52, "← MRU", 11, C.muted);
+    B += txt(lx(6) + 35, LY + 52, "LRU →", 11, C.muted);
+    // 스캔 커서: holder 가 head 부터 목표까지 훑음
+    [[0, 0.5, 1.6, 4], [1, 2.3, 3.2, 6], [2, 3.8, 4.35, 2]].forEach(function (sc) {
+      var cfr = [[sc[1], lx(0) - 3, LY - 3], [sc[2], lx(sc[3]) - 3, LY - 3]];
+      B += '<g opacity="0"><rect x="0" y="0" width="76" height="40" rx="8" fill="none" stroke="' + P[sc[0]][0] + '" stroke-width="3"/>' + mv(cfr) + show(sc[1], sc[2] + 0.15) + '</g>';
+    });
+    B += txt(380, 252, "bget()·brelse() 가 모두 이 lock 하나를 거친다 — 서로 다른 block 을 찾는데도", 12, C.muted);
+    B += kf("opacity", [[0, 1], [4.4, 1], [4.6, 0]]) + '</g>';
+    s += B;
+
+    // ================= After =================
+    var A = '<g opacity="0">';
+    A += txt(20, 46, "[i] = blockno % 13 · bucket 마다 lock", 11, C.muted, ' text-anchor="start"');
+    A += txt(320, 46, "buf (blk · refcnt)", 11, C.muted);
+    function ry(i) { return 52 + i * 21; }
+    function bx(j) { return 198 + j * 82; }
+    var lockCh = {
+      1: [[6.2, C.p1L], [7.6, C.kL], [8.2, C.p1L], [8.9, C.kL], [9.9, C.p1L], [11.5, C.kL]],
+      5: [[6.2, C.p2L], [7.6, C.kL], [9.2, C.p2L], [10.4, C.kL]],
+      7: [[10.2, C.p1L], [11.5, C.kL]]
+    };
+    for (var i = 0; i < 13; i++) {
+      var y = ry(i);
+      if (i % 2 === 0) A += '<rect x="14" y="' + (y - 2) + '" width="490" height="21" fill="#f6f6f9"/>';
+      A += txt(22, y + 13, "[" + i + "]", 11, C.k, ' font-weight="700" text-anchor="start"');
+      A += '<rect x="76" y="' + y + '" width="112" height="17" rx="8" stroke="' + C.k + '" stroke-width="1.2" fill="' + C.kL + '">' + (lockCh[i] ? steps("fill", C.kL, lockCh[i]) + steps("stroke", C.k, lockCh[i].map(function (c) { return [c[0], c[1] === C.kL ? C.k : (c[1] === C.p1L ? C.p1 : C.p2)]; })) + steps("stroke-width", "1.2", lockCh[i].map(function (c) { return [c[0], c[1] === C.kL ? "1.2" : "2.5"]; })) : "") + '</rect>';
+      A += txt(132, y + 13, "🔒 bcache.bucket", 11, C.k);
+    }
+    // 잠금 순서 배지
+    A += win(9.9, 11.5, txt(60, ry(1) + 13, "①", 13, C.p1, ' font-weight="700"'));
+    A += win(10.2, 11.5, txt(60, ry(7) + 13, "②", 13, C.p1, ' font-weight="700"'));
+    // buf 들
+    function buf(blk, ref, x, y, opt) {
+      opt = opt || {};
+      var g = '<g>';
+      g += '<rect x="0" y="0" width="76" height="17" rx="4" fill="#fff" stroke="' + C.line + '" stroke-width="1.2"/>';
+      if (opt.hl) opt.hl.forEach(function (hh) {
+        g += win(hh[0], hh[1], '<rect x="-2" y="-2" width="80" height="21" rx="5" fill="none" stroke="' + hh[2] + '" stroke-width="2.5"/>');
+      });
+      if (opt.texts) opt.texts.forEach(function (tt) { g += win(tt[0], tt[1], txt(38, 13, tt[2], 11, tt[3] || "#222", ' font-weight="700"')); });
+      else g += txt(38, 13, "blk " + blk + " · r" + ref, 11, ref ? "#222" : C.muted, ' font-weight="700"');
+      g += mv(opt.fr || [[0, x, y]]) + '</g>';
+      return g;
+    }
+    var init = { 0: [[13, 0], [26, 0]], 2: [[2, 0]], 4: [[30, 0]], 8: [[21, 0]], 9: [[22, 0]], 11: [[24, 0]], 12: [[12, 0], [38, 0]] };
+    Object.keys(init).forEach(function (bi) { init[bi].forEach(function (b, j) { A += buf(b[0], b[1], bx(j), ry(+bi)); }); });
+    // bucket 1: 27(r1→r2), 1(r1)
+    A += buf(27, 1, bx(0), ry(1), {
+      texts: [[0, 6.8, "blk 27 · r1"], [6.8, D, "blk 27 · r2", C.p1]],
+      hl: [[6.3, 7.6, C.p1]]
+    });
+    A += buf(1, 1, bx(1), ry(1));
+    // bucket 1 miss 스캔 커서
+    A += '<g opacity="0"><rect x="-2" y="-2" width="80" height="21" rx="5" fill="none" stroke="' + C.hw + '" stroke-width="2.5" stroke-dasharray="4 3"/>' +
+      mv([[8.3, bx(0), ry(1)], [8.7, bx(1), ry(1)]]) + show(8.3, 8.9) + '</g>';
+    // bucket 5: 18(r1→r2), 5(r1→r2)
+    A += buf(18, 1, bx(0), ry(5), { texts: [[0, 6.8, "blk 18 · r1"], [6.8, D, "blk 18 · r2", C.p2]], hl: [[6.3, 7.6, C.p2]] });
+    A += buf(5, 1, bx(1), ry(5), { texts: [[0, 9.7, "blk 5 · r1"], [9.7, D, "blk 5 · r2", C.p2]], hl: [[9.3, 10.4, C.p2]] });
+    // bucket 7: 59(r0) → bucket 1 로 이동하며 blk 40, 33(r1) 은 왼쪽으로
+    A += buf(59, 0, bx(0), ry(7), {
+      texts: [[0, 11.2, "blk 59 · r0", C.muted], [11.2, D, "blk 40 · r1", C.p1]],
+      hl: [[9.3, 10.4, C.hw], [10.4, 11.8, C.p1]],
+      fr: [[0, bx(0), ry(7)], [10.4, bx(0), ry(7)], [10.8, bx(2), ry(3)], [11.2, bx(2), ry(1)]]
+    });
+    A += buf(33, 1, bx(1), ry(7), { fr: [[0, bx(1), ry(7)], [11.1, bx(1), ry(7)], [11.4, bx(0), ry(7)]] });
+    A += win(9.3, 10.4, txt(bx(2) + 4, ry(7) + 13, "blk 59: r0 → 재사용 후보", 11, C.hw, ' font-weight="700" text-anchor="start"'));
+    // 이동 경로 화살표
+    A += win(10.3, 11.4, '<path d="M' + (bx(0) + 78) + ',' + (ry(7) + 8) + ' C420,' + (ry(6)) + ' 420,' + (ry(3)) + ' ' + (bx(2) + 38) + ',' + (ry(1) + 21) + '" fill="none" stroke="' + C.p1 + '" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#bh_arrow)"/>');
+    // 프로세스 토큰 (오른쪽 끝)
+    A += win(5.6, D, '<rect x="456" y="' + ry(1) + '" width="40" height="17" rx="8" fill="' + C.p1L + '" stroke="' + C.p1 + '" stroke-width="1.5"/>' + txt(476, ry(1) + 13, "P1", 11, C.p1, ' font-weight="700"'));
+    A += win(5.6, D, '<rect x="456" y="' + ry(5) + '" width="40" height="17" rx="8" fill="' + C.p2L + '" stroke="' + C.p2 + '" stroke-width="1.5"/>' + txt(476, ry(5) + 13, "P2", 11, C.p2, ' font-weight="700"'));
+
+    // ---- 오른쪽 패널 ----
+    A += '<rect x="516" y="48" width="232" height="104" rx="8" fill="#fff" stroke="' + C.line + '"/>';
+    A += txt(632, 66, "bget(blockno) → 어느 bucket?", 12, C.k, ' font-weight="700"');
+    A += win(5.8, 8.0, txt(526, 88, "P1: 27 % 13 = 1", 12, C.p1, ' font-weight="700" text-anchor="start"'));
+    A += win(8.0, D, txt(526, 88, "P1: 40 % 13 = 1", 12, C.p1, ' font-weight="700" text-anchor="start"'));
+    A += win(5.8, 8.6, txt(526, 108, "P2: 18 % 13 = 5", 12, C.p2, ' font-weight="700" text-anchor="start"'));
+    A += win(8.6, D, txt(526, 108, "P2: 5 % 13 = 5", 12, C.p2, ' font-weight="700" text-anchor="start"'));
+    A += win(6.8, 8.0, txt(740, 88, "hit ✔", 12, C.ok, ' font-weight="700" text-anchor="end"'));
+    A += win(8.7, 11.2, txt(740, 88, "miss ✗", 12, C.hw, ' font-weight="700" text-anchor="end"'));
+    A += win(11.2, D, txt(740, 88, "새로 캐시 ✔", 12, C.ok, ' font-weight="700" text-anchor="end"'));
+    A += win(6.8, 8.6, txt(740, 108, "hit ✔", 12, C.ok, ' font-weight="700" text-anchor="end"'));
+    A += win(9.7, D, txt(740, 108, "hit ✔", 12, C.ok, ' font-weight="700" text-anchor="end"'));
+    A += win(6.3, 7.6, txt(632, 138, "bucket 1 ‖ bucket 5 — 동시에!", 12, C.ok, ' font-weight="700"'));
+    A += win(9.3, 10.4, txt(632, 138, "P2 는 bucket 5 에서 계속", 12, C.p2, ' font-weight="700"'));
+    // bcache.lock (eviction 전용)
+    A += '<rect x="516" y="166" width="232" height="38" rx="8" stroke="' + C.k + '" stroke-width="2" fill="' + C.kL + '">' + steps("fill", C.kL, [[9.0, C.p1L], [11.8, C.kL]]) + '</rect>';
+    A += txt(632, 190, "🔒 bcache.lock (miss/eviction 때만)", 12, C.k, ' font-weight="700"');
+    A += win(9.0, 11.8, txt(632, 222, "holder: P1 — 빈 buf 찾기 직렬화", 11, C.p1, ' font-weight="700"'));
+    A += win(9.9, 11.8, txt(632, 244, "bucket lock 순서: 1 → 7", 12, C.p1, ' font-weight="700"'));
+    A += win(9.9, 11.8, txt(632, 262, "(번호 작은 것 먼저 = 순환 대기 없음)", 11, C.muted));
+    A += win(11.8, D, txt(632, 244, "NBUF = 30 그대로", 12, C.k, ' font-weight="700"'));
+    A += win(11.8, D, txt(632, 262, "buf 는 bucket 사이를 옮겨 다닐 뿐", 11, C.muted));
+    A += txt(632, 300, "hit 는 bucket lock 하나로 끝", 11, C.muted);
+    A += txt(632, 318, "같은 blk 는 항상 같은 bucket", 11, C.muted);
+    A += kf("opacity", [[0, 0], [4.6, 0], [4.85, 1]]) + '</g>';
+    s += A;
+
+    // ---- 요점 ----
+    s += txt(380, 360, "요점: 블록 번호로 나누면 다른 블록끼리는 lock 이 안 겹치고, 같은 블록은 사본 하나만", 13, C.k, ' font-weight="700"');
+    s += '</svg>';
+    return s;
+  }
+};
+
 // ===== anims/bounded_buffer.js =====
 // ============================================================
 // bounded_buffer — 생산자/소비자, 버퍼 3칸 + 두 조건 변수 empty·fill (OSTEP ch.30, Fig 30.12~30.14)
@@ -13102,6 +14235,225 @@ ANIMS["futex_lock"] = {
     // ---- 요점 ----
     s += txt(380, 356, "phase 1 = 유저 공간 atomic 한 번(빠름) → 실패 시 phase 2 = futex_wait 로 커널 큐에서 잠듦.", 12, "#444", ' font-weight="700"');
     s += txt(380, 373, "락 상태는 유저 워드 하나, 대기 큐는 커널이 관리", 12, "#444", ' font-weight="700"');
+    s += '</svg>';
+    return s;
+  }
+};
+
+// ===== anims/kmem_percpu.js =====
+// ============================================================
+// kmem_percpu — 과제 2 ① kalloc: lock 하나 → CPU 마다 kmem[i] + 비었을 때만 steal
+// 시간축(초): 0 Before: kmem.lock 하나에 CPU0·1·2 가 줄 → 0.3~4.8 한 번에 하나만 acquire,
+//   나머지 spinning, #test-and-set 증가 → 4.8 After: kmem[0..2] → 5.5·6.7 세 CPU 동시 kalloc
+//   → 7.8 CPU1 free list 빔 → 8.6~10.2 kmem[0].lock 만 잡고 page 3개 steal → 10.6 kalloc 성공 → 13 끝
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["kmem_percpu"] = {
+  title: "kalloc per-CPU free list — lock 하나를 CPU 수만큼 쪼개기",
+  desc: "Before: free list 하나를 '''kmem.lock''' 하나가 지켜서 CPU 들이 [[spin lock|spinning]] 하며 줄을 선다 → After: CPU 마다 kmem[i] (lock·free list 각자) → 세 CPU 가 동시에 kalloc(), 자기 list 가 비었을 때만 다른 CPU 에서 '''steal'''",
+  duration: 13,
+  build: function () {
+    var D = 13;
+    var C = {
+      c0: "#1d65b3", c0L: "#dbe8f7", c1: "#2e9e4f", c1L: "#dff3e4", c2: "#e09a40", c2L: "#fdeec2",
+      k: "#3b2f4a", kL: "#efe9f6", hw: "#d6465f", spinF: "#ffd9d9", spinT: "#a52f2f",
+      ok: "#1d6b2a", okL: "#cdefd2", muted: "#777", line: "#b9c4d8", page: "#8a7aa6"
+    };
+    var CPU = [[C.c0, C.c0L], [C.c1, C.c1L], [C.c2, C.c2L]];
+    function f(x) { return Math.round(x * 10000) / 10000; }
+    function box(x, y, w, h, fill, stroke, extra) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="7" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2"' + (extra || "") + '/>';
+    }
+    function txt(x, y, s, size, fill, extra) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + (/text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"') + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      var a = from / D, b = to / D;
+      if (from <= 0 && to >= D) return '<set attributeName="opacity" to="1" dur="' + D + 's" fill="freeze"/>';
+      if (from <= 0) return '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + f(b) + ';' + f(b + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+      if (to >= D) return '<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;' + f(a) + ';' + f(a + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + f(a) + ';' + f(a + 0.003) + ';' + f(b) + ';' + f(b + 0.003) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function win(from, to, inner) { return '<g opacity="' + (from <= 0 ? 1 : 0) + '">' + inner + show(from, to) + '</g>'; }
+    function kf(attr, fr) {
+      var ts = [], vs = [];
+      if (fr[0][0] > 0) { ts.push(0); vs.push(fr[0][1]); }
+      fr.forEach(function (p) { ts.push(f(p[0] / D)); vs.push(p[1]); });
+      if (fr[fr.length - 1][0] < D) { ts.push(1); vs.push(fr[fr.length - 1][1]); }
+      return '<animate attributeName="' + attr + '" values="' + vs.join(";") + '" keyTimes="' + ts.join(";") + '" dur="' + D + 's" fill="freeze"/>';
+    }
+    function mv(fr) {
+      var ts = [], vs = [];
+      if (fr[0][0] > 0) { ts.push(0); vs.push(fr[0][1] + " " + fr[0][2]); }
+      fr.forEach(function (p) { ts.push(f(p[0] / D)); vs.push(p[1] + " " + p[2]); });
+      if (fr[fr.length - 1][0] < D) { ts.push(1); vs.push(fr[fr.length - 1][1] + " " + fr[fr.length - 1][2]); }
+      return '<animateTransform attributeName="transform" type="translate" values="' + vs.join(";") + '" keyTimes="' + ts.join(";") + '" dur="' + D + 's" fill="freeze"/>';
+    }
+    // 계단식 색 변화: [[t, color], ...] → 각 지점에서 0.05초 만에 바뀜
+    function steps(attr, base, ch) {
+      var fr = [[0, base]], cur = base;
+      ch.forEach(function (c) { fr.push([c[0], cur]); fr.push([c[0] + 0.05, c[1]]); cur = c[1]; });
+      return kf(attr, fr);
+    }
+    // ---- page 이동 모델: 위치 기록 → animateTransform ----
+    function Page(x, y) { this.fr = [[0, x, y]]; this.op = [[0, 1]]; this.x = x; this.y = y; }
+    Page.prototype.to = function (t, dt, x, y, mid) {
+      var last = this.fr[this.fr.length - 1][0];
+      if (t > last + 1e-6) this.fr.push([t, this.x, this.y]);
+      if (mid) this.fr.push([t + dt / 2, mid[0], mid[1]]);
+      this.fr.push([t + dt, x, y]); this.x = x; this.y = y;
+    };
+    Page.prototype.fade = function (t) { this.op.push([t - 0.15, 1]); this.op.push([t, 0]); };
+    Page.prototype.svg = function (fill) {
+      return '<g><rect x="0" y="0" width="20" height="20" rx="3" fill="' + fill + '" stroke="#fff" stroke-width="1"/>' + mv(this.fr) + kf("opacity", this.op) + '</g>';
+    };
+    function tok(label, k, inner, frames) {
+      return '<g>' + inner + '<rect x="0" y="0" width="66" height="28" rx="14" fill="' + CPU[k][1] + '" stroke="' + CPU[k][0] + '" stroke-width="2"/>' +
+        txt(33, 19, label, 13, CPU[k][0], ' font-weight="700"') + (frames ? mv(frames) : "") + '</g>';
+    }
+    function badge(w, fillc, strokec, label) {
+      return '<rect x="' + ((66 - w) / 2) + '" y="-21" width="' + w + '" height="17" rx="8" fill="' + fillc + '" stroke="' + strokec + '"/>' +
+        txt(33, -8, label, 11, strokec, ' font-weight="700"');
+    }
+
+    var s = '<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="kalloc per-CPU free list 애니메이션">';
+    s += '<defs><marker id="kp_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + C.c1 + '"/></marker></defs>';
+
+    // ---- 단계 자막 ----
+    var caps = [
+      [0, 0.6, "Before: free list 하나를 kmem.lock 하나가 지킨다 — CPU 3개가 동시에 kalloc()"],
+      [0.6, 2.1, "CPU0 이 acquire → CPU1·CPU2 는 test-and-set 을 돌며 spinning"],
+      [2.1, 4.8, "한 번에 한 CPU 만 — 기다리는 동안 #test-and-set 이 계속 쌓인다 (lock contention)"],
+      [4.8, 5.5, "After: kmem 을 CPU 마다 하나씩 — kmem[0..2], lock 3개, free list 3개"],
+      [5.5, 7.6, "세 CPU 가 각자 자기 lock 만 잡고 동시에 kalloc() — #test-and-set 0"],
+      [7.6, 8.6, "CPU1 의 free list 가 비었다 → 자기 list 만으로는 kalloc() 불가"],
+      [8.6, 10.4, "steal: CPU1 이 kmem[0].lock 만 잠깐 잡고 page 몇 개를 가져온다 (CPU2 는 계속 혼자 일함)"],
+      [10.4, 13, "가져온 page 로 kalloc() 성공 — steal 은 비었을 때만, 평소엔 lock 이 안 겹친다"]
+    ];
+    caps.forEach(function (c) { s += win(c[0], c[1], txt(380, 24, c[2], 14, "#222", ' font-weight="700"')); });
+
+    // ================= Before (위) =================
+    var B = '<g>';
+    B += '<rect x="10" y="38" width="740" height="134" rx="10" fill="#fafafa" stroke="#ddd"/>';
+    B += txt(22, 56, "Before — kmem 하나 (lock 1개 · free list 1개)", 12, C.k, ' font-weight="700" text-anchor="start"');
+    // lock
+    B += '<rect x="300" y="92" width="120" height="36" rx="7" stroke="' + C.k + '" stroke-width="2.5" fill="' + C.kL + '">' +
+      steps("fill", C.kL, [[0.3, C.c0L], [1.8, C.kL], [2.1, C.c1L], [3.3, C.kL], [3.6, C.c2L], [4.8, C.kL]]) + '</rect>';
+    B += txt(360, 115, "🔒 kmem.lock", 13, C.k, ' font-weight="700"');
+    B += win(0.3, 1.8, txt(360, 146, "holder: CPU0", 11, C.c0, ' font-weight="700"'));
+    B += win(2.1, 3.3, txt(360, 146, "holder: CPU1", 11, C.c1, ' font-weight="700"'));
+    B += win(3.6, 4.8, txt(360, 146, "holder: CPU2", 11, C.c2, ' font-weight="700"'));
+    B += txt(440, 88, "freelist →", 11, C.muted, ' text-anchor="start"');
+    // CPU 줄 (holder 슬롯 220, 대기 140, 60)
+    var SX = [220, 140, 60], TY = 96;
+    var order = [[0, 1, 2], [1, 2, 0], [2, 0, 1]];
+    var rotT = [1.8, 3.3];
+    var holdIv = [[0.3, 1.8], [2.1, 3.3], [3.6, 4.8]];
+    for (var k = 0; k < 3; k++) {
+      var fr = [[0, SX[order[0].indexOf(k)], TY]];
+      for (var r = 0; r < 2; r++) {
+        var a = SX[order[r].indexOf(k)], b = SX[order[r + 1].indexOf(k)];
+        fr.push([rotT[r], a, TY]);
+        if (order[r].indexOf(k) === 0) fr.push([rotT[r] + 0.15, 140, TY + 34]);
+        fr.push([rotT[r] + 0.3, b, TY]);
+      }
+      // spinning: holder 가 아닐 때 (4.8 까지)
+      var h = holdIv[k];
+      var spin = [[0, h[0] > 0.3 ? 1 : 0]];
+      if (h[0] > 0.3) { spin.push([h[0] - 0.35, 1]); spin.push([h[0] - 0.3, 0]); }
+      spin.push([h[1], 0]);
+      if (h[1] + 0.35 < 4.8) { spin.push([h[1] + 0.3, 0]); spin.push([h[1] + 0.35, 1]); spin.push([4.8, 1]); spin.push([4.85, 0]); }
+      var inner = '<g>' + badge(62, C.spinF, C.spinT, "spinning") + kf("opacity", spin) + '</g>';
+      inner += win(h[0], h[1], badge(62, C.okL, C.ok, "kalloc()"));
+      B += tok("CPU" + k, k, inner, fr);
+    }
+    // free list pages (8개, head 가 왼쪽)
+    B += (function () {
+      var out = "", ps = [];
+      for (var i = 0; i < 8; i++) ps.push(new Page(440 + i * 26, 100));
+      var list = ps.slice();
+      [0.6, 2.4, 3.9].forEach(function (t) {
+        var p = list.shift();
+        p.to(t, 0.45, 243, 104, [340, 70]); p.fade(t + 0.45);
+        list.forEach(function (q, j) { q.to(t + 0.1, 0.35, 440 + j * 26, 100); });
+      });
+      ps.forEach(function (p) { out += p.svg(C.page); });
+      return out;
+    })();
+    // #test-and-set 카운터
+    B += txt(560, 146, "#test-and-set (kmem):", 12, C.spinT, ' text-anchor="end"');
+    var v = 0, cnt = [];
+    for (var t = 0.3, n = 0; t < 4.8 - 1e-6; t += 0.3, n++) { cnt.push([t, v]); v += 640 + (n * 173) % 420; }
+    cnt.push([4.8, v]);
+    cnt.forEach(function (c, j) {
+      var end = j + 1 < cnt.length ? cnt[j + 1][0] : D;
+      B += win(j === 0 ? 0 : c[0], end, txt(566, 146, String(c[1]).replace(/\B(?=(\d{3})+(?!\d))/g, ","), 14, C.spinT, ' font-weight="700" text-anchor="start"'));
+    });
+    B += txt(140, 160, "기다리는 CPU 는 일을 못 하고 lock 만 두드린다", 11, C.muted);
+    B += kf("opacity", [[0, 1], [4.8, 1], [5.1, 0.35]]) + '</g>';
+    s += B;
+
+    // ================= After (아래) =================
+    var A = '<g>';
+    A += '<rect x="10" y="180" width="740" height="172" rx="10" fill="#fafafa" stroke="#ddd"/>';
+    A += txt(22, 197, "After — CPU 마다 kmem[i] (lock 3개)", 12, C.k, ' font-weight="700" text-anchor="start"');
+    A += '<g transform="translate(0,10)">';
+    var COLX = [20, 270, 520], PY = 262;
+    function px(c, j) { return COLX[c] + 12 + j * 26; }
+    // 각 열: CPU 토큰 · lock · list
+    var lockCh = [
+      [[5.5, C.c0L], [6.1, C.kL], [6.7, C.c0L], [7.3, C.kL], [8.6, C.c1L], [10.2, C.kL]],
+      [[5.5, C.c1L], [6.1, C.kL], [6.7, C.c1L], [7.3, C.kL], [7.8, C.c1L], [8.4, C.kL], [10.6, C.c1L], [11.2, C.kL]],
+      [[5.5, C.c2L], [6.1, C.kL], [6.7, C.c2L], [7.3, C.kL], [9.0, C.c2L], [9.6, C.kL]]
+    ];
+    for (var c = 0; c < 3; c++) {
+      var x0 = COLX[c];
+      A += '<rect x="' + (x0 + 88) + '" y="208" width="128" height="30" rx="7" stroke="' + C.k + '" stroke-width="2" fill="' + C.kL + '">' + steps("fill", C.kL, lockCh[c]) + '</rect>';
+      A += txt(x0 + 152, 228, "🔒 kmem[" + c + "].lock", 12, C.k, ' font-weight="700"');
+      A += '<rect x="' + (x0 + 4) + '" y="256" width="214" height="32" rx="6" fill="#fff" stroke="' + C.line + '"/>';
+      A += txt(x0 + 111, 303, "kmem[" + c + "].freelist", 11, C.muted);
+    }
+    // CPU 토큰 + 상태 배지
+    A += tok("CPU0", 0, win(5.5, 6.1, badge(62, C.okL, C.ok, "kalloc()")) + win(6.7, 7.3, badge(62, C.okL, C.ok, "kalloc()")), [[0, COLX[0] + 12, 210]]);
+    A += tok("CPU1", 1,
+      win(5.5, 6.1, badge(62, C.okL, C.ok, "kalloc()")) + win(6.7, 7.3, badge(62, C.okL, C.ok, "kalloc()")) +
+      win(7.8, 8.6, badge(62, C.spinF, C.spinT, "비었음!")) + win(8.6, 10.2, badge(62, C.c1L, C.c1, "steal")) +
+      win(10.6, 11.2, badge(62, C.okL, C.ok, "kalloc()")), [[0, COLX[1] + 12, 210]]);
+    A += tok("CPU2", 2, win(5.5, 6.1, badge(62, C.okL, C.ok, "kalloc()")) + win(6.7, 7.3, badge(62, C.okL, C.ok, "kalloc()")) +
+      win(9.0, 9.6, badge(62, C.okL, C.ok, "kalloc()")), [[0, COLX[2] + 12, 210]]);
+    // pages
+    var init = [7, 2, 5], lists = [[], [], []], allP = [];
+    for (c = 0; c < 3; c++) for (i = 0; i < init[c]; i++) { var p = new Page(px(c, i), PY + 6); p.c = c; lists[c].push(p); allP.push(p); }
+    function pop(c, t) {
+      var p = lists[c].shift();
+      p.to(t, 0.45, COLX[c] + 35, 214); p.fade(t + 0.45);
+      lists[c].forEach(function (q, j) { q.to(t + 0.15, 0.3, px(c, j), PY + 6); });
+    }
+    pop(0, 5.5); pop(1, 5.5); pop(2, 5.5);
+    pop(0, 6.7); pop(1, 6.7); pop(2, 6.7);
+    [8.8, 9.2, 9.6].forEach(function (t) {
+      var p = lists[0].shift();
+      lists[1].push(p);
+      p.to(t, 0.4, px(1, lists[1].length - 1), PY + 6, [(p.x + px(1, lists[1].length - 1)) / 2, PY + 40]);
+      lists[0].forEach(function (q, j) { q.to(t + 0.4, 0.15, px(0, j), PY + 6); });
+    });
+    pop(2, 9.0);
+    pop(1, 10.6);
+    allP.forEach(function (p) { A += p.svg(C.page); });
+    // CPU1 비었음 표시
+    A += win(7.8, 8.8, txt(COLX[1] + 111, PY + 21, "(비어 있음)", 12, C.hw, ' font-weight="700"'));
+    // steal 화살표: kmem[0] list → kmem[1] list (아래로 휘어서)
+    A += win(8.6, 10.2, '<path d="M' + (COLX[0] + 120) + ',290 C' + (COLX[0] + 160) + ',324 ' + (COLX[1] + 20) + ',324 ' + (COLX[1] + 70) + ',292" fill="none" stroke="' + C.c1 + '" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#kp_arrow)"/>');
+    A += win(8.6, 10.2, txt(COLX[0] + 152, 251, "CPU1 이 잠깐 잡음", 11, C.c1, ' font-weight="700"'));
+    // 카운터
+    A += win(5.5, D, txt(540, 332, "#test-and-set (kmem*): 0 — 서로 다른 lock 이라 기다릴 일이 없다", 12, C.ok, ' font-weight="700"'));
+    A += win(8.6, 10.2, txt(200, 332, "steal 중에도 CPU2 는 영향 없음", 11, C.muted));
+    A += '</g>';
+    A += kf("opacity", [[0, 0.15], [4.8, 0.15], [5.1, 1]]) + '</g>';
+    s += A;
+
+    // ---- 아래 요점 ----
+    s += txt(380, 372, "요점: lock 하나를 CPU 수만큼 쪼개면 contention 이 사라지고, 비었을 때만 steal 한다", 13, C.k, ' font-weight="700"');
     s += '</svg>';
     return s;
   }

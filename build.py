@@ -214,7 +214,7 @@ def main():
     parts.append(renderer)
     parts.append("\n</script>\n</body>\n</html>\n")
 
-    with open(OUT, "w", encoding="utf-8") as f:
+    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         f.write("".join(parts))
 
     # ---------- 6. 보고 ----------

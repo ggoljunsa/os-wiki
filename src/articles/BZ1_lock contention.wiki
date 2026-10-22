@@ -1,0 +1,225 @@
+key: lock contention
+title: Lock contention — #test-and-set 은 무엇을 세나
+category: 과제2
+---
+'''Lock contention'''(락 경합)은 '''한 CPU가 쥔 lock을 다른 CPU가 동시에 원해서 기다리는 상황'''이다. [[spin lock]]에서 기다림 = 헛도는 루프이므로, "얼마나 헛돌았나"를 세면 contention의 크기가 된다. [[과제2 xv6 lock]]의 채점은 전부 이 숫자로 이뤄진다 — 그래서 이 문서가 과제의 '''점수판 읽는 법'''이다.
+
+{def}
+"kalloctest prints (as '''"#test-and-set"''') the number of loop iterations in acquire due to attempts to acquire a lock that another core already holds … '''The number of loop iterations in acquire is a rough measure of lock contention.'''" (PDF p.4)
+"acquire maintains, for each lock, the count of calls to acquire for that lock, and the number of times the loop in acquire tried but failed to set the lock." (PDF p.5)
+{/def}
+
+{analogy}
+🎭 화장실 문 앞의 '''노크 횟수 기록계'''. `#acquire()` 는 "화장실에 가려고 한 횟수", `#test-and-set` 은 "문을 당겼는데 잠겨 있어서 '''다시 당긴''' 횟수"다. 하루에 화장실을 100번 가는 건 문제가 아니다(#acquire 큼). 문제는 갈 때마다 문 앞에서 50번씩 당기며 서 있는 것(#test-and-set 큼) — 그게 contention 이다. 과제는 '''화장실을 여러 개로 늘려서''' 당기는 횟수를 0 으로 만드는 일이다.
+{/analogy}
+
+== 1. 카운터는 acquire() 안에 있다 ==
+
+[[xv6]]의 `kernel/spinlock.c` 는 `LAB_LOCK` 으로 빌드될 때(lock 브랜치) [[spin lock]] 마다 카운터 두 개를 단다.
+
+<pre class="c">
+// kernel/spinlock.h
+struct spinlock {
+  uint locked;       // Is the lock held?
+  char *name;        // Name of lock.
+  struct cpu *cpu;   // The cpu holding the lock.
+#ifdef LAB_LOCK
+  int nts;           // ← "#test-and-set"
+  int n;             // ← "#acquire()"
+#endif
+};
+</pre>
+
+<pre class="c">
+// kernel/spinlock.c  (원본, 줄 번호 그대로)
+61  void
+62  acquire(struct spinlock *lk)
+63  {
+64    push_off(); // disable interrupts to avoid deadlock.
+65    if(holding(lk))
+66      panic("acquire");
+67
+68  #ifdef LAB_LOCK
+69      __sync_fetch_and_add(&(lk->n), 1);
+70  #endif
+71
+72    // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
+73    //   a5 = 1
+74    //   s1 = &lk->locked
+75    //   amoswap.w.aq a5, a5, (s1)
+76    while(__sync_lock_test_and_set(&lk->locked, 1) != 0) {
+77  #ifdef LAB_LOCK
+78      __sync_fetch_and_add(&(lk->nts), 1);
+79  #else
+80     ;
+81  #endif
+82    }
+83    ...
+91    lk->cpu = mycpu();
+92  }
+</pre>
+
+{| class="table"
+! 줄 || 코드 || 의미
+|-
+| 64 || `push_off()` || 인터럽트 끄기. lock 을 쥔 CPU 가 인터럽트 핸들러에서 같은 lock 을 또 잡으면 자기 자신과 deadlock. → [[cpuid]]
+|-
+| 65–66 || `if(holding(lk)) panic("acquire")` || '''이미 내가 쥔 lock 을 또 잡으면 즉시 panic''' — xv6 spinlock 은 재진입 불가. bcache 의 same-bucket 함정이 바로 이것 ([[bcache 해시 버킷]])
+|-
+| 69 || `lk->n += 1` (atomic) || '''#acquire()''' — 호출될 때마다 1. 기다렸든 안 기다렸든
+|-
+| 76 || `while(test_and_set(&locked, 1) != 0)` || 9강 [[test-and-set]] 그대로. 옛 값이 1이면 남이 쥐고 있는 것 → 다시 시도
+|-
+| 78 || `lk->nts += 1` (atomic) || '''#test-and-set''' — '''실패해서 루프를 한 번 더 돈 횟수'''. 첫 시도에 성공하면 0 이 더해진다
+|}
+
+<pre class="ascii">
+  acquire(lk) 한 번에 일어나는 일
+
+  lock 이 비어 있을 때:   n += 1 → TAS → 옛 값 0 (성공)               → nts 그대로   ✓ contention 없음
+  lock 을 남이 쥐었을 때: n += 1 → TAS 1 → nts+1 → TAS 1 → nts+1 → … → TAS 0 (성공)
+                                         └──── 이 횟수가 "#test-and-set" ────┘
+</pre>
+
+{tip}
+같은 CPU 가 lock 을 잡고 놓기를 아무리 많이 해도 `nts` 는 늘지 않는다. '''두 개 이상의 CPU가 같은 순간 같은 lock 을 원할 때만''' 늘어난다. 그래서 `make CPUS=1 qemu` 에서는 어떤 구현이든 `#test-and-set` 이 0 이다 — CPUS=1 은 정확성 디버깅용이지 contention 측정용이 아니다.
+{/tip}
+
+== 2. 누가 합산되나 — 이름 접두어 ⭐ ==
+
+`kalloctest`/`bcachetest` 는 `statistics()` 로 커널의 `statslock()` 결과 문자열을 받아, 그 안의 `tot=` 값을 읽는다.
+
+<pre class="c">
+// kernel/spinlock.c  statslock() 중
+186    acquire(&lock_locks);
+187    n = snprintf(buf, sz, "--- lock kmem/bcache stats\n");
+188    for(int i = 0; i < NLOCK; i++) {
+189      if(locks[i] == 0)
+190        break;
+191      if(strncmp(locks[i]->name, "bcache", strlen("bcache")) == 0 ||
+192         strncmp(locks[i]->name, "kmem", strlen("kmem")) == 0) {
+193        tot += locks[i]->nts;
+194        n += snprint_lock(buf +n, sz-n, locks[i]);
+195      }
+196    }
+     ...
+213    n += snprintf(buf+n, sz-n, "tot= %d\n", tot);
+</pre>
+
+* 191–193 — 이름이 '''"bcache" 또는 "kmem" 으로 시작하는''' lock 의 `nts` 만 `tot` 에 더한다. `strncmp(name, "kmem", 4)` 이므로 `"kmem"`, `"kmem0"`, `"kmem_cpu2"` 모두 걸린다.
+* 그래서 PDF 요구사항이 "You must give all of your locks names that start with '''"kmem"'''" / "… start with '''"bcache"'''" 다. 이름을 `"freelist0"` 처럼 지으면 그 lock 의 contention 이 '''아예 안 보인다''' — 점수는 잘 나올지 몰라도 요구사항 위반이고, 반대로 출력의 "lock kmem/bcache stats" 에 아무것도 안 찍혀 디버깅도 못 한다.
+* lock 이 등록되는 곳은 `initlock()` 안의 `findslot(lk)` (전역 배열 `locks[NLOCK]`, `NLOCK 500`). '''`initlock` 을 부르지 않은 lock 은 통계에 안 나온다.'''
+
+{warn}
+`initlock(lk, name)` 은 이름 '''문자열을 복사하지 않고 포인터만''' 저장한다(`lk->name = name;`, spinlock.c 49줄). CPU별로 `"kmem0"`, `"kmem1"` 처럼 다른 이름을 만들고 싶어 `snprintf` 를 '''함수 지역 배열'''에 하고 그 주소를 넘기면, 함수가 끝나는 순간 이름이 쓰레기가 된다. 이름 버퍼는 lock 과 함께 '''전역/구조체 안'''에 두거나, PDF 말대로 "It is OK to just name all locks "kmem" though" — 전부 같은 문자열 리터럴 `"kmem"` 이어도 된다.
+{/warn}
+
+`bcache` 의 버퍼 30개는 각자 [[sleeplock]] 을 갖고, 그 안에도 spinlock 이 하나씩 있지만 그 이름은 `"sleep lock"` 이다(`initsleeplock` → `initlock(&lk->lk, "sleep lock")`). 그래서 '''버퍼 내용 lock 의 경합은 tot 에 안 들어간다''' — 과제가 보는 것은 "어느 블록이 캐시돼 있나"를 지키는 spinlock 쪽뿐이다.
+
+== 3. 출력 읽는 법 ==
+
+=== kalloctest — 원본 상태 (PDF p.4–5) ===
+
+<pre class="txt">
+$ kalloctest
+start test1
+test1 results:
+--- lock kmem/bcache stats
+lock: kmem: #test-and-set 83375 #acquire() 433015      ← lock 하나에 43만 번, 그중 8만 번 헛돎
+lock: bcache: #test-and-set 0 #acquire() 1260
+--- top 5 contended locks:
+lock: kmem: #test-and-set 83375 #acquire() 433015      ← 전체 1위가 kmem
+lock: proc: #test-and-set 23737 #acquire() 130718
+lock: virtio_disk: #test-and-set 11159 #acquire() 114
+lock: proc: #test-and-set 5937 #acquire() 130786
+lock: proc: #test-and-set 4080 #acquire() 130786
+tot= 83375                                             ← kmem*/bcache* 의 nts 합
+test1 FAIL
+</pre>
+
+=== kalloctest — 과제 후 (PDF p.6–7) ===
+
+<pre class="txt">
+lock: kmem: #test-and-set 0 #acquire() 94703           ← kmem lock 이 여러 개(CPU 별)
+lock: kmem: #test-and-set 0 #acquire() 173699
+lock: kmem: #test-and-set 0 #acquire() 164725
+lock: bcache: #test-and-set 0 #acquire() 32
+lock: bcache.bucket: #test-and-set 0 #acquire() 38     ← (Problem 2 까지 끝낸 상태)
+...
+tot= 0
+test1 OK
+</pre>
+
+{| class="table"
+! 테스트 || 판정 코드 (실제 소스) || 뜻
+|-
+| kalloctest test1 || `if(n-m < 10) printf("test1 OK\n");` || 테스트 전후 `tot` 증가량이 '''10 미만'''. 사실상 0 이어야 한다
+|-
+| kalloctest test2 || `if(n - free0 > 1000)` → "cannot allocate enough memory" / `if(free1 != free0)` → "'''losing pages'''" || 숫자 테스트가 아니라 '''정확성'''. n = (PHYSTOP−KERNBASE)/PGSIZE = '''32768'''
+|-
+| kalloctest test3 || `if(n-m < 10000) printf("\ntest3 OK\n"); else printf("test3 FAIL m %d n %d\n", m, n);` || 증가량 '''10000 미만'''. steal 이 동시에 일어나므로 0 까지는 안 요구한다
+|-
+| bcachetest test0 || `if (n-m < 500) printf("test0: OK\n");` || 증가량 '''500 미만'''. PDF: "Ideally … zero, but it's OK if the sum is less than 500"
+|}
+
+{info}
+`m` 은 테스트 '''시작 전''' `tot`, `n` 은 '''끝난 후''' `tot`. 원본 PDF 예시의 "test3 FAIL m 11720 n 28002" 는 test3 동안 kmem 에서 16282 번 헛돌았다는 뜻이다 (≥ 10000 이라 FAIL). 그리고 '''kalloctest 의 tot 에도 bcache lock 이, bcachetest 의 tot 에도 kmem lock 이 들어간다''' — 같은 `statslock()` 을 쓰기 때문. Problem 1 만 했을 때 bcachetest 숫자가 바뀌는 이유.
+{/info}
+
+=== bcachetest — 원본 (PDF p.10) ===
+
+<pre class="txt">
+start test0
+test0 results:
+--- lock kmem/bcache stats
+lock: kmem: #test-and-set 0 #acquire() 33099
+lock: bcache: #test-and-set 10273 #acquire() 65964     ← 파일 읽기 3개가 bcache.lock 하나에 줄 섬
+--- top 5 contended locks:
+lock: virtio_disk: #test-and-set 814630 #acquire() 1221   ← 디스크 lock — 과제와 무관, 무시
+...
+tot= 10273
+test0: FAIL
+</pre>
+
+{tip}
+"top 5 contended locks" 에 '''`proc`, `virtio_disk`, `pr`, `wait_lock`''' 이 크게 나와도 신경 쓰지 말 것. 이 lock 들은 이름이 kmem/bcache 로 시작하지 않아 `tot` 에 안 들어가고, 과제 대상도 아니다. 과제 후 PDF 예시에서도 `proc` 은 13만, `virtio_disk` 는 8만이다.
+{/tip}
+
+== 4. "dedicated unloaded machine" ==
+
+PDF p.6: "For this lab, you must use a dedicated unloaded machine with multiple cores. If you use a machine that is doing other things, '''the counts that kalloctest prints will be nonsense'''."
+
+왜 그런가? qemu 의 가상 CPU 3개는 호스트의 스레드 3개다. 호스트가 바쁘면 '''lock 을 쥔 가상 CPU 의 호스트 스레드가 호스트 스케줄러에 의해 잠깐 멈출 수 있다'''. 그동안 다른 가상 CPU 는 그 lock 을 계속 test-and-set 하며 `nts` 를 올린다 — 9강의 "spin 하는 동안 lock 보유자가 preempt 되면 time slice 를 통째로 낭비"([[spin lock]] 의 성능 문제)가 '''가상 머신 층에서''' 똑같이 일어나는 것.
+
+<pre class="ascii">
+  host 가 한가할 때                      host 가 바쁠 때 (영상, 빌드, 다른 qemu)
+  vCPU0 ██ lock ██ (짧게 쥐고 놓음)        vCPU0 ██ lock ░░░░ host 가 멈춤 ░░░░ ██
+  vCPU1    ──TAS 성공                     vCPU1    TAS✗TAS✗TAS✗TAS✗TAS✗TAS✗ … nts 폭증
+                                                    └ 내 코드는 그대로인데 숫자만 커진다
+</pre>
+
+그래서 같은 코드가 어떤 때는 100점, 어떤 때는 test3 FAIL 이 될 수 있다. 채점 전에 다른 무거운 프로그램을 끄고, 숫자가 '''가끔만''' 튀면 설계보다 환경을 먼저 의심하라. 반대로 '''항상''' 큰 숫자가 나오면 아직 lock 하나에 다 몰리고 있는 것이다.
+
+== 5. contention 을 줄이는 두 가지 길 ==
+
+{| class="table"
+! 방법 || 과제에서 || 강의
+|-
+| '''lock 을 쪼갠다''' (fine-grained locking) — 서로 다른 데이터를 다른 lock 으로 || kmem → `kmem[NCPU]`, bcache.lock → 버킷별 lock || OSTEP 29장 [[concurrent hash table]] (버킷마다 lock), [[sloppy counter]] (CPU마다 local)
+|-
+| '''lock 을 짧게 잡는다''' — critical section 안의 일을 줄인다 || `memset` 은 lock 밖에서 (원본 [[kalloc]] 도 이미 그렇다), eviction 만 전역 lock || 9강 [[락 평가 기준]] performance
+|}
+
+== 시험 대비 핵심 요약 ==
+
+# '''#acquire()''' = `acquire()` 호출 횟수(`lk->n`), '''#test-and-set''' = `while(__sync_lock_test_and_set(&lk->locked,1) != 0)` 가 '''실패해서 다시 돈 횟수'''(`lk->nts`). contention 척도는 후자.
+# `tot=` 는 이름이 '''"kmem" 또는 "bcache" 로 시작하는''' lock 의 `nts` 합 (`statslock` 의 `strncmp`). 그래서 lock 이름 규칙이 채점에 직결된다.
+# 통과 기준(소스 그대로): kalloctest test1 '''n−m < 10''', test3 '''n−m < 10000''', bcachetest test0 '''n−m < 500'''. test2 는 "losing pages" 정확성.
+# contention 은 '''둘 이상의 CPU가 같은 순간 같은 lock''' 을 원할 때만 생긴다. CPUS=1 이면 항상 0.
+# 호스트가 바쁘면 lock 보유 vCPU 가 멈춰 숫자가 엉망 → "dedicated unloaded machine".
+# `initlock` 은 이름 포인터만 저장 — 지역 배열에 만든 이름은 dangling.
+
+== 관련 문서 ==
+* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]
+* [[spin lock]] · [[test-and-set]] · [[락 평가 기준]] · [[락]]
+* [[sloppy counter]] · [[concurrent hash table]] · [[cpuid]] · [[sleeplock]]

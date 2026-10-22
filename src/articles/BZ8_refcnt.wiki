@@ -1,0 +1,48 @@
+key: refcnt
+title: refcnt (struct buf)
+category: 과제2, 용어
+---
+'''`refcnt`'''는 `struct buf` 의 필드로, '''이 버퍼를 지금 쓰고 있거나 쓰려고 기다리는 쪽의 수'''다. [[buffer cache]] 에서 '''0 이어야만 다른 블록용으로 재사용(evict)할 수 있다'''. 원본에서는 `bcache.lock` 이, 과제 후에는 그 버퍼가 속한 '''버킷의 lock''' 이 지킨다.
+
+{def}
+`uint refcnt;` (kernel/buf.h 7줄). PDF p.3: "It scans the buffer list a second time, looking for a buffer that is not in use ('''b->refcnt = 0'''); any such buffer can be used." / "the '''non-zero b->refcnt prevents the buffer from being re-used''' for a different disk block."
+{/def}
+
+{analogy}
+🎭 열람실 복사본에 꽂힌 '''"보는 중" 집게 개수'''. 손님이 받아 가거나 줄을 서면 집게 하나(`refcnt++`), 다 보고 반납하면 집게 하나 뺌(`refcnt--`). 집게가 '''하나도 없는 복사본만''' 사서가 치우고 다른 책 자리로 쓸 수 있다. 로그 담당(`bpin`)은 "커밋 끝날 때까지 치우지 마" 하고 집게를 하나 더 꽂아 둔다.
+{/analogy}
+
+== 누가 올리고 내리나 (원본 bio.c) ==
+
+{| class="table"
+! 함수 || 변화 || 의미
+|-
+| `bget` hit (68줄) || `refcnt++` || 이미 캐시된 블록을 내가 쓰겠다 (sleeplock 을 기다리는 중이어도 이미 셈에 들어감)
+|-
+| `bget` miss (82줄) || `refcnt = 1` || 빈 버퍼(`refcnt == 0`)를 새 블록용으로 잡았다
+|-
+| `brelse` (125줄) || `refcnt--` || 다 썼다. 0 이 되면 원본은 MRU 위치로 옮김
+|-
+| `bpin` (142줄) || `refcnt++` || log 가 트랜잭션에 넣은 블록 — 커밋 전에 evict 되면 안 됨 (log.c `log_write`)
+|-
+| `bunpin` (149줄) || `refcnt--` || 설치 완료, 풀어 줌 (log.c `install_trans`)
+|}
+
+== 두 lock 사이의 다리 ==
+
+<pre class="ascii">
+   bcache.lock / bucket lock (spinlock)        b->lock (sleeplock)
+   ━━━ 찾기 → refcnt++ ━━━┓ release
+                           ┃   ← 이 틈: 다른 프로세스가 이 버퍼를 evict 하려 해도 refcnt ≥ 1 이라 대상이 아님
+                           ┗━━━━━━━━━━━━━━━ acquiresleep ━━ 사용 ━━ brelse
+</pre>
+
+refcnt 덕분에 [[sleeplock]] 을 spinlock '''밖에서''' 잡을 수 있다. 그리고 refcnt ≥ 1 인 동안 `dev`/`blockno` 는 바뀌지 않으므로, `brelse`·`bpin`·`bunpin` 이 lock 없이 `b->blockno` 로 버킷 번호를 계산해도 안전하다.
+
+{warn}
+'''refcnt 를 만지는 모든 곳이 같은 lock 을 써야 한다.''' 과제에서 `bget`·`brelse` 만 버킷 lock 으로 바꾸고 `bpin`·`bunpin` 을 전역 lock 으로 남기면, 두 lock 이 다르므로 동시에 `++`/`--` 가 일어나 8강 [[counter 예제]] 의 lost update 가 refcnt 에서 생긴다.
+{/warn}
+
+== 관련 문서 ==
+* [[buffer cache]] · [[bcache 해시 버킷]] · [[sleeplock]] · [[NBUF]]
+* [[race condition]] · [[counter 예제]]

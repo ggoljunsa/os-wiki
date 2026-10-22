@@ -1,0 +1,301 @@
+key: buffer cache
+title: Buffer cache — xv6 bio.c (원본)
+category: 과제2
+---
+'''Buffer cache'''(block cache, `bcache`)는 [[xv6]] 파일 시스템의 가장 아래층으로, '''디스크 블록의 메모리 사본'''을 [[NBUF]] = 30 개까지 들고 있는 캐시다(`kernel/bio.c`, 152줄). 파일을 읽고 쓰는 모든 경로가 결국 `bread`/`brelse` 를 거친다. 원본은 버퍼 30개를 '''LRU 순서의 원형 이중 연결 리스트''' 하나로 엮고, 그 리스트·[[refcnt]]·블록 번호를 '''spinlock `bcache.lock` 하나'''로 지킨다 — [[과제2 xv6 lock]] Problem 2 가 쪼개야 할 lock 이 이것이다 → [[bcache 해시 버킷]].
+
+{def}
+"The buffer cache has two jobs: (1) '''synchronize access to disk blocks''' to ensure that only one copy of a block is in memory and that only one kernel thread at a time uses that copy; (2) '''cache popular blocks''' so that they don't need to be re-read from the slow disk." (PDF p.2)
+"It is important that there is '''at most one cached buffer per disk sector''', to ensure that readers see writes, and because the file system uses locks on buffers for synchronization." (PDF p.3)
+{/def}
+
+{analogy}
+🎭 '''도서관 열람실의 복사본 서가 (자리 30개)'''. 손님이 책(블록) 번호를 말하면 사서가 서가에서 찾고, 없으면 '''아무도 안 보고 있는 가장 오래된 복사본'''을 치우고 그 자리에 새로 복사해 온다(디스크 read). 손님은 복사본을 받아 '''혼자''' 본다(sleeplock). 같은 책의 복사본이 서가에 '''두 장''' 있으면 큰일이다 — A 가 한 장에 메모를 하고, B 는 다른 장을 보며 메모가 없다고 믿는다. 원본 사서는 '''한 명'''(`bcache.lock`)이라 "찾기"와 "자리 잡기"를 한 사람이 연달아 해서 두 장이 생길 틈이 없다. 대신 줄이 길다.
+{/analogy}
+
+[[anim:bcache_hash|원본의 bcache.lock 하나 + LRU 리스트에서 모든 bget 이 줄 서는 모습과, 해시 버킷별 lock 으로 바꾼 뒤 서로 다른 버킷의 블록을 찾는 프로세스끼리 안 부딪히는 모습을 비교해 보라]]
+
+== 1. struct buf (buf.h) ==
+
+<pre class="c">
+// kernel/buf.h (원본 전체)
+1  struct buf {
+2    int valid;   // has data been read from disk?
+3    int disk;    // does disk "own" buf?
+4    uint dev;
+5    uint blockno;
+6    struct sleeplock lock;
+7    uint refcnt;
+8    struct buf *prev; // LRU cache list
+9    struct buf *next;
+10   uchar data[BSIZE];
+11 };
+</pre>
+
+{| class="table"
+! 필드 || 뜻 || 누가 지키나 (원본)
+|-
+| `valid` || 1 = `data` 에 블록 내용이 이미 들어 있음. 0 이면 `bread` 가 디스크에서 읽는다 || 버퍼 [[sleeplock]]
+|-
+| `disk` || 1 = 디스크 드라이버(virtio)가 지금 이 버퍼를 쓰고 있음 (I/O 진행 중) || 드라이버
+|-
+| `dev`, `blockno` || '''이 버퍼가 어느 블록의 사본인가''' — 캐시의 "키" || `bcache.lock`
+|-
+| `lock` || '''[[sleeplock]]''' — 버퍼 '''내용'''을 한 번에 한 스레드만 쓰게 || (자기 자신)
+|-
+| `refcnt` || '''[[refcnt]]''' — 지금 이 버퍼를 들고 있거나 기다리는 쪽의 수. 0 이어야 재사용 가능 || `bcache.lock`
+|-
+| `prev`, `next` || LRU 원형 이중 연결 리스트 링크 || `bcache.lock`
+|-
+| `data[BSIZE]` || 블록 내용 (BSIZE = 1024) || 버퍼 sleeplock
+|}
+
+== 2. bcache 와 binit (26–53줄) ==
+
+<pre class="c">
+26  struct {
+27    struct spinlock lock;
+28    struct buf buf[NBUF];
+29
+30    // Linked list of all buffers, through prev/next.
+31    // Sorted by how recently the buffer was used.
+32    // head.next is most recent, head.prev is least.
+33    struct buf head;
+34  } bcache;
+35
+36  void
+37  binit(void)
+38  {
+39    struct buf *b;
+40
+41    initlock(&bcache.lock, "bcache");
+42
+43    // Create linked list of buffers
+44    bcache.head.prev = &bcache.head;
+45    bcache.head.next = &bcache.head;
+46    for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+47      b->next = bcache.head.next;
+48      b->prev = &bcache.head;
+49      initsleeplock(&b->lock, "buffer");
+50      bcache.head.next->prev = b;
+51      bcache.head.next = b;
+52    }
+53  }
+</pre>
+
+* 28 — 버퍼 '''30개는 정적 배열'''에 고정. 동적 할당하지 않는다. 과제에서 이 개수를 늘리면 안 된다 ([[NBUF]]).
+* 33 — `head` 는 데이터 없는 '''보초(sentinel)''' 노드. 빈 리스트 = `head.next == head.prev == &head`. 경계 검사가 필요 없어진다.
+* 46–52 — 버퍼를 하나씩 '''head 바로 뒤에''' 끼운다. 이후 모든 접근은 배열이 아니라 `bcache.head` 리스트로 한다 (PDF: "All other access to the buffer cache refer to the linked list via bcache.head, not the buf array").
+
+<pre class="ascii">
+  원형 이중 연결 리스트 (NBUF = 30)
+
+        ┌───────────────────────────────────────────────────────────────┐
+        ▼                                                               │
+     [head] ⇄ [b 최근 사용] ⇄ [b] ⇄ [b] ⇄ … ⇄ [b] ⇄ [b 가장 오래됨] ⇄─┘
+        │      ▲ head.next = MRU                     ▲ head.prev = LRU
+        │      brelse 가 refcnt 0 된 버퍼를 여기로     bget miss 때 여기부터 거꾸로 refcnt==0 찾기
+        └─ bcache.lock 하나가 이 리스트 전체 + 각 buf 의 dev/blockno/refcnt 를 지킨다
+</pre>
+
+== 3. bget — 두 개의 루프 (58–89줄) ⭐⭐⭐ ==
+
+<pre class="c">
+58  static struct buf*
+59  bget(uint dev, uint blockno)
+60  {
+61    struct buf *b;
+62
+63    acquire(&bcache.lock);
+64
+65    // Is the block already cached?
+66    for(b = bcache.head.next; b != &bcache.head; b = b->next){
+67      if(b->dev == dev && b->blockno == blockno){
+68        b->refcnt++;
+69        release(&bcache.lock);
+70        acquiresleep(&b->lock);
+71        return b;
+72      }
+73    }
+74
+75    // Not cached.
+76    // Recycle the least recently used (LRU) unused buffer.
+77    for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+78      if(b->refcnt == 0) {
+79        b->dev = dev;
+80        b->blockno = blockno;
+81        b->valid = 0;
+82        b->refcnt = 1;
+83        release(&bcache.lock);
+84        acquiresleep(&b->lock);
+85        return b;
+86      }
+87    }
+88    panic("bget: no buffers");
+89  }
+</pre>
+
+{| class="table"
+! 줄 || 무엇 || 왜
+|-
+| 63 || `acquire(&bcache.lock)` || '''여기서 잡아서 83/69 까지 안 놓는다''' — 이게 불변식의 열쇠 (4절)
+|-
+| 66–73 || '''첫 루프 (hit 찾기)''' — MRU 쪽(`next`)부터 같은 `dev`·`blockno` 찾기 || locality 가 좋으면 앞쪽에서 빨리 찾는다
+|-
+| 68 || `refcnt++` || "내가 쓸 거다" 표시. '''이 순간부터 이 버퍼는 재사용 금지''' (78줄 조건에 안 걸림)
+|-
+| 69–70 || spinlock 놓고 '''그다음에''' sleeplock || 버퍼를 다른 스레드가 쓰는 중이면 `acquiresleep` 에서 '''잠든다'''. spinlock 을 쥔 채 잠들면 안 된다 (xv6 는 `sched` 에서 `panic("sched locks")`)
+|-
+| 77–87 || '''둘째 루프 (miss → 재사용)''' — LRU 쪽(`prev`)부터 거꾸로 `refcnt == 0` 찾기 || 가장 오래 안 쓴 버퍼를 희생
+|-
+| 79–82 || 키(`dev`, `blockno`)를 바꾸고 `valid = 0`, `refcnt = 1` || `valid = 0` 이어야 `bread` 가 '''옛 블록 내용을 새 블록인 척 돌려주지 않고''' 디스크에서 다시 읽는다
+|-
+| 88 || `panic("bget: no buffers")` || 30개가 전부 사용 중. PDF: "A more graceful response might be to sleep until a buffer became free, though there would then be a possibility of deadlock."
+|}
+
+== 4. "블록당 사본 하나" 를 지키는 방법 ⭐⭐⭐ ==
+
+PDF p.3: "bget ensures this invariant by '''holding the bcache.lock continuously from the first loop's check''' of whether the block is cached '''through the second loop's declaration''' that the block is now cached (by setting dev, blockno, and refcnt). This causes the check for a block's presence and (if not present) the designation of a buffer to hold the block to be '''atomic'''."
+
+<pre class="ascii">
+  원본 bget 의 critical section (bcache.lock)
+
+  acquire ─┬─ 첫 루프: "블록 B 가 있나?"  ── 없음 ──┬─ 둘째 루프: 빈 버퍼에 B 라고 이름 붙임 ─┬─ release
+           │                                         │                                          │
+           └──────────── 이 사이에 다른 누구도 bcache 를 못 본다 ─────────────────────────────┘
+           ⇒ "없음을 확인" 과 "내 것으로 등록" 이 한 덩어리(atomic)
+
+  만약 사이에 lock 을 놓았다면:
+  P: 첫 루프 "B 없음" → release ┐
+  Q:                             └→ acquire → 첫 루프 "B 없음" → 버퍼 x 에 B 등록 → release
+  P: acquire → 버퍼 y 에 B 등록     ⇒ '''B 의 사본이 x, y 두 개''' — 불변식 위반
+</pre>
+
+두 사본이 생기면 무엇이 망가지나: P 가 y 에 쓰고 `bwrite` 해도, Q 는 x 를 보고 있으므로 '''쓰기를 못 본다'''. 그리고 파일 시스템은 "버퍼 sleeplock 을 잡으면 그 블록을 독점한다"고 믿는데(inode 갱신 등), 사본이 둘이면 두 스레드가 '''각자 다른 사본의 lock''' 을 잡고 같은 블록을 동시에 고친다 → 마지막 쓰기가 앞의 것을 덮는다. 9강 [[race condition]] 이 디스크 블록 단위로 일어나는 것.
+
+{warn}
+과제에서 lock 을 쪼개면 이 "한 lock 으로 두 루프를 감싸기"가 '''그대로는 불가능'''해진다 — 첫 루프는 내 버킷만 보면 되지만, 둘째 루프(빈 버퍼 찾기)는 '''모든 버킷'''을 봐야 하기 때문. PDF 힌트: "You probably won't be able to atomically check for a cached buf and (if not cached) find an unused buf; you will likely have to '''drop all locks and start from scratch''' if the buffer isn't in the cache." → [[bcache 해시 버킷]] 3절
+{/warn}
+
+== 5. spinlock 과 sleeplock 의 역할 분담 ==
+
+PDF p.3–4: "It is safe for bget to acquire the buffer's sleep-lock outside of the bcache.lock critical section, since '''the non-zero b->refcnt prevents the buffer from being re-used''' for a different disk block. The sleep-lock protects reads and writes of the block's buffered content, while the bcache.lock protects information about which blocks are cached."
+
+{| class="table"
+! || `bcache.lock` (spinlock) || `b->lock` ([[sleeplock]])
+|-
+| 지키는 것 || '''어느 블록이 캐시돼 있나''' — 리스트 링크, `dev`/`blockno`, [[refcnt]] || 버퍼 '''내용''' — `data`, `valid`
+|-
+| 잡는 시간 || 리스트 한 번 훑는 정도 (짧음) || 디스크 I/O 포함, 호출자가 `brelse` 할 때까지 (김)
+|-
+| 기다리는 방식 || spin (CPU 를 쥐고 돎) || sleep (CPU 를 내놓고 잠듦)
+|-
+| 하나당 || 캐시 전체에 1개 (과제 후: 버킷마다 1개) || 버퍼마다 1개 (30개)
+|}
+
+<pre class="ascii">
+  bget 의 "바통 넘기기"
+
+  bcache.lock: ━━━━ 찾기 · refcnt++ ━━━━┓ release
+                                        ┃  ← 이 틈에 다른 스레드가 이 버퍼를 재사용? → 불가: refcnt ≥ 1
+  b->lock    :                          ┗━━ acquiresleep ━━━━━━ (호출자가 data 사용) ━━━━━━ brelse
+</pre>
+
+refcnt 가 '''두 lock 사이의 다리'''다. spinlock 을 놓기 직전에 refcnt 를 올려 두었기 때문에, sleeplock 을 기다리며 자는 동안에도 이 버퍼는 다른 블록으로 바뀌지 않는다.
+
+== 6. bread, bwrite, brelse, bpin, bunpin (91–151줄) ==
+
+<pre class="c">
+92  struct buf*
+93  bread(uint dev, uint blockno)
+94  {
+95    struct buf *b;
+96
+97    b = bget(dev, blockno);
+98    if(!b->valid) {
+99      virtio_disk_rw(b, 0);
+100     b->valid = 1;
+101   }
+102   return b;
+103 }
+106 void
+107 bwrite(struct buf *b)
+108 {
+109   if(!holdingsleep(&b->lock))
+110     panic("bwrite");
+111   virtio_disk_rw(b, 1);
+112 }
+116 void
+117 brelse(struct buf *b)
+118 {
+119   if(!holdingsleep(&b->lock))
+120     panic("brelse");
+121
+122   releasesleep(&b->lock);
+123
+124   acquire(&bcache.lock);
+125   b->refcnt--;
+126   if (b->refcnt == 0) {
+127     // no one is waiting for it.
+128     b->next->prev = b->prev;
+129     b->prev->next = b->next;
+130     b->next = bcache.head.next;
+131     b->prev = &bcache.head;
+132     bcache.head.next->prev = b;
+133     bcache.head.next = b;
+134   }
+135
+136   release(&bcache.lock);
+137 }
+139 void
+140 bpin(struct buf *b) {
+141   acquire(&bcache.lock);
+142   b->refcnt++;
+143   release(&bcache.lock);
+144 }
+146 void
+147 bunpin(struct buf *b) {
+148   acquire(&bcache.lock);
+149   b->refcnt--;
+150   release(&bcache.lock);
+151 }
+</pre>
+
+* '''bread''' (93) — `bget` 으로 '''잠긴 버퍼'''를 받고, `valid == 0` 이면 디스크에서 읽어 채운다. 과제와 무관해서 '''고칠 필요 없다'''.
+* '''bwrite''' (107) — sleeplock 을 쥐고 있어야만 쓸 수 있다. 역시 그대로.
+* '''brelse''' (117) — sleeplock 먼저 놓고(122), `bcache.lock` 아래에서 `refcnt--`. 0 이 되면 리스트에서 떼어 '''맨 앞(MRU)''' 에 다시 붙인다(128–133). 이것 때문에 리스트가 사용 순서로 정렬된다. 과제에서는 LRU 를 버려도 되므로 brelse 는 "자기 버킷 lock 아래 refcnt--" 만 남는다.
+* '''bpin / bunpin''' (140, 147) — log 계층이 쓴다. `log_write` 가 트랜잭션에 블록을 넣을 때 `bpin` 으로 refcnt 를 올려 '''커밋될 때까지 이 버퍼가 재사용되지 않게''' 하고(log.c 231줄), 설치가 끝나면 `bunpin`(log.c 79줄). sleeplock 은 안 잡고 refcnt 만 만진다 → 과제에서는 '''refcnt 를 지키는 lock = 그 버퍼가 속한 버킷의 lock''' 으로 바꿔야 한다.
+
+{tip}
+'''brelse·bpin·bunpin·bget 이 refcnt 를 지킬 때 쓰는 lock 이 반드시 같아야 한다.''' 과제 후 bget 은 버킷 lock 아래에서 refcnt 를 보는데 bunpin 이 아직 전역 lock 을 쓰면, 두 lock 이 다르므로 refcnt++ 와 refcnt-- 가 동시에 일어나 값이 틀어진다 (counter 예제와 같은 lost update) → 언젠가 `panic: bget: no buffers` 또는 사용 중 버퍼 재사용.
+{/tip}
+
+== 7. 왜 contention 이 생기나 ==
+
+`bcachetest` test0 은 프로세스 3개가 '''각자 다른 디렉터리의 다른 파일'''을 1 바이트씩 읽는다. 블록은 전부 다르고 캐시에 다 들어가므로 hit 만 난다. 그런데도 `bget` 첫 줄의 `acquire(&bcache.lock)` 과 `brelse` 의 `acquire(&bcache.lock)` 에 '''셋 다''' 줄 선다 — PDF 예시 `#test-and-set 10273`. 서로 다른 블록을 찾는 lookup 이 같은 lock 을 공유하는 것이 문제이고, 그래서 과제 요구사항이 "concurrent lookups and releases for '''different blocks''' … are unlikely to conflict on locks" 다.
+
+{| class="table"
+! || [[kalloc]] || buffer cache
+|-
+| 데이터 || 아무 페이지나 같다 (서로 바꿔 써도 됨) || 블록마다 '''고유''' (블록 7 은 블록 7 이어야 함)
+|-
+| CPU 별로 나눌 수 있나 || ✅ 각 CPU 가 자기 페이지 더미 || ❌ CPU1 이 캐시한 블록을 CPU2 도 '''같은 사본'''으로 봐야 함
+|-
+| 그래서 나누는 기준 || CPU 번호 → [[per-CPU free list]] || '''블록 번호''' → [[bcache 해시 버킷]]
+|}
+
+== 시험 대비 핵심 요약 ==
+
+# bcache 의 두 일: ① 블록 접근 '''동기화'''(블록당 사본 하나, 한 번에 한 스레드) ② 자주 쓰는 블록 '''캐싱'''.
+# 원본 = 버퍼 30개([[NBUF]])의 '''LRU 원형 이중 연결 리스트''' + `bcache.lock` 하나. `head.next` = MRU, `head.prev` = LRU.
+# `bget`: 첫 루프(앞→뒤) hit 찾기 → `refcnt++`. 둘째 루프(뒤→앞) `refcnt == 0` 재사용 → `dev`·`blockno` 갱신, '''`valid = 0`''', `refcnt = 1`.
+# '''"at most one cached buffer per block"''' — `bcache.lock` 을 첫 루프부터 둘째 루프의 등록까지 '''계속''' 쥐어 "확인+등록"을 atomic 하게.
+# spinlock(`bcache.lock`) = '''어느 블록이 캐시돼 있나''', sleeplock(`b->lock`) = '''버퍼 내용'''. sleeplock 인 이유: 디스크 I/O 동안 오래 쥐므로 spin 하면 CPU 낭비.
+# sleeplock 을 spinlock 밖에서 잡아도 안전한 이유: '''refcnt ≠ 0''' 이라 그 사이 재사용되지 않는다.
+# `brelse`: sleeplock 놓고 → refcnt-- → 0 이면 MRU 로 이동. `bpin`/`bunpin` 은 log 가 커밋 전 버퍼를 붙잡아 두는 refcnt 조정.
+# per-CPU 로 못 나누는 이유: 버퍼는 모든 CPU 가 '''같은 블록 사본을 공유'''해야 한다.
+
+== 관련 문서 ==
+* [[bcache 해시 버킷]] · [[refcnt]] · [[sleeplock]] · [[NBUF]] · [[과제2 xv6 lock]]
+* [[lock contention]] · [[spin lock]] · [[race condition]] · [[영속성]]
+* [[과제2 퀴즈 대비]]

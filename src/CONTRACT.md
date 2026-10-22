@@ -97,6 +97,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 데드락 4조건 · lock ordering · hold and wait 방지 · trylock · livelock · lock-free · 데드락 avoidance · 데드락 detection
 ### 기말고사 · 13강 Virtual Memory — 파일 접두어 `B0_`(기말 허브)·`B1_`~`BD_`. 슬라이드 `../../기말고사/강의자료/13-Virtual_Memory.pdf` 57쪽 = `_slides/L13-{pp}.png`, 텍스트 `_text/13-Virtual_Memory.txt` (표지 "12. Virtual Memory" — 파일명 기준 13강). 녹음 아직 없음 (2026-10-19)
 기말고사 · 가상 메모리 · 메모리 계층 · SRAM과 DRAM · locality · 메모리 가상화 · 가상 주소 공간 · 주소 변환 · VM 설계 목표 · 주소 변환 시점 · MMU · base and bounds · free list · 동적 재배치의 한계
+### 과제2 — 파일 접두어 `BZ0_`(허브)~`BZB_`. 원본 `../../기말고사/문제풀이/과제2_xv6_lock/Assignment 2.pdf` 14쪽 (글자뿐, 캡처 없음 → ascii·sim·anim 으로). 원본 xv6 소스 `lock` 브랜치 66ff622. '''마감 2026-10-25 전에는 kalloc.c/bio.c 완성 코드 금지''' (공개 위키 + 본인 구현) — 의사코드·자료구조 스케치·원본 코드만. 허브의 `실제 제출 구현` 절은 제출 뒤에 채운다
+과제2 xv6 lock · lock contention · kalloc · per-CPU free list · buffer cache · bcache 해시 버킷 · 과제2 퀴즈 대비 · cpuid · refcnt · sleeplock · steal · NBUF
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -135,6 +137,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | dining_trace | 11강 p.37/p.39 dining philosophers 를 같은 최악의 순서로 줄 단위 실행(포크 세마포어 값·주인·기다림 화살표 원탁 SVG). 옵션 version = broken(전원 −1, deadlock) / fixed(P4 만 f0 먼저 → P3→P2→P1→P0→P4) | dining philosophers |
 | p6_xyz | 2025F P6 / 문제집 u12 ④-11·12: x(empty)/y(full)/z(mutex) producer-consumer MAX=3 줄 단위, 버퍼·세마포어 SVG. 옵션 order = correct((−1,3,1)→(0,2,1)→(0,3,1)) / swapped((a)(b) 바꿔 데드락) | 2025F 중간고사 족보 |
 | base_bounds_trace | 13강 p.44~49·p.54: x = x + 3 의 메모리 참조 5번(fetch 128/132/135, load·store 15KB)을 MMU 코드(VA < bounds → PA = VA + base)와 함께, 물리 메모리 막대 SVG. 옵션 scenario = normal(base 32KB → 32896, 47KB) / out_of_bounds(%ebx 20KB → exception) / context_switch(A 의 base/bounds 를 PCB 에 저장, B 48KB 로 같은 코드 → 63KB) | base and bounds, 가상 메모리 |
+| kalloc_steal | 과제2 Problem 1: CPU 3개·페이지 몇 장으로 per-CPU kmem[i] kalloc/kfree 의사코드 줄 단위(freelist·lock 주인·#test-and-set, 리스트/자물쇠/steal 화살표 SVG). 옵션 scenario = normal(freerange→CPU1 steal→CPU2 kfree→동시 kalloc contention 0) / deadlock(내 lock 쥔 채 steal → CPU0↔CPU1 circular wait) / ordered(min→max 순서, 풀림) / cpuid_race(인터럽트 켠 채 cpuid() → 틀린 리스트 수정·panic: release → push_off/pop_off) | per-CPU free list |
+| bget_trace | 과제2 Problem 2: 버퍼 4개·버킷 3개(blockno%3, 실제 13) bget 설계 의사코드 줄 단위(버킷 체인·이동 중 버퍼·bcache.lock·사본 수 SVG). 옵션 scenario = hit(다른 버킷 동시, 같은 버킷 spin·refcnt 2·sleeplock 대기) / miss_move(bcache.lock 아래 재검색 + victim 이동) / same_bucket(같은 버킷 lock 두 번 → panic: acquire, 고친 판) / race_2025(재검색 없음 → block 사본 2개) / race_fixed(eviction lock + 재검색 → 사본 1개) | bcache 해시 버킷 |
 | mid26_mlfq | 2026F 중간 P5: 시험지 MLFQ 규칙(slice 2/4/8, I/O 블록 시 우선순위 유지, 상위 도착 선점·head 재개)을 실제로 시뮬레이션해 A·B·C Gantt + 큐 상태 | 2026F 중간고사, MLFQ |
 | mid26_trylock | 2026F 중간 P9: ticket lock try_lock. 옵션 variant = bad(실패한 B 가 ticket 을 올려 C 영원히 spin) / correct(CAS(&ticket, t, t+1), old == t → C 진입) / race(ticket=turn=4, A·B 동시 → A 1, B 0) | 2026F 중간고사, ticket lock, compare-and-swap |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
@@ -237,4 +241,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | dining_philosophers | 다섯 철학자·포크 5개 원탁: ① 모두 왼쪽 포크 sem_wait → 오른쪽 대기 → 붉은 고리(circular wait → deadlock) ② p.61 해법: P4 만 right→left → P4 가 포크 0개로 대기 → f4 가 남아 P3 → P2 → P1 순으로 먹음 | dining philosophers, 데드락 |
 | mmu_base_bounds | 13강 p.48~49 배치: Address Space · MMU(bounds 16KB '<', base 32KB '+') · Physical Memory. VA 128 → 32896, VA 15KB → 47KB, (변형) VA 20KB → no → Raise exception | base and bounds, MMU, 가상 메모리 |
 | addr_bind_time | 13강 p.31~36 세 줄: ① compile time(VA=PA, P2 로딩 ✗) ② load time(+0x100000/+0x200000 로 call 주소 고쳐 씀, 보호 없음) ③ execution time(파일 그대로, CPU 가 +100000/+200000) | 주소 변환 시점, 주소 변환, 기말고사 |
+| kmem_percpu | 과제2 ①: Before kmem.lock 하나에 CPU0·1·2 가 줄 — holder 만 kalloc(), 나머지 spinning·#test-and-set 증가 → After kmem[0..2] lock·free list 각자, 세 CPU 동시 kalloc (#test-and-set 0) → CPU1 list 비음 → kmem[0].lock 만 잠깐 잡고 page 3개 steal → kalloc 성공 | 과제2 xv6 lock, per-CPU free list |
+| bcache_hash | 과제2 ②: Before bcache.lock 하나 + LRU 리스트, P1·P2·P3 spinning → After blockno % 13 의 13 bucket: bget(27)→bucket 1 hit r1→2 ‖ bget(18)→bucket 5 동시 → bget(40) miss → bcache.lock, bucket 7 의 r0 buf(blk 59) → lock 1→7 → bucket 1 로 옮겨 blockno=40 (NBUF 30 그대로) | buffer cache, bcache 해시 버킷 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |
