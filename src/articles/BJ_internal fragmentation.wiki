@@ -20,7 +20,10 @@ category: 14강 Segmentation, 용어
 | 증상 || 할당은 됐는데 일부를 안 씀 || 빈 공간 합은 충분한데 연속된 큰 덩어리가 없어 요청 실패
 |}
 
+== 15강 — 페이징에서 다시 ⭐⭐ ==
+15강 p.27: "For a given block, internal fragmentation occurs if a payload is smaller than block size. '''Occur when the free space consists of fixed-sized units'''." [[페이징]]은 모든 단위가 같은 크기(page)라 external fragmentation 은 없지만, code·heap·stack 이 page 보다 작으면 page 안이 남는다(p.28, 2KB page). 해결: 작은 page — 대신 [[페이지 테이블]]이 커진다 → [[페이징의 문제]].
+
 {tip}암기 요령: '''in'''ternal = 칸 '''안''', '''ex'''ternal = 칸 '''밖'''(사이). 13강 p.55 는 이 현상을 그림으로만 보여 줬고, 14강 p.3 에서 이름이 붙었다.{/tip}
 
 == 관련 문서 ==
-* [[external fragmentation]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]
+* [[external fragmentation]] · [[페이징의 문제]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]

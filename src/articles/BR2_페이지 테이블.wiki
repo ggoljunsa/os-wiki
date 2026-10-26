@@ -1,0 +1,40 @@
+key: 페이지 테이블
+title: 페이지 테이블 (Page Table)
+category: 15강 Paging, 핵심
+---
+VPN 을 PFN 으로 바꾸는 '''프로세스마다 하나씩 있는''' 자료구조. 15강 p.15~20.
+
+{def}p.15 원문 — "A data structure that maps a virtual address to a physical address. Simplest form: a '''linear page table''', an '''array'''. OS indexes the array by '''VPN''' and looks up the '''page-table entry (PTE)''' to locate the corresponding '''PFN'''."{/def}
+
+{analogy}🎭 '''사물함 배정표.''' 1번 짐 → 3번 칸, 2번 짐 → 7번 칸 … 짐 번호(VPN) 순서대로 한 줄씩 적힌 표라서, n번 짐의 칸은 표의 n번째 줄만 보면 된다(배열 인덱싱).{/analogy}
+
+{|
+! VPN || PFN
+|-
+| 0 || 3
+|-
+| 1 || 7
+|-
+| 2 || 5
+|-
+| 3 || 2
+|}
+(p.15 — 이 한 줄 한 줄이 '''PTE''')
+
+[[img:L15-16.png|p.16 — 64바이트 주소 공간의 page 0~3 이 page table 을 통해 frame 3·7·5·2 로|large]]
+
+== 어디에 두나 (p.19~20) ⭐⭐ ==
+* "Page tables can get '''awfully large'''": 32비트 주소 공간 + 4KB page → VPN 20비트 → $2^{20}$ 개 PTE × 4바이트 = '''4MB'''.
+* "Impossible to maintain many registers (e.g., 4MB) for every PTE" → '''page table 은 메인 메모리(커널 메모리)에 둔다'''.
+* 그래서 하드웨어는 page table 이 메모리 어디 있는지 알아야 한다 → [[PTBR]] (page-table base register).
+* 그 결과 메모리 접근 1번에 page table 읽기 1번이 더 붙는다 → [[페이징의 문제]] #2 → [[TLB]].
+
+[[img:L15-20.png|p.20 — page table 은 물리 메모리 frame 0 의 Kernel Memory 안에 있다|medium]]
+
+{tip}14강 세그먼트 테이블은 세그먼트 3~4개라 CPU 레지스터에 둘 수 있었다. 페이지 테이블은 '''page 하나당 한 줄'''이라 수십만~수백만 줄 — 그래서 메모리로 간다. 이 한 가지 차이가 15강 후반(TLB)의 출발점이다.{/tip}
+
+{quiz}32비트 주소 공간, page 16KB, PTE 4바이트. 프로세스 하나의 linear page table 크기는?{/quiz}
+{answer}offset 14비트 → VPN 18비트 → $2^{18}$ × 4B = '''1MB''' (p.30). page 를 키우면 표는 작아지지만 [[internal fragmentation]]이 커진다.{/answer}
+
+== 관련 문서 ==
+* [[페이징]] · [[VPN과 offset]] · [[PTE 플래그]] · [[PTBR]] · [[페이징의 문제]] · [[TLB]]

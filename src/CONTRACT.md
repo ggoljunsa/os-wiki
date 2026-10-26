@@ -101,6 +101,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 과제2 xv6 lock · lock contention · kalloc · per-CPU free list · buffer cache · bcache 해시 버킷 · 과제2 퀴즈 대비 · cpuid · refcnt · sleeplock · steal · NBUF
 ### 14강 Segmentation — 파일 접두어 `BE_`~`BQ_`. 슬라이드 `../../기말고사/강의자료/14-Segmentation.pdf` 41쪽 = `_slides/L14-{pp}.png`, 텍스트 `_text/14-Segmentation.txt`. 녹음 없음(결석, 2026-10-26)
 세그멘테이션 · 세그먼트 주소 변환 · 스택 세그먼트 · 코드 공유와 protection bit · segmentation fault · internal fragmentation · external fragmentation · compaction · free-space management · splitting과 coalescing · 할당 헤더 · embedded free list · 할당 전략
+### 15강 Paging — 파일 접두어 `BR0_`~`BRA_`. 슬라이드 `../../기말고사/강의자료/15-Paging.pdf` 53쪽 = `_slides/L15-{pp}.png`, 텍스트 `_text/15-Paging.txt`. 녹음 없음 (2026-10-26)
+페이징 · VPN과 offset · 페이지 테이블 · PTE 플래그 · copy-on-write · 페이징의 문제 · TLB · TLB hit와 miss · TLB miss 처리 · PTBR · ASID와 TLB flush
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -145,6 +147,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | mid26_trylock | 2026F 중간 P9: ticket lock try_lock. 옵션 variant = bad(실패한 B 가 ticket 을 올려 C 영원히 spin) / correct(CAS(&ticket, t, t+1), old == t → C 진입) / race(ticket=turn=4, A·B 동시 → A 1, B 0) | 2026F 중간고사, ticket lock, compare-and-swap |
 | seg_translate | 14강 p.7~15: 14비트 VA → 위 2비트 세그먼트 + 12비트 offset → size 비교 → base 더하기(stack 은 offset − 4096). 옵션 set = slide(VA 100 → 32868, 4200 → 34920, 15KB → 27KB) / faults(heap 7KB segfault, 세그 10, code store protection fault, stack 경계 14KB / 14KB−1) | 세그멘테이션, 세그먼트 주소 변환 |
 | fit_strategies | 14강 p.37~39: head → 10 → 30 → 20 에 요청. 옵션 strat = best/worst/first/next, req = slide(15) / seq(15, 8, 12, 10, 9 → best·next 는 9 에서 실패). Next Fit ptr = 지난번 떼어 간 노드 | 할당 전략, free-space management |
+| page_translate | 15강 p.13~22: VA → VPN|offset → PTE → PFN×page+offset. 옵션 set = simple(p.14 64B AS 16B page, VA 21 → 117) / quiz(p.18, VA 0·3·9·13 → 20·23·5·9) / valid(p.22 2KB page, valid 0 fault · RE 에 store protection fault) | 페이징, VPN과 offset |
+| tlb_trace | 15강 p.36: a[10] 순회 메모리 접근 수. 옵션 tlb = none(20) / tlb(13, hit 7/10) / ctx(a[5] 뒤 flush → 14) | TLB, TLB hit와 miss, ASID와 TLB flush |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
@@ -248,4 +252,5 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | kmem_percpu | 과제2 ①: Before kmem.lock 하나에 CPU0·1·2 가 줄 — holder 만 kalloc(), 나머지 spinning·#test-and-set 증가 → After kmem[0..2] lock·free list 각자, 세 CPU 동시 kalloc (#test-and-set 0) → CPU1 list 비음 → kmem[0].lock 만 잠깐 잡고 page 3개 steal → kalloc 성공 | 과제2 xv6 lock, per-CPU free list |
 | bcache_hash | 과제2 ②: Before bcache.lock 하나 + LRU 리스트, P1·P2·P3 spinning → After blockno % 13 의 13 bucket: bget(27)→bucket 1 hit r1→2 ‖ bget(18)→bucket 5 동시 → bget(40) miss → bcache.lock, bucket 7 의 r0 buf(blk 59) → lock 1→7 → bucket 1 로 옮겨 blockno=40 (NBUF 30 그대로) | buffer cache, bcache 해시 버킷 |
 | segment_map | 14강 p.6·p.10~12: 주소 공간 code/heap/stack 이 물리 28K/32K/34K 로 따로 옮겨짐 → VA 4200 = 01|offset 104 → 34920 → VA 15KB = 11|3072 − 4096 → 27KB | 세그멘테이션 |
+| tlb_lookup | 15강 p.33~35·p.38: hit(VPN 27 → TLB 59 → 메모리 1번) vs miss(VPN 40 → PTEA → page table → TLB 갱신 → 메모리 2번) | TLB, TLB hit와 miss, 페이징 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

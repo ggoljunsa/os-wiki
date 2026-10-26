@@ -1,0 +1,83 @@
+key: 페이징
+title: 페이징 (Paging) — 15강 허브
+category: 15강 Paging, 핵심
+---
+{info}📌 '''15강 슬라이드 `15-Paging.pdf`(53쪽) 기준. 녹음 없음.''' 덱 구성: p.2~6 14강 복습(segmentation · fragmentation · fit 전략) → p.7~8 segmentation 의 문제 → '''p.9~30 Paging'''(개념 · VPN/offset · page table · PTE 플래그 · sharing/CoW · 문제 3가지) → '''p.31~51 TLB'''(hit/miss · locality · HW/SW-managed · context switch · ASID) → p.52 참고문헌(OSTEP 18·19장).{/info}
+
+'''페이징'''은 주소 공간을 '''고정 크기 단위(page)'''로 자르고, 물리 메모리도 같은 크기(page frame)로 잘라서, 프로세스마다 있는 [[페이지 테이블]]로 page → page frame 을 짝짓는 주소 변환 방식이다. [[세그멘테이션]]이 크기가 제각각인 세그먼트 때문에 겪던 [[external fragmentation]]과 복잡한 [[free-space management]]를 '''모든 조각의 크기를 같게''' 해서 없앤다. 대신 page 가 다 안 차서 생기는 [[internal fragmentation]], 메모리 접근이 두 배가 되는 성능 문제, 페이지 테이블이 너무 큰 문제가 생기고 — 두 번째를 푸는 것이 [[TLB]] 다.
+
+{def}p.10 원문 — "'''Paging''' splits up address space into a '''fixed-sized unit''' called a '''page''' or a virtual page. (Segmentation: variable size of logical segments.) Physical memory is also split into some number of pages called a '''page frame'''. A '''page table per process''' is needed to translate the virtual address to physical address."{/def}
+
+{analogy}🎭 '''같은 크기 사물함.''' 세그멘테이션은 짐 크기대로 칸을 잘라 주는 창고라 크기가 맞는 빈 칸 찾기가 어렵고 틈이 남는다. 페이징은 모든 칸이 같은 크기인 사물함 — 아무 빈 칸에나 넣으면 되고(빈 칸 목록만 있으면 끝), 대신 짐이 칸보다 작으면 칸 안이 남는다(internal fragmentation). 어느 짐이 몇 번 사물함에 있는지는 사람마다 가진 장부(page table)에 적는다.{/analogy}
+
+[[anim:tlb_lookup|페이징의 성능 문제를 TLB 가 어떻게 푸는지 — hit 은 메모리 1번, miss 는 page table 을 한 번 더 읽는 장면]]
+
+[[sim:page_translate]]
+
+== 1. 왜 — segmentation 의 문제 (p.7~8) ==
+* 빈 공간이 조각난다 — [[external fragmentation]] (새 프로세스의 code 를 넣을 연속 공간이 없음, p.7 ①)
+* free-space management 가 복잡하다 — best fit, worst fit, … ([[할당 전략]])
+* [[compaction]] 은 비싸다
+* 세그먼트가 '''더 자랄 수 없다''' — heap 바로 뒤에 다른 세그먼트가 있으면 막힌다 (p.8 ②)
+"Is there any alternative approach? – '''Paging'''"
+
+[[img:L15-08.png|p.8 Problems with Segmentation — ② Heap 바로 아래 다른 할당이 있어 Cannot grow further!|medium]]
+
+== 2. 개념과 장점 (p.10~12) ⭐⭐ ==
+{|
+! || 세그멘테이션 || 페이징
+|-
+| 단위 || 크기가 제각각(code·heap·stack) || '''고정 크기''' page / page frame
+|-
+| 변환 정보 || 세그먼트당 base·size || '''page 하나당 PTE 하나''' (page table)
+|-
+| external fragmentation || 있음 || '''없음'''(p.11)
+|-
+| internal fragmentation || 없음 || '''있음'''(마지막 page 가 다 안 참)
+|-
+| free-space 관리 || 복잡(best/worst fit…) || 단순 — 빈 frame 목록만
+|}
+
+p.11 '''Advantages''': ① '''Flexibility''' — heap 과 stack 이 어떻게 자라고 쓰이는지 가정할 필요가 없다 ② '''Simplicity''' — page 와 page frame 크기가 같아 free list 관리가 쉽고, external fragmentation 이 없다.
+
+[[img:L15-12.png|p.12 Simple Paging — 64바이트 주소 공간(16바이트 page 4개)을 128바이트 물리 메모리(frame 8개)의 frame 3·7·5·2 에 흩어 놓음|large]]
+
+== 3. 주소 변환 (p.13~18) ⭐⭐⭐ ==
+가상 주소 = '''VPN'''(위 비트) + '''offset'''(아래 비트, VPO). VPN 만 page table 로 '''PFN''' 으로 바꾸고 offset 은 그대로 붙인다. → [[VPN과 offset]], [[페이지 테이블]]
+<pre class="ascii">
+   64바이트 AS, 16바이트 page:  VPN 2비트 | offset 4비트
+   VA 21 = 01 | 0101  → VPN 1 → PageTable[1] = PFN 7 → PA = 111 | 0101 = '''117'''
+</pre>
+
+[[img:L15-14.png|p.14 — VA 010101 의 VPN 01 이 Address Translation 을 거쳐 PFN 111 로, offset 0101 은 그대로|large]]
+
+== 4. 페이지 테이블과 PTE (p.15~25) ⭐⭐ ==
+* 가장 단순한 형태 = '''linear page table'''(VPN 으로 인덱싱하는 배열). 너무 커서 레지스터가 아니라 '''메모리(커널 메모리)'''에 둔다(p.19~20) → [[페이지 테이블]], [[PTBR]]
+* PTE 플래그: valid · protection · present · dirty · reference → [[PTE 플래그]]
+* page sharing 과 copy-on-write(p.23~25) → [[copy-on-write]]
+
+== 5. 페이징의 문제 셋 (p.26~30) ⭐⭐⭐ ==
+# '''Internal fragmentation''' — 데이터가 page 보다 작을 때 (해결: 작은 page)
+# '''Performance degradation''' — 메모리 접근 1번에 실제로는 2번(PTE + data) (해결: [[TLB]])
+# '''Huge page tables''' — 32비트·4KB page → 2^20 PTE × 4B = '''4MB''', 프로세스 100개면 400MB (해결: hybrid / multi-level paging)
+→ [[페이징의 문제]]
+
+== 6. TLB (p.31~51) ⭐⭐⭐ ==
+MMU 안의 하드웨어 캐시. 자주 쓰는 VPN → PFN 번역을 담아 page table 읽기를 건너뛴다. → [[TLB]], [[TLB hit와 miss]], [[TLB miss 처리]], [[ASID와 TLB flush]]
+
+[[sim:tlb_trace]]
+
+== 시험 대비 핵심 요약 ==
+# Paging = 주소 공간을 '''고정 크기 page''' 로, 물리 메모리를 같은 크기 '''page frame''' 으로. 프로세스마다 '''page table'''.
+# 장점: flexibility(heap/stack 자람 가정 불필요) · simplicity(빈 frame 목록, external fragmentation 없음).
+# VA = VPN | offset. PA = PFN | offset (= PFN × page size + offset). offset 은 변환하지 않는다.
+# VPN 비트 = log2(주소 공간 / page 크기), offset 비트 = log2(page 크기).
+# Page table 은 메모리에 있다(너무 커서). 32비트·4KB → 2^20 × 4B = 4MB.
+# PTE 플래그: valid · protection · present · dirty · reference(accessed).
+# 문제 셋: internal fragmentation · 메모리 접근 2배 · page table 크기 → 해결: 작은 page · TLB · multi-level.
+# TLB: MMU 안 캐시. hit 이면 메모리 1번, miss 면 2번. locality 덕분에 miss 가 드물다.
+
+== 관련 문서 ==
+* [[기말고사]] · [[세그멘테이션]](14강) · [[가상 메모리]](13강) · [[MMU]]
+* [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]]
+* [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]

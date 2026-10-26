@@ -1,0 +1,47 @@
+key: VPN과 offset
+title: VPN과 Offset (가상 주소의 두 부분)
+category: 15강 Paging, 핵심
+---
+페이징에서 가상 주소는 '''VPN(Virtual Page Number)'''과 '''offset(VPO, Virtual Page Offset)''' 두 부분이다. VPN 은 "몇 번째 page 인가", offset 은 "그 page 안 몇 번째 바이트인가". 변환되는 것은 '''VPN 뿐'''이다. 15강 p.13~18.
+
+{def}p.13 원문 — "Two components in the virtual address: '''VPN''': Virtual Page Number / '''Offset''': Offset within the page (or '''VPO''': Virtual Page Offset)."
+p.14 — 물리 주소 = '''PFN''' (Page Frame Number) + offset.{/def}
+
+{analogy}🎭 '''책의 쪽수와 줄 번호.''' "3쪽 5번째 줄"에서 쪽수(VPN)만 다른 판본의 쪽수(PFN)로 바꾸면 되고, 줄 번호(offset)는 한 쪽 안에서의 위치라 그대로다.{/analogy}
+
+== 비트 수 구하기 ⭐⭐⭐ ==
+* offset 비트 = log2(page 크기)
+* VPN 비트 = log2(주소 공간 크기 / page 크기) = 전체 VA 비트 − offset 비트
+* PFN 비트 = log2(물리 메모리 크기 / page 크기)
+
+{|
+! 예 || 주소 공간 || page || VA 비트 || VPN || offset
+|-
+| p.13 || 64B || 16B || 6 || 2비트 (page 4개) || 4비트
+|-
+| p.18 Quiz || 16B || 4B || 4 || 2비트 || 2비트
+|-
+| p.22 || 16KB || 2KB || 14 || 3비트 (page 8개) || 11비트
+|-
+| p.19 || 32비트(4GB) || 4KB || 32 || '''20비트''' || 12비트
+|}
+
+[[img:L15-13.png|p.13 — 64바이트 주소 공간, 16바이트 page: VA 21 = 010101 → VPN 01 = 1, VPO 0101 = 5|large]]
+
+== 변환 ==
+<pre class="ascii">
+   VA 21 = 01 | 0101         PageTable[1] = PFN 7
+   PA    = 111 | 0101  = 7 × 16 + 5 = '''117'''
+</pre>
+
+[[img:L15-18.png|p.18 Quiz — 4바이트 page, page table 0→5, 1→6, 2→1, 3→2. VA 0→20(a), 3→23(d), 9→5(j), 13→9(n)|large]]
+
+[[sim:page_translate]]
+
+{warn}'''함정''' ① PA = PFN × page 크기 + offset — PFN 에 offset 을 그냥 더하면 틀린다. 2진수로는 PFN 비트 뒤에 offset 비트를 '''이어 붙이는''' 것. ② offset 비트 수는 '''page 크기'''로 정해진다(주소 공간 크기가 아니다). ③ VA 9 (p.18): 9 = 10 | 01 → VPN 2 → PFN 1 → 1×4+1 = 5. "9 + 어떤 base" 가 아니다.{/warn}
+
+{quiz}주소 공간 32KB, page 4KB, 물리 메모리 64KB. VA 13000 의 VPN·offset 은? page table 이 VPN 3 → PFN 9 이면 PA 는? VPN·PFN 은 각각 몇 비트?{/quiz}
+{answer}13000 = 3 × 4096 + 712 → '''VPN 3, offset 712'''. PA = 9 × 4096 + 712 = '''37576'''. VPN = log2(32KB/4KB) = '''3비트''', PFN = log2(64KB/4KB) = '''4비트''', offset 12비트.{/answer}
+
+== 관련 문서 ==
+* [[페이징]] · [[페이지 테이블]] · [[세그먼트 주소 변환]](14강과 비교) · [[MMU]]

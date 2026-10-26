@@ -19,7 +19,9 @@ category: 기말고사
 |-
 | '''14강''' Segmentation (결석 — 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]
 |-
-| 15강~ || (아직 배포 전) || OSTEP 순서상 다음은 paging → TLB || —
+| '''15강''' Paging (녹음 없음) || `15-Paging.pdf` 53쪽 || 고정 크기 page 와 page table 로 external fragmentation 없애기 → 메모리 접근 2배 문제를 TLB 로 || [[페이징]]
+|-
+| 16강~ || (아직 배포 전) || OSTEP 순서상 다음은 multi-level page table → swapping || —
 |}
 
 {info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: "'''기말까지 시간이 많지 않다'''". p.3~10(계층·locality)은 "system programming 에서 배웠을 것"이라 출제 우선순위 낮음.{/info}
@@ -48,6 +50,15 @@ category: 기말고사
 # [[free-space management]] — 허브 (p.18~39)
 # [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐
 # [[할당 전략]] — Best / Worst / First / Next Fit ⭐⭐⭐
+
+== 15강 읽는 순서 ==
+
+# [[페이징]] — 허브. segmentation 의 문제 → page·page frame·page table → 문제 셋 → TLB (p.7~51)
+# [[VPN과 offset]] — 비트 수 구하기와 VA → PA 계산 ⭐⭐⭐ (p.13~18, Quiz 포함)
+# [[페이지 테이블]] · [[PTBR]] — 왜 메모리에 두나, 크기 4MB 계산
+# [[PTE 플래그]] — valid · protection · present · dirty · reference / [[copy-on-write]]
+# [[페이징의 문제]] — internal fragmentation · 메모리 접근 2배 · 큰 page table ⭐⭐⭐
+# [[TLB]] → [[TLB hit와 miss]](p.36 배열 계산 ⭐⭐⭐) → [[TLB miss 처리]](HW vs SW, 순서·장단점) → [[ASID와 TLB flush]]
 
 == 중간 범위와 이어지는 곳 ==
 

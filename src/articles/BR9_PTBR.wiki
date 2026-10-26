@@ -1,0 +1,19 @@
+key: PTBR
+title: PTBR (Page-Table Base Register)
+category: 15강 Paging, 용어
+---
+지금 실행 중인 프로세스의 '''page table 이 메모리 어디서 시작하는지'''를 담은 CPU 레지스터. 15강 p.40~41, p.48.
+
+{def}p.40 — "The page table is pointed to by a '''page-table base register (PTBR)''' — e.g., '''CR3''' register in the Intel x86 architecture."{/def}
+
+{analogy}🎭 '''지금 펼친 장부의 위치를 가리키는 책갈피.''' 사람(프로세스)이 바뀌면 그 사람 장부로 책갈피를 옮긴다.{/analogy}
+
+* PTE 주소(PTEA) = PTBR + VPN × PTE 크기 — hardware-managed TLB 가 miss 때 이걸로 page table 을 "walk" 한다(p.40~41).
+* page table 은 프로세스마다 다르므로, '''context switch 때 OS 가 PTBR 을 바꾼다'''. 13강 base/bounds 를 [[PCB]]에 저장·복원했던 것과 같은 자리다.
+* PTBR 을 바꾸는 명령은 특권 명령 — 유저가 바꾸면 남의 page table 을 쓸 수 있다.
+* p.48: "Hardware-based approach — The CPU implicitly cleans up old TLB entries when the PTBR is changed by the OS (note: '''Xv6 uses the hardware-based one''')" → [[ASID와 TLB flush]]. (RISC-V 에서는 `satp` 레지스터가 이 역할 — OSTEP/xv6 보충.)
+
+[[img:L15-41.png|p.41 Hardware-managed TLBs — ① PTBR 로 page table 로 점프 ② PTE 찾기 ③ PFN 추출 ④ TLB 갱신|large]]
+
+== 관련 문서 ==
+* [[TLB miss 처리]] · [[페이지 테이블]] · [[ASID와 TLB flush]] · [[컨텍스트 스위치]] · [[base and bounds]](13강의 base register 와 비교)

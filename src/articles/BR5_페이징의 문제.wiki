@@ -1,0 +1,41 @@
+key: 페이징의 문제
+title: 페이징의 문제 세 가지 (Problems with Paging)
+category: 15강 Paging, 핵심
+---
+페이징은 external fragmentation 을 없앴지만 완벽하지 않다. 15강 p.26~30 이 세 가지와 각각의 해결책을 짝지어 준다 — 표째로 외울 것.
+
+{def}p.26 원문 — "Paging is not perfect and has problems as well: 1. '''Internal fragmentation''' — It happens when data size is smaller than a page size. 2. '''Performance degradation''' — Two memory accesses are required for one memory access. 3. '''Huge page tables''' — Code, heap, stack (in segmentation) vs. many PTEs (in paging)."{/def}
+
+{analogy}🎭 '''같은 크기 사물함의 단점.''' ① 짐이 작아도 칸 하나를 다 쓴다. ② 짐을 꺼내려면 먼저 배정표를 보고 그다음 사물함을 연다(두 번 걷기). ③ 사물함이 수백만 개라 배정표가 책 한 권이 된다.{/analogy}
+
+{|
+! # || 문제 || 왜 || 해결 (슬라이드)
+|-
+| 1 || '''Internal fragmentation''' (p.27~28) || code·heap·stack 이 page(2KB)보다 작으면 page 안이 남는다 || 작은 page (e.g., 1KB)
+|-
+| 2 || '''Performance degradation''' (p.29) || 메모리 접근마다 ① PTE 읽기 ② data 읽기 = 2번 || '''TLB''' (Translation lookaside buffer)
+|-
+| 3 || '''Huge page tables''' (p.30) || 32비트·4KB → 4MB, 프로세스 100개면 400MB || hybrid 또는 '''multi-level paging'''
+|}
+
+[[img:L15-29.png|p.29 Performance Degradation — ① Fetch PTE from page table in memory ② Access data word in memory|large]]
+
+== page 크기의 trade-off (p.28, p.30) ⭐⭐⭐ ==
+{|
+! page 크기 || VPN 비트 (32비트 VA) || linear page table 크기 || internal fragmentation
+|-
+| 4KB || 20 || $2^{20}$ × 4B = '''4MB''' || 작음
+|-
+| 16KB || 18 || $2^{18}$ × 4B = '''1MB''' || "becomes serious!"
+|-
+| 1KB (p.28 의 제안) || 22 || $2^{22}$ × 4B = 16MB || 더 작음
+|}
+page 를 '''키우면''' 표는 작아지지만 internal fragmentation 이 커지고, '''줄이면''' 반대 — 문제 1 과 3 이 서로 맞선다. 그래서 page 크기만으로는 못 풀고 multi-level paging 이 나온다.
+
+{warn}internal fragmentation 은 14강 p.3 에서 base and bounds 의 문제로 처음 나왔고, 15강 p.27 은 "'''Occur when the free space consists of fixed-sized units'''" 라고 일반화한다. 고정 크기 → internal, 가변 크기 → external. → [[internal fragmentation]], [[external fragmentation]]{/warn}
+
+{quiz}32비트 주소 공간, page 4KB, PTE 4바이트, 프로세스 50개가 각자 linear page table 을 가지면 page table 에만 드는 메모리는?{/quiz}
+{answer}프로세스당 $2^{20}$ × 4B = 4MB → 50 × 4MB = '''200MB'''.{/answer}
+
+== 관련 문서 ==
+* [[페이징]] · [[페이지 테이블]] · [[TLB]] · [[internal fragmentation]] · [[external fragmentation]]

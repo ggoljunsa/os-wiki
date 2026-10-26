@@ -710,7 +710,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
+  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]\n* 15강 Paging: [[페이징]] · [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]] · [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
  },
  "읽는 순서": {
   "title": "읽는 순서",
@@ -1964,7 +1964,7 @@ const ARTICLES = {
   "category": [
    "기말고사"
   ],
-  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| '''14강''' Segmentation (결석 — 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]\n|-\n| 15강~ || (아직 배포 전) || OSTEP 순서상 다음은 paging → TLB || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 14강 읽는 순서 ==\n\n# [[세그멘테이션]] — 허브. 왜(base and bounds 의 internal fragmentation) → 세그먼트 배치 → 변환 → stack·sharing·protection → fragmentation (p.2~17)\n# [[세그먼트 주소 변환]] — 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]] — 음의 방향\n# [[코드 공유와 protection bit]] · [[segmentation fault]] — 범위 위반 vs 권한 위반\n# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]\n# [[free-space management]] — 허브 (p.18~39)\n# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐\n# [[할당 전략]] — Best / Worst / First / Next Fit ⭐⭐⭐\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2 — xv6 Lock ==\n\n{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]] — 예상문제 20개\n\n강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
+  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| '''14강''' Segmentation (결석 — 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]\n|-\n| '''15강''' Paging (녹음 없음) || `15-Paging.pdf` 53쪽 || 고정 크기 page 와 page table 로 external fragmentation 없애기 → 메모리 접근 2배 문제를 TLB 로 || [[페이징]]\n|-\n| 16강~ || (아직 배포 전) || OSTEP 순서상 다음은 multi-level page table → swapping || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 14강 읽는 순서 ==\n\n# [[세그멘테이션]] — 허브. 왜(base and bounds 의 internal fragmentation) → 세그먼트 배치 → 변환 → stack·sharing·protection → fragmentation (p.2~17)\n# [[세그먼트 주소 변환]] — 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]] — 음의 방향\n# [[코드 공유와 protection bit]] · [[segmentation fault]] — 범위 위반 vs 권한 위반\n# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]\n# [[free-space management]] — 허브 (p.18~39)\n# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐\n# [[할당 전략]] — Best / Worst / First / Next Fit ⭐⭐⭐\n\n== 15강 읽는 순서 ==\n\n# [[페이징]] — 허브. segmentation 의 문제 → page·page frame·page table → 문제 셋 → TLB (p.7~51)\n# [[VPN과 offset]] — 비트 수 구하기와 VA → PA 계산 ⭐⭐⭐ (p.13~18, Quiz 포함)\n# [[페이지 테이블]] · [[PTBR]] — 왜 메모리에 두나, 크기 4MB 계산\n# [[PTE 플래그]] — valid · protection · present · dirty · reference / [[copy-on-write]]\n# [[페이징의 문제]] — internal fragmentation · 메모리 접근 2배 · 큰 page table ⭐⭐⭐\n# [[TLB]] → [[TLB hit와 miss]](p.36 배열 계산 ⭐⭐⭐) → [[TLB miss 처리]](HW vs SW, 순서·장단점) → [[ASID와 TLB flush]]\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2 — xv6 Lock ==\n\n{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]] — 예상문제 20개\n\n강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
  },
  "가상 메모리": {
   "title": "가상 메모리 (Virtual Memory) — 13강 허브",
@@ -2112,7 +2112,7 @@ const ARTICLES = {
    "14강 Segmentation",
    "용어"
   ],
-  "body": "할당된 한 칸 '''안에서''' 쓰이지 않고 버려지는 공간. 14강 p.3 이 [[base and bounds]]의 비효율을 이 이름으로 부른다.\n\n{def}p.3 원문 — \"'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted.\"{/def}\n\n{analogy}🎭 '''3인용 테이블에 혼자 앉기.''' 테이블(할당 단위)은 통째로 내 것이지만 의자 두 개는 비어 있다. 다른 손님도 못 쓴다.{/analogy}\n\n[[img:L14-03.png|p.3 — base and bounds 는 16KB 주소 공간을 통째로 할당하므로 heap 과 stack 사이의 (free)까지 물리 메모리를 차지한다|medium]]\n\n{|\n! || Internal fragmentation || [[external fragmentation|External fragmentation]]\n|-\n| 어디서 낭비 || 할당된 칸 '''안''' || 할당된 칸들 '''사이'''의 작은 구멍\n|-\n| 대표 상황 || [[base and bounds]](주소 공간 통째 할당) || [[세그멘테이션]], `malloc` 처럼 크기가 제각각인 할당\n|-\n| 증상 || 할당은 됐는데 일부를 안 씀 || 빈 공간 합은 충분한데 연속된 큰 덩어리가 없어 요청 실패\n|}\n\n{tip}암기 요령: '''in'''ternal = 칸 '''안''', '''ex'''ternal = 칸 '''밖'''(사이). 13강 p.55 는 이 현상을 그림으로만 보여 줬고, 14강 p.3 에서 이름이 붙었다.{/tip}\n\n== 관련 문서 ==\n* [[external fragmentation]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]"
+  "body": "할당된 한 칸 '''안에서''' 쓰이지 않고 버려지는 공간. 14강 p.3 이 [[base and bounds]]의 비효율을 이 이름으로 부른다.\n\n{def}p.3 원문 — \"'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted.\"{/def}\n\n{analogy}🎭 '''3인용 테이블에 혼자 앉기.''' 테이블(할당 단위)은 통째로 내 것이지만 의자 두 개는 비어 있다. 다른 손님도 못 쓴다.{/analogy}\n\n[[img:L14-03.png|p.3 — base and bounds 는 16KB 주소 공간을 통째로 할당하므로 heap 과 stack 사이의 (free)까지 물리 메모리를 차지한다|medium]]\n\n{|\n! || Internal fragmentation || [[external fragmentation|External fragmentation]]\n|-\n| 어디서 낭비 || 할당된 칸 '''안''' || 할당된 칸들 '''사이'''의 작은 구멍\n|-\n| 대표 상황 || [[base and bounds]](주소 공간 통째 할당) || [[세그멘테이션]], `malloc` 처럼 크기가 제각각인 할당\n|-\n| 증상 || 할당은 됐는데 일부를 안 씀 || 빈 공간 합은 충분한데 연속된 큰 덩어리가 없어 요청 실패\n|}\n\n== 15강 — 페이징에서 다시 ⭐⭐ ==\n15강 p.27: \"For a given block, internal fragmentation occurs if a payload is smaller than block size. '''Occur when the free space consists of fixed-sized units'''.\" [[페이징]]은 모든 단위가 같은 크기(page)라 external fragmentation 은 없지만, code·heap·stack 이 page 보다 작으면 page 안이 남는다(p.28, 2KB page). 해결: 작은 page — 대신 [[페이지 테이블]]이 커진다 → [[페이징의 문제]].\n\n{tip}암기 요령: '''in'''ternal = 칸 '''안''', '''ex'''ternal = 칸 '''밖'''(사이). 13강 p.55 는 이 현상을 그림으로만 보여 줬고, 14강 p.3 에서 이름이 붙었다.{/tip}\n\n== 관련 문서 ==\n* [[external fragmentation]] · [[페이징의 문제]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]"
  },
  "external fragmentation": {
   "title": "External Fragmentation (외부 단편화)",
@@ -2169,6 +2169,94 @@ const ARTICLES = {
    "핵심"
   ],
   "body": "요청 크기 이상인 빈 chunk 가 여러 개일 때 '''어느 것에서 떼어 줄지'''를 정하는 정책. 14강 p.37~39. 이름(Best/Worst/First/Next Fit)은 슬라이드 그림 안에만 있으니 정확히 외울 것 — 정의→용어 문제 후보.\n\n{def}p.37~38 원문\n* '''Best Fit''': Finding free chunks that are big or bigger than the request; returning the one of '''smallest''' in the chunks in the group of candidates; '''a full search''' of free space is required.\n* '''Worst Fit''': Finding the '''largest''' free chunks and allocating the amount of the request; keeping the remaining chunk on the free list; a full search of free space is still required.\n* '''First Fit''': Finding the '''first''' chunk that is big enough for the request; returning the requested amount and remaining the rest of the chunk; '''no exhaustive search''' required.\n* '''Next Fit''': Finding the first chunk that is big enough; searching at '''where one was looking at''' instead of the beginning of the list; spread the searches for free space throughout the list more '''uniformly'''; no exhaustive search required.{/def}\n\n{analogy}🎭 '''주차 자리 고르기.''' Best = 차에 딱 맞는 가장 좁은 자리(남는 공간 최소, 대신 자투리가 쌓임). Worst = 가장 넓은 자리(큰 자리를 남겨 두려는 의도). First = 입구에서 처음 보이는 들어갈 만한 자리. Next = 지난번에 댄 곳 근처부터 찾기.{/analogy}\n\n[[img:L14-39.png|p.39 Examples — head → 10 → 30 → 20 에 요청 15: Best-fit 은 20 에서 떼어 10 → 30 → 5, Worst-fit 은 30 에서 떼어 10 → 15 → 20|large]]\n\n[[sim:fit_strategies]]\n\n{|\n! 전략 || 고르는 chunk || 리스트 전체 탐색? || p.39 (요청 15, 10→30→20) 결과\n|-\n| Best Fit || 충분한 것 중 '''가장 작은''' 것 || 필요 || 10 → 30 → '''5'''\n|-\n| Worst Fit || '''가장 큰''' 것 || 필요 || 10 → '''15''' → 20\n|-\n| First Fit || 앞에서부터 '''첫''' 충분한 것 || 불필요 || 10 → '''15''' → 20 (첫 충분한 것이 30)\n|-\n| Next Fit || '''지난번 찾던 곳'''부터 첫 충분한 것 || 불필요 || 처음엔 First Fit 과 같음\n|}\n\n{warn}'''함정''' ① First Fit 과 Worst Fit 이 p.39 예제에서는 우연히 같은 결과(10→15→20)다 — 정의가 같은 게 아니다. ② Best Fit 은 남는 조각이 가장 작아 좋아 보이지만, 그 작은 조각(5)들이 쌓여 [[external fragmentation]]을 만든다. ③ 어느 전략도 항상 이기지 않는다 — 시뮬레이터에서 요청 15, 8, 12, 10, 9 를 넣으면 '''Best·Next 는 마지막 9 에서 실패, Worst·First 는 성공'''한다.{/warn}\n\n{quiz}free list head → 25 → 12 → 40 → 18 에 요청 16 이 오면 네 전략이 각각 어느 chunk 를 고르나? (Next Fit 은 지난번에 두 번째 노드(12)를 보고 있었다고 하자.){/quiz}\n{answer}Best: 16 이상 중 가장 작은 '''18''' → 25 → 12 → 40 → 2. Worst: '''40''' → 25 → 12 → 24 → 18. First: 앞에서 첫 충분한 '''25''' → 9 → 12 → 40 → 18. Next: 12 부터 찾음 → 12 는 부족, 다음 '''40''' → 25 → 12 → 24 → 18.{/answer}\n\n== 관련 문서 ==\n* [[free-space management]] · [[splitting과 coalescing]] · [[external fragmentation]] · [[세그멘테이션]]"
+ },
+ "페이징": {
+  "title": "페이징 (Paging) — 15강 허브",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "{info}📌 '''15강 슬라이드 `15-Paging.pdf`(53쪽) 기준. 녹음 없음.''' 덱 구성: p.2~6 14강 복습(segmentation · fragmentation · fit 전략) → p.7~8 segmentation 의 문제 → '''p.9~30 Paging'''(개념 · VPN/offset · page table · PTE 플래그 · sharing/CoW · 문제 3가지) → '''p.31~51 TLB'''(hit/miss · locality · HW/SW-managed · context switch · ASID) → p.52 참고문헌(OSTEP 18·19장).{/info}\n\n'''페이징'''은 주소 공간을 '''고정 크기 단위(page)'''로 자르고, 물리 메모리도 같은 크기(page frame)로 잘라서, 프로세스마다 있는 [[페이지 테이블]]로 page → page frame 을 짝짓는 주소 변환 방식이다. [[세그멘테이션]]이 크기가 제각각인 세그먼트 때문에 겪던 [[external fragmentation]]과 복잡한 [[free-space management]]를 '''모든 조각의 크기를 같게''' 해서 없앤다. 대신 page 가 다 안 차서 생기는 [[internal fragmentation]], 메모리 접근이 두 배가 되는 성능 문제, 페이지 테이블이 너무 큰 문제가 생기고 — 두 번째를 푸는 것이 [[TLB]] 다.\n\n{def}p.10 원문 — \"'''Paging''' splits up address space into a '''fixed-sized unit''' called a '''page''' or a virtual page. (Segmentation: variable size of logical segments.) Physical memory is also split into some number of pages called a '''page frame'''. A '''page table per process''' is needed to translate the virtual address to physical address.\"{/def}\n\n{analogy}🎭 '''같은 크기 사물함.''' 세그멘테이션은 짐 크기대로 칸을 잘라 주는 창고라 크기가 맞는 빈 칸 찾기가 어렵고 틈이 남는다. 페이징은 모든 칸이 같은 크기인 사물함 — 아무 빈 칸에나 넣으면 되고(빈 칸 목록만 있으면 끝), 대신 짐이 칸보다 작으면 칸 안이 남는다(internal fragmentation). 어느 짐이 몇 번 사물함에 있는지는 사람마다 가진 장부(page table)에 적는다.{/analogy}\n\n[[anim:tlb_lookup|페이징의 성능 문제를 TLB 가 어떻게 푸는지 — hit 은 메모리 1번, miss 는 page table 을 한 번 더 읽는 장면]]\n\n[[sim:page_translate]]\n\n== 1. 왜 — segmentation 의 문제 (p.7~8) ==\n* 빈 공간이 조각난다 — [[external fragmentation]] (새 프로세스의 code 를 넣을 연속 공간이 없음, p.7 ①)\n* free-space management 가 복잡하다 — best fit, worst fit, … ([[할당 전략]])\n* [[compaction]] 은 비싸다\n* 세그먼트가 '''더 자랄 수 없다''' — heap 바로 뒤에 다른 세그먼트가 있으면 막힌다 (p.8 ②)\n\"Is there any alternative approach? – '''Paging'''\"\n\n[[img:L15-08.png|p.8 Problems with Segmentation — ② Heap 바로 아래 다른 할당이 있어 Cannot grow further!|medium]]\n\n== 2. 개념과 장점 (p.10~12) ⭐⭐ ==\n{|\n! || 세그멘테이션 || 페이징\n|-\n| 단위 || 크기가 제각각(code·heap·stack) || '''고정 크기''' page / page frame\n|-\n| 변환 정보 || 세그먼트당 base·size || '''page 하나당 PTE 하나''' (page table)\n|-\n| external fragmentation || 있음 || '''없음'''(p.11)\n|-\n| internal fragmentation || 없음 || '''있음'''(마지막 page 가 다 안 참)\n|-\n| free-space 관리 || 복잡(best/worst fit…) || 단순 — 빈 frame 목록만\n|}\n\np.11 '''Advantages''': ① '''Flexibility''' — heap 과 stack 이 어떻게 자라고 쓰이는지 가정할 필요가 없다 ② '''Simplicity''' — page 와 page frame 크기가 같아 free list 관리가 쉽고, external fragmentation 이 없다.\n\n[[img:L15-12.png|p.12 Simple Paging — 64바이트 주소 공간(16바이트 page 4개)을 128바이트 물리 메모리(frame 8개)의 frame 3·7·5·2 에 흩어 놓음|large]]\n\n== 3. 주소 변환 (p.13~18) ⭐⭐⭐ ==\n가상 주소 = '''VPN'''(위 비트) + '''offset'''(아래 비트, VPO). VPN 만 page table 로 '''PFN''' 으로 바꾸고 offset 은 그대로 붙인다. → [[VPN과 offset]], [[페이지 테이블]]\n<pre class=\"ascii\">\n   64바이트 AS, 16바이트 page:  VPN 2비트 | offset 4비트\n   VA 21 = 01 | 0101  → VPN 1 → PageTable[1] = PFN 7 → PA = 111 | 0101 = '''117'''\n<\/pre>\n\n[[img:L15-14.png|p.14 — VA 010101 의 VPN 01 이 Address Translation 을 거쳐 PFN 111 로, offset 0101 은 그대로|large]]\n\n== 4. 페이지 테이블과 PTE (p.15~25) ⭐⭐ ==\n* 가장 단순한 형태 = '''linear page table'''(VPN 으로 인덱싱하는 배열). 너무 커서 레지스터가 아니라 '''메모리(커널 메모리)'''에 둔다(p.19~20) → [[페이지 테이블]], [[PTBR]]\n* PTE 플래그: valid · protection · present · dirty · reference → [[PTE 플래그]]\n* page sharing 과 copy-on-write(p.23~25) → [[copy-on-write]]\n\n== 5. 페이징의 문제 셋 (p.26~30) ⭐⭐⭐ ==\n# '''Internal fragmentation''' — 데이터가 page 보다 작을 때 (해결: 작은 page)\n# '''Performance degradation''' — 메모리 접근 1번에 실제로는 2번(PTE + data) (해결: [[TLB]])\n# '''Huge page tables''' — 32비트·4KB page → 2^20 PTE × 4B = '''4MB''', 프로세스 100개면 400MB (해결: hybrid / multi-level paging)\n→ [[페이징의 문제]]\n\n== 6. TLB (p.31~51) ⭐⭐⭐ ==\nMMU 안의 하드웨어 캐시. 자주 쓰는 VPN → PFN 번역을 담아 page table 읽기를 건너뛴다. → [[TLB]], [[TLB hit와 miss]], [[TLB miss 처리]], [[ASID와 TLB flush]]\n\n[[sim:tlb_trace]]\n\n== 시험 대비 핵심 요약 ==\n# Paging = 주소 공간을 '''고정 크기 page''' 로, 물리 메모리를 같은 크기 '''page frame''' 으로. 프로세스마다 '''page table'''.\n# 장점: flexibility(heap/stack 자람 가정 불필요) · simplicity(빈 frame 목록, external fragmentation 없음).\n# VA = VPN | offset. PA = PFN | offset (= PFN × page size + offset). offset 은 변환하지 않는다.\n# VPN 비트 = log2(주소 공간 / page 크기), offset 비트 = log2(page 크기).\n# Page table 은 메모리에 있다(너무 커서). 32비트·4KB → 2^20 × 4B = 4MB.\n# PTE 플래그: valid · protection · present · dirty · reference(accessed).\n# 문제 셋: internal fragmentation · 메모리 접근 2배 · page table 크기 → 해결: 작은 page · TLB · multi-level.\n# TLB: MMU 안 캐시. hit 이면 메모리 1번, miss 면 2번. locality 덕분에 miss 가 드물다.\n\n== 관련 문서 ==\n* [[기말고사]] · [[세그멘테이션]](14강) · [[가상 메모리]](13강) · [[MMU]]\n* [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]]\n* [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]"
+ },
+ "VPN과 offset": {
+  "title": "VPN과 Offset (가상 주소의 두 부분)",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "페이징에서 가상 주소는 '''VPN(Virtual Page Number)'''과 '''offset(VPO, Virtual Page Offset)''' 두 부분이다. VPN 은 \"몇 번째 page 인가\", offset 은 \"그 page 안 몇 번째 바이트인가\". 변환되는 것은 '''VPN 뿐'''이다. 15강 p.13~18.\n\n{def}p.13 원문 — \"Two components in the virtual address: '''VPN''': Virtual Page Number / '''Offset''': Offset within the page (or '''VPO''': Virtual Page Offset).\"\np.14 — 물리 주소 = '''PFN''' (Page Frame Number) + offset.{/def}\n\n{analogy}🎭 '''책의 쪽수와 줄 번호.''' \"3쪽 5번째 줄\"에서 쪽수(VPN)만 다른 판본의 쪽수(PFN)로 바꾸면 되고, 줄 번호(offset)는 한 쪽 안에서의 위치라 그대로다.{/analogy}\n\n== 비트 수 구하기 ⭐⭐⭐ ==\n* offset 비트 = log2(page 크기)\n* VPN 비트 = log2(주소 공간 크기 / page 크기) = 전체 VA 비트 − offset 비트\n* PFN 비트 = log2(물리 메모리 크기 / page 크기)\n\n{|\n! 예 || 주소 공간 || page || VA 비트 || VPN || offset\n|-\n| p.13 || 64B || 16B || 6 || 2비트 (page 4개) || 4비트\n|-\n| p.18 Quiz || 16B || 4B || 4 || 2비트 || 2비트\n|-\n| p.22 || 16KB || 2KB || 14 || 3비트 (page 8개) || 11비트\n|-\n| p.19 || 32비트(4GB) || 4KB || 32 || '''20비트''' || 12비트\n|}\n\n[[img:L15-13.png|p.13 — 64바이트 주소 공간, 16바이트 page: VA 21 = 010101 → VPN 01 = 1, VPO 0101 = 5|large]]\n\n== 변환 ==\n<pre class=\"ascii\">\n   VA 21 = 01 | 0101         PageTable[1] = PFN 7\n   PA    = 111 | 0101  = 7 × 16 + 5 = '''117'''\n<\/pre>\n\n[[img:L15-18.png|p.18 Quiz — 4바이트 page, page table 0→5, 1→6, 2→1, 3→2. VA 0→20(a), 3→23(d), 9→5(j), 13→9(n)|large]]\n\n[[sim:page_translate]]\n\n{warn}'''함정''' ① PA = PFN × page 크기 + offset — PFN 에 offset 을 그냥 더하면 틀린다. 2진수로는 PFN 비트 뒤에 offset 비트를 '''이어 붙이는''' 것. ② offset 비트 수는 '''page 크기'''로 정해진다(주소 공간 크기가 아니다). ③ VA 9 (p.18): 9 = 10 | 01 → VPN 2 → PFN 1 → 1×4+1 = 5. \"9 + 어떤 base\" 가 아니다.{/warn}\n\n{quiz}주소 공간 32KB, page 4KB, 물리 메모리 64KB. VA 13000 의 VPN·offset 은? page table 이 VPN 3 → PFN 9 이면 PA 는? VPN·PFN 은 각각 몇 비트?{/quiz}\n{answer}13000 = 3 × 4096 + 712 → '''VPN 3, offset 712'''. PA = 9 × 4096 + 712 = '''37576'''. VPN = log2(32KB/4KB) = '''3비트''', PFN = log2(64KB/4KB) = '''4비트''', offset 12비트.{/answer}\n\n== 관련 문서 ==\n* [[페이징]] · [[페이지 테이블]] · [[세그먼트 주소 변환]](14강과 비교) · [[MMU]]"
+ },
+ "페이지 테이블": {
+  "title": "페이지 테이블 (Page Table)",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "VPN 을 PFN 으로 바꾸는 '''프로세스마다 하나씩 있는''' 자료구조. 15강 p.15~20.\n\n{def}p.15 원문 — \"A data structure that maps a virtual address to a physical address. Simplest form: a '''linear page table''', an '''array'''. OS indexes the array by '''VPN''' and looks up the '''page-table entry (PTE)''' to locate the corresponding '''PFN'''.\"{/def}\n\n{analogy}🎭 '''사물함 배정표.''' 1번 짐 → 3번 칸, 2번 짐 → 7번 칸 … 짐 번호(VPN) 순서대로 한 줄씩 적힌 표라서, n번 짐의 칸은 표의 n번째 줄만 보면 된다(배열 인덱싱).{/analogy}\n\n{|\n! VPN || PFN\n|-\n| 0 || 3\n|-\n| 1 || 7\n|-\n| 2 || 5\n|-\n| 3 || 2\n|}\n(p.15 — 이 한 줄 한 줄이 '''PTE''')\n\n[[img:L15-16.png|p.16 — 64바이트 주소 공간의 page 0~3 이 page table 을 통해 frame 3·7·5·2 로|large]]\n\n== 어디에 두나 (p.19~20) ⭐⭐ ==\n* \"Page tables can get '''awfully large'''\": 32비트 주소 공간 + 4KB page → VPN 20비트 → $2^{20}$ 개 PTE × 4바이트 = '''4MB'''.\n* \"Impossible to maintain many registers (e.g., 4MB) for every PTE\" → '''page table 은 메인 메모리(커널 메모리)에 둔다'''.\n* 그래서 하드웨어는 page table 이 메모리 어디 있는지 알아야 한다 → [[PTBR]] (page-table base register).\n* 그 결과 메모리 접근 1번에 page table 읽기 1번이 더 붙는다 → [[페이징의 문제]] #2 → [[TLB]].\n\n[[img:L15-20.png|p.20 — page table 은 물리 메모리 frame 0 의 Kernel Memory 안에 있다|medium]]\n\n{tip}14강 세그먼트 테이블은 세그먼트 3~4개라 CPU 레지스터에 둘 수 있었다. 페이지 테이블은 '''page 하나당 한 줄'''이라 수십만~수백만 줄 — 그래서 메모리로 간다. 이 한 가지 차이가 15강 후반(TLB)의 출발점이다.{/tip}\n\n{quiz}32비트 주소 공간, page 16KB, PTE 4바이트. 프로세스 하나의 linear page table 크기는?{/quiz}\n{answer}offset 14비트 → VPN 18비트 → $2^{18}$ × 4B = '''1MB''' (p.30). page 를 키우면 표는 작아지지만 [[internal fragmentation]]이 커진다.{/answer}\n\n== 관련 문서 ==\n* [[페이징]] · [[VPN과 offset]] · [[PTE 플래그]] · [[PTBR]] · [[페이징의 문제]] · [[TLB]]"
+ },
+ "PTE 플래그": {
+  "title": "PTE 플래그 (Valid · Protection · Present · Dirty · Reference)",
+  "category": [
+   "15강 Paging",
+   "용어"
+  ],
+  "body": "PTE 에는 PFN 말고도 몇 개의 비트가 있다. 15강 p.21~22 — 정의→용어 문제 후보.\n\n{def}p.21 원문 — '''Common Flags Of Page Table Entry (PTE)'''\n* '''Valid bit''': Indicating whether the particular translation is valid\n* '''Protection bit''': Indicating whether the page could be read from, written to, or executed from\n* '''Present bit''': Indicating whether this page is in physical memory or on disk (swapped out)\n* '''Dirty bit''': Indicating whether the page has been modified since it was brought into memory\n* '''Reference bit (Accessed bit)''': Indicating that a page has been accessed{/def}\n\n{analogy}🎭 '''사물함 배정표의 칸들.''' valid = \"이 번호 짐이 실제로 있나\", protection = \"열람만 / 수정 가능\", present = \"지금 사물함에 있나, 창고(디스크)로 보냈나\", dirty = \"넣은 뒤 고쳤나(창고로 보낼 때 다시 써야 하나)\", reference = \"최근에 꺼내 봤나\".{/analogy}\n\n== p.22 — valid 와 protection ⭐⭐ ==\n16KB 주소 공간, 2KB page(8개). code 는 VPN 0, heap 은 VPN 2, stack 은 VPN 7 만 쓴다.\n{|\n! VPN || PFN || Valid || Prot\n|-\n| 0 || 5 || 1 || RE\n|-\n| 1 || - || 0 ||\n|-\n| 2 || 2 || 1 || RW\n|-\n| 3~6 || - || 0 ||\n|-\n| 7 || 7 || 1 || RW\n|}\n\n[[img:L15-22.png|p.22 Valid and Protection Bits — 쓰지 않는 VPN 1, 3~6 은 Valid 0 이라 물리 frame 을 차지하지 않는다|large]]\n\n* '''valid 0''' 인 page 는 물리 frame 을 안 쓴다 — heap 과 stack 사이 빈 공간이 메모리를 안 먹는 이유(13강 [[동적 재배치의 한계]]의 답). 접근하면 fault.\n* code page 는 '''RE''' — 쓰기를 MMU 가 막는다(p.25 Page Protection).\n\n{|\n! 혼동쌍 || 뜻\n|-\n| valid vs present || valid = 주소 공간에서 '''쓰는''' page 인가 / present = 쓰는 page 인데 지금 '''메모리에''' 있나(디스크로 swap out 됐나)\n|-\n| dirty vs reference || dirty = '''수정'''됐나 / reference = '''접근'''(읽기 포함)됐나\n|}\n\n{quiz}다음 정의에 맞는 플래그 이름은? \"Indicating whether the page has been modified since it was brought into memory\"{/quiz}\n{answer}'''Dirty bit'''{/answer}\n\n== 관련 문서 ==\n* [[페이지 테이블]] · [[copy-on-write]] · [[코드 공유와 protection bit]](14강) · [[페이징]]"
+ },
+ "copy-on-write": {
+  "title": "Page Sharing과 Copy-on-Write (CoW)",
+  "category": [
+   "15강 Paging",
+   "용어"
+  ],
+  "body": "페이징에서는 두 프로세스의 page table 이 '''같은 page frame 을 가리키게''' 해서 메모리를 공유할 수 있다. 공유하다가 한쪽이 쓰려고 할 때만 복사하는 것이 copy-on-write. 15강 p.23~25.\n\n{def}p.23 — \"'''Page Sharing''': One good example is fork() — Just creates a new page table that points to parent's pages.\"\np.24 — \"'''Copy on Write (CoW)''': What happens if the process B modifies its parent's pages? A copy of that page (Copy) is created, and the new page is updated (Write).\"{/def}\n\n{analogy}🎭 '''공유 문서의 사본.''' 처음엔 둘이 같은 문서를 같이 본다(복사 안 함). 누군가 고치려는 순간에만 그 쪽 한 장을 복사해서 고친다 — 안 고치는 페이지는 끝까지 한 장으로 공유.{/analogy}\n\n{|\n! 단계 || Process A || Process B (fork 로 생성)\n|-\n| p.23 공유 || VPN 0→5(RE), 2→2(RW), 7→7(RW) || '''똑같이''' 0→5, 2→2, 7→7 — frame 5·2·7 을 A&B 가 공유\n|-\n| p.24 B 가 page 7 에 씀 || 7→7 그대로 || frame 7 을 frame '''8''' 로 복사 → 7→'''8'''\n|}\n\n[[img:L15-24.png|p.24 Copy on Write — B 가 page 7 을 고치자 frame 8 에 복사본(page 7 (B))이 생기고 B 의 PTE 만 8 로 바뀜|large]]\n\n* p.25 '''Page Protection''': code page 는 RE 라서 공유해도 안전 — 수정은 MMU 가 막는다. CoW 로 공유한 쓰기 가능 page 는 '''보통 공유 중에 읽기 전용으로 표시'''해 두고, 쓰기 시도로 fault 가 나면 그때 복사한다(OSTEP 보충).\n* 이점: fork 때 주소 공간 전체를 복사하지 않아 빠르고 메모리를 아낀다.\n\n{info}이 과목은 fork/exec 의 '''사용법·출력 예측'''(시스템 프로그래밍 내용)은 내지 않는다. 여기서 볼 것은 fork 가 '''page table 을 어떻게 공유·복사하는가'''라는 OS 메커니즘이다.{/info}\n\n== 관련 문서 ==\n* [[PTE 플래그]] · [[페이지 테이블]] · [[코드 공유와 protection bit]](14강) · [[페이징]]"
+ },
+ "페이징의 문제": {
+  "title": "페이징의 문제 세 가지 (Problems with Paging)",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "페이징은 external fragmentation 을 없앴지만 완벽하지 않다. 15강 p.26~30 이 세 가지와 각각의 해결책을 짝지어 준다 — 표째로 외울 것.\n\n{def}p.26 원문 — \"Paging is not perfect and has problems as well: 1. '''Internal fragmentation''' — It happens when data size is smaller than a page size. 2. '''Performance degradation''' — Two memory accesses are required for one memory access. 3. '''Huge page tables''' — Code, heap, stack (in segmentation) vs. many PTEs (in paging).\"{/def}\n\n{analogy}🎭 '''같은 크기 사물함의 단점.''' ① 짐이 작아도 칸 하나를 다 쓴다. ② 짐을 꺼내려면 먼저 배정표를 보고 그다음 사물함을 연다(두 번 걷기). ③ 사물함이 수백만 개라 배정표가 책 한 권이 된다.{/analogy}\n\n{|\n! # || 문제 || 왜 || 해결 (슬라이드)\n|-\n| 1 || '''Internal fragmentation''' (p.27~28) || code·heap·stack 이 page(2KB)보다 작으면 page 안이 남는다 || 작은 page (e.g., 1KB)\n|-\n| 2 || '''Performance degradation''' (p.29) || 메모리 접근마다 ① PTE 읽기 ② data 읽기 = 2번 || '''TLB''' (Translation lookaside buffer)\n|-\n| 3 || '''Huge page tables''' (p.30) || 32비트·4KB → 4MB, 프로세스 100개면 400MB || hybrid 또는 '''multi-level paging'''\n|}\n\n[[img:L15-29.png|p.29 Performance Degradation — ① Fetch PTE from page table in memory ② Access data word in memory|large]]\n\n== page 크기의 trade-off (p.28, p.30) ⭐⭐⭐ ==\n{|\n! page 크기 || VPN 비트 (32비트 VA) || linear page table 크기 || internal fragmentation\n|-\n| 4KB || 20 || $2^{20}$ × 4B = '''4MB''' || 작음\n|-\n| 16KB || 18 || $2^{18}$ × 4B = '''1MB''' || \"becomes serious!\"\n|-\n| 1KB (p.28 의 제안) || 22 || $2^{22}$ × 4B = 16MB || 더 작음\n|}\npage 를 '''키우면''' 표는 작아지지만 internal fragmentation 이 커지고, '''줄이면''' 반대 — 문제 1 과 3 이 서로 맞선다. 그래서 page 크기만으로는 못 풀고 multi-level paging 이 나온다.\n\n{warn}internal fragmentation 은 14강 p.3 에서 base and bounds 의 문제로 처음 나왔고, 15강 p.27 은 \"'''Occur when the free space consists of fixed-sized units'''\" 라고 일반화한다. 고정 크기 → internal, 가변 크기 → external. → [[internal fragmentation]], [[external fragmentation]]{/warn}\n\n{quiz}32비트 주소 공간, page 4KB, PTE 4바이트, 프로세스 50개가 각자 linear page table 을 가지면 page table 에만 드는 메모리는?{/quiz}\n{answer}프로세스당 $2^{20}$ × 4B = 4MB → 50 × 4MB = '''200MB'''.{/answer}\n\n== 관련 문서 ==\n* [[페이징]] · [[페이지 테이블]] · [[TLB]] · [[internal fragmentation]] · [[external fragmentation]]"
+ },
+ "TLB": {
+  "title": "TLB (Translation Lookaside Buffer)",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "페이징의 성능 문제(메모리 접근 1번에 PTE 읽기 1번이 더 붙음)를 푸는 '''MMU 안의 하드웨어 캐시'''. 15강 p.31~51.\n\n{def}p.32 원문 — \"'''Translation Lookaside Buffers (TLB)''': A part of the chip's memory-management unit (MMU). A '''hardware cache''' of popular virtual-to-physical address translation. Keep popular PTEs in '''SRAM'''.\"\np.38 — \"TLB is managed by '''full associative''' method. A typical TLB might have '''32, 64, or 128 entries'''. Hardware searches the entire TLB '''in parallel''' to find the desired translation. Other bits: valid bits, protection bits, address-space identifier ('''ASID'''), …\"{/def}\n\n{analogy}🎭 '''자주 가는 사물함 번호를 손바닥에 적어 두기.''' 매번 배정표(page table, 메모리)를 펼치는 대신 최근 몇 개는 손바닥(TLB, SRAM)에 적어 둔다. 손바닥에 있으면(hit) 바로 사물함으로, 없으면(miss) 배정표를 펼쳐 보고 손바닥에 새로 적는다.{/analogy}\n\n[[anim:tlb_lookup|hit 은 TLB 에서 바로 PFN 을 얻어 메모리 1번, miss 는 page table 을 읽어 TLB 를 채운 뒤 메모리 2번]]\n\n== TLB 항목 (p.38) ==\n{|\n! VPN || PFN || other bits\n|-\n| 19 || … ||\n|-\n| 27 || '''59''' || valid, protection, ASID, …\n|-\n| … || … ||\n|}\nVA 의 VPN(=27)을 '''모든 항목과 동시에''' 비교(fully associative) → 맞는 항목의 PFN(=59) | VPO = PA.\n\n[[img:L15-38.png|p.38 TLB Entry — VPN 27 을 병렬 검색해 PFN 59 를 찾고 VPO 를 붙여 Physical address|large]]\n\n== 왜 잘 맞나 — locality (p.36~37) ⭐⭐ ==\np.35: \"Fortunately, TLB misses are rare. Why?\" → '''[[locality]]'''. 같은 page 를 연달아 쓰면(spatial) 첫 접근만 miss, 나머지는 hit. 루프가 같은 page 를 반복해 쓰면(temporal) 계속 hit.\n\n[[img:L15-36.png|p.36 — a[0]~a[9] 가 VPN 6·7·8 에 걸쳐 있다. TLB 없으면 20번(a[i] 10 + PTE 10), 있으면 13번(a[i] 10 + PTE 3)|large]]\n\n[[sim:tlb_trace]]\n\n== 세부 문서 ==\n* [[TLB hit와 miss]] — 단계별 경로(p.33~35)\n* [[TLB miss 처리]] — hardware-managed(PTBR 로 page table walk) vs software-managed(trap 핸들러) (p.39~44)\n* [[ASID와 TLB flush]] — context switch 때 다른 프로세스 항목 구분 (p.45~49)\n\n{exam}🎯 예상 출제: ① 정의→용어 \"A hardware cache of popular virtual-to-physical address translation\" → '''translation lookaside buffer''' (full term — 2026F 중간은 약어 금지) ② p.36 처럼 배열 순회의 메모리 접근 횟수·hit rate 계산 ③ HW- vs SW-managed 장단점 표 ④ context switch 시 flush vs ASID.{/exam}\n\n== 관련 문서 ==\n* [[페이징]] · [[페이징의 문제]] · [[MMU]] · [[locality]] · [[SRAM과 DRAM]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]"
+ },
+ "TLB hit와 miss": {
+  "title": "TLB Hit와 Miss — 메모리 접근 경로",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "TLB 가 없을 때·hit 일 때·miss 일 때 CPU 가 data 하나를 얻기까지 거치는 단계. 15강 p.33~35. 번호 순서를 묻는 문제(2026F 중간 P3 처럼)가 나오기 좋다.\n\n{def}p.34 — \"A '''TLB hit''' eliminates a memory access: Fetch PTE directly from TLB – remove one memory reference.\"\np.35 — \"A '''TLB miss''' incurs an additional memory access (the PTE). Fortunately, TLB misses are rare.\"{/def}\n\n{analogy}🎭 hit = 메모장에 사물함 번호가 있어 바로 사물함으로(한 번 걷기). miss = 메모장에 없어서 사무실(page table)에 가서 번호를 받아 적고, 그다음 사물함으로(두 번 걷기).{/analogy}\n\n[[anim:tlb_lookup|hit 경로와 miss 경로를 나란히]]\n\n{|\n! 단계 || TLB 없음 (p.33) || TLB hit (p.34) || TLB miss (p.35)\n|-\n| 1 || CPU 가 VA 를 MMU 에 || CPU 가 VA 를 MMU 에 || CPU 가 VA 를 MMU 에\n|-\n| 2 || MMU 가 PTEA 를 메모리에 || MMU 가 VPN 을 TLB 에 || MMU 가 VPN 을 TLB 에 → 없음\n|-\n| 3 || 메모리가 PTE 를 MMU 에 || TLB 가 PTE 를 줌 || MMU 가 PTEA 를 메모리에\n|-\n| 4 || MMU 가 PA 를 메모리에 || MMU 가 PA 를 메모리에 || 메모리가 PTE → TLB 에 저장\n|-\n| 5 || 메모리가 data 를 CPU 에 || 메모리가 data 를 CPU 에 || MMU 가 PA 를 메모리에\n|-\n| 6 || || || 메모리가 data 를 CPU 에\n|-\n| '''메모리 접근''' || '''2번''' || '''1번''' || '''2번'''\n|}\n\n[[img:L15-35.png|p.35 TLB Miss — ① VA ② VPN → TLB miss ③ PTEA → Memory ④ PTE → TLB ⑤ PA ⑥ Data|large]]\n\n== 계산 — p.36 배열 예제 ⭐⭐⭐ ==\n<pre class=\"c\">\nint sum = 0;                  /* int = 4 bytes, page = 16 bytes */\nfor (i = 0; i < 10; i++)\n    sum += a[i];              /* a[0] = VPN 6 의 offset 4 */\n<\/pre>\n* a[0]~a[2] → VPN 6, a[3]~a[6] → VPN 7, a[7]~a[9] → VPN 8\n* TLB 없음: 10 × (PTE + data) = '''20번'''\n* TLB 있음: miss 는 a[0]·a[3]·a[7] 세 번 → data 10 + PTE 3 = '''13번''', hit rate '''7/10 = 70%'''\n\n[[sim:tlb_trace]]\n\n{quiz}page 32바이트, int 4바이트, `int b[20]` 이 page 경계에서 시작한다. TLB 가 처음에 비어 있을 때 `for(i=0;i<20;i++) s+=b[i];` 의 TLB miss 수, hit rate, 메모리 접근 수는?{/quiz}\n{answer}page 하나에 int 8개 → b[0]·b[8]·b[16] 에서 miss '''3번''', hit 17 → hit rate '''85%'''. 메모리 접근 = data 20 + PTE 3 = '''23번''' (TLB 없으면 40번).{/answer}\n\n== 관련 문서 ==\n* [[TLB]] · [[TLB miss 처리]] · [[페이징의 문제]] · [[locality]] · [[PTBR]]"
+ },
+ "TLB miss 처리": {
+  "title": "TLB Miss 처리 — Hardware-managed vs Software-managed",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "TLB miss 가 나면 '''누가''' page table 을 찾아 TLB 를 채우나 — 하드웨어(CPU)인가 소프트웨어(OS)인가. 15강 p.39~44.\n\n{def}p.40 — \"'''Hardware-managed TLBs''': The hardware would handle the TLB miss entirely. The hardware knows (i) where the page tables are located in memory and (ii) the exact format of the page tables and table entries — The page table is pointed to by a '''page-table base register (PTBR)''' (e.g., CR3 register in the Intel x86 architecture).\"\np.42 — \"'''Software-managed TLB''': The hardware doesn't do much; '''the OS handles TLB miss'''. Modern architectures (e.g., MIPS and RISC) often employ software-managed TLB approaches.\"{/def}\n\n{analogy}🎭 메모장에 번호가 없을 때 — hardware-managed 는 '''로봇 비서'''가 알아서 사무실 장부를 찾아 적어 온다(빠르지만 비서가 장부 양식을 정확히 알아야 함). software-managed 는 '''사장님(OS)을 부른다'''(trap) — 느리지만 장부 양식을 마음대로 바꿀 수 있다.{/analogy}\n\n== 순서 비교 ⭐⭐⭐ (번호 순서 쓰기 문제 후보) ==\n{|\n! # || Hardware-managed (p.40~41) || Software-managed (p.42~43)\n|-\n| 1 || Jump to the current page table ([[PTBR]]) || The hardware simply '''raises an exception''' — (i) pauses the instruction stream (ii) raises privilege to kernel mode (iii) jumps to a trap handler\n|-\n| 2 || Find the correct PTE || The '''trap handler''' within the OS is invoked\n|-\n| 3 || Extract the desired translation || The OS looks up the translation in the page table\n|-\n| 4 || '''Update the TLB''' || The OS uses '''special privileged instructions''' to update the TLB\n|-\n| 5 || '''Retry the instruction''' || The OS '''returns from the trap'''\n|-\n| 6 || || The hardware '''retries the instruction'''\n|}\n\n[[img:L15-43.png|p.43 Software-managed TLBs — ① Raises an exception ② Trap handler invoked ③ Lookup translation ④ Update TLB|large]]\n\n{tip}software-managed 의 1~6 은 4강 [[제한적 직접 실행]]의 트랩 경로 그대로다: 하드웨어가 kernel mode 로 올리고 핸들러로 점프 → OS 가 일 → return-from-trap → 하드웨어가 '''같은 명령을 다시''' 실행(시스템 콜과 달리 다음 명령이 아니라 '''재시도'''). 2026F 중간 P3 의 \"Hardware 단계가 OS 단계를 감싼다\"와 같은 구조.{/tip}\n\n== 장단점 (p.44) ⭐⭐ ==\n{|\n! || Hardware-managed || Software-managed\n|-\n| 속도 || (+) '''Efficient''' — 몇 사이클이면 miss 처리 || (−) Relatively '''slower''' — trap handler 실행에 많은 사이클\n|-\n| CPU 설계 || (−) '''Complex''' CPU design || (+) '''Simple''' CPU design\n|-\n| 유연성 || (−) Lack of flexibility (page table 형식이 하드웨어에 고정) || (+) '''Flexibility''' — 하드웨어 변경 없이 page table 구현\n|-\n| miss ratio || (−) (probably) High — 하드웨어가 victim 을 고름 || (+) Lower TLB miss ratio\n|-\n| 예 || Intel x86 (CR3) || MIPS, RISC 계열\n|}\n\n== 관련 문서 ==\n* [[TLB]] · [[TLB hit와 miss]] · [[PTBR]] · [[트랩]] · [[return-from-trap]] · [[특권 명령]]"
+ },
+ "PTBR": {
+  "title": "PTBR (Page-Table Base Register)",
+  "category": [
+   "15강 Paging",
+   "용어"
+  ],
+  "body": "지금 실행 중인 프로세스의 '''page table 이 메모리 어디서 시작하는지'''를 담은 CPU 레지스터. 15강 p.40~41, p.48.\n\n{def}p.40 — \"The page table is pointed to by a '''page-table base register (PTBR)''' — e.g., '''CR3''' register in the Intel x86 architecture.\"{/def}\n\n{analogy}🎭 '''지금 펼친 장부의 위치를 가리키는 책갈피.''' 사람(프로세스)이 바뀌면 그 사람 장부로 책갈피를 옮긴다.{/analogy}\n\n* PTE 주소(PTEA) = PTBR + VPN × PTE 크기 — hardware-managed TLB 가 miss 때 이걸로 page table 을 \"walk\" 한다(p.40~41).\n* page table 은 프로세스마다 다르므로, '''context switch 때 OS 가 PTBR 을 바꾼다'''. 13강 base/bounds 를 [[PCB]]에 저장·복원했던 것과 같은 자리다.\n* PTBR 을 바꾸는 명령은 특권 명령 — 유저가 바꾸면 남의 page table 을 쓸 수 있다.\n* p.48: \"Hardware-based approach — The CPU implicitly cleans up old TLB entries when the PTBR is changed by the OS (note: '''Xv6 uses the hardware-based one''')\" → [[ASID와 TLB flush]]. (RISC-V 에서는 `satp` 레지스터가 이 역할 — OSTEP/xv6 보충.)\n\n[[img:L15-41.png|p.41 Hardware-managed TLBs — ① PTBR 로 page table 로 점프 ② PTE 찾기 ③ PFN 추출 ④ TLB 갱신|large]]\n\n== 관련 문서 ==\n* [[TLB miss 처리]] · [[페이지 테이블]] · [[ASID와 TLB flush]] · [[컨텍스트 스위치]] · [[base and bounds]](13강의 base register 와 비교)"
+ },
+ "ASID와 TLB flush": {
+  "title": "Context Switch와 TLB — Flush vs ASID",
+  "category": [
+   "15강 Paging",
+   "핵심"
+  ],
+  "body": "TLB 항목은 (VPN → PFN)인데, '''VPN 은 프로세스마다 같은 숫자를 쓴다'''. context switch 뒤에 이전 프로세스의 항목이 남아 있으면 엉뚱한 PFN 을 쓰게 된다. 15강 p.45~49.\n\n{def}p.47 — 프로세스 A 의 (VPN 10 → PFN 100)과 B 의 (VPN 10 → PFN 170)이 TLB 에 함께 있으면 \"'''Can't distinguish which entry is meant for which process'''\".\np.48 — \"'''Simple Solution: Flush''' out old TLB entries on context switches — simply sets all valid bits to 0.\"\np.49 — \"'''Better Solution: ASID''' — Provide an '''address space identifier (ASID)''' field in the TLB. Enable several processes to share TLB entries across context switches → higher TLB hit ratio.\"{/def}\n\n{analogy}🎭 손바닥 메모에 \"10번 짐 → 100번 칸\"이라고만 적어 두면, 다음 사람에게 손바닥을 넘겼을 때 그 사람의 10번 짐도 100번 칸인 줄 안다. 해결은 ① 넘길 때마다 '''손바닥을 지운다'''(flush) 또는 ② 메모마다 '''이름표를 붙인다'''(ASID).{/analogy}\n\n[[img:L15-47.png|p.47 — TLB 에 VPN 10 → 100 (A) 과 VPN 10 → 170 (B) 이 같이 있어 어느 프로세스 것인지 구분 불가|large]]\n[[img:L15-49.png|p.49 — ASID 열을 더해 (10, 100, A) · (10, 170, B) 로 구분|large]]\n\n{|\n! || Flush (p.48) || ASID (p.49)\n|-\n| 방법 || context switch 때 TLB 의 '''모든 valid 비트를 0''' || TLB 항목마다 '''ASID''' — 지금 프로세스의 ASID 와 같은 항목만 hit\n|-\n| 단점 || 돌아올 때마다 TLB 가 비어 '''miss 가 많다''' || TLB 에 비트가 더 필요, 항목을 여러 프로세스가 나눠 씀\n|-\n| 장점 || 단순 || context switch 뒤에도 남은 항목을 다시 쓸 수 있어 '''hit ratio ↑'''\n|}\n\n== flush 는 누가 언제 (p.48) ⭐⭐ ==\n* '''Software-based''': CPU 가 (특권) TLB-flush 명령을 제공 → OS 가 명시적으로 호출\n* '''Hardware-based''': OS 가 [[PTBR]] 을 바꾸면 CPU 가 알아서 옛 항목을 지운다 — '''xv6 는 이 방식'''\n\n{tip}8강 [[스레드 컨텍스트 스위치]]에서 \"프로세스 전환만 page table 교체·'''TLB flush''' 가 필요하고 스레드 전환은 아니다\"라고 했던 것이 바로 이 내용이다. 같은 주소 공간(같은 page table)을 쓰는 스레드끼리는 TLB 항목이 그대로 맞다.{/tip}\n\n[[sim:tlb_trace]]\n\n== 관련 문서 ==\n* [[TLB]] · [[PTBR]] · [[컨텍스트 스위치]] · [[스레드 컨텍스트 스위치]] · [[TLB miss 처리]]"
  },
  "과제2 xv6 lock": {
   "title": "과제 2 — xv6 Lock (per-CPU kalloc · bcache 해시 버킷)",
@@ -2701,6 +2789,22 @@ const NAV_ORDER = [
    "할당 헤더",
    "embedded free list",
    "할당 전략"
+  ]
+ },
+ {
+  "group": "15강 Paging",
+  "items": [
+   "페이징",
+   "VPN과 offset",
+   "페이지 테이블",
+   "PTE 플래그",
+   "copy-on-write",
+   "페이징의 문제",
+   "TLB",
+   "TLB hit와 miss",
+   "TLB miss 처리",
+   "PTBR",
+   "ASID와 TLB flush"
   ]
  },
  {
@@ -8317,6 +8421,77 @@ window.SIMS = window.SIMS || {};
   }
 })(typeof window !== "undefined" ? window : globalThis);
 
+// ===== sims/page_translate.js =====
+// page_translate — 15강 p.13~22: 가상 주소를 VPN + offset 으로 나누고, 페이지 테이블에서 PFN 을 찾아 PA = PFN × page size + offset
+// 옵션 set:
+//   simple — p.12~16: 64바이트 주소 공간, 16바이트 페이지(VPN 2비트, offset 4비트), PT 0→3, 1→7, 2→5, 3→2. VA 21 → PFN 7 → 117 (p.14)
+//   quiz   — p.18 Quiz: 4바이트 페이지(VPN 2비트, offset 2비트), PT 0→5, 1→6, 2→1, 3→2. VA 0·3·9·13 → 20·23·5·9
+//   valid  — p.22: 16KB 주소 공간, 2KB 페이지(VPN 3비트, offset 11비트), PTE (PFN, valid, prot): 0=(5,1,RE) 2=(2,1,RW) 7=(7,1,RW), 나머지 valid 0.
+//            VA 100 → 10340, 4106(store) → 4106, 15KB(store) → 15KB, 2052 → invalid, VA 100 store → protection fault
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var SETS = {
+    simple: { page: 16, vbits: 6, pt: { 0: [3, 1, "RW"], 1: [7, 1, "RW"], 2: [5, 1, "RW"], 3: [2, 1, "RW"] }, showProt: false,
+      intro: "p.12 — 64바이트 주소 공간(페이지 4개), 페이지 16바이트, 물리 메모리 128바이트(page frame 8개). 페이지 테이블(p.15): VPN 0→3, 1→7, 2→5, 3→2.",
+      list: [{ va: 21, why: "p.14 의 그 예제" }, { va: 0, why: "page 0 의 첫 바이트" }, { va: 40, why: "page 2 의 offset 8" }, { va: 63, why: "주소 공간의 마지막 바이트" }] },
+    quiz: { page: 4, vbits: 4, pt: { 0: [5, 1, "RW"], 1: [6, 1, "RW"], 2: [1, 1, "RW"], 3: [2, 1, "RW"] }, showProt: false,
+      intro: "p.18 Quiz — 16바이트 논리 메모리, 4바이트 페이지 → VPN 2비트, offset 2비트. 페이지 테이블 0→5, 1→6, 2→1, 3→2. 물리 주소의 글자를 맞히는 문제.",
+      list: [{ va: 0, why: "→ a (at 20)" }, { va: 3, why: "→ d (at 23)" }, { va: 9, why: "→ j (at 5)" }, { va: 13, why: "→ n (at 9)" }] },
+    valid: { page: 2048, vbits: 14, pt: { 0: [5, 1, "RE"], 2: [2, 1, "RW"], 7: [7, 1, "RW"] }, showProt: true,
+      intro: "p.22 — 16KB 주소 공간, 2KB 페이지 → VPN 3비트(페이지 8개), offset 11비트. PTE = (PFN, Valid, Prot): VPN0 = (5, 1, RE) code, VPN2 = (2, 1, RW) heap, VPN7 = (7, 1, RW) stack, 나머지는 Valid 0.",
+      list: [{ va: 100, w: false, why: "code 페이지에서 fetch" }, { va: 4106, w: true, why: "heap 에 store" }, { va: 15360, w: true, why: "stack 에 store" },
+        { va: 2052, w: false, why: "code 와 heap 사이(VPN 1) 접근" }, { va: 100, w: true, why: "code 페이지에 store" }] }
+  };
+  var HW = [
+    "// MMU + 페이지 테이블 (p.17, p.21)",
+    "VPN    = VA / page_size;     // 위 비트",
+    "offset = VA % page_size;     // 아래 비트 (VPO)",
+    "PTE    = PageTable[VPN];     // 메모리에 있는 표를 한 번 읽음",
+    "if (!PTE.valid) fault;       // 쓰지 않는 페이지",
+    "if (write && !PTE.prot.W) protection fault;",
+    "PA = PTE.PFN * page_size + offset;   // offset 은 그대로"
+  ];
+
+  function bits(v, n) { var s = v.toString(2); while (s.length < n) s = "0" + s; return s; }
+  function log2(x) { var k = 0; while ((1 << k) < x) k++; return k; }
+
+  global.SIMS["page_translate"] = {
+    title: "페이징 주소 변환 — VPN·offset·PFN (15강 p.13~22)",
+    desc: "가상 주소의 위 비트(VPN)로 [[페이지 테이블]]의 PTE 를 찾아 PFN 으로 바꾸고, 아래 비트 offset 은 그대로 붙인다. valid 0 이면 fault, 쓰기인데 RE 면 protection fault. → [[페이징]], [[VPN과 offset]]",
+    options: [{ key: "set", label: "예제", values: [
+      { value: "simple", label: "p.14 — 64B 주소 공간, 16B 페이지 (VA 21 → 117)" },
+      { value: "quiz", label: "p.18 Quiz — 4B 페이지 (VA 0·3·9·13)" },
+      { value: "valid", label: "p.22 — 2KB 페이지 + valid·protection" } ] }],
+    build: function (opts) {
+      var S = SETS[opts.set] || SETS.simple;
+      var ob = log2(S.page), vb = S.vbits - ob, steps = [];
+      steps.push({ desc: S.intro + " → VPN " + vb + "비트 + offset " + ob + "비트.", pc: { HW: 1 },
+        vars: { VA: "-", "VPN | offset": "-", PTE: "-", PA: "-" } });
+      S.list.forEach(function (e) {
+        var vpn = Math.floor(e.va / S.page), off = e.va % S.page, b = bits(e.va, S.vbits);
+        var v = { VA: e.va + (S.showProt ? (e.w ? " (store)" : " (load/fetch)") : ""), "VPN | offset": b.slice(0, vb) + " | " + b.slice(vb) + "  → VPN " + vpn + ", offset " + off, PTE: "-", PA: "-" };
+        steps.push({ desc: "'''VA " + e.va + "''' (" + e.why + ") = " + b.slice(0, vb) + " | " + b.slice(vb) + " → VPN '''" + vpn + "''', offset '''" + off + "'''.", pc: { HW: 3 }, vars: Object.assign({}, v) });
+        var pte = S.pt[vpn];
+        if (!pte) {
+          v.PTE = "VPN " + vpn + ": valid 0"; var st = { desc: "PTE 의 valid 비트가 0 — 이 페이지는 주소 공간에서 쓰지 않는다 → '''fault'''(OS 가 보통 프로세스를 종료).", pc: { HW: 5 }, vars: v }; st.note = "invalid page"; steps.push(st); return;
+        }
+        v.PTE = "PFN " + pte[0] + ", valid " + pte[1] + (S.showProt ? ", " + pte[2] : "");
+        if (e.w && pte[2].indexOf("W") < 0) {
+          var st2 = { desc: "valid 는 1 이지만 store 인데 보호 비트가 '''" + pte[2] + "''' → '''protection fault'''(p.25: code 수정은 MMU 가 막는다).", pc: { HW: 6 }, vars: v }; st2.note = "protection fault"; steps.push(st2); return;
+        }
+        var pa = pte[0] * S.page + off;
+        v.PA = pa + " = " + pte[0] + " × " + S.page + " + " + off + "  (" + bits(pte[0], log2(Math.max(2, pte[0] + 1)) < 3 && S.vbits < 8 ? 3 : 0) + (S.vbits < 8 ? " | " + bits(off, ob) : "") + ")";
+        if (S.vbits >= 8) v.PA = pa + " = " + pte[0] + " × " + S.page + " + " + off;
+        steps.push({ desc: "PTE → PFN '''" + pte[0] + "'''. PA = PFN × " + S.page + " + offset = '''" + pa + "''' — offset " + off + " 은 변환 없이 그대로.", pc: { HW: 7 }, vars: v });
+      });
+      return { panels: [{ id: "HW", title: "MMU", lang: "c", lines: HW }],
+        vars: [{ name: "VA", group: "가상" }, { name: "VPN | offset", group: "가상" }, { name: "PTE", group: "페이지 테이블" }, { name: "PA", group: "물리" }], steps: steps };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+
 // ===== sims/proc_states.js =====
 // proc_states — 프로세스 상태 기계 (Running / Ready / Blocked) + OSTEP 추적표
 // 출처: 3-From_Program_to_Process.pdf p.34~35, OSTEP Ch.4 Figure 4.3 / 4.4
@@ -11944,6 +12119,50 @@ window.SIMS = window.SIMS || {};
         ],
         steps: steps
       };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/tlb_trace.js =====
+// tlb_trace — 15강 p.36: int a[10] 을 for 로 훑을 때 메모리 접근 횟수. 페이지 16바이트, int 4바이트, a[0] 은 VPN 6 의 offset 4.
+// 옵션 tlb:
+//   none — TLB 없음: a[i] 마다 PTE 읽기 1 + 데이터 1 = 20번 (p.36 "Without TLB")
+//   tlb  — TLB 있음(처음엔 비어 있음): VPN 6·7·8 이 처음 나올 때만 miss → PTE 3번 + 데이터 10번 = 13번, hit rate 7/10
+//   ctx  — TLB 있음 + a[5] 다음에 context switch 로 TLB flush(p.48) → 다시 돌아와 VPN 7 miss 한 번 더 → 14번
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+  var CODE = ["0: int sum = 0;            /* int = 4 bytes */", "1: for (i = 0; i < 10; i++) {", "2:     sum += a[i];", "3: }"];
+
+  global.SIMS["tlb_trace"] = {
+    title: "TLB 가 메모리 접근을 줄이는 과정 (15강 p.36)",
+    desc: "a[0]~a[9] 는 VPN 6·7·8 세 페이지에 걸쳐 있다. TLB 가 없으면 a[i] 하나마다 PTE 를 메모리에서 읽어야 하지만, TLB 가 있으면 같은 페이지의 두 번째 접근부터 hit — spatial [[locality]]. → [[TLB]], [[TLB hit와 miss]]",
+    options: [{ key: "tlb", label: "조건", values: [
+      { value: "none", label: "TLB 없음 (20번)" }, { value: "tlb", label: "TLB 있음 (13번, hit 7/10)" }, { value: "ctx", label: "TLB 있음 + a[5] 뒤 context switch 로 flush" } ] }],
+    build: function (opts) {
+      var mode = opts.tlb || "tlb", tlb = [], mem = 0, hits = 0, miss = 0, steps = [];
+      steps.push({ desc: "a[0] 은 가상 주소 6×16+4 = 100 (VPN 6, offset 4). int 4바이트, 페이지 16바이트 → 한 페이지에 int 4개. " + (mode === "none" ? "TLB 가 '''없다'''." : "TLB 는 처음엔 비어 있다."), pc: { C: 1 },
+        vars: { i: "-", "a[i] 주소": "-", VPN: "-", "TLB": "(비어 있음)", "이번": "-", "메모리 접근 누계": 0, "hit / miss": "0 / 0" } });
+      for (var i = 0; i < 10; i++) {
+        if (mode === "ctx" && i === 6) {
+          tlb = [];
+          var f = { desc: "a[5] 다음에 '''context switch''' → OS(또는 하드웨어)가 TLB 를 flush(모든 valid 0, p.48). 다시 이 프로세스로 돌아왔다.", pc: { C: 2 },
+            vars: { i: i, "a[i] 주소": "-", VPN: "-", "TLB": "(flush 됨)", "이번": "flush", "메모리 접근 누계": mem, "hit / miss": hits + " / " + miss } };
+          f.note = "ASID 가 있으면(p.49) flush 없이 다른 프로세스 항목과 같이 둘 수 있다";
+          steps.push(f);
+        }
+        var addr = 100 + 4 * i, vpn = addr >> 4, what;
+        if (mode === "none") { mem += 2; what = "PTE 읽기(메모리) + a[" + i + "] 읽기 = 2번"; }
+        else if (tlb.indexOf(vpn) >= 0) { hits++; mem += 1; what = "'''TLB hit''' → PTE 안 읽음, a[" + i + "] 만 = 1번"; }
+        else { miss++; mem += 2; tlb.push(vpn); what = "'''TLB miss''' → PTE 를 메모리에서 읽어 TLB 에 넣고 a[" + i + "] 읽기 = 2번"; }
+        steps.push({ desc: "i = " + i + ": a[" + i + "] 주소 " + addr + " → VPN " + vpn + ". " + what + ".", pc: { C: 3 },
+          vars: { i: i, "a[i] 주소": addr, VPN: vpn, "TLB": mode === "none" ? "(없음)" : (tlb.length ? "VPN " + tlb.join(", ") : "(비어 있음)"), "이번": what.replace(/'''/g, ""), "메모리 접근 누계": mem, "hit / miss": hits + " / " + miss } });
+      }
+      var last = steps[steps.length - 1];
+      last.note = mode === "none" ? "합계 20번 = a[i] 10 + PTE 10 (p.36 Without TLB)" : "합계 " + mem + "번 = a[i] 10 + PTE " + miss + " · hit rate " + hits + "/10" + (mode === "tlb" ? " (p.36 With TLB: 13번)" : "");
+      return { panels: [{ id: "C", title: "p.36 코드", lang: "c", lines: CODE }],
+        vars: [{ name: "i", group: "루프" }, { name: "a[i] 주소", group: "루프" }, { name: "VPN", group: "루프" }, { name: "TLB", group: "TLB" }, { name: "이번", group: "TLB" }, { name: "메모리 접근 누계", group: "합계" }, { name: "hit / miss", group: "합계" }],
+        steps: steps };
     }
   };
 })(typeof window !== "undefined" ? window : globalThis);
@@ -17313,6 +17532,93 @@ ANIMS["ticket_turn"] = {
     s += txt(380, 326, "진입 순서 = 번호표 순서 T1 → T2 → T3. myturn 은 절대 겹치지 않고 turn 은 1씩만 오른다 → Fairness Yes (spin 은 여전 → Performance No)", 12, C.muted);
     s += '</svg>';
     return s;
+  }
+};
+
+// ===== anims/tlb_lookup.js =====
+// ============================================================
+// tlb_lookup — TLB hit 은 메모리 1번, TLB miss 는 페이지 테이블(메모리)을 한 번 더 읽어 2번 (15강 p.33~35, p.38)
+// 시간축(초): 0~1.5 구성(CPU · MMU 안 TLB · 메모리 안 page table 과 data) → 1.5~6 hit: VPN 27 → TLB 병렬 검색 → PFN 59 → 메모리 1번
+//   → 6~12 miss: VPN 40 → TLB 에 없음 → PTEA 로 page table 읽기(메모리 1번째) → PTE(PFN 12) → TLB 갱신 → PA → data(2번째)
+//   → 12~13 요점
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["tlb_lookup"] = {
+  title: "TLB — hit 이면 메모리 1번, miss 면 page table 을 한 번 더 읽어 2번",
+  desc: "[[TLB]] 는 MMU 안의 작은 하드웨어 캐시로, 자주 쓰는 VPN → PFN 번역(PTE)을 담는다. hit 이면 page table 을 안 읽고 바로 PA 를 만든다(p.34). miss 면 메모리의 [[페이지 테이블]]에서 PTE 를 읽어 TLB 에 넣은 뒤 다시 한다(p.35) — [[TLB hit와 miss]]",
+  duration: 13,
+  build: function () {
+    var D = 13;
+    var C = { a: "#1d65b3", aL: "#dbe8f7", b: "#2e9e4f", bL: "#dff3e4", c: "#e09a40", cL: "#fdeec2", cpu: "#3b2f4a", cpuL: "#efe9f6", hw: "#d6465f", muted: "#777" };
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function box(x, y, w, h, fill, stroke, sw) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (sw || 1.5) + '"/>'; }
+    function txt(x, y, s, size, fill, extra) {
+      var anchor = /text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"';
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + anchor + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(from / D) + ';' + r3(from / D + 0.003) + ';' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function during(from, to, inner) {
+      if (from <= 0) return '<g>' + inner + '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/></g>';
+      return '<g opacity="0">' + inner + show(from, to) + '</g>';
+    }
+    function token(path, from, to, label, color) {
+      return '<g opacity="0"><circle r="7" fill="' + color + '"/>' + txt(0, -11, label, 11, color, ' font-weight="700"') +
+        '<animateMotion path="' + path + '" begin="' + from + 's" dur="' + r3(to - from) + 's" fill="freeze"/>' + show(from, to) + '</g>';
+    }
+
+    var s = '<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TLB hit miss 애니메이션">';
+    [
+      [0, 1.5, "CPU 가 VA(VPN | VPO)를 MMU 에 준다. MMU 안에는 TLB, 메모리 안에는 page table 과 data"],
+      [1.5, 3.2, "① VA 의 VPN 27 로 TLB 를 병렬 검색 (fully associative, p.38)"],
+      [3.2, 4.6, "TLB hit — 27 → PFN 59. page table 을 읽지 않는다"],
+      [4.6, 6, "PA = 59 | VPO → 메모리에서 data 1번 읽기 → 메모리 접근 1번"],
+      [6, 7.4, "② VPN 40 — TLB 에 없다 → TLB miss"],
+      [7.4, 8.8, "PTBR + VPN 으로 PTE 주소(PTEA)를 만들어 메모리의 page table 을 읽는다 (1번째 메모리 접근)"],
+      [8.8, 10.4, "PTE(PFN 12)를 TLB 에 넣는다 — 다음 접근부터는 hit"],
+      [10.4, 12, "PA = 12 | VPO → data 읽기 (2번째 메모리 접근)"],
+      [12, D, "hit: 메모리 1번 · miss: 2번. 프로그램은 locality 가 있어 miss 가 드물다(p.35)"]
+    ].forEach(function (c) { s += during(c[0], c[1], txt(380, 24, c[2], 12.5, "#222", ' font-weight="700"')); });
+
+    // CPU
+    s += box(30, 150, 90, 60, "#f7d8dc", C.hw) + txt(75, 185, "CPU", 15, C.hw, ' font-weight="700"');
+    // MMU + TLB
+    s += box(180, 70, 250, 230, C.cpuL, C.cpu) + txt(305, 92, "MMU (CPU chip)", 13, C.cpu, ' font-weight="700"');
+    s += box(220, 110, 170, 150, "#fff", C.cpu) + txt(305, 128, "TLB", 12, C.cpu, ' font-weight="700"');
+    s += txt(265, 148, "VPN", 11, C.muted) + txt(345, 148, "PFN", 11, C.muted);
+    var rows = [["19", "14"], ["37", "90"], ["27", "59"], ["—", "—"]];
+    rows.forEach(function (r, i) {
+      var y = 168 + i * 22;
+      s += txt(265, y, r[0], 12, C.cpu) + txt(345, y, r[1], 12, C.cpu);
+    });
+    // 새 항목 (miss 뒤)
+    s += during(8.8, D, '<rect x="226" y="221" width="158" height="20" fill="' + C.cL + '"/>' + txt(265, 234, "40", 12, C.c, ' font-weight="700"') + txt(345, 234, "12", 12, C.c, ' font-weight="700"'));
+    // hit 강조
+    s += during(3.2, 6, '<rect x="226" y="199" width="158" height="20" fill="none" stroke="' + C.b + '" stroke-width="2.5"/>');
+    // miss 표시
+    s += during(6, 8.8, '<rect x="222" y="112" width="166" height="146" fill="none" stroke="' + C.hw + '" stroke-width="3" stroke-dasharray="6,4"/>' + txt(305, 278, "miss!", 14, C.hw, ' font-weight="700"'));
+
+    // Memory
+    s += box(530, 60, 200, 260, "#f6f6f6", "#999") + txt(630, 82, "Memory", 13, C.cpu, ' font-weight="700"');
+    s += box(550, 100, 160, 90, C.cL, C.c) + txt(630, 120, "Page Table", 12, C.c, ' font-weight="700"') + txt(630, 145, "… 40 → 12 …", 12, C.c) + txt(630, 168, "(PTBR 가 가리킴)", 10.5, C.muted);
+    s += box(550, 210, 160, 90, C.bL, C.b) + txt(630, 260, "Data (page frames)", 12, C.b, ' font-weight="700"');
+
+    // 메모리 접근 카운터
+    s += during(4.6, 6, txt(630, 345, "메모리 접근 1번", 13, C.b, ' font-weight="700"'));
+    s += during(7.4, 10.4, txt(630, 345, "메모리 접근 1번째 (PTE)", 13, C.c, ' font-weight="700"'));
+    s += during(10.4, D, txt(630, 345, "메모리 접근 2번째 (data)", 13, C.hw, ' font-weight="700"'));
+
+    // 토큰: hit
+    s += token("M120,170 L222,208", 1.5, 3.2, "VPN 27", C.a);
+    s += token("M384,208 L430,208 L520,250 L552,250", 4.6, 6, "PA 59|VPO", C.b);
+    // 토큰: miss
+    s += token("M120,190 L222,240", 6, 7.4, "VPN 40", C.a);
+    s += token("M430,150 L552,150", 7.4, 8.4, "PTEA", C.c);
+    s += token("M552,160 L440,200 L384,230", 8.4, 9.8, "PTE 12", C.c);
+    s += token("M384,232 L430,232 L520,265 L552,265", 10.4, 12, "PA 12|VPO", C.hw);
+
+    return s + '</svg>';
   }
 };
 

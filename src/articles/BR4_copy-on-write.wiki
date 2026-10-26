@@ -1,0 +1,28 @@
+key: copy-on-write
+title: Page Sharing과 Copy-on-Write (CoW)
+category: 15강 Paging, 용어
+---
+페이징에서는 두 프로세스의 page table 이 '''같은 page frame 을 가리키게''' 해서 메모리를 공유할 수 있다. 공유하다가 한쪽이 쓰려고 할 때만 복사하는 것이 copy-on-write. 15강 p.23~25.
+
+{def}p.23 — "'''Page Sharing''': One good example is fork() — Just creates a new page table that points to parent's pages."
+p.24 — "'''Copy on Write (CoW)''': What happens if the process B modifies its parent's pages? A copy of that page (Copy) is created, and the new page is updated (Write)."{/def}
+
+{analogy}🎭 '''공유 문서의 사본.''' 처음엔 둘이 같은 문서를 같이 본다(복사 안 함). 누군가 고치려는 순간에만 그 쪽 한 장을 복사해서 고친다 — 안 고치는 페이지는 끝까지 한 장으로 공유.{/analogy}
+
+{|
+! 단계 || Process A || Process B (fork 로 생성)
+|-
+| p.23 공유 || VPN 0→5(RE), 2→2(RW), 7→7(RW) || '''똑같이''' 0→5, 2→2, 7→7 — frame 5·2·7 을 A&B 가 공유
+|-
+| p.24 B 가 page 7 에 씀 || 7→7 그대로 || frame 7 을 frame '''8''' 로 복사 → 7→'''8'''
+|}
+
+[[img:L15-24.png|p.24 Copy on Write — B 가 page 7 을 고치자 frame 8 에 복사본(page 7 (B))이 생기고 B 의 PTE 만 8 로 바뀜|large]]
+
+* p.25 '''Page Protection''': code page 는 RE 라서 공유해도 안전 — 수정은 MMU 가 막는다. CoW 로 공유한 쓰기 가능 page 는 '''보통 공유 중에 읽기 전용으로 표시'''해 두고, 쓰기 시도로 fault 가 나면 그때 복사한다(OSTEP 보충).
+* 이점: fork 때 주소 공간 전체를 복사하지 않아 빠르고 메모리를 아낀다.
+
+{info}이 과목은 fork/exec 의 '''사용법·출력 예측'''(시스템 프로그래밍 내용)은 내지 않는다. 여기서 볼 것은 fork 가 '''page table 을 어떻게 공유·복사하는가'''라는 OS 메커니즘이다.{/info}
+
+== 관련 문서 ==
+* [[PTE 플래그]] · [[페이지 테이블]] · [[코드 공유와 protection bit]](14강) · [[페이징]]

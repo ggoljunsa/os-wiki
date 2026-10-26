@@ -1,0 +1,43 @@
+key: TLB
+title: TLB (Translation Lookaside Buffer)
+category: 15강 Paging, 핵심
+---
+페이징의 성능 문제(메모리 접근 1번에 PTE 읽기 1번이 더 붙음)를 푸는 '''MMU 안의 하드웨어 캐시'''. 15강 p.31~51.
+
+{def}p.32 원문 — "'''Translation Lookaside Buffers (TLB)''': A part of the chip's memory-management unit (MMU). A '''hardware cache''' of popular virtual-to-physical address translation. Keep popular PTEs in '''SRAM'''."
+p.38 — "TLB is managed by '''full associative''' method. A typical TLB might have '''32, 64, or 128 entries'''. Hardware searches the entire TLB '''in parallel''' to find the desired translation. Other bits: valid bits, protection bits, address-space identifier ('''ASID'''), …"{/def}
+
+{analogy}🎭 '''자주 가는 사물함 번호를 손바닥에 적어 두기.''' 매번 배정표(page table, 메모리)를 펼치는 대신 최근 몇 개는 손바닥(TLB, SRAM)에 적어 둔다. 손바닥에 있으면(hit) 바로 사물함으로, 없으면(miss) 배정표를 펼쳐 보고 손바닥에 새로 적는다.{/analogy}
+
+[[anim:tlb_lookup|hit 은 TLB 에서 바로 PFN 을 얻어 메모리 1번, miss 는 page table 을 읽어 TLB 를 채운 뒤 메모리 2번]]
+
+== TLB 항목 (p.38) ==
+{|
+! VPN || PFN || other bits
+|-
+| 19 || … ||
+|-
+| 27 || '''59''' || valid, protection, ASID, …
+|-
+| … || … ||
+|}
+VA 의 VPN(=27)을 '''모든 항목과 동시에''' 비교(fully associative) → 맞는 항목의 PFN(=59) | VPO = PA.
+
+[[img:L15-38.png|p.38 TLB Entry — VPN 27 을 병렬 검색해 PFN 59 를 찾고 VPO 를 붙여 Physical address|large]]
+
+== 왜 잘 맞나 — locality (p.36~37) ⭐⭐ ==
+p.35: "Fortunately, TLB misses are rare. Why?" → '''[[locality]]'''. 같은 page 를 연달아 쓰면(spatial) 첫 접근만 miss, 나머지는 hit. 루프가 같은 page 를 반복해 쓰면(temporal) 계속 hit.
+
+[[img:L15-36.png|p.36 — a[0]~a[9] 가 VPN 6·7·8 에 걸쳐 있다. TLB 없으면 20번(a[i] 10 + PTE 10), 있으면 13번(a[i] 10 + PTE 3)|large]]
+
+[[sim:tlb_trace]]
+
+== 세부 문서 ==
+* [[TLB hit와 miss]] — 단계별 경로(p.33~35)
+* [[TLB miss 처리]] — hardware-managed(PTBR 로 page table walk) vs software-managed(trap 핸들러) (p.39~44)
+* [[ASID와 TLB flush]] — context switch 때 다른 프로세스 항목 구분 (p.45~49)
+
+{exam}🎯 예상 출제: ① 정의→용어 "A hardware cache of popular virtual-to-physical address translation" → '''translation lookaside buffer''' (full term — 2026F 중간은 약어 금지) ② p.36 처럼 배열 순회의 메모리 접근 횟수·hit rate 계산 ③ HW- vs SW-managed 장단점 표 ④ context switch 시 flush vs ASID.{/exam}
+
+== 관련 문서 ==
+* [[페이징]] · [[페이징의 문제]] · [[MMU]] · [[locality]] · [[SRAM과 DRAM]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]

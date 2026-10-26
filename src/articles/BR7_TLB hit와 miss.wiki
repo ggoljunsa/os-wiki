@@ -1,0 +1,50 @@
+key: TLB hit와 miss
+title: TLB Hit와 Miss — 메모리 접근 경로
+category: 15강 Paging, 핵심
+---
+TLB 가 없을 때·hit 일 때·miss 일 때 CPU 가 data 하나를 얻기까지 거치는 단계. 15강 p.33~35. 번호 순서를 묻는 문제(2026F 중간 P3 처럼)가 나오기 좋다.
+
+{def}p.34 — "A '''TLB hit''' eliminates a memory access: Fetch PTE directly from TLB – remove one memory reference."
+p.35 — "A '''TLB miss''' incurs an additional memory access (the PTE). Fortunately, TLB misses are rare."{/def}
+
+{analogy}🎭 hit = 메모장에 사물함 번호가 있어 바로 사물함으로(한 번 걷기). miss = 메모장에 없어서 사무실(page table)에 가서 번호를 받아 적고, 그다음 사물함으로(두 번 걷기).{/analogy}
+
+[[anim:tlb_lookup|hit 경로와 miss 경로를 나란히]]
+
+{|
+! 단계 || TLB 없음 (p.33) || TLB hit (p.34) || TLB miss (p.35)
+|-
+| 1 || CPU 가 VA 를 MMU 에 || CPU 가 VA 를 MMU 에 || CPU 가 VA 를 MMU 에
+|-
+| 2 || MMU 가 PTEA 를 메모리에 || MMU 가 VPN 을 TLB 에 || MMU 가 VPN 을 TLB 에 → 없음
+|-
+| 3 || 메모리가 PTE 를 MMU 에 || TLB 가 PTE 를 줌 || MMU 가 PTEA 를 메모리에
+|-
+| 4 || MMU 가 PA 를 메모리에 || MMU 가 PA 를 메모리에 || 메모리가 PTE → TLB 에 저장
+|-
+| 5 || 메모리가 data 를 CPU 에 || 메모리가 data 를 CPU 에 || MMU 가 PA 를 메모리에
+|-
+| 6 || || || 메모리가 data 를 CPU 에
+|-
+| '''메모리 접근''' || '''2번''' || '''1번''' || '''2번'''
+|}
+
+[[img:L15-35.png|p.35 TLB Miss — ① VA ② VPN → TLB miss ③ PTEA → Memory ④ PTE → TLB ⑤ PA ⑥ Data|large]]
+
+== 계산 — p.36 배열 예제 ⭐⭐⭐ ==
+<pre class="c">
+int sum = 0;                  /* int = 4 bytes, page = 16 bytes */
+for (i = 0; i < 10; i++)
+    sum += a[i];              /* a[0] = VPN 6 의 offset 4 */
+</pre>
+* a[0]~a[2] → VPN 6, a[3]~a[6] → VPN 7, a[7]~a[9] → VPN 8
+* TLB 없음: 10 × (PTE + data) = '''20번'''
+* TLB 있음: miss 는 a[0]·a[3]·a[7] 세 번 → data 10 + PTE 3 = '''13번''', hit rate '''7/10 = 70%'''
+
+[[sim:tlb_trace]]
+
+{quiz}page 32바이트, int 4바이트, `int b[20]` 이 page 경계에서 시작한다. TLB 가 처음에 비어 있을 때 `for(i=0;i<20;i++) s+=b[i];` 의 TLB miss 수, hit rate, 메모리 접근 수는?{/quiz}
+{answer}page 하나에 int 8개 → b[0]·b[8]·b[16] 에서 miss '''3번''', hit 17 → hit rate '''85%'''. 메모리 접근 = data 20 + PTE 3 = '''23번''' (TLB 없으면 40번).{/answer}
+
+== 관련 문서 ==
+* [[TLB]] · [[TLB miss 처리]] · [[페이징의 문제]] · [[locality]] · [[PTBR]]

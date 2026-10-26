@@ -1,0 +1,49 @@
+key: TLB miss 처리
+title: TLB Miss 처리 — Hardware-managed vs Software-managed
+category: 15강 Paging, 핵심
+---
+TLB miss 가 나면 '''누가''' page table 을 찾아 TLB 를 채우나 — 하드웨어(CPU)인가 소프트웨어(OS)인가. 15강 p.39~44.
+
+{def}p.40 — "'''Hardware-managed TLBs''': The hardware would handle the TLB miss entirely. The hardware knows (i) where the page tables are located in memory and (ii) the exact format of the page tables and table entries — The page table is pointed to by a '''page-table base register (PTBR)''' (e.g., CR3 register in the Intel x86 architecture)."
+p.42 — "'''Software-managed TLB''': The hardware doesn't do much; '''the OS handles TLB miss'''. Modern architectures (e.g., MIPS and RISC) often employ software-managed TLB approaches."{/def}
+
+{analogy}🎭 메모장에 번호가 없을 때 — hardware-managed 는 '''로봇 비서'''가 알아서 사무실 장부를 찾아 적어 온다(빠르지만 비서가 장부 양식을 정확히 알아야 함). software-managed 는 '''사장님(OS)을 부른다'''(trap) — 느리지만 장부 양식을 마음대로 바꿀 수 있다.{/analogy}
+
+== 순서 비교 ⭐⭐⭐ (번호 순서 쓰기 문제 후보) ==
+{|
+! # || Hardware-managed (p.40~41) || Software-managed (p.42~43)
+|-
+| 1 || Jump to the current page table ([[PTBR]]) || The hardware simply '''raises an exception''' — (i) pauses the instruction stream (ii) raises privilege to kernel mode (iii) jumps to a trap handler
+|-
+| 2 || Find the correct PTE || The '''trap handler''' within the OS is invoked
+|-
+| 3 || Extract the desired translation || The OS looks up the translation in the page table
+|-
+| 4 || '''Update the TLB''' || The OS uses '''special privileged instructions''' to update the TLB
+|-
+| 5 || '''Retry the instruction''' || The OS '''returns from the trap'''
+|-
+| 6 || || The hardware '''retries the instruction'''
+|}
+
+[[img:L15-43.png|p.43 Software-managed TLBs — ① Raises an exception ② Trap handler invoked ③ Lookup translation ④ Update TLB|large]]
+
+{tip}software-managed 의 1~6 은 4강 [[제한적 직접 실행]]의 트랩 경로 그대로다: 하드웨어가 kernel mode 로 올리고 핸들러로 점프 → OS 가 일 → return-from-trap → 하드웨어가 '''같은 명령을 다시''' 실행(시스템 콜과 달리 다음 명령이 아니라 '''재시도'''). 2026F 중간 P3 의 "Hardware 단계가 OS 단계를 감싼다"와 같은 구조.{/tip}
+
+== 장단점 (p.44) ⭐⭐ ==
+{|
+! || Hardware-managed || Software-managed
+|-
+| 속도 || (+) '''Efficient''' — 몇 사이클이면 miss 처리 || (−) Relatively '''slower''' — trap handler 실행에 많은 사이클
+|-
+| CPU 설계 || (−) '''Complex''' CPU design || (+) '''Simple''' CPU design
+|-
+| 유연성 || (−) Lack of flexibility (page table 형식이 하드웨어에 고정) || (+) '''Flexibility''' — 하드웨어 변경 없이 page table 구현
+|-
+| miss ratio || (−) (probably) High — 하드웨어가 victim 을 고름 || (+) Lower TLB miss ratio
+|-
+| 예 || Intel x86 (CR3) || MIPS, RISC 계열
+|}
+
+== 관련 문서 ==
+* [[TLB]] · [[TLB hit와 miss]] · [[PTBR]] · [[트랩]] · [[return-from-trap]] · [[특권 명령]]
