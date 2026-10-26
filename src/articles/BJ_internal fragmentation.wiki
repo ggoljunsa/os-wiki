@@ -1,0 +1,26 @@
+key: internal fragmentation
+title: Internal Fragmentation (내부 단편화)
+category: 14강 Segmentation, 용어
+---
+할당된 한 칸 '''안에서''' 쓰이지 않고 버려지는 공간. 14강 p.3 이 [[base and bounds]]의 비효율을 이 이름으로 부른다.
+
+{def}p.3 원문 — "'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted."{/def}
+
+{analogy}🎭 '''3인용 테이블에 혼자 앉기.''' 테이블(할당 단위)은 통째로 내 것이지만 의자 두 개는 비어 있다. 다른 손님도 못 쓴다.{/analogy}
+
+[[img:L14-03.png|p.3 — base and bounds 는 16KB 주소 공간을 통째로 할당하므로 heap 과 stack 사이의 (free)까지 물리 메모리를 차지한다|medium]]
+
+{|
+! || Internal fragmentation || [[external fragmentation|External fragmentation]]
+|-
+| 어디서 낭비 || 할당된 칸 '''안''' || 할당된 칸들 '''사이'''의 작은 구멍
+|-
+| 대표 상황 || [[base and bounds]](주소 공간 통째 할당) || [[세그멘테이션]], `malloc` 처럼 크기가 제각각인 할당
+|-
+| 증상 || 할당은 됐는데 일부를 안 씀 || 빈 공간 합은 충분한데 연속된 큰 덩어리가 없어 요청 실패
+|}
+
+{tip}암기 요령: '''in'''ternal = 칸 '''안''', '''ex'''ternal = 칸 '''밖'''(사이). 13강 p.55 는 이 현상을 그림으로만 보여 줬고, 14강 p.3 에서 이름이 붙었다.{/tip}
+
+== 관련 문서 ==
+* [[external fragmentation]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]

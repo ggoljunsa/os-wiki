@@ -1,0 +1,34 @@
+key: free-space management
+title: Free-space Management (빈 공간 관리)
+category: 14강 Segmentation, 핵심
+---
+'''크기가 제각각인''' 빈 공간을 어떻게 기록하고, 요청이 오면 어디서 떼어 주고, 반납되면 어떻게 합치는가. 14강 p.18~39 (OSTEP 17장). OS 가 세그먼트를 물리 메모리에 놓을 때와, 유저 라이브러리가 `malloc()/free()` 로 heap 을 나눌 때 '''같은 문제'''다.
+
+{def}p.19 — "Free-space management becomes more difficult when the free space consists of '''variable-sized units'''. e.g., 1: OS managing physical memory with segmentation (each segment could have a variable size) / e.g., 2: User-level heap-allocation library (`malloc()` and `free()`). '''External fragmentation is unavoidable'''."{/def}
+
+{analogy}🎭 '''고무줄 길이를 잘라 파는 가게.''' 손님마다 원하는 길이가 다르다. 긴 롤에서 잘라 주고(splitting), 손님이 돌려준 조각이 옆 조각과 이어지면 다시 이어 붙이고(coalescing), 각 조각에 길이 꼬리표를 붙이고(header), 남은 조각 목록은 조각 자체에 적어 둔다(embedded free list). 어떤 조각에서 자를지가 [[할당 전략]].{/analogy}
+
+[[sim:fit_strategies]]
+
+== 가정 (p.21) ==
+* 인터페이스: `void *malloc(size_t size)`, `void free(void *ptr)` — '''free 는 크기를 받지 않는다''' → [[할당 헤더]]
+* '''No compaction''': 한 번 준 메모리는 옮길 수 없다(포인터를 이미 줬으므로) → [[compaction]] 불가
+* 연속된 바이트 영역을 할당 / 전체 빈 공간은 고정(실제로는 `sbrk` 같은 시스템 콜로 늘릴 수 있음)
+
+== 메커니즘 → 정책 ==
+{|
+! 구분 || 문서 || 슬라이드
+|-
+| 쪼개 주기 · 합치기 || [[splitting과 coalescing]] || p.22~25
+|-
+| 크기 기록 || [[할당 헤더]] (size, magic) || p.26~28
+|-
+| 목록을 빈 공간 안에 || [[embedded free list]] (node_t: size, next) || p.29~36
+|-
+| 어디서 떼어 줄지 || [[할당 전략]] (Best/Worst/First/Next Fit) || p.37~39
+|}
+
+{tip}4강의 "mechanism vs policy"(중간고사 P2-a 정답 mechanism)와 같은 구조다. splitting·coalescing·header 는 '''어떻게'''(mechanism), Best/Worst/First/Next Fit 은 '''어디를'''(policy).{/tip}
+
+== 관련 문서 ==
+* [[세그멘테이션]] · [[external fragmentation]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]] · [[free list]](13강)

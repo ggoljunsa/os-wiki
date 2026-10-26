@@ -99,6 +99,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 기말고사 · 가상 메모리 · 메모리 계층 · SRAM과 DRAM · locality · 메모리 가상화 · 가상 주소 공간 · 주소 변환 · VM 설계 목표 · 주소 변환 시점 · MMU · base and bounds · free list · 동적 재배치의 한계
 ### 과제2 — 파일 접두어 `BZ0_`(허브)~`BZB_`. 원본 `../../기말고사/문제풀이/과제2_xv6_lock/Assignment 2.pdf` 14쪽 (글자뿐, 캡처 없음 → ascii·sim·anim 으로). 원본 xv6 소스 `lock` 브랜치 66ff622. '''마감 2026-10-25 전에는 kalloc.c/bio.c 완성 코드 금지''' (공개 위키 + 본인 구현) — 의사코드·자료구조 스케치·원본 코드만. 허브의 `실제 제출 구현` 절은 제출 뒤에 채운다
 과제2 xv6 lock · lock contention · kalloc · per-CPU free list · buffer cache · bcache 해시 버킷 · 과제2 퀴즈 대비 · cpuid · refcnt · sleeplock · steal · NBUF
+### 14강 Segmentation — 파일 접두어 `BE_`~`BQ_`. 슬라이드 `../../기말고사/강의자료/14-Segmentation.pdf` 41쪽 = `_slides/L14-{pp}.png`, 텍스트 `_text/14-Segmentation.txt`. 녹음 없음(결석, 2026-10-26)
+세그멘테이션 · 세그먼트 주소 변환 · 스택 세그먼트 · 코드 공유와 protection bit · segmentation fault · internal fragmentation · external fragmentation · compaction · free-space management · splitting과 coalescing · 할당 헤더 · embedded free list · 할당 전략
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -141,6 +143,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | bget_trace | 과제2 Problem 2: 버퍼 4개·버킷 3개(blockno%3, 실제 13) bget 설계 의사코드 줄 단위(버킷 체인·이동 중 버퍼·bcache.lock·사본 수 SVG). 옵션 scenario = hit(다른 버킷 동시, 같은 버킷 spin·refcnt 2·sleeplock 대기) / miss_move(bcache.lock 아래 재검색 + victim 이동) / same_bucket(같은 버킷 lock 두 번 → panic: acquire, 고친 판) / race_2025(재검색 없음 → block 사본 2개) / race_fixed(eviction lock + 재검색 → 사본 1개) | bcache 해시 버킷 |
 | mid26_mlfq | 2026F 중간 P5: 시험지 MLFQ 규칙(slice 2/4/8, I/O 블록 시 우선순위 유지, 상위 도착 선점·head 재개)을 실제로 시뮬레이션해 A·B·C Gantt + 큐 상태 | 2026F 중간고사, MLFQ |
 | mid26_trylock | 2026F 중간 P9: ticket lock try_lock. 옵션 variant = bad(실패한 B 가 ticket 을 올려 C 영원히 spin) / correct(CAS(&ticket, t, t+1), old == t → C 진입) / race(ticket=turn=4, A·B 동시 → A 1, B 0) | 2026F 중간고사, ticket lock, compare-and-swap |
+| seg_translate | 14강 p.7~15: 14비트 VA → 위 2비트 세그먼트 + 12비트 offset → size 비교 → base 더하기(stack 은 offset − 4096). 옵션 set = slide(VA 100 → 32868, 4200 → 34920, 15KB → 27KB) / faults(heap 7KB segfault, 세그 10, code store protection fault, stack 경계 14KB / 14KB−1) | 세그멘테이션, 세그먼트 주소 변환 |
+| fit_strategies | 14강 p.37~39: head → 10 → 30 → 20 에 요청. 옵션 strat = best/worst/first/next, req = slide(15) / seq(15, 8, 12, 10, 9 → best·next 는 9 에서 실패). Next Fit ptr = 지난번 떼어 간 노드 | 할당 전략, free-space management |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
@@ -243,4 +247,5 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | addr_bind_time | 13강 p.31~36 세 줄: ① compile time(VA=PA, P2 로딩 ✗) ② load time(+0x100000/+0x200000 로 call 주소 고쳐 씀, 보호 없음) ③ execution time(파일 그대로, CPU 가 +100000/+200000) | 주소 변환 시점, 주소 변환, 기말고사 |
 | kmem_percpu | 과제2 ①: Before kmem.lock 하나에 CPU0·1·2 가 줄 — holder 만 kalloc(), 나머지 spinning·#test-and-set 증가 → After kmem[0..2] lock·free list 각자, 세 CPU 동시 kalloc (#test-and-set 0) → CPU1 list 비음 → kmem[0].lock 만 잠깐 잡고 page 3개 steal → kalloc 성공 | 과제2 xv6 lock, per-CPU free list |
 | bcache_hash | 과제2 ②: Before bcache.lock 하나 + LRU 리스트, P1·P2·P3 spinning → After blockno % 13 의 13 bucket: bget(27)→bucket 1 hit r1→2 ‖ bget(18)→bucket 5 동시 → bget(40) miss → bcache.lock, bucket 7 의 r0 buf(blk 59) → lock 1→7 → bucket 1 로 옮겨 blockno=40 (NBUF 30 그대로) | buffer cache, bcache 해시 버킷 |
+| segment_map | 14강 p.6·p.10~12: 주소 공간 code/heap/stack 이 물리 28K/32K/34K 로 따로 옮겨짐 → VA 4200 = 01|offset 104 → 34920 → VA 15KB = 11|3072 − 4096 → 27KB | 세그멘테이션 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |

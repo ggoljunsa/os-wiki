@@ -1,0 +1,39 @@
+key: 세그먼트 주소 변환
+title: 세그먼트 주소 변환 (Explicit Approach)
+category: 14강 Segmentation, 핵심
+---
+[[세그멘테이션]]에서 하드웨어가 가상 주소를 물리 주소로 바꾸는 방법. 14강 p.7~11. 슬라이드는 '''explicit approach''' — 가상 주소의 '''위 몇 비트'''로 세그먼트를 정한다.
+
+{def}p.7 — "'''Explicit approach''': Chop up the address space into segments based on the '''top few bits''' of virtual address." 14비트 VA = Segment(0~3, 2비트) + Offset(0~4095, 12비트).
+p.10 — "$physical\ address = offset + base$"{/def}
+
+{analogy}🎭 '''아파트 동·호수'''. 주소 "01동 104호"에서 앞자리(동)로 어느 건물인지, 뒷자리(호수)로 그 건물 안 몇 번째 방인지 정한다. 건물마다 실제 위치(base)가 다르니, 실제 주소 = 그 건물 위치 + 호수. 단지 전체 번호(VA)에 건물 위치를 더하면 엉뚱한 곳이 나온다.{/analogy}
+
+<pre class="ascii">
+   비트  13 12 | 11 10  9  8  7  6  5  4  3  2  1  0
+        segment |            offset (0 ~ 4095)
+   '''00''' Code   '''01''' Heap   '''11''' Stack   10 (미사용)
+
+   VA 100  = 00 | 000001100100  → Code,  offset 100 → 32K + 100 = 32868
+   VA 4200 = 01 | 000001101000  → Heap,  offset 104 → 34K + 104 = 34920
+</pre>
+
+[[img:L14-08.png|p.8 VA 4200 (01000001101000b) — 위 2비트 01 = Heap, offset 0x068 = 104|large]]
+[[img:L14-11.png|p.11 Referring to Heap Segment — heap 은 가상 주소 4096 에서 시작하므로 offset 104, PA = 104 + 34K = 34920|large]]
+
+[[sim:seg_translate]]
+
+== 계산 순서 ==
+# VA 를 2진수로 → 위 2비트 = 세그먼트 번호, 아래 12비트 = offset (= VA − 세그먼트 번호 × 4096)
+# 세그먼트 테이블에서 그 세그먼트의 base, size, grows positive?, protection 을 읽는다
+# 양의 방향: offset < size ? 아니면 [[segmentation fault]]. 통과하면 PA = base + offset
+# 음의 방향(stack): [[스택 세그먼트]] 규칙
+# 쓰기인데 W 권한이 없으면 Protection Fault ([[코드 공유와 protection bit]])
+
+{warn}'''함정 두 개.''' ① PA = '''offset''' + base 다. VA 4200 + 34K 는 틀림(p.11 원문 "Virtual address + base is not the correct physical address"). ② code 는 가상 주소 0 에서 시작하므로 VA = offset 이라 VA + base 가 우연히 맞는다 — 이걸 일반 규칙으로 착각하지 말 것.{/warn}
+
+{quiz}같은 세그먼트 테이블(Code 32K/2K, Heap 34K/2K)에서 VA 4500 과 VA 6200 의 물리 주소는?{/quiz}
+{answer}VA 4500 = 01 | offset 404 → 404 < 2048 → 34K + 404 = '''35220'''. VA 6200 = 01 | offset 2104 → 2104 ≥ 2048 → '''Segmentation Fault''' (heap 세그먼트 size 2KB 를 넘음).{/answer}
+
+== 관련 문서 ==
+* [[세그멘테이션]] · [[스택 세그먼트]] · [[segmentation fault]] · [[base and bounds]] · [[MMU]]

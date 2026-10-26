@@ -1,0 +1,26 @@
+key: compaction
+title: Compaction (메모리 압축)
+category: 14강 Segmentation, 용어
+---
+흩어진 세그먼트를 물리 메모리 한쪽으로 '''다시 모아 붙여서''' 빈 공간을 하나의 큰 덩어리로 만드는 것. [[external fragmentation]]에 대한 OS 의 대응. 14강 p.16~17.
+
+{def}p.16 원문 — "'''Compaction''': '''Rearranging''' the existing segments in physical memory. Compaction is '''costly''': '''Stop''' running process / '''Copy''' data to somewhere / '''Change''' segment register value."{/def}
+
+{analogy}🎭 '''책장 정리.''' 책 사이사이 빈 칸을 없애려고 책을 전부 한쪽으로 밀어 붙인다. 정리하는 동안 책을 꺼내 볼 수 없고(stop), 책을 하나하나 옮겨야 하고(copy), 색인 카드의 위치도 다 고쳐야 한다(change segment register).{/analogy}
+
+[[img:L14-17.png|p.17 — Not compacted(할당 칸 사이에 구멍) → Compacted(할당 칸이 24KB~48KB 에 붙고 48KB~64KB 가 한 덩어리로 빔)|large]]
+
+{|
+! 비용 || 왜
+|-
+| Stop running process || 옮기는 도중에 그 세그먼트를 쓰면 안 된다
+|-
+| Copy data || 세그먼트 내용 전체를 메모리 복사 — 크기에 비례
+|-
+| Change segment register value || 옮긴 세그먼트의 base 가 바뀐다 (프로그램은 모름 — [[VM 설계 목표|transparency]])
+|}
+
+{tip}세그멘테이션이라서 compaction 이 '''가능'''하다는 점도 기억할 것: 프로그램은 가상 주소만 쓰므로 OS 가 base 만 바꾸면 프로그램 수정 없이 옮길 수 있다(13강 [[주소 변환 시점|execution time 변환]]의 장점). 반면 유저 레벨 `malloc` 은 포인터를 돌려줬기 때문에 '''compaction 이 불가능'''하다 — p.21 가정 "No compaction: Once the memory is allocated, it cannot be relocated".{/tip}
+
+== 관련 문서 ==
+* [[external fragmentation]] · [[세그멘테이션]] · [[free-space management]] · [[base and bounds]]

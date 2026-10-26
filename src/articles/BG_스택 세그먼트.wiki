@@ -1,0 +1,42 @@
+key: 스택 세그먼트
+title: 스택 세그먼트 (Negative-Growth Support)
+category: 14강 Segmentation, 용어
+---
+stack 은 높은 주소에서 낮은 주소로 '''거꾸로 자라므로''', [[세그먼트 주소 변환]]을 그대로 쓰면 안 된다. 14강 p.12.
+
+{def}p.12 원문 — "Stack grows '''backward'''. It starts at 28KB and grows back to 26KB. '''Extra hardware support''' is needed: The hardware checks which way the segment grows — 1: positive direction, 0: negative direction."{/def}
+
+{analogy}🎭 '''천장에 매다는 선반.''' 다른 선반은 바닥(base)에서 위로 쌓지만, 이 선반은 천장(base = 28KB)에 붙어 아래로 내려온다. 그래서 '몇 번째 칸'을 셀 때 천장에서 아래로 빼야 한다.{/analogy}
+
+{|
+! Segment || Base || Size || Grows Positive?
+|-
+| Code || 32K || 2K || 1
+|-
+| Heap || 34K || 2K || 1
+|-
+| Stack || 28K || 2K || '''0'''
+|}
+
+[[img:L14-12.png|p.12 Referring to Stack Segment — stack 은 28KB 에서 26KB 쪽으로 자람, Grows Positive? = 0|large]]
+
+== 계산 (OSTEP 16장 규칙 — 슬라이드는 결과 그림만 보여 준다) ⭐⭐ ==
+# VA 의 offset 을 구한다 (위 2비트 11 → stack).
+# '''음수 offset = offset − 최대 세그먼트 크기''' (12비트 offset 이므로 4KB = 4096).
+# |음수 offset| ≤ size 이면 통과, 아니면 [[segmentation fault]].
+# PA = base + 음수 offset.
+
+<pre class="ascii">
+   VA 15KB = 11 | 110000000000   → offset 3072
+   3072 − 4096 = −1024           → |−1024| = 1KB ≤ size 2KB ✓
+   PA = 28KB − 1KB = '''27KB'''
+   stack 이 쓸 수 있는 VA: 14KB ~ 16KB−1  ↔  PA 26KB ~ 28KB−1
+</pre>
+
+{warn}stack 의 base(28KB)는 세그먼트의 '''위쪽 끝'''이다. 그래서 PA 는 base 보다 '''작다'''. VA 14KB(offset 2048 → −2048)가 가장 아래 칸 26KB 이고, VA 14KB − 1(offset 2047 → −2049)은 size 를 넘어 fault.{/warn}
+
+{quiz}VA 15.5KB(= 15872)의 물리 주소는?{/quiz}
+{answer}offset = 15872 − 12288 = 3584 → 3584 − 4096 = −512 → |−512| ≤ 2048 → PA = 28672 − 512 = '''28160''' (27.5KB).{/answer}
+
+== 관련 문서 ==
+* [[세그먼트 주소 변환]] · [[세그멘테이션]] · [[스택]] · [[segmentation fault]]

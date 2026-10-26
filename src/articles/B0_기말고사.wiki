@@ -17,7 +17,9 @@ category: 기말고사
 |-
 | '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 "12. Virtual Memory", 마지막 장 "End of Lecture 12" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]
 |-
-| 14강~ || (아직 배포 전) || OSTEP 순서상 다음은 segmentation → free-space management → paging → TLB (p.55의 "free 공간 낭비" 문제가 출발점) || —
+| '''14강''' Segmentation (결석 — 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]
+|-
+| 15강~ || (아직 배포 전) || OSTEP 순서상 다음은 paging → TLB || —
 |}
 
 {info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: "'''기말까지 시간이 많지 않다'''". p.3~10(계층·locality)은 "system programming 에서 배웠을 것"이라 출제 우선순위 낮음.{/info}
@@ -36,6 +38,16 @@ category: 기말고사
 # [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐
 # [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)
 # [[동적 재배치의 한계]] — 128 TB짜리 "free" 공간 문제 → 다음 강의로 (p.55)
+
+== 14강 읽는 순서 ==
+
+# [[세그멘테이션]] — 허브. 왜(base and bounds 의 internal fragmentation) → 세그먼트 배치 → 변환 → stack·sharing·protection → fragmentation (p.2~17)
+# [[세그먼트 주소 변환]] — 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]] — 음의 방향
+# [[코드 공유와 protection bit]] · [[segmentation fault]] — 범위 위반 vs 권한 위반
+# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]
+# [[free-space management]] — 허브 (p.18~39)
+# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐
+# [[할당 전략]] — Best / Worst / First / Next Fit ⭐⭐⭐
 
 == 중간 범위와 이어지는 곳 ==
 

@@ -1,0 +1,37 @@
+key: 할당 전략
+title: 할당 전략 (Best / Worst / First / Next Fit)
+category: 14강 Segmentation, 핵심
+---
+요청 크기 이상인 빈 chunk 가 여러 개일 때 '''어느 것에서 떼어 줄지'''를 정하는 정책. 14강 p.37~39. 이름(Best/Worst/First/Next Fit)은 슬라이드 그림 안에만 있으니 정확히 외울 것 — 정의→용어 문제 후보.
+
+{def}p.37~38 원문
+* '''Best Fit''': Finding free chunks that are big or bigger than the request; returning the one of '''smallest''' in the chunks in the group of candidates; '''a full search''' of free space is required.
+* '''Worst Fit''': Finding the '''largest''' free chunks and allocating the amount of the request; keeping the remaining chunk on the free list; a full search of free space is still required.
+* '''First Fit''': Finding the '''first''' chunk that is big enough for the request; returning the requested amount and remaining the rest of the chunk; '''no exhaustive search''' required.
+* '''Next Fit''': Finding the first chunk that is big enough; searching at '''where one was looking at''' instead of the beginning of the list; spread the searches for free space throughout the list more '''uniformly'''; no exhaustive search required.{/def}
+
+{analogy}🎭 '''주차 자리 고르기.''' Best = 차에 딱 맞는 가장 좁은 자리(남는 공간 최소, 대신 자투리가 쌓임). Worst = 가장 넓은 자리(큰 자리를 남겨 두려는 의도). First = 입구에서 처음 보이는 들어갈 만한 자리. Next = 지난번에 댄 곳 근처부터 찾기.{/analogy}
+
+[[img:L14-39.png|p.39 Examples — head → 10 → 30 → 20 에 요청 15: Best-fit 은 20 에서 떼어 10 → 30 → 5, Worst-fit 은 30 에서 떼어 10 → 15 → 20|large]]
+
+[[sim:fit_strategies]]
+
+{|
+! 전략 || 고르는 chunk || 리스트 전체 탐색? || p.39 (요청 15, 10→30→20) 결과
+|-
+| Best Fit || 충분한 것 중 '''가장 작은''' 것 || 필요 || 10 → 30 → '''5'''
+|-
+| Worst Fit || '''가장 큰''' 것 || 필요 || 10 → '''15''' → 20
+|-
+| First Fit || 앞에서부터 '''첫''' 충분한 것 || 불필요 || 10 → '''15''' → 20 (첫 충분한 것이 30)
+|-
+| Next Fit || '''지난번 찾던 곳'''부터 첫 충분한 것 || 불필요 || 처음엔 First Fit 과 같음
+|}
+
+{warn}'''함정''' ① First Fit 과 Worst Fit 이 p.39 예제에서는 우연히 같은 결과(10→15→20)다 — 정의가 같은 게 아니다. ② Best Fit 은 남는 조각이 가장 작아 좋아 보이지만, 그 작은 조각(5)들이 쌓여 [[external fragmentation]]을 만든다. ③ 어느 전략도 항상 이기지 않는다 — 시뮬레이터에서 요청 15, 8, 12, 10, 9 를 넣으면 '''Best·Next 는 마지막 9 에서 실패, Worst·First 는 성공'''한다.{/warn}
+
+{quiz}free list head → 25 → 12 → 40 → 18 에 요청 16 이 오면 네 전략이 각각 어느 chunk 를 고르나? (Next Fit 은 지난번에 두 번째 노드(12)를 보고 있었다고 하자.){/quiz}
+{answer}Best: 16 이상 중 가장 작은 '''18''' → 25 → 12 → 40 → 2. Worst: '''40''' → 25 → 12 → 24 → 18. First: 앞에서 첫 충분한 '''25''' → 9 → 12 → 40 → 18. Next: 12 부터 찾음 → 12 는 부족, 다음 '''40''' → 25 → 12 → 24 → 18.{/answer}
+
+== 관련 문서 ==
+* [[free-space management]] · [[splitting과 coalescing]] · [[external fragmentation]] · [[세그멘테이션]]

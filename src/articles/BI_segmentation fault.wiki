@@ -1,0 +1,27 @@
+key: segmentation fault
+title: Segmentation Fault vs Protection Fault
+category: 14강 Segmentation, 용어
+---
+세그멘테이션 하드웨어가 메모리 참조를 거부하는 두 경우. 14강 p.9, p.15.
+
+{def}p.15 그림 — CPU 가 낸 (Seg, Offset) 에 대해 ① Offset < Size ? 아니면 '''Segmentation Fault!''' ② Base 에 +/- ③ 접근 종류가 Prot(RW 등)에 맞나? 아니면 '''Protection Fault!''' → 통과하면 Physical address.{/def}
+
+{analogy}🎭 '''아파트 출입.''' 그 동에 없는 호수를 대면 경비실에서 "그런 집 없어요"(segmentation fault). 집은 있는데 남의 집 열쇠로 열려고 하면 "권한 없어요"(protection fault).{/analogy}
+
+[[img:L14-15.png|p.15 Protection — < 에서 걸리면 Segmentation Fault, RW 에서 걸리면 Protection Fault|large]]
+
+{|
+! || Segmentation Fault || Protection Fault
+|-
+| 무엇을 어겼나 || '''범위''' — offset ≥ size (stack 은 |음수 offset| > size), 또는 쓰지 않는 세그먼트 || '''권한''' — 범위는 맞지만 접근 종류(쓰기·실행)가 protection bit 에 없음
+|-
+| 검사 시점 || 맨 처음 (더하기 전) || 마지막 (더한 뒤)
+|-
+| 예 || heap VA 7KB(offset 3KB ≥ 2K) || code(RE) 세그먼트에 store
+|}
+
+* 13강 [[base and bounds]]의 "Raise exception"(VA ≥ bounds)이 세그먼트별로 바뀐 것이 segmentation fault 다. 이름은 세그먼트 시대에서 왔고, 지금 Linux 에서 잘못된 메모리 접근을 부를 때도 그대로 쓴다.
+* 둘 다 하드웨어 예외 → OS 의 트랩 핸들러로 넘어간다([[트랩]]). 보통 프로세스를 종료한다.
+
+== 관련 문서 ==
+* [[세그먼트 주소 변환]] · [[코드 공유와 protection bit]] · [[스택 세그먼트]] · [[세그멘테이션]]

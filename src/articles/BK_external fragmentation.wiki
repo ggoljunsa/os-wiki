@@ -1,0 +1,27 @@
+key: external fragmentation
+title: External Fragmentation (외부 단편화)
+category: 14강 Segmentation, 용어
+---
+빈 공간이 '''크기가 제각각인 작은 조각들'''로 흩어져서, 합은 충분한데 '''연속된''' 덩어리가 없어 요청을 못 들어주는 현상. 14강 p.16(세그먼트), p.19~20(free-space management).
+
+{def}p.16 — "'''External fragmentation''': Little holes of free space in physical memory that make difficulty to allocate new segments. There is '''24KB free''', but '''not in one contiguous''' segment. The OS '''cannot''' satisfy the '''20KB request'''."
+p.19 — "External fragmentation is unavoidable: The free space gets chopped into little pieces of different sizes and is thus fragmented. Subsequent requests may fail because there is no contiguous space that can satisfy the request."{/def}
+
+{analogy}🎭 '''주차장의 띄엄띄엄 빈 자리.''' 빈 칸이 모두 합쳐 버스 한 대 길이만큼 있어도, 승용차 칸 하나씩 흩어져 있으면 버스는 못 댄다.{/analogy}
+
+[[img:L14-17.png|p.17 Memory Compaction — 왼쪽(Not compacted): 할당 칸 사이에 not in use 구멍들 = External Fragmentation, 오른쪽(Compacted): 할당 칸을 한쪽으로 몰아 빈 공간 하나로|large]]
+
+<pre class="ascii">
+   p.20  30-byte heap:   [ free 10 ][ used 10 ][ free 10 ]
+         빈 공간 합 = 20,  그러나 연속 최대 = 10
+         malloc(15)  → '''실패'''
+</pre>
+
+* 왜 생기나: 크기가 다른 세그먼트(또는 `malloc` chunk)를 넣고 빼다 보면 구멍 크기가 제각각이 된다 — "unavoidable"(p.19).
+* 대응: ① [[compaction]] — 다시 모아 붙이기(비쌈) ② [[splitting과 coalescing|coalescing]] — 반납된 이웃 구멍 합치기 ③ [[할당 전략]] — 어떤 구멍에 넣을지 잘 고르기(어느 전략도 항상 이기지는 않는다).
+
+{quiz}free 구멍이 8KB, 6KB, 10KB 로 흩어져 있다. 12KB 세그먼트 요청은? 구멍 합은?{/quiz}
+{answer}합은 24KB 지만 연속된 가장 큰 구멍이 10KB 라 '''실패''' — external fragmentation. (p.16 의 "24KB free 인데 20KB 실패"와 같은 구조){/answer}
+
+== 관련 문서 ==
+* [[internal fragmentation]] · [[compaction]] · [[free-space management]] · [[할당 전략]] · [[세그멘테이션]]

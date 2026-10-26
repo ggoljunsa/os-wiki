@@ -1,0 +1,42 @@
+key: embedded free list
+title: Embedded Free List (빈 공간 안에 심은 free list)
+category: 14강 Segmentation, 핵심
+---
+free list 를 위한 노드를 따로 `malloc` 할 수는 없다(그게 지금 만드는 malloc 이니까). 그래서 '''빈 chunk 자기 자신의 앞부분'''에 노드(size, next)를 적어 둔다. 14강 p.29~36. 과제 2 xv6 `kalloc` 의 `struct run` 도 같은 발상이다(빈 페이지 안에 next 포인터).
+
+{def}p.29 — "How do we build such a list '''inside the free space itself'''?"
+p.30 노드: `typedef struct __node_t { int size; struct __node_t *next; } node_t;` (sizeof = 8){/def}
+
+{analogy}🎭 '''빈 방 문에 붙인 메모.''' 빈 방 목록을 따로 장부에 적지 않고, 각 빈 방 문에 "이 방 크기 / 다음 빈 방은 몇 호" 메모를 붙인다. 방이 차면 메모를 떼고, 비면 다시 붙인다.{/analogy}
+
+== 따라가기 — 4KB heap (가상 주소 16KB 에서 시작) ⭐⭐ ==
+<pre class="c">
+node_t *head = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+head->size = 4096 - sizeof(node_t);   // 4088
+head->next = NULL;
+</pre>
+
+{|
+! 단계 || free list || 근거
+|-
+| 처음 || head → (addr 0, len '''4088''') → NULL || p.31: 4096 − 노드 8
+|-
+| `ptr = malloc(100)` || head → (addr 108, len '''3980''') → NULL || p.33: header 8 + 100 = 108 바이트를 떼어 감, 4088 − 108
+|-
+| malloc(100) 두 번 더 || head → (addr 324, len '''3764''') → NULL || p.34: 108 × 3 = 324, 4088 − 324
+|-
+| `free(sptr)` (가운데 chunk, addr 108) || head → (addr 108, len 100) → (addr 324, len 3764) → NULL || p.35: 반납된 chunk 의 next = 16708 = 16K + 324
+|-
+| 나머지 두 chunk 도 free || head → (216) → (0) → (108) → (324, 3764) → NULL || p.36: '''조각 4개 — coalescing 필요'''
+|}
+
+[[img:L14-33.png|p.33 — malloc(100) 뒤: 앞 108 바이트 = header(size 100, magic 1234567) + 100 바이트, 남은 free chunk 3980|large]]
+[[img:L14-36.png|p.36 Free Space With Freed Chunks — 다 반납했는데 free list 가 216 → 0 → 108 → 324 로 조각나 있다(External Fragmentation, coalescing 필요)|large]]
+
+{warn}p.36 의 노드는 len:100 으로 그려져 있지만 실제로 반납된 영역은 header 포함 108 바이트씩이다(주소 0 → 108 → 216 → 324 간격이 108). 숫자가 어긋나 보이면 header 8 바이트를 떠올릴 것.{/warn}
+
+{quiz}같은 4KB heap(노드 8 바이트, header 8 바이트)에서 `malloc(50)` 한 번 뒤 free chunk 의 addr 과 len 은?{/quiz}
+{answer}떼어 가는 크기 = 50 + 8 = 58 → free chunk 는 '''addr 58, len 4088 − 58 = 4030'''.{/answer}
+
+== 관련 문서 ==
+* [[할당 헤더]] · [[splitting과 coalescing]] · [[free-space management]] · [[kalloc]](과제 2 `struct run`) · [[free list]](13강)

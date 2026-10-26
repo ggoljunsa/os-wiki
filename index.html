@@ -710,7 +710,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
+  "body": "'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n{tip}🆕 '''기말고사 범위 시작 (2026-10-19)''' — 중간고사가 끝났다. 13강부터는 '''[[기말고사]]''' 페이지에서 시작한다: [[가상 메모리]] → [[주소 변환 시점]] → [[MMU]] → '''[[base and bounds]]'''(주소 계산) → [[free list]] → [[동적 재배치의 한계]].{/tip}\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
  },
  "읽는 순서": {
   "title": "읽는 순서",
@@ -1964,7 +1964,7 @@ const ARTICLES = {
   "category": [
    "기말고사"
   ],
-  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| 14강~ || (아직 배포 전) || OSTEP 순서상 다음은 segmentation → free-space management → paging → TLB (p.55의 \"free 공간 낭비\" 문제가 출발점) || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2 — xv6 Lock ==\n\n{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]] — 예상문제 20개\n\n강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
+  "body": "{info}📌 '''중간고사(2026-10-14)가 끝났다.''' 이 페이지부터는 '''기말고사 범위'''다. 중간 범위(1~12강: 프로세스·스케줄링·동시성)는 위키 위쪽 문서들 그대로 두고, 13강부터의 새 문서는 이 페이지에서 시작한다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지가 OSTEP의 첫 번째 기둥 [[가상화]] 중 '''CPU 가상화'''(프로세스·[[제한적 직접 실행]]·[[스케줄링]])와 두 번째 기둥 [[동시성]](락·CV·세마포어·데드락)이었다면, 기말은 '''메모리 가상화'''로 돌아온다. 13강의 질문은 하나다: '''\"모든 프로세스가 0번지부터 시작하는 자기만의 메모리를 가진 것처럼 보이게 하려면, OS와 하드웨어가 무엇을 해야 하나?\"'''\n\n{analogy}🎭 중간까지는 '''CPU 하나를 여러 손님이 번갈아 쓰게 하는 법'''(시간 나누기)을 배웠다. 기말은 '''창고(메모리) 하나를 여러 손님이 나눠 쓰게 하는 법'''(공간 나누기)이다. 손님마다 \"제 창고 0번 선반\"이라고 부르는 곳이 실제로는 창고 안 서로 다른 위치라서, 창고 관리인(OS + [[MMU]])이 매번 번호를 바꿔 준다.{/analogy}\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지 먼저 보고, 아래 진도표로 들어가라]]\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有 — '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\" — 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| '''14강''' Segmentation (결석 — 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]\n|-\n| 15강~ || (아직 배포 전) || OSTEP 순서상 다음은 paging → TLB || —\n|}\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위 낮음.{/info}\n\n{exam}🎯 '''중간고사에서 확인된 형식'''([[2026F 중간고사]]) — 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]] — 허브. 13강 전체를 슬라이드 순서로 한 번에 (p.1~57)\n# [[메모리 계층]] — RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10). 왜 잘 동작하나 → [[locality]]\n# [[메모리 가상화]] — 가상화 없음 → multiprogramming → protection 문제 → illusion (p.11~18)\n# [[가상 주소 공간]] — code·heap·stack, `mem.c` 로 확인하는 \"모든 주소는 가상\" (p.19~24)\n# [[주소 변환]] — 무엇을 하는가 + [[VM 설계 목표]] 넷 (p.25~27, p.37)\n# [[주소 변환 시점]] — compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]] — 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]] — dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]] — 프로세스 시작·종료·context switch 때 OS가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]] — 128 TB짜리 \"free\" 공간 문제 → 다음 강의로 (p.55)\n\n== 14강 읽는 순서 ==\n\n# [[세그멘테이션]] — 허브. 왜(base and bounds 의 internal fragmentation) → 세그먼트 배치 → 변환 → stack·sharing·protection → fragmentation (p.2~17)\n# [[세그먼트 주소 변환]] — 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]] — 음의 방향\n# [[코드 공유와 protection bit]] · [[segmentation fault]] — 범위 위반 vs 권한 위반\n# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]\n# [[free-space management]] — 허브 (p.18~39)\n# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐\n# [[할당 전략]] — Best / Worst / First / Next Fit ⭐⭐⭐\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]] — \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]] 그 자체. 13강은 \"그 주소가 사실 가짜(virtual)\"라는 이야기\n|-\n| 3강 [[프로그램 로딩]] — 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]] — 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]] — 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]도 같은 철학: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54 — 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]] — 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2 — xv6 Lock ==\n\n{warn}📌 '''마감 2026-10-25 (토) 23:00''' — 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]] — 허브. 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]] — `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]] → [[per-CPU free list]] — Problem 1: CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]] → [[bcache 해시 버킷]] — Problem 2: 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]] — 예상문제 20개\n\n강의 연결: 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 풀고, lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]] 그대로, free list 는 13강 [[free list]] 의 페이지판.\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식 — 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸 — 이 이어진다고 보면, 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
  },
  "가상 메모리": {
   "title": "가상 메모리 (Virtual Memory) — 13강 허브",
@@ -2065,6 +2065,110 @@ const ARTICLES = {
    "13강 Virtual Memory"
   ],
   "body": "13강의 마지막 내용 슬라이드(p.55). [[base and bounds]]가 왜 실제 시스템에 그대로 쓰일 수 없는지, 그래서 다음 강의에서 무엇을 배워야 하는지를 한 장으로 보여 준다.\n\n{def}p.55 '''Problems of Dynamic Relocation'''\n* We have assumed that the virtual space size is '''limited to 16 KB'''\n* '''In reality, it is huge!'''\n* \"Big chunk of \"free\" space '''takes up physical memory'''\" — 64-bit Linux machine, heap과 stack 사이 '''128 TB'''{/def}\n\n{analogy}🎭 '''침대 하나 쓰려고 호텔 층 전체를 빌리는 것'''. 실제로 쓰는 건 1층 로비(code·data)와 꼭대기 방 하나(stack)인데, base and bounds는 \"연속 구간 하나\"밖에 못 빌려 주니 그 사이 빈 층 전부를 빌려야 한다.{/analogy}\n\n[[img:L13-55.png|p.55 — 64-bit Linux 주소 공간: Code/Data/Heap 은 위쪽 몇 MB, Stack 은 0x7fff... 아래쪽, 그 사이 (free) 가 128 TB|large]]\n\n== 왜 문제인가 ==\n\nbase and bounds는 주소 공간을 '''하나의 연속 덩어리'''로 물리 메모리에 놓는다(p.41의 \"allocated but not in use\"). 16KB 장난감 주소 공간에서는 가운데 free 몇 KB를 낭비하는 정도지만, 실제 64-bit 주소 공간은 heap~stack 사이가 128 TB다. 이걸 통째로 물리 메모리에 잡을 수는 없다.\n\n* [[VM 설계 목표]] 중 '''Space efficiency ①''' — \"not wasting available physical memory\" — 위반\n* 주소 공간이 물리 메모리보다 크면 '''아예 로드할 수 없다'''\n\n{info}OSTEP 15장은 이 낭비를 '''internal fragmentation'''(할당된 칸 '''안'''에서 안 쓰이는 공간)이라고 부른다. 슬라이드에는 이 용어가 없으니 답안에는 슬라이드 표현(\"free space takes up physical memory\")을 먼저 쓰고, 용어는 덧붙이는 정도로.{/info}\n\n== 다음 강의로 ==\n\nOSTEP 순서(그리고 p.10 표가 \"Virtual Memory — '''4-KB page'''\"라고 예고한 것)대로라면 해결책은:\n# '''Segmentation''' (OSTEP 16장) — code·heap·stack '''세그먼트마다''' base/bounds 쌍을 따로 → 가운데 free를 물리 메모리에 안 올림\n# '''Free-space management''' (17장) — 크기가 제각각인 빈 칸을 [[free list]]로 관리 (external fragmentation)\n# '''Paging''' (18장~) — 고정 크기(4KB) page로 잘라 page table로 변환 → TLB\n\n(아직 배포되지 않은 강의 내용이므로 예고일 뿐 — 실제 14강 슬라이드가 오면 이 절을 고친다.)\n\n== 관련 문서 ==\n* [[base and bounds]] · [[가상 주소 공간]] · [[VM 설계 목표]] · [[free list]] · [[기말고사]]"
+ },
+ "세그멘테이션": {
+  "title": "세그멘테이션 (Segmentation) — 14강 허브",
+  "category": [
+   "14강 Segmentation",
+   "핵심"
+  ],
+  "body": "{info}📌 '''14강 슬라이드 `14-Segmentation.pdf`(41쪽) 기준. 수업 녹음 없음(결석).''' 덱 구성: p.2~3 base and bounds 복습과 그 비효율 → '''p.4~17 Segmentation'''(세그먼트·주소 변환·stack·sharing·protection·fragmentation·compaction) → '''p.18~39 Free-space Management'''(external fragmentation·splitting·coalescing·header·embedded free list·Best/Worst/First/Next Fit) → p.40 참고문헌(OSTEP 16·17장).{/info}\n\n'''세그멘테이션'''은 주소 공간을 '''논리적으로 다른 덩어리(segment) — code, heap, stack — 로 나누고, 덩어리마다 base 와 bounds(size) 를 따로 두는''' 주소 변환 방식이다. 13강의 [[base and bounds]]가 주소 공간 '''통째로''' 한 쌍의 레지스터만 썼기 때문에 heap 과 stack 사이의 거대한 빈 공간까지 물리 메모리를 차지했던 문제([[동적 재배치의 한계]])를 고친다. 대신 세그먼트 크기가 제각각이라 물리 메모리에 크기가 다른 구멍이 생기는 [[external fragmentation]]이 새 문제로 등장하고, 그걸 다루는 것이 덱 후반의 [[free-space management]]다.\n\n{def}p.5 원문 — \"'''Segment''' is just a contiguous portion of the address space of a particular length. Logically-different segment: code, stack, heap. Each segment can be placed in different part of physical memory. '''Base and bounds exist per each segment'''.\"\np.3 — \"'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted\" → [[internal fragmentation]]{/def}\n\n{analogy}🎭 '''이삿짐을 한 트럭에 싣느냐, 박스별로 택배로 보내느냐.''' base and bounds 는 집 전체(빈 방 포함)를 통째로 트럭 한 대에 싣는다 — 빈 방도 짐칸을 차지한다. 세그멘테이션은 '''부엌 박스·옷 박스·책 박스'''를 따로 포장해 창고의 빈 자리 아무 데나 넣고, 박스마다 '어디 넣었는지·몇 칸짜리인지'를 장부(세그먼트 테이블)에 적는다. 빈 방은 아예 안 보낸다. 대신 창고에 크기가 제각각인 빈 틈이 생겨서, 큰 박스가 들어갈 자리가 없을 수 있다(external fragmentation).{/analogy}\n\n[[anim:segment_map|세 세그먼트가 각자 다른 곳으로 가는 장면과, VA 4200(heap)·VA 15KB(stack)가 위 2비트로 세그먼트를 고르고 offset 을 base 에 더하는 장면을 먼저 보라]]\n\n[[sim:seg_translate]]\n\n== 1. 왜 — base and bounds 의 비효율 (p.2~3) ==\n\np.3: \"Big chunk of 'free' space / 'free' space takes up physical memory / Hard to run when an address space does not fit into physical memory (e.g., 64-bit Linux machine provides 128 TB virtual address space)\". 할당된 칸(주소 공간 하나) '''안'''에서 쓰지 않는 공간이 버려지는 것이 [[internal fragmentation]]이다.\n\n[[img:L14-03.png|p.3 Inefficiency of Base and Bound Approach — 0~16KB 주소 공간에서 code 0~1KB·heap 4~5KB·stack 15~16KB 를 빼면 전부 (free)|medium]]\n\n== 2. 세그먼트를 따로 놓기 (p.5~6) ⭐⭐ ==\n\n{|\n! Segment || Base || Size\n|-\n| Code || 32K || 2K\n|-\n| Heap || 34K || 2K\n|-\n| Stack || 28K || 2K\n|}\n물리 메모리 64KB 에 OS(0~16KB) 외에 세 세그먼트 6KB 만 놓인다. 주소 공간의 가운데 빈 공간은 '''물리 메모리를 쓰지 않는다'''.\n\n[[img:L14-06.png|p.6 Placing Segment in Physical Memory — Stack 28K, Code 32K, Heap 34K, 나머지는 not in use|large]]\n\n== 3. 주소 변환 (p.7~12) ⭐⭐⭐ ==\n가상 주소 14비트 중 '''위 2비트 = 세그먼트'''(00 Code, 01 Heap, 11 Stack, 10 미사용), '''아래 12비트 = offset'''(0~4095). 하드웨어는 offset 을 세그먼트 size 와 비교하고 통과하면 base 에 더한다. 자세한 계산과 함정은 [[세그먼트 주소 변환]].\n\n{|\n! VA || 비트 || 세그먼트 || offset || PA\n|-\n| 100 || 00 000001100100 || Code || 100 || 32K + 100 = '''32868''' (p.10)\n|-\n| 4200 || 01 000001101000 || Heap || 104 || 34K + 104 = '''34920''' (p.11)\n|-\n| 15KB || 11 110000000000 || Stack(음의 방향) || 3072 → −1024 || 28K − 1K = '''27KB''' ([[스택 세그먼트]])\n|}\n\n[[img:L14-09.png|p.9 Address Translation on Segmentation — VA 의 Seg 로 세그먼트 테이블(Size, Base)을 찾고, Offset < Size 면 Base 에 +/-, 아니면 Segmentation Fault|large]]\n\n{warn}'''함정 — p.11 \"Virtual address + base is not the correct physical address\".''' VA 4200 에 heap base 34K 를 그대로 더하면 틀린다. heap 세그먼트는 가상 주소 '''4096(4KB)'''에서 시작하므로 offset 은 4200 − 4096 = 104. 더하는 것은 VA 가 아니라 '''offset'''.{/warn}\n\n== 4. stack · sharing · protection (p.12~15) ⭐⭐ ==\n* stack 은 '''거꾸로(backward)''' 자란다 → 세그먼트 레지스터에 \"Grows Positive?\" 비트(1 양, 0 음) → [[스택 세그먼트]]\n* 세그먼트는 주소 공간끼리 '''공유'''할 수 있다(code sharing) → protection bit(Read / Write / Execute) → [[코드 공유와 protection bit]]\n* 범위를 넘으면 '''Segmentation Fault''', 범위 안이지만 권한이 없으면 '''Protection Fault''' → [[segmentation fault]]\n\n{|\n! Segment || Base || Size || Grows Positive? || Protection\n|-\n| Code || 32K || 2K || 1 || Read-Execute\n|-\n| Heap || 34K || 2K || 1 || Read-Write\n|-\n| Stack || 28K || 2K || 0 || Read-Write\n|}\n\n[[img:L14-15.png|p.15 Protection — 비교(<) → 덧셈(+/-) → 권한 검사(RW) 순서. 첫 번째에서 걸리면 Segmentation Fault, 마지막에서 걸리면 Protection Fault|large]]\n\n== 5. OS 가 할 일 — fragmentation 과 compaction (p.16~17) ⭐⭐ ==\n세그먼트 크기가 제각각이라 물리 메모리에 작은 구멍이 여기저기 생긴다. p.16: '''24KB 가 비어 있어도 연속이 아니면 20KB 요청을 못 준다''' → [[external fragmentation]]. 해결책 하나는 세그먼트를 다시 모아 붙이는 [[compaction]]이지만 비싸다(실행 중지 · 복사 · 세그먼트 레지스터 변경).\n\n== 6. Free-space management (p.18~39) ⭐⭐⭐ ==\n크기가 제각각인 빈 공간을 관리하는 일반 문제 — OS 의 세그먼트 배치에도, 유저 레벨 `malloc()/free()` 에도 똑같이 나온다. → [[free-space management]]\n* [[splitting과 coalescing]] — 큰 chunk 를 쪼개 주고, 반납된 이웃 chunk 를 합친다\n* [[할당 헤더]] — `free(ptr)` 이 크기를 모르므로 ptr 바로 앞 header(size, magic)에 적어 둔다\n* [[embedded free list]] — free list 노드(size, next)를 '''빈 공간 자신 안'''에 둔다\n* [[할당 전략]] — Best / Worst / First / Next Fit\n\n[[sim:fit_strategies]]\n\n== 13강과 비교 ==\n{|\n! || [[base and bounds]] (13강) || 세그멘테이션 (14강)\n|-\n| 레지스터 || base/bounds 한 쌍 || 세그먼트마다 (base, size, grows+, protection)\n|-\n| 옮기는 단위 || 주소 공간 통째 || code·heap·stack 각각\n|-\n| heap~stack 사이 빈 공간 || 물리 메모리 차지 ([[internal fragmentation]]) || 차지 안 함\n|-\n| 새 문제 || — || 크기가 제각각 → [[external fragmentation]], [[compaction]] 비용\n|-\n| 공유 || 불가 || code 세그먼트 공유 가능 (protection bit)\n|-\n| 범위 검사 || VA < bounds || offset < size (stack 은 |음수 offset| ≤ size)\n|}\n\n== 시험 대비 핵심 요약 ==\n# Segment = 주소 공간의 연속된 한 덩어리(code/heap/stack). '''세그먼트마다 base 와 bounds'''.\n# VA = 위 비트(세그먼트) + 아래 비트(offset). PA = '''offset''' + base (VA + base 아님). offset ≥ size 면 Segmentation Fault.\n# Stack 은 음의 방향: 음수 offset = offset − 최대 세그먼트 크기, PA = base + 음수 offset (예: 15KB → 27KB).\n# 세그먼트 레지스터 4칸: Base · Size · Grows Positive? · Protection(Code RE, Heap/Stack RW).\n# Segmentation Fault(범위) vs Protection Fault(권한) — 검사 순서는 범위 → 더하기 → 권한(p.15).\n# Internal fragmentation(할당 칸 안의 낭비, base and bounds) vs external fragmentation(칸 사이 구멍, 세그멘테이션).\n# Compaction: 재배치로 구멍을 합침 — 비쌈(stop, copy, change segment register).\n# Free-space management: splitting · coalescing · header(size, magic) · embedded free list · Best/Worst/First/Next Fit.\n\n== 관련 문서 ==\n* [[기말고사]] · [[가상 메모리]](13강) · [[base and bounds]] · [[동적 재배치의 한계]] · [[MMU]]\n* [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]]\n* [[internal fragmentation]] · [[external fragmentation]] · [[compaction]]\n* [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]"
+ },
+ "세그먼트 주소 변환": {
+  "title": "세그먼트 주소 변환 (Explicit Approach)",
+  "category": [
+   "14강 Segmentation",
+   "핵심"
+  ],
+  "body": "[[세그멘테이션]]에서 하드웨어가 가상 주소를 물리 주소로 바꾸는 방법. 14강 p.7~11. 슬라이드는 '''explicit approach''' — 가상 주소의 '''위 몇 비트'''로 세그먼트를 정한다.\n\n{def}p.7 — \"'''Explicit approach''': Chop up the address space into segments based on the '''top few bits''' of virtual address.\" 14비트 VA = Segment(0~3, 2비트) + Offset(0~4095, 12비트).\np.10 — \"$physical\\ address = offset + base$\"{/def}\n\n{analogy}🎭 '''아파트 동·호수'''. 주소 \"01동 104호\"에서 앞자리(동)로 어느 건물인지, 뒷자리(호수)로 그 건물 안 몇 번째 방인지 정한다. 건물마다 실제 위치(base)가 다르니, 실제 주소 = 그 건물 위치 + 호수. 단지 전체 번호(VA)에 건물 위치를 더하면 엉뚱한 곳이 나온다.{/analogy}\n\n<pre class=\"ascii\">\n   비트  13 12 | 11 10  9  8  7  6  5  4  3  2  1  0\n        segment |            offset (0 ~ 4095)\n   '''00''' Code   '''01''' Heap   '''11''' Stack   10 (미사용)\n\n   VA 100  = 00 | 000001100100  → Code,  offset 100 → 32K + 100 = 32868\n   VA 4200 = 01 | 000001101000  → Heap,  offset 104 → 34K + 104 = 34920\n<\/pre>\n\n[[img:L14-08.png|p.8 VA 4200 (01000001101000b) — 위 2비트 01 = Heap, offset 0x068 = 104|large]]\n[[img:L14-11.png|p.11 Referring to Heap Segment — heap 은 가상 주소 4096 에서 시작하므로 offset 104, PA = 104 + 34K = 34920|large]]\n\n[[sim:seg_translate]]\n\n== 계산 순서 ==\n# VA 를 2진수로 → 위 2비트 = 세그먼트 번호, 아래 12비트 = offset (= VA − 세그먼트 번호 × 4096)\n# 세그먼트 테이블에서 그 세그먼트의 base, size, grows positive?, protection 을 읽는다\n# 양의 방향: offset < size ? 아니면 [[segmentation fault]]. 통과하면 PA = base + offset\n# 음의 방향(stack): [[스택 세그먼트]] 규칙\n# 쓰기인데 W 권한이 없으면 Protection Fault ([[코드 공유와 protection bit]])\n\n{warn}'''함정 두 개.''' ① PA = '''offset''' + base 다. VA 4200 + 34K 는 틀림(p.11 원문 \"Virtual address + base is not the correct physical address\"). ② code 는 가상 주소 0 에서 시작하므로 VA = offset 이라 VA + base 가 우연히 맞는다 — 이걸 일반 규칙으로 착각하지 말 것.{/warn}\n\n{quiz}같은 세그먼트 테이블(Code 32K/2K, Heap 34K/2K)에서 VA 4500 과 VA 6200 의 물리 주소는?{/quiz}\n{answer}VA 4500 = 01 | offset 404 → 404 < 2048 → 34K + 404 = '''35220'''. VA 6200 = 01 | offset 2104 → 2104 ≥ 2048 → '''Segmentation Fault''' (heap 세그먼트 size 2KB 를 넘음).{/answer}\n\n== 관련 문서 ==\n* [[세그멘테이션]] · [[스택 세그먼트]] · [[segmentation fault]] · [[base and bounds]] · [[MMU]]"
+ },
+ "스택 세그먼트": {
+  "title": "스택 세그먼트 (Negative-Growth Support)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "stack 은 높은 주소에서 낮은 주소로 '''거꾸로 자라므로''', [[세그먼트 주소 변환]]을 그대로 쓰면 안 된다. 14강 p.12.\n\n{def}p.12 원문 — \"Stack grows '''backward'''. It starts at 28KB and grows back to 26KB. '''Extra hardware support''' is needed: The hardware checks which way the segment grows — 1: positive direction, 0: negative direction.\"{/def}\n\n{analogy}🎭 '''천장에 매다는 선반.''' 다른 선반은 바닥(base)에서 위로 쌓지만, 이 선반은 천장(base = 28KB)에 붙어 아래로 내려온다. 그래서 '몇 번째 칸'을 셀 때 천장에서 아래로 빼야 한다.{/analogy}\n\n{|\n! Segment || Base || Size || Grows Positive?\n|-\n| Code || 32K || 2K || 1\n|-\n| Heap || 34K || 2K || 1\n|-\n| Stack || 28K || 2K || '''0'''\n|}\n\n[[img:L14-12.png|p.12 Referring to Stack Segment — stack 은 28KB 에서 26KB 쪽으로 자람, Grows Positive? = 0|large]]\n\n== 계산 (OSTEP 16장 규칙 — 슬라이드는 결과 그림만 보여 준다) ⭐⭐ ==\n# VA 의 offset 을 구한다 (위 2비트 11 → stack).\n# '''음수 offset = offset − 최대 세그먼트 크기''' (12비트 offset 이므로 4KB = 4096).\n# |음수 offset| ≤ size 이면 통과, 아니면 [[segmentation fault]].\n# PA = base + 음수 offset.\n\n<pre class=\"ascii\">\n   VA 15KB = 11 | 110000000000   → offset 3072\n   3072 − 4096 = −1024           → |−1024| = 1KB ≤ size 2KB ✓\n   PA = 28KB − 1KB = '''27KB'''\n   stack 이 쓸 수 있는 VA: 14KB ~ 16KB−1  ↔  PA 26KB ~ 28KB−1\n<\/pre>\n\n{warn}stack 의 base(28KB)는 세그먼트의 '''위쪽 끝'''이다. 그래서 PA 는 base 보다 '''작다'''. VA 14KB(offset 2048 → −2048)가 가장 아래 칸 26KB 이고, VA 14KB − 1(offset 2047 → −2049)은 size 를 넘어 fault.{/warn}\n\n{quiz}VA 15.5KB(= 15872)의 물리 주소는?{/quiz}\n{answer}offset = 15872 − 12288 = 3584 → 3584 − 4096 = −512 → |−512| ≤ 2048 → PA = 28672 − 512 = '''28160''' (27.5KB).{/answer}\n\n== 관련 문서 ==\n* [[세그먼트 주소 변환]] · [[세그멘테이션]] · [[스택]] · [[segmentation fault]]"
+ },
+ "코드 공유와 protection bit": {
+  "title": "코드 공유와 Protection Bit (Support for Sharing)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "세그먼트는 여러 주소 공간이 '''같은 물리 메모리 조각을 함께 쓰게''' 할 수 있다. 대표가 code 공유이고, 그러려면 세그먼트마다 '''권한 비트'''가 필요하다. 14강 p.13~14.\n\n{def}p.13 원문 — \"Segment can be '''shared''' between address space. Code sharing is still in use in systems today. Extra hardware support is needed for form of a '''protection bit''': A few more bits per segment to indicate permissions of '''read, write and execute'''.\"{/def}\n\n{analogy}🎭 '''도서관 열람실 책.''' 같은 책(code)을 여러 사람이 동시에 읽어도(Read-Execute) 되지만, 아무도 그 책에 낙서(Write)하면 안 된다. 각자 쓰는 노트(heap·stack)는 따로 받는다.{/analogy}\n\n{|\n! Segment || Base || Size || Grows Positive? || Protection\n|-\n| Code || 32K || 2K || 1 || '''Read-Execute'''\n|-\n| Heap || 34K || 2K || 1 || Read-Write\n|-\n| Stack || 28K || 2K || 0 || Read-Write\n|}\n\n[[img:L14-14.png|p.14 Example: Code Sharing — Process A 와 B 의 세그먼트 테이블이 code 를 같은 32KB(RE)로 가리키고, heap·stack 은 각자 다른 곳|large]]\n\n* 공유의 이점(p.14): \"Use available memory space in a more efficient manner\" — 같은 코드를 한 번만 올린다.\n* 공유가 안전하려면 code 는 '''쓰기 금지'''(RE)여야 한다. 한 프로세스가 고치면 다른 프로세스 코드가 바뀌므로.\n* 하드웨어 검사 순서(p.15): 범위(offset < size) → 더하기 → '''권한'''. 권한 위반은 '''Protection Fault''' ([[segmentation fault]] 와 구별).\n\n{quiz}Process A 가 code 세그먼트(RE) 안의 VA 100 에 `mov %eax, X` 로 store 하면?{/quiz}\n{answer}offset 100 < size 2K 라 범위 검사는 통과하지만, store(Write)인데 code 가 Read-Execute 라 '''Protection Fault'''.{/answer}\n\n== 관련 문서 ==\n* [[세그멘테이션]] · [[segmentation fault]] · [[세그먼트 주소 변환]] · [[주소 공간]]"
+ },
+ "segmentation fault": {
+  "title": "Segmentation Fault vs Protection Fault",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "세그멘테이션 하드웨어가 메모리 참조를 거부하는 두 경우. 14강 p.9, p.15.\n\n{def}p.15 그림 — CPU 가 낸 (Seg, Offset) 에 대해 ① Offset < Size ? 아니면 '''Segmentation Fault!''' ② Base 에 +/- ③ 접근 종류가 Prot(RW 등)에 맞나? 아니면 '''Protection Fault!''' → 통과하면 Physical address.{/def}\n\n{analogy}🎭 '''아파트 출입.''' 그 동에 없는 호수를 대면 경비실에서 \"그런 집 없어요\"(segmentation fault). 집은 있는데 남의 집 열쇠로 열려고 하면 \"권한 없어요\"(protection fault).{/analogy}\n\n[[img:L14-15.png|p.15 Protection — < 에서 걸리면 Segmentation Fault, RW 에서 걸리면 Protection Fault|large]]\n\n{|\n! || Segmentation Fault || Protection Fault\n|-\n| 무엇을 어겼나 || '''범위''' — offset ≥ size (stack 은 |음수 offset| > size), 또는 쓰지 않는 세그먼트 || '''권한''' — 범위는 맞지만 접근 종류(쓰기·실행)가 protection bit 에 없음\n|-\n| 검사 시점 || 맨 처음 (더하기 전) || 마지막 (더한 뒤)\n|-\n| 예 || heap VA 7KB(offset 3KB ≥ 2K) || code(RE) 세그먼트에 store\n|}\n\n* 13강 [[base and bounds]]의 \"Raise exception\"(VA ≥ bounds)이 세그먼트별로 바뀐 것이 segmentation fault 다. 이름은 세그먼트 시대에서 왔고, 지금 Linux 에서 잘못된 메모리 접근을 부를 때도 그대로 쓴다.\n* 둘 다 하드웨어 예외 → OS 의 트랩 핸들러로 넘어간다([[트랩]]). 보통 프로세스를 종료한다.\n\n== 관련 문서 ==\n* [[세그먼트 주소 변환]] · [[코드 공유와 protection bit]] · [[스택 세그먼트]] · [[세그멘테이션]]"
+ },
+ "internal fragmentation": {
+  "title": "Internal Fragmentation (내부 단편화)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "할당된 한 칸 '''안에서''' 쓰이지 않고 버려지는 공간. 14강 p.3 이 [[base and bounds]]의 비효율을 이 이름으로 부른다.\n\n{def}p.3 원문 — \"'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted.\"{/def}\n\n{analogy}🎭 '''3인용 테이블에 혼자 앉기.''' 테이블(할당 단위)은 통째로 내 것이지만 의자 두 개는 비어 있다. 다른 손님도 못 쓴다.{/analogy}\n\n[[img:L14-03.png|p.3 — base and bounds 는 16KB 주소 공간을 통째로 할당하므로 heap 과 stack 사이의 (free)까지 물리 메모리를 차지한다|medium]]\n\n{|\n! || Internal fragmentation || [[external fragmentation|External fragmentation]]\n|-\n| 어디서 낭비 || 할당된 칸 '''안''' || 할당된 칸들 '''사이'''의 작은 구멍\n|-\n| 대표 상황 || [[base and bounds]](주소 공간 통째 할당) || [[세그멘테이션]], `malloc` 처럼 크기가 제각각인 할당\n|-\n| 증상 || 할당은 됐는데 일부를 안 씀 || 빈 공간 합은 충분한데 연속된 큰 덩어리가 없어 요청 실패\n|}\n\n{tip}암기 요령: '''in'''ternal = 칸 '''안''', '''ex'''ternal = 칸 '''밖'''(사이). 13강 p.55 는 이 현상을 그림으로만 보여 줬고, 14강 p.3 에서 이름이 붙었다.{/tip}\n\n== 관련 문서 ==\n* [[external fragmentation]] · [[동적 재배치의 한계]] · [[세그멘테이션]] · [[base and bounds]]"
+ },
+ "external fragmentation": {
+  "title": "External Fragmentation (외부 단편화)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "빈 공간이 '''크기가 제각각인 작은 조각들'''로 흩어져서, 합은 충분한데 '''연속된''' 덩어리가 없어 요청을 못 들어주는 현상. 14강 p.16(세그먼트), p.19~20(free-space management).\n\n{def}p.16 — \"'''External fragmentation''': Little holes of free space in physical memory that make difficulty to allocate new segments. There is '''24KB free''', but '''not in one contiguous''' segment. The OS '''cannot''' satisfy the '''20KB request'''.\"\np.19 — \"External fragmentation is unavoidable: The free space gets chopped into little pieces of different sizes and is thus fragmented. Subsequent requests may fail because there is no contiguous space that can satisfy the request.\"{/def}\n\n{analogy}🎭 '''주차장의 띄엄띄엄 빈 자리.''' 빈 칸이 모두 합쳐 버스 한 대 길이만큼 있어도, 승용차 칸 하나씩 흩어져 있으면 버스는 못 댄다.{/analogy}\n\n[[img:L14-17.png|p.17 Memory Compaction — 왼쪽(Not compacted): 할당 칸 사이에 not in use 구멍들 = External Fragmentation, 오른쪽(Compacted): 할당 칸을 한쪽으로 몰아 빈 공간 하나로|large]]\n\n<pre class=\"ascii\">\n   p.20  30-byte heap:   [ free 10 ][ used 10 ][ free 10 ]\n         빈 공간 합 = 20,  그러나 연속 최대 = 10\n         malloc(15)  → '''실패'''\n<\/pre>\n\n* 왜 생기나: 크기가 다른 세그먼트(또는 `malloc` chunk)를 넣고 빼다 보면 구멍 크기가 제각각이 된다 — \"unavoidable\"(p.19).\n* 대응: ① [[compaction]] — 다시 모아 붙이기(비쌈) ② [[splitting과 coalescing|coalescing]] — 반납된 이웃 구멍 합치기 ③ [[할당 전략]] — 어떤 구멍에 넣을지 잘 고르기(어느 전략도 항상 이기지는 않는다).\n\n{quiz}free 구멍이 8KB, 6KB, 10KB 로 흩어져 있다. 12KB 세그먼트 요청은? 구멍 합은?{/quiz}\n{answer}합은 24KB 지만 연속된 가장 큰 구멍이 10KB 라 '''실패''' — external fragmentation. (p.16 의 \"24KB free 인데 20KB 실패\"와 같은 구조){/answer}\n\n== 관련 문서 ==\n* [[internal fragmentation]] · [[compaction]] · [[free-space management]] · [[할당 전략]] · [[세그멘테이션]]"
+ },
+ "compaction": {
+  "title": "Compaction (메모리 압축)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "흩어진 세그먼트를 물리 메모리 한쪽으로 '''다시 모아 붙여서''' 빈 공간을 하나의 큰 덩어리로 만드는 것. [[external fragmentation]]에 대한 OS 의 대응. 14강 p.16~17.\n\n{def}p.16 원문 — \"'''Compaction''': '''Rearranging''' the existing segments in physical memory. Compaction is '''costly''': '''Stop''' running process / '''Copy''' data to somewhere / '''Change''' segment register value.\"{/def}\n\n{analogy}🎭 '''책장 정리.''' 책 사이사이 빈 칸을 없애려고 책을 전부 한쪽으로 밀어 붙인다. 정리하는 동안 책을 꺼내 볼 수 없고(stop), 책을 하나하나 옮겨야 하고(copy), 색인 카드의 위치도 다 고쳐야 한다(change segment register).{/analogy}\n\n[[img:L14-17.png|p.17 — Not compacted(할당 칸 사이에 구멍) → Compacted(할당 칸이 24KB~48KB 에 붙고 48KB~64KB 가 한 덩어리로 빔)|large]]\n\n{|\n! 비용 || 왜\n|-\n| Stop running process || 옮기는 도중에 그 세그먼트를 쓰면 안 된다\n|-\n| Copy data || 세그먼트 내용 전체를 메모리 복사 — 크기에 비례\n|-\n| Change segment register value || 옮긴 세그먼트의 base 가 바뀐다 (프로그램은 모름 — [[VM 설계 목표|transparency]])\n|}\n\n{tip}세그멘테이션이라서 compaction 이 '''가능'''하다는 점도 기억할 것: 프로그램은 가상 주소만 쓰므로 OS 가 base 만 바꾸면 프로그램 수정 없이 옮길 수 있다(13강 [[주소 변환 시점|execution time 변환]]의 장점). 반면 유저 레벨 `malloc` 은 포인터를 돌려줬기 때문에 '''compaction 이 불가능'''하다 — p.21 가정 \"No compaction: Once the memory is allocated, it cannot be relocated\".{/tip}\n\n== 관련 문서 ==\n* [[external fragmentation]] · [[세그멘테이션]] · [[free-space management]] · [[base and bounds]]"
+ },
+ "free-space management": {
+  "title": "Free-space Management (빈 공간 관리)",
+  "category": [
+   "14강 Segmentation",
+   "핵심"
+  ],
+  "body": "'''크기가 제각각인''' 빈 공간을 어떻게 기록하고, 요청이 오면 어디서 떼어 주고, 반납되면 어떻게 합치는가. 14강 p.18~39 (OSTEP 17장). OS 가 세그먼트를 물리 메모리에 놓을 때와, 유저 라이브러리가 `malloc()/free()` 로 heap 을 나눌 때 '''같은 문제'''다.\n\n{def}p.19 — \"Free-space management becomes more difficult when the free space consists of '''variable-sized units'''. e.g., 1: OS managing physical memory with segmentation (each segment could have a variable size) / e.g., 2: User-level heap-allocation library (`malloc()` and `free()`). '''External fragmentation is unavoidable'''.\"{/def}\n\n{analogy}🎭 '''고무줄 길이를 잘라 파는 가게.''' 손님마다 원하는 길이가 다르다. 긴 롤에서 잘라 주고(splitting), 손님이 돌려준 조각이 옆 조각과 이어지면 다시 이어 붙이고(coalescing), 각 조각에 길이 꼬리표를 붙이고(header), 남은 조각 목록은 조각 자체에 적어 둔다(embedded free list). 어떤 조각에서 자를지가 [[할당 전략]].{/analogy}\n\n[[sim:fit_strategies]]\n\n== 가정 (p.21) ==\n* 인터페이스: `void *malloc(size_t size)`, `void free(void *ptr)` — '''free 는 크기를 받지 않는다''' → [[할당 헤더]]\n* '''No compaction''': 한 번 준 메모리는 옮길 수 없다(포인터를 이미 줬으므로) → [[compaction]] 불가\n* 연속된 바이트 영역을 할당 / 전체 빈 공간은 고정(실제로는 `sbrk` 같은 시스템 콜로 늘릴 수 있음)\n\n== 메커니즘 → 정책 ==\n{|\n! 구분 || 문서 || 슬라이드\n|-\n| 쪼개 주기 · 합치기 || [[splitting과 coalescing]] || p.22~25\n|-\n| 크기 기록 || [[할당 헤더]] (size, magic) || p.26~28\n|-\n| 목록을 빈 공간 안에 || [[embedded free list]] (node_t: size, next) || p.29~36\n|-\n| 어디서 떼어 줄지 || [[할당 전략]] (Best/Worst/First/Next Fit) || p.37~39\n|}\n\n{tip}4강의 \"mechanism vs policy\"(중간고사 P2-a 정답 mechanism)와 같은 구조다. splitting·coalescing·header 는 '''어떻게'''(mechanism), Best/Worst/First/Next Fit 은 '''어디를'''(policy).{/tip}\n\n== 관련 문서 ==\n* [[세그멘테이션]] · [[external fragmentation]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]] · [[free list]](13강)"
+ },
+ "splitting과 coalescing": {
+  "title": "Splitting과 Coalescing",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "[[free-space management]]의 두 기본 메커니즘. 할당할 때 큰 빈 chunk 를 '''쪼개고(splitting)''', 반납될 때 주소가 붙어 있는 빈 chunk 들을 '''합친다(coalescing)'''. 14강 p.22~25.\n\n{def}p.22 — \"'''Splitting''': Finding a free chunk of memory that can satisfy the request and splitting it into two. It works when a request is smaller than the size of free chunks.\"\np.25 — \"'''Coalescing''': merge returning a free chunk with existing chunks into a large single free chunk if addresses of them are nearby.\"{/def}\n\n{analogy}🎭 '''피자 조각.''' 한 조각을 원하는 손님에게 큰 판에서 잘라 주는 게 splitting. 반납된 조각들이 원래 붙어 있던 자리면 다시 한 판으로 붙여 두는 게 coalescing — 그래야 나중에 반 판을 원하는 손님에게 줄 수 있다.{/analogy}\n\n== Splitting (p.22~23) ==\n<pre class=\"ascii\">\n   30-byte heap: [ free 0~10 ][ used 10~20 ][ free 20~30 ]\n   free list: head → (addr 0, len 10) → (addr 20, len 10) → NULL\n\n   malloc(1)  → (addr 20, len 10) 을 쪼갬: 앞 1 바이트는 호출자에게, 나머지는 리스트에\n   free list: head → (addr 0, len 10) → (addr '''21''', len '''9''') → NULL\n<\/pre>\n\n[[img:L14-23.png|p.23 Splitting — malloc(1) 이 addr 20 의 10바이트 chunk 를 1 + 9 로 나눔|large]]\n\n== Coalescing (p.24~25) ==\n<pre class=\"ascii\">\n   가운데 used(addr 10)를 free → 그냥 리스트 앞에 넣으면\n   free list: head → (10, 10) → (0, 10) → (20, 10) → NULL      ← 30 바이트가 다 비었는데 조각 3개!\n   coalescing 하면\n   free list: head → (0, '''30''') → NULL\n<\/pre>\n\n[[img:L14-25.png|p.25 Coalescing — 주소가 이어진 세 chunk 를 len 30 하나로|large]]\n\n{warn}coalescing 을 안 하면 빈 공간 합이 충분해도 큰 요청이 실패한다 — [[external fragmentation]]. 30 바이트가 다 비었는데 조각 3개(각 10)라면 `malloc(15)` 가 실패한다. 13강 [[free list]]의 16KB·32KB·48KB 세 노드도 같은 모습이었다.{/warn}\n\n{quiz}free list 가 (addr 0, len 10) → (addr 20, len 10) 일 때 `malloc(4)` 를 하고 나면? 요청은 리스트 뒤쪽 chunk 에서 떼어 준다고 하자.{/quiz}\n{answer}(addr 0, len 10) → (addr '''24''', len '''6''') — addr 20 chunk 의 앞 4바이트를 주고 나머지 6이 남는다(p.23 과 같은 방식).{/answer}\n\n== 관련 문서 ==\n* [[free-space management]] · [[embedded free list]] · [[external fragmentation]] · [[할당 전략]]"
+ },
+ "할당 헤더": {
+  "title": "할당 헤더 (Header of Allocated Memory Chunk)",
+  "category": [
+   "14강 Segmentation",
+   "용어"
+  ],
+  "body": "`free(void *ptr)` 은 크기를 받지 않는다. 그래서 할당기는 돌려준 영역 '''바로 앞에''' 크기 등을 적은 header 를 몰래 붙여 둔다. 14강 p.26~28.\n\n{def}p.26 — \"The interface to `free(void *ptr)` does not take a size. Most allocators store extra information in a '''header block'''.\"\np.27 — \"The header contains the '''size''' of the allocated memory region. The header may also contain additional pointers to speed up deallocation, a '''magic number''' for integrity checking, other information.\"{/def}\n\n{analogy}🎭 '''택배 상자 송장.''' 손님(호출자)은 상자 안 물건(ptr)만 받지만, 상자 겉면 바로 앞에 송장(header)이 붙어 있다. 반품(free)할 때 직원이 송장을 보고 크기와 진짜 우리 상자인지(magic)를 확인한다.{/analogy}\n\n<pre class=\"c\">\ntypedef struct __header_t {\n    int size;      // 호출자가 요청한 크기 (예: 20)\n    int magic;     // 1234567 — 진짜 header 인지 확인용\n} header_t;\n\nvoid free(void *ptr) {\n    header_t *hptr = (void *)ptr - sizeof(header_t);   // ptr 바로 앞이 header\n    assert(hptr->magic == 1234567);\n    ...\n}\n<\/pre>\n\n[[img:L14-27.png|p.27 — hptr 이 가리키는 header(size: 20, magic: 1234567) 바로 뒤가 ptr, 그 뒤 20 바이트가 호출자에게 돌려준 영역|medium]]\n\n* p.28: \"The size for free region is the size of the header '''plus''' the size of the space allocated to the user. If a user requests N bytes, the library searches for a free chunk of size '''N plus the size of the header'''.\"\n* 예(p.33): header 8 바이트, `malloc(100)` → free chunk 에서 '''108''' 바이트를 떼어 간다(4088 → 3980).\n\n{warn}함정: `malloc(N)` 이 리스트에서 빼 가는 크기는 N 이 아니라 '''N + sizeof(header)'''. free list 길이 계산 문제에서 header 를 빼먹으면 틀린다.{/warn}\n\n== 관련 문서 ==\n* [[embedded free list]] · [[free-space management]] · [[splitting과 coalescing]]"
+ },
+ "embedded free list": {
+  "title": "Embedded Free List (빈 공간 안에 심은 free list)",
+  "category": [
+   "14강 Segmentation",
+   "핵심"
+  ],
+  "body": "free list 를 위한 노드를 따로 `malloc` 할 수는 없다(그게 지금 만드는 malloc 이니까). 그래서 '''빈 chunk 자기 자신의 앞부분'''에 노드(size, next)를 적어 둔다. 14강 p.29~36. 과제 2 xv6 `kalloc` 의 `struct run` 도 같은 발상이다(빈 페이지 안에 next 포인터).\n\n{def}p.29 — \"How do we build such a list '''inside the free space itself'''?\"\np.30 노드: `typedef struct __node_t { int size; struct __node_t *next; } node_t;` (sizeof = 8){/def}\n\n{analogy}🎭 '''빈 방 문에 붙인 메모.''' 빈 방 목록을 따로 장부에 적지 않고, 각 빈 방 문에 \"이 방 크기 / 다음 빈 방은 몇 호\" 메모를 붙인다. 방이 차면 메모를 떼고, 비면 다시 붙인다.{/analogy}\n\n== 따라가기 — 4KB heap (가상 주소 16KB 에서 시작) ⭐⭐ ==\n<pre class=\"c\">\nnode_t *head = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);\nhead->size = 4096 - sizeof(node_t);   // 4088\nhead->next = NULL;\n<\/pre>\n\n{|\n! 단계 || free list || 근거\n|-\n| 처음 || head → (addr 0, len '''4088''') → NULL || p.31: 4096 − 노드 8\n|-\n| `ptr = malloc(100)` || head → (addr 108, len '''3980''') → NULL || p.33: header 8 + 100 = 108 바이트를 떼어 감, 4088 − 108\n|-\n| malloc(100) 두 번 더 || head → (addr 324, len '''3764''') → NULL || p.34: 108 × 3 = 324, 4088 − 324\n|-\n| `free(sptr)` (가운데 chunk, addr 108) || head → (addr 108, len 100) → (addr 324, len 3764) → NULL || p.35: 반납된 chunk 의 next = 16708 = 16K + 324\n|-\n| 나머지 두 chunk 도 free || head → (216) → (0) → (108) → (324, 3764) → NULL || p.36: '''조각 4개 — coalescing 필요'''\n|}\n\n[[img:L14-33.png|p.33 — malloc(100) 뒤: 앞 108 바이트 = header(size 100, magic 1234567) + 100 바이트, 남은 free chunk 3980|large]]\n[[img:L14-36.png|p.36 Free Space With Freed Chunks — 다 반납했는데 free list 가 216 → 0 → 108 → 324 로 조각나 있다(External Fragmentation, coalescing 필요)|large]]\n\n{warn}p.36 의 노드는 len:100 으로 그려져 있지만 실제로 반납된 영역은 header 포함 108 바이트씩이다(주소 0 → 108 → 216 → 324 간격이 108). 숫자가 어긋나 보이면 header 8 바이트를 떠올릴 것.{/warn}\n\n{quiz}같은 4KB heap(노드 8 바이트, header 8 바이트)에서 `malloc(50)` 한 번 뒤 free chunk 의 addr 과 len 은?{/quiz}\n{answer}떼어 가는 크기 = 50 + 8 = 58 → free chunk 는 '''addr 58, len 4088 − 58 = 4030'''.{/answer}\n\n== 관련 문서 ==\n* [[할당 헤더]] · [[splitting과 coalescing]] · [[free-space management]] · [[kalloc]](과제 2 `struct run`) · [[free list]](13강)"
+ },
+ "할당 전략": {
+  "title": "할당 전략 (Best / Worst / First / Next Fit)",
+  "category": [
+   "14강 Segmentation",
+   "핵심"
+  ],
+  "body": "요청 크기 이상인 빈 chunk 가 여러 개일 때 '''어느 것에서 떼어 줄지'''를 정하는 정책. 14강 p.37~39. 이름(Best/Worst/First/Next Fit)은 슬라이드 그림 안에만 있으니 정확히 외울 것 — 정의→용어 문제 후보.\n\n{def}p.37~38 원문\n* '''Best Fit''': Finding free chunks that are big or bigger than the request; returning the one of '''smallest''' in the chunks in the group of candidates; '''a full search''' of free space is required.\n* '''Worst Fit''': Finding the '''largest''' free chunks and allocating the amount of the request; keeping the remaining chunk on the free list; a full search of free space is still required.\n* '''First Fit''': Finding the '''first''' chunk that is big enough for the request; returning the requested amount and remaining the rest of the chunk; '''no exhaustive search''' required.\n* '''Next Fit''': Finding the first chunk that is big enough; searching at '''where one was looking at''' instead of the beginning of the list; spread the searches for free space throughout the list more '''uniformly'''; no exhaustive search required.{/def}\n\n{analogy}🎭 '''주차 자리 고르기.''' Best = 차에 딱 맞는 가장 좁은 자리(남는 공간 최소, 대신 자투리가 쌓임). Worst = 가장 넓은 자리(큰 자리를 남겨 두려는 의도). First = 입구에서 처음 보이는 들어갈 만한 자리. Next = 지난번에 댄 곳 근처부터 찾기.{/analogy}\n\n[[img:L14-39.png|p.39 Examples — head → 10 → 30 → 20 에 요청 15: Best-fit 은 20 에서 떼어 10 → 30 → 5, Worst-fit 은 30 에서 떼어 10 → 15 → 20|large]]\n\n[[sim:fit_strategies]]\n\n{|\n! 전략 || 고르는 chunk || 리스트 전체 탐색? || p.39 (요청 15, 10→30→20) 결과\n|-\n| Best Fit || 충분한 것 중 '''가장 작은''' 것 || 필요 || 10 → 30 → '''5'''\n|-\n| Worst Fit || '''가장 큰''' 것 || 필요 || 10 → '''15''' → 20\n|-\n| First Fit || 앞에서부터 '''첫''' 충분한 것 || 불필요 || 10 → '''15''' → 20 (첫 충분한 것이 30)\n|-\n| Next Fit || '''지난번 찾던 곳'''부터 첫 충분한 것 || 불필요 || 처음엔 First Fit 과 같음\n|}\n\n{warn}'''함정''' ① First Fit 과 Worst Fit 이 p.39 예제에서는 우연히 같은 결과(10→15→20)다 — 정의가 같은 게 아니다. ② Best Fit 은 남는 조각이 가장 작아 좋아 보이지만, 그 작은 조각(5)들이 쌓여 [[external fragmentation]]을 만든다. ③ 어느 전략도 항상 이기지 않는다 — 시뮬레이터에서 요청 15, 8, 12, 10, 9 를 넣으면 '''Best·Next 는 마지막 9 에서 실패, Worst·First 는 성공'''한다.{/warn}\n\n{quiz}free list head → 25 → 12 → 40 → 18 에 요청 16 이 오면 네 전략이 각각 어느 chunk 를 고르나? (Next Fit 은 지난번에 두 번째 노드(12)를 보고 있었다고 하자.){/quiz}\n{answer}Best: 16 이상 중 가장 작은 '''18''' → 25 → 12 → 40 → 2. Worst: '''40''' → 25 → 12 → 24 → 18. First: 앞에서 첫 충분한 '''25''' → 9 → 12 → 40 → 18. Next: 12 부터 찾음 → 12 는 부족, 다음 '''40''' → 25 → 12 → 24 → 18.{/answer}\n\n== 관련 문서 ==\n* [[free-space management]] · [[splitting과 coalescing]] · [[external fragmentation]] · [[세그멘테이션]]"
  },
  "과제2 xv6 lock": {
   "title": "과제 2 — xv6 Lock (per-CPU kalloc · bcache 해시 버킷)",
@@ -2579,6 +2683,24 @@ const NAV_ORDER = [
    "base and bounds",
    "free list",
    "동적 재배치의 한계"
+  ]
+ },
+ {
+  "group": "14강 Segmentation",
+  "items": [
+   "세그멘테이션",
+   "세그먼트 주소 변환",
+   "스택 세그먼트",
+   "코드 공유와 protection bit",
+   "segmentation fault",
+   "internal fragmentation",
+   "external fragmentation",
+   "compaction",
+   "free-space management",
+   "splitting과 coalescing",
+   "할당 헤더",
+   "embedded free list",
+   "할당 전략"
   ]
  },
  {
@@ -6074,6 +6196,106 @@ window.SIMS = window.SIMS || {};
     for (var q = 0; q < N; q++) vars.push({ name: "P" + q, label: "P" + q, group: "철학자" });
     return { panels: panels, vars: vars, steps: steps };
   }
+})(typeof window !== "undefined" ? window : globalThis);
+
+// ===== sims/fit_strategies.js =====
+// fit_strategies — 14강 p.37~39: free list 에서 요청 크기에 맞는 chunk 를 고르는 네 전략
+// Best Fit(가장 작은 충분한 chunk) / Worst Fit(가장 큰 chunk) / First Fit(앞에서 첫 충분한 chunk) /
+// Next Fit(지난번에 찾던 곳부터 첫 충분한 chunk, 끝에 가면 처음으로).
+// 고른 chunk 는 split: 요청만큼 떼어 주고 나머지는 리스트에 남긴다(0 이 되면 노드 제거). coalescing 은 하지 않는다.
+// 옵션 req:
+//   slide — p.39 그대로: head → 10 → 30 → 20, 요청 15 → best 10·30·5 / worst 10·15·20
+//   seq   — 같은 리스트에 요청 15, 8, 12, 10, 9 → 마지막 9 에서 best·next 는 실패, worst·first 는 성공
+// Next Fit 의 '찾던 곳' = 지난번 chunk 를 떼어 간 노드(그 노드가 0 이 되어 사라졌으면 그다음 노드). 위키 규약(슬라이드는 정의만 줌).
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var CODE = {
+    best:  ["// Best Fit (p.37)", "후보 = { chunk : len >= 요청 }   // 리스트 전체 탐색", "고른 것 = 후보 중 len 이 가장 작은 것", "split: 요청만큼 떼어 주고 나머지는 남김"],
+    worst: ["// Worst Fit (p.37)", "후보 = { chunk : len >= 요청 }   // 리스트 전체 탐색", "고른 것 = 후보 중 len 이 가장 큰 것", "split: 요청만큼 떼어 주고 나머지는 남김"],
+    first: ["// First Fit (p.38)", "head 부터 차례로 보면서", "len >= 요청 인 첫 chunk 에서 멈춤", "split: 요청만큼 떼어 주고 나머지는 남김"],
+    next:  ["// Next Fit (p.38)", "지난번에 찾던 곳(ptr)부터 차례로 (끝이면 head 로)", "len >= 요청 인 첫 chunk 에서 멈춤, ptr = 그곳", "split: 요청만큼 떼어 주고 나머지는 남김"]
+  };
+  var NAMES = { best: "Best Fit", worst: "Worst Fit", first: "First Fit", next: "Next Fit" };
+  var INIT = [10, 30, 20];
+  var REQS = { slide: [15], seq: [15, 8, 12, 10, 9] };
+
+  function pick(strat, L, r, ptr) {
+    var i, best = -1;
+    if (strat === "best" || strat === "worst") {
+      for (i = 0; i < L.length; i++) {
+        if (L[i] < r) continue;
+        if (best < 0 || (strat === "best" ? L[i] < L[best] : L[i] > L[best])) best = i;
+      }
+      return best;
+    }
+    var start = strat === "first" ? 0 : ptr;
+    for (var k = 0; k < L.length; k++) {
+      i = (start + k) % L.length;
+      if (L[i] >= r) return i;
+    }
+    return -1;
+  }
+
+  function svg(L, hi, ptr, strat) {
+    var o = '<svg viewBox="0 0 520 90" width="100%" style="max-width:560px" font-family="sans-serif">';
+    o += '<text x="8" y="50" font-size="12" fill="#555">head</text>';
+    var x = 52;
+    L.forEach(function (len, i) {
+      var c = i === hi ? "#e09a40" : "#1d65b3", f = i === hi ? "#fdeec2" : "#dbe8f7";
+      o += '<line x1="' + (x - 14) + '" y1="46" x2="' + (x - 2) + '" y2="46" stroke="#777"/>';
+      o += '<circle cx="' + (x + 22) + '" cy="46" r="22" fill="' + f + '" stroke="' + c + '" stroke-width="2"/>';
+      o += '<text x="' + (x + 22) + '" y="51" font-size="14" text-anchor="middle" font-weight="700">' + len + '</text>';
+      if (strat === "next" && i === ptr) o += '<text x="' + (x + 22) + '" y="84" font-size="11" text-anchor="middle" fill="#3b2f4a">▲ ptr</text>';
+      x += 66;
+    });
+    o += '<line x1="' + (x - 14) + '" y1="46" x2="' + (x - 2) + '" y2="46" stroke="#777"/><text x="' + x + '" y="50" font-size="12" fill="#555">NULL</text>';
+    return o + '</svg>';
+  }
+
+  global.SIMS["fit_strategies"] = {
+    title: "free list 할당 전략 — Best / Worst / First / Next Fit (14강 p.37~39)",
+    desc: "같은 free list(head → 10 → 30 → 20)에 같은 요청을 넣어도 전략마다 남는 조각이 다르다. 고른 chunk 는 [[splitting과 coalescing|split]] 된다. → [[할당 전략]], [[external fragmentation]]",
+    options: [
+      { key: "strat", label: "전략", values: [
+        { value: "best", label: "Best Fit" }, { value: "worst", label: "Worst Fit" },
+        { value: "first", label: "First Fit" }, { value: "next", label: "Next Fit" } ] },
+      { key: "req", label: "요청", values: [
+        { value: "slide", label: "p.39 그대로 (요청 15 하나)" },
+        { value: "seq", label: "요청 15, 8, 12, 10, 9 (마지막에서 갈림)" } ] }
+    ],
+    build: function (opts) {
+      var strat = opts.strat || "best", reqs = REQS[opts.req] || REQS.slide;
+      var L = INIT.slice(), ptr = 0, steps = [], done = [];
+      steps.push({ desc: "시작: free list '''head → 10 → 30 → 20 → NULL''' (p.39). 전략 = '''" + NAMES[strat] + "'''.", pc: { CODE: 1 },
+        vars: { "free list": L.join(" → "), "요청": "-", "고른 chunk": "-", "결과": "-" }, svg: svg(L, -1, ptr, strat) });
+      reqs.forEach(function (r) {
+        var i = pick(strat, L, r, ptr);
+        if (i < 0) {
+          done.push(r + ": 실패");
+          var st = { desc: "요청 '''" + r + "''' — 리스트에 " + r + " 이상인 chunk 가 없다 → '''실패'''. 남은 공간 합은 " + L.reduce(function (a, b) { return a + b; }, 0) + " 인데도 — [[external fragmentation]].", pc: { CODE: 3 },
+            vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": "없음", "결과": done.join(" / ") }, svg: svg(L, -1, ptr, strat) };
+          st.note = "요청 " + r + " 실패 (남은 합 " + L.reduce(function (a, b) { return a + b; }, 0) + ")";
+          steps.push(st);
+          return;
+        }
+        var before = L[i];
+        steps.push({ desc: "요청 '''" + r + "''' — " + NAMES[strat] + " 는 '''" + before + "''' 짜리 chunk(" + (i + 1) + "번째)를 고른다.", pc: { CODE: 3 },
+          vars: { "free list": L.join(" → "), "요청": r, "고른 chunk": before + " (" + (i + 1) + "번째)", "결과": done.join(" / ") || "-" }, svg: svg(L, i, ptr, strat) });
+        L[i] -= r;
+        if (L[i] === 0) { L.splice(i, 1); ptr = L.length ? i % L.length : 0; } else { ptr = i; }
+        done.push(r + "→" + before);
+        steps.push({ desc: "split: " + r + " 을 떼어 주고 " + (before - r) + (before - r === 0 ? " — chunk 가 다 쓰여 노드가 빠진다" : " 이 리스트에 남는다") + ".", pc: { CODE: 4 },
+          vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": before + " → " + (before - r), "결과": done.join(" / ") }, svg: svg(L, before - r ? i : -1, ptr, strat) });
+      });
+      return {
+        panels: [{ id: "CODE", title: NAMES[strat], lang: "txt", lines: CODE[strat] }],
+        vars: [{ name: "free list", group: "상태" }, { name: "요청", group: "이번 요청" }, { name: "고른 chunk", group: "이번 요청" }, { name: "결과", group: "누적" }],
+        steps: steps
+      };
+    }
+  };
 })(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/flag_lock.js =====
@@ -9647,6 +9869,121 @@ window.SIMS = window.SIMS || {};
     }
   };
 })();
+
+// ===== sims/seg_translate.js =====
+// seg_translate — 14강 p.7~15: 14비트 가상 주소를 세그먼트(위 2비트) + offset(아래 12비트)으로 나눠
+// 세그먼트 테이블(base, size, grows positive?, protection)로 변환하는 과정을 한 주소씩 실행.
+// 슬라이드 값: Code 00 base 32K size 2K +, Heap 01 base 34K size 2K +, Stack 11 base 28K size 2K −, 10 미사용.
+// 스택(음의 방향)은 OSTEP 16장 규칙: 음수 offset = offset − 최대 세그먼트 크기(4KB), |음수 offset| ≤ size 면 통과.
+// 옵션 set:
+//   slide  — p.10 VA 100 → 32868, p.11 VA 4200 → 34920, p.12 스택 VA 15KB → 27KB
+//   faults — 힙 VA 7KB(offset 3KB ≥ size 2KB → segmentation fault), VA 8200(세그 10 미사용), 코드 VA 100 에 store(RE → protection fault), 스택 경계 14KB / 14KB−1
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+
+  var KB = 1024, MAXSEG = 4096;
+  var TABLE = {
+    0: { name: "Code", base: 32 * KB, size: 2 * KB, pos: true, prot: "RE" },
+    1: { name: "Heap", base: 34 * KB, size: 2 * KB, pos: true, prot: "RW" },
+    3: { name: "Stack", base: 28 * KB, size: 2 * KB, pos: false, prot: "RW" }
+  };
+  var HW = [
+    "// MMU (p.9, p.12, p.15) — 매 메모리 참조마다",
+    "seg    = VA >> 12;            // 위 2비트",
+    "offset = VA & 0xFFF;          // 아래 12비트",
+    "if (seg 가 미사용 '10') fault;",
+    "if (GrowsPositive[seg]) {",
+    "    if (offset >= Size[seg]) Segmentation Fault;",
+    "    PA = Base[seg] + offset;",
+    "} else {                      // stack: 아래로 자람",
+    "    neg = offset - MAXSEG;    // MAXSEG = 4KB",
+    "    if (-neg > Size[seg]) Segmentation Fault;",
+    "    PA = Base[seg] + neg;",
+    "}",
+    "if (write && !(Prot[seg] has W)) Protection Fault;",
+    "access PA"
+  ];
+  var SETS = {
+    slide: [
+      { va: 100, w: false, why: "p.10 — code 세그먼트의 명령어 fetch" },
+      { va: 4200, w: false, why: "p.11 — heap 데이터 load. 'VA + base' 가 아니라 'offset + base'" },
+      { va: 15 * KB, w: true, why: "p.12 — stack 에 push(store). 스택은 28KB 에서 26KB 쪽으로 자란다" }
+    ],
+    faults: [
+      { va: 7 * KB, w: false, why: "heap 세그먼트지만 offset 3KB 가 size 2KB 를 넘는다" },
+      { va: 8200, w: false, why: "위 2비트가 10 — 슬라이드 표에서 쓰지 않는 세그먼트" },
+      { va: 100, w: true, why: "p.15 — code 세그먼트에 store. 범위는 맞지만 Read-Execute 라 쓰기 금지" },
+      { va: 14 * KB, w: true, why: "stack 의 가장 아래 칸(offset 2KB → neg −2KB, |−2KB| = size 라 통과)" },
+      { va: 14 * KB - 1, w: false, why: "stack 영역 바로 아래 한 바이트 — 세그 11, offset 2047 → neg −2049 로 size 2KB 를 넘는다" }
+    ]
+  };
+
+  function bin14(v) { var s = v.toString(2); while (s.length < 14) s = "0" + s; return s.slice(0, 2) + " " + s.slice(2); }
+  function kb(v) { return (v % KB === 0) ? (v / KB) + "KB (" + v + ")" : String(v); }
+
+  function svg(st) {
+    var o = '<svg viewBox="0 0 520 120" width="100%" style="max-width:560px" font-family="sans-serif">';
+    o += '<text x="10" y="16" font-size="12" fill="#555">VA (14 bit)</text>';
+    var bits = st.bits.replace(" ", "");
+    for (var i = 0; i < 14; i++) {
+      var x = 10 + i * 24, isSeg = i < 2;
+      o += '<rect x="' + x + '" y="24" width="22" height="24" fill="' + (isSeg ? "#fdeec2" : "#dbe8f7") + '" stroke="' + (isSeg ? "#8a6000" : "#1d65b3") + '"/>';
+      o += '<text x="' + (x + 11) + '" y="41" font-size="13" text-anchor="middle">' + (bits[i] || "") + '</text>';
+    }
+    o += '<text x="34" y="64" font-size="11" text-anchor="middle" fill="#8a6000">segment</text>';
+    o += '<text x="200" y="64" font-size="11" text-anchor="middle" fill="#1d65b3">offset (0~4095)</text>';
+    o += '<text x="10" y="92" font-size="13" fill="' + (st.fault ? "#d6465f" : "#1d6b2a") + '" font-weight="700">' + st.result + '</text>';
+    return o + '</svg>';
+  }
+
+  global.SIMS["seg_translate"] = {
+    title: "세그먼트 주소 변환 (14강 p.7~15)",
+    desc: "가상 주소의 위 2비트로 세그먼트를 고르고, 아래 12비트 offset 을 그 세그먼트의 size 와 비교한 뒤 base 에 더한다. stack 은 음의 방향, code 는 Read-Execute. → [[세그멘테이션]], [[세그먼트 주소 변환]]",
+    options: [
+      { key: "set", label: "주소 묶음", values: [
+        { value: "slide", label: "슬라이드 예제 (VA 100 · 4200 · 15KB)" },
+        { value: "faults", label: "fault 가 나는 경우 + 스택 경계" }
+      ] }
+    ],
+    build: function (opts) {
+      var list = SETS[opts.set] || SETS.slide;
+      var steps = [];
+      var rows = "Code 00: base 32K size 2K +, RE / Heap 01: base 34K size 2K +, RW / Stack 11: base 28K size 2K −, RW / 10: 미사용";
+      steps.push({ desc: "세그먼트 테이블(p.6, p.12, p.13): " + rows + ". 주소 하나씩 MMU 를 통과시킨다.", pc: { HW: 1 },
+        vars: { VA: "-", "bits": "-", seg: "-", offset: "-", "검사": "-", PA: "-" },
+        svg: svg({ bits: "", result: "", fault: false }) });
+      list.forEach(function (e) {
+        var bits = bin14(e.va), seg = e.va >> 12, off = e.va & 0xFFF;
+        var v = { VA: kb(e.va) + (e.w ? " (store)" : " (load/fetch)"), bits: bits, seg: "-", offset: "-", "검사": "-", PA: "-" };
+        steps.push({ desc: "'''VA " + e.va + "''' — " + e.why + ".", pc: { HW: 1 }, vars: Object.assign({}, v), svg: svg({ bits: bits, result: "", fault: false }) });
+        v.seg = seg.toString(2).padStart(2, "0") + " → " + (TABLE[seg] ? TABLE[seg].name : "미사용");
+        v.offset = String(off);
+        steps.push({ desc: "위 2비트 = '''" + v.seg + "''', 아래 12비트 offset = '''" + off + "'''.", pc: { HW: 3 }, vars: Object.assign({}, v), svg: svg({ bits: bits, result: "", fault: false }) });
+        var t = TABLE[seg], res, fault = false, line;
+        if (!t) {
+          v["검사"] = "세그먼트 10 은 테이블에 없음"; res = "Fault — 쓰지 않는 세그먼트"; fault = true; line = 4;
+        } else if (t.pos) {
+          if (off >= t.size) { v["검사"] = off + " ≥ size " + t.size + " ✗"; res = "Segmentation Fault"; fault = true; line = 6; }
+          else { v["검사"] = off + " < size " + t.size + " ✓"; v.PA = kb(t.base + off) + " = " + (t.base / KB) + "K + " + off; res = "PA " + (t.base + off); line = 7; }
+        } else {
+          var neg = off - MAXSEG;
+          if (-neg > t.size) { v["검사"] = "neg = " + off + " − 4096 = " + neg + ", |neg| > size " + t.size + " ✗"; res = "Segmentation Fault"; fault = true; line = 10; }
+          else { v["검사"] = "neg = " + off + " − 4096 = " + neg + ", |neg| ≤ " + t.size + " ✓"; v.PA = kb(t.base + neg) + " = 28K − " + (-neg); res = "PA " + (t.base + neg); line = 11; }
+        }
+        if (!fault && e.w && t.prot.indexOf("W") < 0) { v["검사"] += " / store 인데 " + t.prot; res = "Protection Fault (" + t.name + " 는 " + t.prot + ")"; fault = true; line = 13; v.PA = "-"; }
+        var st = { desc: (fault ? "'''" + res + "'''" : "통과 → '''" + res + "'''") + ".", pc: { HW: line }, vars: v, svg: svg({ bits: bits, result: res, fault: fault }) };
+        if (fault) st.note = res;
+        steps.push(st);
+      });
+      return {
+        panels: [{ id: "HW", title: "MMU + 세그먼트 테이블", lang: "c", lines: HW }],
+        vars: [{ name: "VA", group: "주소" }, { name: "bits", group: "주소" }, { name: "seg", group: "분해" }, { name: "offset", group: "분해" }, { name: "검사", group: "MMU" }, { name: "PA", group: "MMU" }],
+        steps: steps
+      };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/sem_producer_consumer.js =====
 // sem_producer_consumer — 10강 p.37–47 세마포어 버전 producer/consumer (bounded buffer)
@@ -15823,6 +16160,109 @@ window.ANIMS = window.ANIMS || {};
     }
   };
 })();
+
+// ===== anims/segment_map.js =====
+// ============================================================
+// segment_map — 세그먼트마다 base/size 를 따로 두어 code·heap·stack 을 물리 메모리 여기저기에 놓는 그림 (14강 p.6, p.10~12)
+// 시간축(초): 0~2 주소 공간 16KB 와 물리 64KB → 2~4.5 세 세그먼트가 각자 다른 곳으로(가운데 free 는 안 옮김)
+//   → 4.5~7 VA 4200 = 01|000001101000 → heap, offset 104 → 7~9 104 + 34K = 34920
+//   → 9~11.5 VA 15KB = 11|110000000000 → stack, offset 3072 − 4096 = −1024 → 28K − 1K = 27KB → 11.5~13 요점
+// ============================================================
+window.ANIMS = window.ANIMS || {};
+ANIMS["segment_map"] = {
+  title: "Segmentation — code·heap·stack 을 따로따로 옮기고, 위 2비트로 세그먼트를 고르는 13초",
+  desc: "base and bounds 는 주소 공간 16KB 를 통째로 옮겨 가운데 빈 공간까지 물리 메모리를 차지했다. [[세그멘테이션]]은 세그먼트마다 base/size 를 따로 두어 '''쓰는 부분만''' 옮긴다(p.6). 변환은 위 2비트로 세그먼트, 아래 12비트 offset 을 base 에 더하기 — stack 은 음의 방향(p.12)",
+  duration: 13,
+  build: function () {
+    var D = 13;
+    var C = { a: "#1d65b3", aL: "#dbe8f7", b: "#2e9e4f", bL: "#dff3e4", c: "#e09a40", cL: "#fdeec2", cpu: "#3b2f4a", hw: "#d6465f", muted: "#777", os: "#c9d9f0" };
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function box(x, y, w, h, fill, stroke) { return '<rect x="' + r3(x) + '" y="' + r3(y) + '" width="' + r3(w) + '" height="' + r3(h) + '" rx="3" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"/>'; }
+    function txt(x, y, s, size, fill, extra) {
+      var anchor = /text-anchor/.test(extra || "") ? "" : ' text-anchor="middle"';
+      return '<text x="' + r3(x) + '" y="' + r3(y) + '" font-size="' + (size || 13) + '" fill="' + (fill || "#222") + '"' + anchor + (extra || "") + '>' + s + '</text>';
+    }
+    function show(from, to) {
+      return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(from / D) + ';' + r3(from / D + 0.003) + ';' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>';
+    }
+    function during(from, to, inner) {
+      if (from <= 0) return '<g>' + inner + '<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;' + r3(to / D) + ';' + r3(Math.min(1, to / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/></g>';
+      return '<g opacity="0">' + inner + show(from, to) + '</g>';
+    }
+    function token(path, from, to, label, color) {
+      return '<g opacity="0"><circle r="7" fill="' + color + '"/>' + txt(0, -11, label, 11, color, ' font-weight="700"') +
+        '<animateMotion path="' + path + '" begin="' + from + 's" dur="' + r3(to - from) + 's" fill="freeze"/>' + show(from, to) + '</g>';
+    }
+
+    var s = '<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Segmentation 애니메이션">';
+    s += '<defs><marker id="sm_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>';
+
+    [
+      [0, 2, "주소 공간 16KB (code 0~2KB · heap 4~6KB · stack 14~16KB) 와 물리 메모리 64KB"],
+      [2, 4.5, "세그먼트마다 base 를 따로 — Code 32K · Heap 34K · Stack 28K (가운데 free 는 물리 메모리를 안 쓴다)"],
+      [4.5, 7, "VA 4200 = 01 | 000001101000 → 위 2비트 01 = Heap, 아래 12비트 offset = 104"],
+      [7, 9, "offset 104 < size 2K → PA = 104 + 34K = 34920 (VA + base 가 아니다)"],
+      [9, 11.5, "VA 15KB = 11 | 110000000000 → Stack, offset 3072 → 음의 방향: 3072 − 4096 = −1024"],
+      [11.5, D, "|−1024| ≤ size 2K → PA = 28K − 1K = 27KB. 세그먼트 테이블 = (base, size, grows positive?, protection)"]
+    ].forEach(function (c) { s += during(c[0], c[1], txt(380, 24, c[2], 12.5, "#222", ' font-weight="700"')); });
+
+    // 왼쪽: 주소 공간 0~16KB (y 50~306, 1KB = 16px)
+    var AX = 40, AW = 120, AY = 50;
+    function ay(k) { return AY + 16 * k; }
+    s += txt(AX + AW / 2, 44, "Address Space (VA)", 12, C.cpu, ' font-weight="700"');
+    s += box(AX, ay(0), AW, 32, C.aL, C.a) + txt(AX + AW / 2, ay(1) + 4, "Code", 12, C.a, ' font-weight="700"');
+    s += box(AX, ay(2), AW, 32, "#f6f6f6", "#bbb");
+    s += box(AX, ay(4), AW, 32, C.bL, C.b) + txt(AX + AW / 2, ay(5) + 4, "Heap", 12, C.b, ' font-weight="700"');
+    s += box(AX, ay(6), AW, ay(14) - ay(6), "#f6f6f6", "#bbb") + txt(AX + AW / 2, ay(10) + 4, "(free)", 11, C.muted);
+    s += box(AX, ay(14), AW, 32, C.cL, C.c) + txt(AX + AW / 2, ay(15) + 4, "Stack ↑", 12, C.c, ' font-weight="700"');
+    [0, 2, 4, 6, 14, 16].forEach(function (k) { s += txt(AX - 5, ay(k) + 4, k + "KB", 9.5, C.muted, ' text-anchor="end"'); });
+
+    // 가운데: 세그먼트 테이블
+    var TX = 250, TY = 120;
+    s += txt(TX + 105, TY - 10, "Segment Table (per process)", 11.5, C.cpu, ' font-weight="700"');
+    s += box(TX, TY, 210, 96, "#fff", C.cpu);
+    [["Seg", "Base", "Size", "Grows+"], ["Code 00", "32K", "2K", "1"], ["Heap 01", "34K", "2K", "1"], ["Stack 11", "28K", "2K", "0"]].forEach(function (r, i) {
+      var y = TY + 18 + i * 22, col = [C.cpu, C.a, C.b, C.c][i];
+      s += txt(TX + 32, y, r[0], 11, col, i ? "" : ' font-weight="700"') + txt(TX + 95, y, r[1], 11, col) + txt(TX + 140, y, r[2], 11, col) + txt(TX + 182, y, r[3], 11, col);
+    });
+    s += during(4.5, 9, '<rect x="' + TX + '" y="' + (TY + 50) + '" width="210" height="20" fill="none" stroke="' + C.b + '" stroke-width="2.5"/>');
+    s += during(9, D, '<rect x="' + TX + '" y="' + (TY + 72) + '" width="210" height="20" fill="none" stroke="' + C.c + '" stroke-width="2.5"/>');
+
+    // 오른쪽: 물리 메모리 0~64KB (y 50~306, 1KB = 4px)
+    var PX = 600, PW = 120, PY = 50;
+    function py(k) { return PY + 4 * k; }
+    s += txt(PX + PW / 2, 44, "Physical Memory", 12, C.cpu, ' font-weight="700"');
+    s += box(PX, py(0), PW, py(16) - py(0), C.os, "#3b5d8f") + txt(PX + PW / 2, py(8) + 4, "OS", 11, "#3b5d8f");
+    s += box(PX, py(16), PW, py(64) - py(16), "#f6f6f6", "#bbb") + txt(PX + PW / 2, py(48) + 4, "(not in use)", 10, C.muted);
+    [0, 16, 26, 28, 32, 34, 36, 64].forEach(function (k) { s += txt(PX + PW + 5, py(k) + 4, k + "K", 9.5, C.muted, ' text-anchor="start"'); });
+    s += during(2, D, box(PX, py(26), PW, 8, C.cL, C.c) + box(PX, py(32), PW, 8, C.aL, C.a) + box(PX, py(34), PW, 8, C.bL, C.b));
+    s += during(4.5, D, txt(PX - 6, py(27) + 3, "Stack", 10, C.c, ' text-anchor="end"') + txt(PX - 6, py(33) + 3, "Code", 10, C.a, ' text-anchor="end"') + txt(PX - 6, py(35) + 3, "Heap", 10, C.b, ' text-anchor="end"'));
+    // 매핑 화살표
+    s += during(2, 4.5,
+      '<path d="M' + (AX + AW) + ',' + ay(1) + ' C 400,' + ay(1) + ' 480,' + py(33) + ' ' + (PX - 2) + ',' + py(33) + '" fill="none" stroke="' + C.a + '" stroke-width="2" marker-end="url(#sm_arrow)"/>' +
+      '<path d="M' + (AX + AW) + ',' + ay(5) + ' C 400,' + ay(5) + ' 480,' + py(35) + ' ' + (PX - 2) + ',' + py(35) + '" fill="none" stroke="' + C.b + '" stroke-width="2" marker-end="url(#sm_arrow)"/>' +
+      '<path d="M' + (AX + AW) + ',' + ay(15) + ' C 400,' + ay(15) + ' 480,' + py(27) + ' ' + (PX - 2) + ',' + py(27) + '" fill="none" stroke="' + C.c + '" stroke-width="2" marker-end="url(#sm_arrow)"/>');
+
+    // VA 4200 비트 분해
+    var BY = 250;
+    s += during(4.5, 9, txt(355, BY, "VA 4200 =", 12, C.cpu, ' font-weight="700"') +
+      box(270, BY + 8, 34, 22, C.bL, C.b) + txt(287, BY + 24, "01", 13, C.b, ' font-weight="700"') +
+      box(306, BY + 8, 150, 22, "#fff", C.b) + txt(381, BY + 24, "000001101000", 13, C.b) +
+      txt(287, BY + 46, "Heap", 11, C.b) + txt(381, BY + 46, "offset 104", 11, C.b));
+    s += during(7, 9, txt(365, BY + 70, "104 < 2K ✓ → 34K + 104 = 34920", 12.5, C.hw, ' font-weight="700"'));
+    s += token("M" + (AX + AW) + "," + (ay(4) + 2) + " Q 380,-60 " + (PX - 4) + "," + (py(34) + 2), 7, 9, "34920", C.b);
+
+    // VA 15KB
+    s += during(9, D, txt(355, BY, "VA 15KB =", 12, C.cpu, ' font-weight="700"') +
+      box(270, BY + 8, 34, 22, C.cL, C.c) + txt(287, BY + 24, "11", 13, C.c, ' font-weight="700"') +
+      box(306, BY + 8, 150, 22, "#fff", C.c) + txt(381, BY + 24, "110000000000", 13, C.c) +
+      txt(287, BY + 46, "Stack", 11, C.c) + txt(381, BY + 46, "offset 3072 − 4096 = −1024", 11, C.c));
+    s += during(11.5, D, txt(365, BY + 70, "|−1024| ≤ 2K ✓ → 28K − 1K = 27KB", 12.5, C.hw, ' font-weight="700"'));
+    s += token("M" + (AX + AW) + "," + (ay(15)) + " Q 380,-50 " + (PX - 4) + "," + (py(27)), 11.5, D, "27KB", C.c);
+
+    return s + '</svg>';
+  }
+};
 
 // ===== anims/spin_lock_tas.js =====
 // ============================================================

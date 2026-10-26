@@ -1,0 +1,116 @@
+key: 세그멘테이션
+title: 세그멘테이션 (Segmentation) — 14강 허브
+category: 14강 Segmentation, 핵심
+---
+{info}📌 '''14강 슬라이드 `14-Segmentation.pdf`(41쪽) 기준. 수업 녹음 없음(결석).''' 덱 구성: p.2~3 base and bounds 복습과 그 비효율 → '''p.4~17 Segmentation'''(세그먼트·주소 변환·stack·sharing·protection·fragmentation·compaction) → '''p.18~39 Free-space Management'''(external fragmentation·splitting·coalescing·header·embedded free list·Best/Worst/First/Next Fit) → p.40 참고문헌(OSTEP 16·17장).{/info}
+
+'''세그멘테이션'''은 주소 공간을 '''논리적으로 다른 덩어리(segment) — code, heap, stack — 로 나누고, 덩어리마다 base 와 bounds(size) 를 따로 두는''' 주소 변환 방식이다. 13강의 [[base and bounds]]가 주소 공간 '''통째로''' 한 쌍의 레지스터만 썼기 때문에 heap 과 stack 사이의 거대한 빈 공간까지 물리 메모리를 차지했던 문제([[동적 재배치의 한계]])를 고친다. 대신 세그먼트 크기가 제각각이라 물리 메모리에 크기가 다른 구멍이 생기는 [[external fragmentation]]이 새 문제로 등장하고, 그걸 다루는 것이 덱 후반의 [[free-space management]]다.
+
+{def}p.5 원문 — "'''Segment''' is just a contiguous portion of the address space of a particular length. Logically-different segment: code, stack, heap. Each segment can be placed in different part of physical memory. '''Base and bounds exist per each segment'''."
+p.3 — "'''Internal Fragmentation''': The space inside the allocated unit is not all used (i.e., is fragmented) and thus wasted" → [[internal fragmentation]]{/def}
+
+{analogy}🎭 '''이삿짐을 한 트럭에 싣느냐, 박스별로 택배로 보내느냐.''' base and bounds 는 집 전체(빈 방 포함)를 통째로 트럭 한 대에 싣는다 — 빈 방도 짐칸을 차지한다. 세그멘테이션은 '''부엌 박스·옷 박스·책 박스'''를 따로 포장해 창고의 빈 자리 아무 데나 넣고, 박스마다 '어디 넣었는지·몇 칸짜리인지'를 장부(세그먼트 테이블)에 적는다. 빈 방은 아예 안 보낸다. 대신 창고에 크기가 제각각인 빈 틈이 생겨서, 큰 박스가 들어갈 자리가 없을 수 있다(external fragmentation).{/analogy}
+
+[[anim:segment_map|세 세그먼트가 각자 다른 곳으로 가는 장면과, VA 4200(heap)·VA 15KB(stack)가 위 2비트로 세그먼트를 고르고 offset 을 base 에 더하는 장면을 먼저 보라]]
+
+[[sim:seg_translate]]
+
+== 1. 왜 — base and bounds 의 비효율 (p.2~3) ==
+
+p.3: "Big chunk of 'free' space / 'free' space takes up physical memory / Hard to run when an address space does not fit into physical memory (e.g., 64-bit Linux machine provides 128 TB virtual address space)". 할당된 칸(주소 공간 하나) '''안'''에서 쓰지 않는 공간이 버려지는 것이 [[internal fragmentation]]이다.
+
+[[img:L14-03.png|p.3 Inefficiency of Base and Bound Approach — 0~16KB 주소 공간에서 code 0~1KB·heap 4~5KB·stack 15~16KB 를 빼면 전부 (free)|medium]]
+
+== 2. 세그먼트를 따로 놓기 (p.5~6) ⭐⭐ ==
+
+{|
+! Segment || Base || Size
+|-
+| Code || 32K || 2K
+|-
+| Heap || 34K || 2K
+|-
+| Stack || 28K || 2K
+|}
+물리 메모리 64KB 에 OS(0~16KB) 외에 세 세그먼트 6KB 만 놓인다. 주소 공간의 가운데 빈 공간은 '''물리 메모리를 쓰지 않는다'''.
+
+[[img:L14-06.png|p.6 Placing Segment in Physical Memory — Stack 28K, Code 32K, Heap 34K, 나머지는 not in use|large]]
+
+== 3. 주소 변환 (p.7~12) ⭐⭐⭐ ==
+가상 주소 14비트 중 '''위 2비트 = 세그먼트'''(00 Code, 01 Heap, 11 Stack, 10 미사용), '''아래 12비트 = offset'''(0~4095). 하드웨어는 offset 을 세그먼트 size 와 비교하고 통과하면 base 에 더한다. 자세한 계산과 함정은 [[세그먼트 주소 변환]].
+
+{|
+! VA || 비트 || 세그먼트 || offset || PA
+|-
+| 100 || 00 000001100100 || Code || 100 || 32K + 100 = '''32868''' (p.10)
+|-
+| 4200 || 01 000001101000 || Heap || 104 || 34K + 104 = '''34920''' (p.11)
+|-
+| 15KB || 11 110000000000 || Stack(음의 방향) || 3072 → −1024 || 28K − 1K = '''27KB''' ([[스택 세그먼트]])
+|}
+
+[[img:L14-09.png|p.9 Address Translation on Segmentation — VA 의 Seg 로 세그먼트 테이블(Size, Base)을 찾고, Offset < Size 면 Base 에 +/-, 아니면 Segmentation Fault|large]]
+
+{warn}'''함정 — p.11 "Virtual address + base is not the correct physical address".''' VA 4200 에 heap base 34K 를 그대로 더하면 틀린다. heap 세그먼트는 가상 주소 '''4096(4KB)'''에서 시작하므로 offset 은 4200 − 4096 = 104. 더하는 것은 VA 가 아니라 '''offset'''.{/warn}
+
+== 4. stack · sharing · protection (p.12~15) ⭐⭐ ==
+* stack 은 '''거꾸로(backward)''' 자란다 → 세그먼트 레지스터에 "Grows Positive?" 비트(1 양, 0 음) → [[스택 세그먼트]]
+* 세그먼트는 주소 공간끼리 '''공유'''할 수 있다(code sharing) → protection bit(Read / Write / Execute) → [[코드 공유와 protection bit]]
+* 범위를 넘으면 '''Segmentation Fault''', 범위 안이지만 권한이 없으면 '''Protection Fault''' → [[segmentation fault]]
+
+{|
+! Segment || Base || Size || Grows Positive? || Protection
+|-
+| Code || 32K || 2K || 1 || Read-Execute
+|-
+| Heap || 34K || 2K || 1 || Read-Write
+|-
+| Stack || 28K || 2K || 0 || Read-Write
+|}
+
+[[img:L14-15.png|p.15 Protection — 비교(<) → 덧셈(+/-) → 권한 검사(RW) 순서. 첫 번째에서 걸리면 Segmentation Fault, 마지막에서 걸리면 Protection Fault|large]]
+
+== 5. OS 가 할 일 — fragmentation 과 compaction (p.16~17) ⭐⭐ ==
+세그먼트 크기가 제각각이라 물리 메모리에 작은 구멍이 여기저기 생긴다. p.16: '''24KB 가 비어 있어도 연속이 아니면 20KB 요청을 못 준다''' → [[external fragmentation]]. 해결책 하나는 세그먼트를 다시 모아 붙이는 [[compaction]]이지만 비싸다(실행 중지 · 복사 · 세그먼트 레지스터 변경).
+
+== 6. Free-space management (p.18~39) ⭐⭐⭐ ==
+크기가 제각각인 빈 공간을 관리하는 일반 문제 — OS 의 세그먼트 배치에도, 유저 레벨 `malloc()/free()` 에도 똑같이 나온다. → [[free-space management]]
+* [[splitting과 coalescing]] — 큰 chunk 를 쪼개 주고, 반납된 이웃 chunk 를 합친다
+* [[할당 헤더]] — `free(ptr)` 이 크기를 모르므로 ptr 바로 앞 header(size, magic)에 적어 둔다
+* [[embedded free list]] — free list 노드(size, next)를 '''빈 공간 자신 안'''에 둔다
+* [[할당 전략]] — Best / Worst / First / Next Fit
+
+[[sim:fit_strategies]]
+
+== 13강과 비교 ==
+{|
+! || [[base and bounds]] (13강) || 세그멘테이션 (14강)
+|-
+| 레지스터 || base/bounds 한 쌍 || 세그먼트마다 (base, size, grows+, protection)
+|-
+| 옮기는 단위 || 주소 공간 통째 || code·heap·stack 각각
+|-
+| heap~stack 사이 빈 공간 || 물리 메모리 차지 ([[internal fragmentation]]) || 차지 안 함
+|-
+| 새 문제 || — || 크기가 제각각 → [[external fragmentation]], [[compaction]] 비용
+|-
+| 공유 || 불가 || code 세그먼트 공유 가능 (protection bit)
+|-
+| 범위 검사 || VA < bounds || offset < size (stack 은 |음수 offset| ≤ size)
+|}
+
+== 시험 대비 핵심 요약 ==
+# Segment = 주소 공간의 연속된 한 덩어리(code/heap/stack). '''세그먼트마다 base 와 bounds'''.
+# VA = 위 비트(세그먼트) + 아래 비트(offset). PA = '''offset''' + base (VA + base 아님). offset ≥ size 면 Segmentation Fault.
+# Stack 은 음의 방향: 음수 offset = offset − 최대 세그먼트 크기, PA = base + 음수 offset (예: 15KB → 27KB).
+# 세그먼트 레지스터 4칸: Base · Size · Grows Positive? · Protection(Code RE, Heap/Stack RW).
+# Segmentation Fault(범위) vs Protection Fault(권한) — 검사 순서는 범위 → 더하기 → 권한(p.15).
+# Internal fragmentation(할당 칸 안의 낭비, base and bounds) vs external fragmentation(칸 사이 구멍, 세그멘테이션).
+# Compaction: 재배치로 구멍을 합침 — 비쌈(stop, copy, change segment register).
+# Free-space management: splitting · coalescing · header(size, magic) · embedded free list · Best/Worst/First/Next Fit.
+
+== 관련 문서 ==
+* [[기말고사]] · [[가상 메모리]](13강) · [[base and bounds]] · [[동적 재배치의 한계]] · [[MMU]]
+* [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]]
+* [[internal fragmentation]] · [[external fragmentation]] · [[compaction]]
+* [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]

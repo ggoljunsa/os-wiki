@@ -84,6 +84,7 @@ category: 안내
 === 기말고사 (13강~) ===
 * [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결
 * 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]
+* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]
 
 === 시험·과제 ===
 * [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

@@ -1,0 +1,33 @@
+key: 할당 헤더
+title: 할당 헤더 (Header of Allocated Memory Chunk)
+category: 14강 Segmentation, 용어
+---
+`free(void *ptr)` 은 크기를 받지 않는다. 그래서 할당기는 돌려준 영역 '''바로 앞에''' 크기 등을 적은 header 를 몰래 붙여 둔다. 14강 p.26~28.
+
+{def}p.26 — "The interface to `free(void *ptr)` does not take a size. Most allocators store extra information in a '''header block'''."
+p.27 — "The header contains the '''size''' of the allocated memory region. The header may also contain additional pointers to speed up deallocation, a '''magic number''' for integrity checking, other information."{/def}
+
+{analogy}🎭 '''택배 상자 송장.''' 손님(호출자)은 상자 안 물건(ptr)만 받지만, 상자 겉면 바로 앞에 송장(header)이 붙어 있다. 반품(free)할 때 직원이 송장을 보고 크기와 진짜 우리 상자인지(magic)를 확인한다.{/analogy}
+
+<pre class="c">
+typedef struct __header_t {
+    int size;      // 호출자가 요청한 크기 (예: 20)
+    int magic;     // 1234567 — 진짜 header 인지 확인용
+} header_t;
+
+void free(void *ptr) {
+    header_t *hptr = (void *)ptr - sizeof(header_t);   // ptr 바로 앞이 header
+    assert(hptr->magic == 1234567);
+    ...
+}
+</pre>
+
+[[img:L14-27.png|p.27 — hptr 이 가리키는 header(size: 20, magic: 1234567) 바로 뒤가 ptr, 그 뒤 20 바이트가 호출자에게 돌려준 영역|medium]]
+
+* p.28: "The size for free region is the size of the header '''plus''' the size of the space allocated to the user. If a user requests N bytes, the library searches for a free chunk of size '''N plus the size of the header'''."
+* 예(p.33): header 8 바이트, `malloc(100)` → free chunk 에서 '''108''' 바이트를 떼어 간다(4088 → 3980).
+
+{warn}함정: `malloc(N)` 이 리스트에서 빼 가는 크기는 N 이 아니라 '''N + sizeof(header)'''. free list 길이 계산 문제에서 header 를 빼먹으면 틀린다.{/warn}
+
+== 관련 문서 ==
+* [[embedded free list]] · [[free-space management]] · [[splitting과 coalescing]]
