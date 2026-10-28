@@ -1,0 +1,217 @@
+key: 과제2 문제 ② bcache
+title: 과제 2 문제 ② bcache — 요약·암기·기본·심화 (퀴즈 대비)
+category: 과제2, 시험
+---
+{info}📌 2026-10-28 — 과제2 퀴즈대비 문제집 2단원(buffer cache)을 위키로 옮긴 것. bget 의 정답 설계(버킷 lock + eviction 전용 `bcache.lock` + miss 후 재확인 + 번호 순서 잠금)는 '''하나의 모범 설계'''다 — 자기 bio.c 와 모양이 달라도 '''불변식(블록당 사본 하나)과 deadlock 회피'''를 지키면 된다. 앞: [[과제2 문제 ① kalloc]] · 다음: [[과제2 퀴즈 모의]].{/info}
+
+{analogy}🎭 bcache 는 '''도서관 대출 창구'''다. 원래는 창구 하나(bcache.lock)에 모두 줄 섰다. 이제 책 번호 끝자리(blockno % 13)로 창구 13개를 나눈다. 단, 같은 책은 도서관에 '''한 권'''만 있어야 하므로, 책이 없어서 새로 들여올 때(eviction)는 "들여오는 담당"을 한 명으로 정하고, 들여오기 전에 '''내 창구를 한 번 더 확인'''한다 — 그 사이 누가 먼저 들여왔을 수 있으니까.{/analogy}
+
+[[anim:bcache_hash|블록 번호를 13 으로 나눈 나머지로 버킷을 고르고, 버킷마다 lock 이 따로인 장면]]
+
+[[sim:bget_trace]]
+
+{info}이 단원이 끝나면: 원래 bget 의 두 루프와 `bcache.lock`/sleeplock 의 역할 분담을 말하고, 버킷 lock 판 bget(hit → miss 시 eviction lock → '''다시 찾기''' → 버퍼 옮기기)을 빈칸 없이 쓰며, 버킷 상태를 이벤트 순서대로 추적하고, 같은 버킷 이동·재확인 누락이 각각 어떻게 깨지는지 한 문장으로 말한다.{/info}
+
+== ① 요약정리 ==
+
+=== 1. 원래 구조 — LRU 리스트 하나 + `bcache.lock` ⭐⭐ ===
+
+{|
+! buf 필드 || 뜻
+|-
+| `valid` / `disk` || 디스크 내용이 들어 있음 / 내용이 디스크에 넘겨짐(I/O 중)
+|-
+| `dev, blockno` || 어느 블록의 사본인가 (identity)
+|-
+| `lock` (sleeplock) || 버퍼 '''내용''' 보호, 한 번에 한 스레드. I/O 동안 오래 쥐므로 잠든다
+|-
+| `refcnt` || 쓰는 중인 수. '''> 0 이면 재활용 금지'''
+|-
+| `prev/next` || LRU 이중 원형 리스트 (head.next = 최근, head.prev = 오래됨)
+|}
+
+'''bget''': `acquire(bcache.lock)` → ① next 방향으로 같은 (dev, blockno) 찾기 → hit 면 `refcnt++` ② 없으면 prev 방향으로 `refcnt == 0` 재활용(`dev, blockno, valid = 0, refcnt = 1`) → `release` → `acquiresleep(&b->lock)`. '''brelse''': releasesleep → lock → `refcnt--`, 0 이면 맨 앞으로(LRU) → release. `NBUF = MAXOPBLOCKS×3 = 30`.
+
+{def}'''PDF:''' "It is important that there is '''at most one cached buffer per disk sector'''." · "The sleep-lock protects reads and writes of the block's buffered content, while the bcache.lock protects information about which blocks are cached." · "Searching in the hash table for a buffer and allocating an entry for that buffer when the buffer is not found '''must be atomic'''."{/def}
+
+=== 2. 바꿀 구조 — 버킷 13개, 버킷마다 lock ⭐⭐⭐ ===
+
+{|
+! 요소 || 설계
+|-
+| 버킷 || `h = blockno % 13` (소수 → 규칙적인 번호가 한 버킷에 몰리지 않음), lock 이름 `"bcache.bucket"`
+|-
+| `bcache.lock` || '''eviction(빈 버퍼 고르기)만''' 직렬화. 이름 `"bcache"`
+|-
+| binit || 버퍼 30개를 전부 버킷 0 에 (어디든 됨). '''NBUF 그대로'''
+|-
+| bget hit || 버킷 h lock 하나만 → `refcnt++`
+|-
+| bget miss || h 놓음 → `bcache.lock` → h 다시 잡고 '''한 번 더 찾기''' → 없으면 버킷 j 의 `refcnt==0` 버퍼를 h 로 옮김: j·h 를 '''번호 작은 것부터''', '''j == h 면 한 번만'''
+|-
+| brelse/bpin/bunpin || 그 버퍼 버킷 lock 하나만, `refcnt`±1. LRU 버림(PDF 허용)
+|}
+
+{warn}'''함정''' ① bcache 는 per-CPU 로 못 나눈다 — 모든 CPU 가 '''같은 블록의 같은 사본'''을 봐야 하므로 CPU 가 아니라 '''블록 번호'''로 나눈다. ② 재확인 없으면 두 프로세스가 같은 블록을 동시에 miss → 사본 두 개. ③ 같은 spinlock 을 두 번 `acquire` → `holding()` 참 → `panic("acquire")`. ④ 2025 풀이는 재확인이 없는데도 100점 — bcachetest 가 같은 블록 동시 miss 를 거의 안 만든다.{/warn}
+
+{exam}'''bcachetest''' test0: bcache lock 들 nts 증가 `< 500` (20점) · test1~3: NBUF 보다 많은 블록·동시 create·큰 로그 = 정확성 (각 10).{/exam}
+
+=== 확인문제 (바로 풀기) ===
+
+# What does `refcnt > 0` guarantee about a buffer?
+# Why is `b->lock` a sleep-lock, not a spinlock?
+# Original bget: which loop scans backward, and why?
+# With 13 buckets, which bucket holds block 40?
+# Which lock(s) does `brelse` take in the bucket design?
+# May you raise NBUF to 60 to avoid evictions?
+
+{answer}정답 1. 다른 블록용으로 재활용되지 않음(identity 고정) 2. 디스크 I/O 동안 오래 쥐므로 spin 은 CPU 낭비 3. 두 번째(재활용) — head.prev 쪽이 LRU 4. 1 5. 그 버퍼 버킷 lock 하나 6. No, 정확히 NBUF(30){/answer}
+
+== ② 정의·코드 암기 점검 ==
+
+# "Indicates that the buffer contains a copy of the block" → `b->＿＿＿`; "the buffer content has been handed to the disk" → `b->＿＿＿`
+# "The buffer cache recycles the ________ buffer for the new block" → ＿＿＿＿＿＿ (3 words)
+# "A lock that puts the waiting thread to sleep instead of spinning" → ＿＿＿＿＿＿
+# "At most one cached buffer per disk ________" → ＿＿＿ (1 word, s…)
+# `NBUF = ＿＿＿ × 3 = ＿＿＿`; buckets: a ＿＿＿ number such as 13.
+# miss path sets `b->valid = ＿＿＿` so that `bread` reads from ＿＿＿.
+# Lock names must start with ＿＿＿; bcachetest test0 OK if the increase is `< ＿＿＿`.
+# Acquiring a spinlock you already hold → `panic("＿＿＿")`.
+
+{answer}1. valid / disk 2. least recently used 3. sleep-lock (sleeplock) 4. sector (block) 5. MAXOPBLOCKS / 30 / prime 6. 0 / disk 7. "bcache" / 500 8. acquire{/answer}
+
+== ③ 기본 문제 ==
+
+''10분''
+
+{quiz}
+'''③-01.''' Which is NOT a case where the PDF says lock conflicts are acceptable? ★★  (1) Two processes use the same block number concurrently. (2) Two processes miss in the cache at the same time. (3) Two processes use different blocks that hash to the same bucket. (4) Two processes release (brelse) cached blocks in different buckets. (5) None of the above is a problem; all four are acceptable.
+{/quiz}
+{answer}
+'''정답''' ④
+PDF 의 허용 목록은 ①②③ 셋. 서로 다른 버킷의 brelse 는 서로 다른 lock 만 잡으므로 '''충돌이 없어야''' 한다 — 이게 바로 과제 요구 "concurrent lookups and releases for different blocks … are unlikely to conflict". 원래 코드는 brelse 도 전역 bcache.lock 을 잡아 여기서 충돌했다.
+{/answer}
+
+{quiz}
+'''③-02.''' (T/F) In the original `bget`, `acquiresleep(&b->lock)` is called while still holding `bcache.lock`. If F, why is the order safe? ★★
+{/quiz}
+{answer}
+'''정답''' F — bcache.lock 을 놓은 뒤 acquiresleep
+PDF: "It is safe for bget to acquire the buffer's sleep-lock outside of the bcache.lock critical section, since the non-zero b->refcnt prevents the buffer from being re-used for a different disk block." spinlock 을 쥔 채 잠들면 안 된다 — 다른 CPU 들이 그 spinlock 에서 계속 spin 하고, xv6 의 `sleep()` 은 `p->lock` 하나만 쥔 채 `sched()` 로 가야 하는데(sleeplock 의 내부 lock 은 이미 놓음), bcache lock 까지 쥐고 있으면 `noff ≠ 1` 이라 `panic("sched locks")`. 순서: identity 확정(refcnt++) → spinlock 놓기 → 내용 lock 기다리기.
+{/answer}
+
+{quiz}
+'''③-03.''' Bucket numbers with 13 buckets: blocks 26, 33, 46, 59. Which pairs contend? Then compare blocks 12, 24, 36, 48 with 12 buckets vs 13 buckets. ★
+{/quiz}
+{answer}
+'''정답''' 0, 7, 7, 7 → 33·46·59 contend · 12 버킷: 0,0,0,0 / 13 버킷: 12,11,10,9
+33 = 2·13+7, 46 = 3·13+7, 59 = 4·13+7. 간격이 13 의 배수면 소수여도 몰린다(허용되는 충돌). 하지만 파일 블록처럼 간격이 12 인 규칙적 패턴은 12 버킷에서 전부 0 번에 몰리고 13 버킷에서는 흩어진다 — 소수를 쓰는 이유. (Python 검산함)
+{/answer}
+
+{quiz}
+'''③-04.''' (T/F) Giving each CPU its own 10 buffers (per-CPU bcache) keeps "at most one copy per block". If F, give a case. ★★
+{/quiz}
+{answer}
+'''정답''' F
+CPU0 의 프로세스가 블록 7 을 자기 버퍼에 읽어 수정하고, CPU1 의 프로세스가 블록 7 을 자기 버퍼에 따로 읽으면 사본이 둘 → 한쪽 쓰기를 다른 쪽이 못 보고, 파일 시스템이 버퍼 sleeplock 으로 하는 동기화도 깨진다. 그래서 kalloc 과 달리 CPU 가 아니라 '''블록 번호'''로 나눈다(PDF: "bcache buffers are truly shared among processes").
+{/answer}
+
+{quiz}
+'''③-05.''' What is `bpin` for, and why does it only need the bucket lock? (one sentence) ★
+{/quiz}
+{answer}
+'''정답''' bpin raises refcnt so the log's buffer cannot be evicted before the transaction is installed, and refcnt is protected by the buffer's bucket lock.
+log_write 가 bpin, 설치 후 bunpin. refcnt 는 "이 버킷의 버퍼 상태"라 버킷 lock 하나면 충분 — 전역 lock 불필요.
+{/answer}
+
+{quiz}
+'''③-06.''' Why can `brelse` compute the bucket from `b->blockno` without holding any lock first? (one sentence) ★★
+{/quiz}
+{answer}
+'''정답''' The caller still holds a reference (refcnt ≥ 1), so the buffer cannot be evicted and its blockno cannot change until refcnt drops.
+identity(dev, blockno)는 eviction 에서만 바뀌고 eviction 은 refcnt == 0 인 버퍼만 고른다. 그래서 lock 없이 읽은 blockno 로 버킷을 정해도 안전.
+{/answer}
+
+== ④ 심화 문제 — 퀴즈 유형 ==
+
+''15분''
+
+{quiz}
+'''④-01.''' '''[퀴즈1 2번 유형]''' Fill (a)–(f). `head[h]` is the dummy head of bucket h. ★★★
+
+<pre class="c">
+int h = blockno % NBUCKET;
+acquire(&bcache.bucketlock[h]);
+for(b = bcache.head[h].next; b != &bcache.head[h]; b = b->next)
+  if(b->dev == dev && b->blockno == blockno){
+    ___(a)___;
+    release(&bcache.bucketlock[h]);
+    ___(b)___;
+    return b;
+  }
+release(&bcache.bucketlock[h]);
+___(c)___;                              // only one evictor at a time
+acquire(&bcache.bucketlock[h]);
+/* ___(d)___ : what must this loop do before evicting? */
+release(&bcache.bucketlock[h]);
+/* pick b with refcnt == 0 in bucket j, move it to bucket h */
+b->dev = dev; b->blockno = blockno; b->valid = ___(e)___; b->refcnt = 1;
+void brelse(struct buf *b){ releasesleep(&b->lock);
+  acquire(&bcache.bucketlock[___(f)___]); b->refcnt--; release(…); }
+</pre>
+{/quiz}
+{answer}
+'''정답''' (a) `b->refcnt++` (b) `acquiresleep(&b->lock)` (c) `acquire(&bcache.lock)` (d) search bucket h again; if found, refcnt++, release both locks, acquiresleep, return (e) `0` (f) `b->blockno % NBUCKET`
+<pre class="c">
+// 이동 부분 (완성)
+for(int j = 0; j < NBUCKET; j++){
+  int lo = j < h ? j : h, hi = j < h ? h : j;
+  acquire(&bcache.bucketlock[lo]);
+  if(lo != hi) acquire(&bcache.bucketlock[hi]);
+  for(b = bcache.head[j].next; b != &bcache.head[j]; b = b->next)
+    if(b->refcnt == 0) break;
+  if(b != &bcache.head[j]){
+    b->next->prev = b->prev; b->prev->next = b->next;       // j 에서 빼고
+    b->next = bcache.head[h].next; b->prev = &bcache.head[h]; // h 앞에
+    bcache.head[h].next->prev = b; bcache.head[h].next = b;
+    b->dev = dev; b->blockno = blockno; b->valid = 0; b->refcnt = 1;
+    if(lo != hi) release(&bcache.bucketlock[hi]);
+    release(&bcache.bucketlock[lo]); release(&bcache.lock);
+    acquiresleep(&b->lock); return b;
+  }
+  if(lo != hi) release(&bcache.bucketlock[hi]);
+  release(&bcache.bucketlock[lo]);
+}
+panic("bget: no buffers");
+</pre>
+
+(d) 재확인 뒤 h 를 잠깐 놓아도 되는 이유: 새 블록 identity 를 버킷에 넣는 코드는 eviction 뿐이고 그건 `bcache.lock` 으로 직렬화되어 있다 → 내가 bcache.lock 을 쥔 동안 블록이 h 에 새로 생길 수 없다. lock 순서는 항상 '''bcache.lock → 버킷 lock(번호 순)'''; hit 경로와 brelse 는 버킷 lock 하나만 잡으므로 순환이 없다.
+
+{exam}'''채점 포인트''' (b)를 버킷 lock 을 쥔 채 하면 spinlock 보유 중 sleep. (e)를 빼면 이전 블록 내용을 새 블록으로 착각. (f)는 b->blockno 기준(③-06).{/exam}
+{/answer}
+
+{quiz}
+'''④-02.''' '''[퀴즈1 4번 유형]''' Small model: NBUF = 4, 13 buckets, all requests use dev 1, initial buffers b0, b1, b2, b3 sit in bucket 0 in that order (dev 0, refcnt 0). A miss scans buckets j = 0, 1, …, takes the '''first''' buffer with refcnt 0 in j, and inserts it at the '''front''' of bucket h. Events: ① bread(14) ② bread(27) ③ brelse(buffer of 14) ④ bread(40) ⑤ bread(27) ⑥ bread(5) ⑦ bread(18) ⑧ brelse(buffer of 5) ⑨ bread(31). (a) Which buffer does each bread return, hit or miss? (b) Bucket 1 and bucket 5 (block, refcnt) after ⑦. (c) In ⑦, the two bucket locks taken together when the victim is found, in order. (d) What is special about ⑨, and what must the code do? ★★★
+{/quiz}
+{answer}
+'''정답''' (a) ① b0 miss ② b1 miss ④ b2 miss ⑤ b1 hit ⑥ b3 miss ⑦ b0 miss ⑨ b3 miss (b) bucket 1: (40,1),(27,2) · bucket 5: (18,1),(5,1) (c) bucket 1 → bucket 5 (d) victim in the same bucket (j = h = 5): lock it once
+버킷: 14·27·40 → 1, 5·18·31 → 5. ①②④⑥ 은 버킷 0 의 앞에서부터 b0, b1, b2, b3. ③ 으로 b0(14) 의 refcnt 0 이 되지만 그대로 버킷 1 에 남는다('''refcnt 0 ≠ 빈 버퍼 아님''' — 다시 읽으면 hit). ⑤ b1 refcnt 2. ⑦ 버킷 0 이 비었으므로 j=1 에서 refcnt 0 인 b0 를 찾아 1→5 이동, 블록 14 는 캐시에서 사라짐. 그때 쥔 lock: bcache.lock, 그리고 lo=1, hi=5 순. ⑧ b3 refcnt 0. ⑨ j=0~4 에 refcnt 0 없음 → j=5 = h 에서 b3 → `lo == hi` 라 한 번만 잡고 같은 버킷 안에서 앞으로 옮김. 두 번 잡으면 `panic("acquire")`. (Python 검산함)
+
+{exam}'''채점 포인트''' ⑤ hit 의 refcnt 2, ⑦ victim 이 b0(14) 라는 것(b1·b2 는 쓰는 중), ⑨ 의 "한 번만".{/exam}
+{/answer}
+
+{quiz}
+'''④-03.''' '''[불변식]''' (a) Remove the re-check (d) from ④-01. Give a two-process interleaving that caches block 66 twice. (b) Without `bcache.lock`, two evictors move buffers 3→8 and 8→3, each locking source then destination. What can happen? (c) Why does the bucket design pass bcachetest test0 while the original fails? ★★
+{/quiz}
+{answer}
+'''정답''' (a) P and Q both miss 66 in bucket 1 and release it; P evicts a buffer for 66, then Q (which never rechecks) evicts another one for 66. (b) deadlock (c) per-bucket locks remove the shared lock
+'''모범답안(영어 골격)''' (a) P searches bucket 1, misses, releases it; Q does the same; P takes bcache.lock and installs 66 in buffer x; Q then takes bcache.lock and, without searching again, installs 66 in buffer y, so block 66 is cached twice. (b) Evictor A holds bucket 3 and waits for bucket 8 while evictor B holds bucket 8 and waits for bucket 3: a circular wait. (c) test0's processes read different blocks, which hash to different buckets, so their bget/brelse calls take different locks and never spin.
+
+(a) 66 % 13 = 1. 2025 풀이에 실제로 있는 틈. (b) bcache.lock 이 있으면 evictor 가 한 명뿐이라 이 상황이 안 생기고, 없더라도 번호 순으로 잡으면 막힌다. (c) 원래 코드는 모든 bget/brelse 가 전역 lock 하나 → PDF 예시 tot = 10273.
+
+{exam}'''채점 포인트''' (a) "둘 다 lock 을 놓은 뒤 각자 할당"과 "재확인 없음"이 들어가야 함. (b) circular wait 한 마디.{/exam}
+{/answer}
+
+== 관련 문서 ==
+* [[과제2 xv6 lock]] · [[과제2 퀴즈 대비]] · [[과제2 문제 ① kalloc]] · [[과제2 문제 ② bcache]] · [[과제2 퀴즈 모의]]
+* [[kalloc]] · [[per-CPU free list]] · [[buffer cache]] · [[bcache 해시 버킷]] · [[lock contention]] · [[퀴즈1 복기]]

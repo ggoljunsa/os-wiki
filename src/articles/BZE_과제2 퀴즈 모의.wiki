@@ -1,0 +1,125 @@
+key: 과제2 퀴즈 모의
+title: 과제 2 퀴즈 모의 — 15분 100점 (퀴즈 1 형식)
+category: 과제2, 시험
+---
+{info}📌 '''실제 퀴즈 1(2026-09-23)과 같은 5문항·같은 배점(10/20/20/20/30)'''을 과제 2 로 옮겼다(문제집 3단원). 실제 퀴즈 1 원문과 해설은 [[퀴즈1 복기]]. 앞 두 문서([[과제2 문제 ① kalloc]], [[과제2 문제 ② bcache]])를 끝낸 뒤 '''15분 타이머'''를 켜고 종이에 답을 쓴 다음, 각 문항의 정답 보기를 연다.{/info}
+
+{analogy}🎭 퀴즈 1 이 가르쳐 준 것: '''채점기 만점과 퀴즈 만점은 다르다.''' 채점기는 "돌아가나"를 보고, 퀴즈는 "왜 그렇게 짰나"를 한 문장으로 묻는다. 2025 풀이는 lock 이름 버그로 kalloctest 를 '''가짜로''' 통과했다(5번 문제).{/analogy}
+
+<pre class="ascii">
+  퀴즈 1 (실제, 과제 1)                 →  이 모의 (과제 2)
+  1. Select one (10)                       1. kfree 는 어느 CPU 리스트에
+  2. 코드 빈칸 3개 (20)                    2. bget eviction 빈칸 3개
+  3. 왜 필요한가 (a)(b)(c) (20)            3. per-CPU lock · 재확인 · acquiresleep 위치
+  4. 값 추적 + 한 줄 수정 (20)             4. STEAL=3 free list 추적 + 버그 한 줄
+  5. 변형 프로그램 출력 예측 (30)          5. lock 이름 버그 → kalloctest 출력 예측
+</pre>
+
+
+== ⏱ OS Assignment 2 Quiz — Time: 15 minutes ==
+
+''시작 ____ : ____ / 종료 ____ : ____''
+
+'''Total: 100 points. Limit each written explanation to one sentence.''' Unless stated otherwise, `kalloc.c` uses per-CPU free lists `kmem[NCPU]` with batch stealing (only one lock held at a time), and `bio.c` uses `NBUCKET = 13` hash buckets with one lock each plus `bcache.lock` for eviction.
+
+{quiz}
+'''P1.''' '''Select one. (10 points)'''
+In the per-CPU allocator, `kfree(pa)` puts `pa` on the free list of ( the CPU that allocated `pa` / the CPU that is running `kfree` ).
+{/quiz}
+{answer}
+'''정답''' the CPU that is running kfree (10)
+`push_off(); id = cpuid();` 로 '''지금 CPU''' 를 보고 그 리스트에 push. 페이지에는 주인 CPU 기록이 없고 필요 없다(부족하면 steal 로 균형). ([[과제2 문제 ① kalloc]] ③-06)
+{/answer}
+
+{quiz}
+'''P2.''' '''Eviction in bget. (20 points)''' No lookup hit; `bcache.lock` is held and bucket `h` was re-checked. Fill the blanks in order. (5, 10, and 5 points)
+
+<pre class="c">
+int h = ____________________;                 // bucket of the requested block
+for(int j = 0; j < NBUCKET; j++){
+  int lo = j < h ? j : h, hi = j < h ? h : j;
+  acquire(&bcache.bucketlock[lo]);
+  if(____________________) acquire(&bcache.bucketlock[hi]);
+  for(b = bcache.head[j].next; b != &bcache.head[j]; b = b->next)
+    if(____________________) { /* move b to bucket h, set dev/blockno, valid = 0, refcnt = 1 */ }
+  ...
+}
+</pre>
+{/quiz}
+{answer}
+'''정답''' (1) `blockno % NBUCKET` (5) (2) `lo != hi` (10) (3) `b->refcnt == 0` (5)
+(2) j == h 인 경우 같은 spinlock 을 두 번 `acquire` 하면 `holding()` 이 참 → `panic("acquire")`. lo/hi 로 번호 작은 lock 부터 잡는 것은 두 evictor 사이의 circular wait 방지. (3) 쓰는 중(refcnt > 0)인 버퍼는 identity 를 바꾸면 안 된다. `valid == 0` 같은 조건은 오답 — 내용이 있든 없든 refcnt 0 이면 재활용 가능.
+
+{exam}'''채점 포인트''' (1) `b->blockno` 가 아니라 요청 인자 `blockno`. (2) `j != h` 도 정답(같은 뜻). `lo < hi` 도 인정.{/exam}
+{/answer}
+
+{quiz}
+'''P3.''' '''Why is it needed? (20 points)'''
+(a) `kalloc()` runs with interrupts off (`push_off()`). Why does each per-CPU free list still need its own spinlock? (10 points)
+(b) In bget's miss path, after acquiring `bcache.lock`, why must bucket `h` be searched again? (5 points)
+(c) Why does bget call `acquiresleep(&b->lock)` only after releasing the bucket lock? (5 points)
+{/quiz}
+{answer}
+'''정답''' (a) Interrupts are disabled only on the local CPU, so another CPU can still steal from (modify) this list at the same time. (10) (b) Another process may have cached the same block between our first search and acquiring `bcache.lock`, and evicting again would create a second copy. (5) (c) A spinlock must not be held while sleeping, and the nonzero refcnt already keeps the buffer from being reused. (5)
+(a) 퀴즈 1 의 3(a)("왜 별도 사본이 필요한가")와 같은 자리 — "이미 X 가 있는데 왜 Y 도?" 형. 핵심어: '''other CPU''' + '''steal'''. (b) 핵심어: '''between'''(lock 을 놓은 틈) + '''two copies'''. (c) 핵심어: spinlock 보유 중 sleep 금지 + refcnt 가 identity 고정.
+
+{exam}'''채점 포인트''' (a)에 "interrupt handler 가 kfree 를 부를 수 있어서"만 쓰면 부분 점수 — push_off 가 그건 이미 막는다. 다른 CPU 가 핵심.{/exam}
+{/answer}
+
+{quiz}
+'''P4.''' '''Following the free lists. (20 points)''' `STEAL = 3`, 3 CPUs. Initially CPU 0: P1→P2→P3→P4→P5→P6; CPU 1 and CPU 2 are empty. The stealing part of `kalloc()` on CPU `id`:
+
+<pre class="c">
+acquire(&kmem[i].lock);           // i != id, i = 0, 1, 2, ...
+head = tail = kmem[i].freelist;
+if(head){ for(n = 1; n < STEAL && tail->next; n++) tail = tail->next;
+          kmem[i].freelist = tail->next; tail->next = 0; }
+release(&kmem[i].lock);
+if(head){ r = head;
+  if(head->next){ acquire(&kmem[id].lock);
+    tail->next = kmem[id].freelist;
+    kmem[id].freelist = head->next;          // (*)
+    release(&kmem[id].lock); }
+  break; }
+</pre>
+
+Events: e1 CPU1 `kalloc()` · e2 CPU2 `kfree(Q)` · e3 CPU1 `kalloc()` · e4 CPU1 `kalloc()` · e5 CPU1 `kalloc()`.
+(a) Fill in the values. (5 points each)
+(i) Immediately after e1: CPU 0 list = __________, CPU 1 list = __________
+(ii) e5 returns __________, and afterwards CPU 1 list = __________
+(b) A classmate wrote `kmem[id].freelist = head;` at (*). Which page does e3 return, and why is that a bug? Write the correct statement for (*). (10 points)
+{/quiz}
+{answer}
+'''정답''' (a)(i) CPU 0 = P4→P5→P6, CPU 1 = P2→P3 (ii) P4, CPU 1 = P5→P6 (b) e3 returns P1 again — the page already returned by e1 is also left on CPU 1's list, so it is allocated twice; fix: `kmem[id].freelist = head->next;`
+e1: P1~P3 를 떼어 P1 반환, P2·P3 보관 → CPU0 = P4,P5,P6. e2: Q 는 CPU2 로(CPU1 과 무관). e3 P2, e4 P3 → CPU1 빔. e5: i=0 부터 → CPU0 에서 P4~P6 → P4 반환, P5·P6 보관. (b) `head` 를 넣으면 CPU1 = P1→P2→P3 인데 P1 은 이미 반환됨 → e3 이 P1 을 또 반환(두 사용자가 같은 물리 페이지). (Python 검산함) 퀴즈 1 4(b) "`return 0;` 을 고쳐라"와 같은 한 줄 수정 자리.
+
+{exam}'''채점 포인트''' (a) 각 칸 두 값 모두 맞아야 5점. (b) "P1"(3) + "double allocation" 이유(3) + 고친 문장(4).{/exam}
+{/answer}
+
+{quiz}
+'''P5.''' '''Predict the test output. (30 points)''' Problem 1 is correct except `kinit`; `bio.c` is the '''original''' (one lock named "bcache"). Assume that after `kinit` returns, the stack bytes of `buf` are reused, so they no longer start with "kmem". The bcache lock's `#test-and-set` is 0 before and after kalloctest test1.
+
+<pre class="c">
+void kinit() {
+  char buf[8];
+  for(int i = 0; i < NCPU; i++){
+    snprintf(buf, sizeof(buf), "kmem%d", i);
+    initlock(&kmem[i].lock, buf);
+  }
+  freerange(end, (void*)PHYSTOP);
+}
+</pre>
+
+(a) For kalloctest test1, write: (i) the number of lines that start with `lock: kmem` in the "--- lock kmem/bcache stats" section, (ii) the value printed after `tot=`, (iii) the last line printed by test1. (20 points: 10, 5, and 5 points)
+(b) Run again with `initlock(&kmem[i].lock, "kmem");`. Now the kmem locks' `#test-and-set` total rises by 25 during test1. What is the last line of test1? Explain in one sentence. (10 points)
+{/quiz}
+{answer}
+'''정답''' (a)(i) 0 (10) (ii) 0 (5) (iii) `test1 OK` (5) (b) `test1 FAIL` — the increase n − m = 25 is not less than 10. (10)
+(a) `initlock` 은 `lk->name = name` 으로 '''포인터만''' 저장 → 8개 lock 이 전부 같은 `buf` 를 가리킨다(kinit 직후엔 모두 "kmem7"!). kinit 이 끝나 그 스택이 덮이면 이름이 "kmem" 으로 시작하지 않으므로 `statslock` 의 `strncmp(name, "kmem", 4)` 에서 빠진다 → stats 절에는 `lock: bcache` 한 줄뿐, `tot` = bcache nts = 0, n − m = 0 < 10 → OK. contention 이 실제로 있어도 OK 가 나오는 '''가짜 통과''' — 2025 풀이에서 실측된 현상(참고_2025/2025풀이_분석.md). (top 5 절에는 깨진 이름으로 나타날 수 있다.) (b) 이름이 정상이면 kmem lock 이 합산되어 n − m = 25 ≥ 10 → FAIL.
+
+{exam}'''채점 포인트''' (a)(iii) 를 FAIL 로 쓰면 이름 규칙을 모른다는 뜻 — 핵심 함정. (b) 숫자 비교(25 ≥ 10)가 문장에 있어야 10점.{/exam}
+{/answer}
+
+== 관련 문서 ==
+* [[과제2 xv6 lock]] · [[과제2 퀴즈 대비]] · [[과제2 문제 ① kalloc]] · [[과제2 문제 ② bcache]] · [[과제2 퀴즈 모의]]
+* [[kalloc]] · [[per-CPU free list]] · [[buffer cache]] · [[bcache 해시 버킷]] · [[lock contention]] · [[퀴즈1 복기]]

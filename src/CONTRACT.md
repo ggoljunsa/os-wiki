@@ -103,6 +103,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 세그멘테이션 · 세그먼트 주소 변환 · 스택 세그먼트 · 코드 공유와 protection bit · segmentation fault · internal fragmentation · external fragmentation · compaction · free-space management · splitting과 coalescing · 할당 헤더 · embedded free list · 할당 전략
 ### 15강 Paging — 파일 접두어 `BR0_`~`BRA_`. 슬라이드 `../../기말고사/강의자료/15-Paging.pdf` 53쪽 = `_slides/L15-{pp}.png`, 텍스트 `_text/15-Paging.txt`. 녹음 없음 (2026-10-26)
 페이징 · VPN과 offset · 페이지 테이블 · PTE 플래그 · copy-on-write · 페이징의 문제 · TLB · TLB hit와 miss · TLB miss 처리 · PTBR · ASID와 TLB flush
+### 과제2 퀴즈 문제 세트 (2026-10-28) — 접두어 `BZC_`~`BZE_`. 주간문제집 `과제2_퀴즈대비/units/u1~u3.html` 을 변환(문제 {quiz} + 접힌 {answer}). 원본 문제집을 고치면 여기도 같이 고칠 것
+과제2 문제 ① kalloc · 과제2 문제 ② bcache · 과제2 퀴즈 모의
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
