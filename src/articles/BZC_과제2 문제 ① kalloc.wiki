@@ -152,10 +152,35 @@ STEAL=1 은 kalloc 마다 리스트가 비어 매번 남의 lock 을 잡는다. 
 
 {quiz}
 '''③-08.''' The PDF's sample output shows five kmem locks each with `#acquire() 58` and `#test-and-set 0`, while three others have over a million. Explain in one sentence. ★★[A2 sample output]
+
+{info}📄 '''"the PDF" = 과제 안내문 `Assignment 2.pdf`''' (Problem 1 끝부분). 안내문이 "구현을 끝내면 출력이 대략 이렇게 나온다"며 보여 주는 '''정답 구현의 kalloctest test3 출력'''이다. kmem lock 이 8줄(= `NCPU` 8개의 per-CPU lock) 찍히는데 모양이 두 부류로 갈린다.{/info}
+
+<pre class="ascii">
+start test3
+..........child done 100000
+--- lock kmem/bcache stats
+lock: kmem: #test-and-set 758  #acquire() 1375324   ← CPU 0
+lock: kmem: #test-and-set 796  #acquire() 1864634   ← CPU 1   (백만 단위, 충돌 조금)
+lock: kmem: #test-and-set 1395 #acquire() 1779346   ← CPU 2
+lock: kmem: #test-and-set 0    #acquire() 58        ← CPU 3
+lock: kmem: #test-and-set 0    #acquire() 58        ← CPU 4
+lock: kmem: #test-and-set 0    #acquire() 58        ← CPU 5   (똑같이 58, 충돌 0)
+lock: kmem: #test-and-set 0    #acquire() 58        ← CPU 6
+lock: kmem: #test-and-set 0    #acquire() 58        ← CPU 7
+lock: bcache: ...
+</pre>
+
+질문: '''왜 위 3줄은 백만 번이 넘는데 아래 5줄은 전부 정확히 58번이고 충돌이 0인가?''' (힌트: `make qemu` 는 `CPUS := 3` 으로 띄운다.)
 {/quiz}
 {answer}
 '''정답''' qemu runs only 3 CPUs (NCPU = 8), so the other five lists are never used by their own CPU; their locks are acquired only when a stealing CPU scans them.
 0~2 번 CPU 만 kalloc/kfree 를 하고, 3~7 번 lock 은 steal 하던 CPU 가 앞 번호 리스트가 다 비었을 때 순서대로 훑으며 한 번씩 잡는다 → 다섯 개가 똑같은 횟수(58). 경쟁하는 사람이 없으니 #test-and-set 0.
+
+풀어 쓰면:
+* `kernel/param.h` 의 `NCPU = 8` 이라 `kmem[8]` 배열에 lock 이 8개 생기지만, `Makefile` 의 `CPUS := 3` 때문에 qemu 는 CPU 를 3개만 띄운다.
+* CPU 0·1·2 는 매번 '''자기''' 리스트 lock 을 잡는다 → 백만 번 단위. 서로 steal 할 때 가끔 겹쳐서 test-and-set 이 수백~천 번 나온다.
+* CPU 3~7 은 존재하지 않으니 자기 lock 을 잡을 일이 없다. 리스트도 비어 있다(kfree 하는 CPU 가 없으니까). 이 lock 을 잡는 경우는 '''steal 하는 CPU 가 "다른 CPU 리스트를 차례로 훑을 때"'''뿐이다. 한 번 훑을 때 3~7 을 한 번씩 잡으니 다섯 개가 '''똑같이''' 58 번이 된다. 한 번에 한 CPU 만 들르니 충돌도 0.
+* 58 이라는 숫자 자체는 의미 없다. "steal 하면서 3~7 번 리스트까지 가 본 횟수"일 뿐이라 구현마다 다르다.
 {/answer}
 
 == ④ 심화 문제 — 퀴즈 유형 ==
