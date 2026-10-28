@@ -248,6 +248,55 @@ ___(f)___;
 '''정답''' ① A · C,D,E / B / – ② C · E / B / D ③ B · E / – / D ④ – · E / – / A,D ⑤ E · – / – / A,D ⑥ A · D / – / –
 ① CPU1 비었음 → i=0 에서 A,B 를 떼어 A 반환, B 보관. ② CPU2 비었음 → i=0 에서 C,D → C 반환. ③ CPU1 자기 리스트 B. ④ kfree 는 '''지금 CPU(2)''' 앞에 push → A,D (A 는 원래 CPU0 것이었지만 상관없음). ⑤ CPU1 비었음 → i=0 에 E 한 장뿐 → 반환, 보관할 것 없음(`head->next == 0` 이라 내 lock 안 잡음). ⑥ CPU0 비었음 → i=1 비었음 → i=2 에서 A,D → A 반환, D 보관. (Python 검산함)
 
+{|
+! event || returns || CPU 0 || CPU 1 || CPU 2
+|-
+| 시작 || – || A→B→C→D→E || – || –
+|-
+| ① CPU1 kalloc || '''A''' || C→D→E || B || –
+|-
+| ② CPU2 kalloc || '''C''' || E || B || D
+|-
+| ③ CPU1 kalloc || '''B''' || E || – || D
+|-
+| ④ CPU2 kfree(A) || – || E || – || A→D
+|-
+| ⑤ CPU1 kalloc || '''E''' || – || – || A→D
+|-
+| ⑥ CPU0 kalloc || '''A''' || D || – || –
+|}
+
+<pre class="ascii">
+시작    CPU0 [A]→[B]→[C]→[D]→[E]   CPU1 (빈)          CPU2 (빈)
+
+① CPU1  내 리스트 빈 → i=0 에서 2장 떼기
+        CPU0 [A][B]│[C]→[D]→[E]     ← tail=B 에서 자름
+                 └──────┐
+        손에 든 묶음 A→B : A 반환, B 는 내 리스트로
+        CPU0 [C]→[D]→[E]           CPU1 [B]           CPU2 (빈)
+
+② CPU2  내 리스트 빈 → i=0 에서 2장 떼기
+        CPU0 [C][D]│[E]
+        손에 든 묶음 C→D : C 반환, D 보관
+        CPU0 [E]                   CPU1 [B]           CPU2 [D]
+
+③ CPU1  내 리스트에 B 있음 → 그냥 pop (steal 안 함)
+        CPU0 [E]                   CPU1 (빈)          CPU2 [D]
+
+④ CPU2  kfree(A) → "지금 도는 CPU" 리스트 맨 앞에 push
+        CPU0 [E]                   CPU1 (빈)          CPU2 [A]→[D]
+                                                       ▲ 원래 주인(CPU0) 상관없음
+
+⑤ CPU1  내 리스트 빈 → i=0 에 E 한 장뿐
+        손에 든 묶음 E 하나 : E 반환, 남는 것 없음 → 내 lock 안 잡음
+        CPU0 (빈)                  CPU1 (빈)          CPU2 [A]→[D]
+
+⑥ CPU0  내 리스트 빈 → i=1 (빈, 통과) → i=2 에서 2장 떼기
+        CPU2 [A][D]│
+        손에 든 묶음 A→D : A 반환, D 는 CPU0 리스트로
+        CPU0 [D]                   CPU1 (빈)          CPU2 (빈)
+</pre>
+
 {exam}'''채점 포인트''' ④에서 A 를 CPU0 에 돌려놓으면 오답. ⑥에서 steal 순서는 i=0 부터(자기 건너뜀) — 빈 CPU1 을 지나 CPU2.{/exam}
 {/answer}
 
