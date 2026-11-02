@@ -16,4 +16,4 @@ category: 15강 Paging, 용어
 [[img:L15-41.png|p.41 Hardware-managed TLBs — ① PTBR 로 page table 로 점프 ② PTE 찾기 ③ PFN 추출 ④ TLB 갱신|large]]
 
 == 관련 문서 ==
-* [[TLB miss 처리]] · [[페이지 테이블]] · [[ASID와 TLB flush]] · [[컨텍스트 스위치]] · [[base and bounds]](13강의 base register 와 비교)
+* [[PDBR]](16강 multi-level 판) · [[TLB miss 처리]] · [[페이지 테이블]] · [[ASID와 TLB flush]] · [[컨텍스트 스위치]] · [[base and bounds]](13강의 base register 와 비교)

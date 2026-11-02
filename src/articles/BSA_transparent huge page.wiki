@@ -1,0 +1,49 @@
+key: transparent huge page
+title: Transparent Huge Page (THP) — promotion · compaction · demotion
+category: 16강 Advanced Page Table, 핵심
+---
+'''커널이 자동으로''' huge page 를 관리하는 Linux 기능. 애플리케이션은 아무것도 바꾸지 않고(transparent), 커널이 조건이 맞는 작은 page 들을 huge page 로 '''승격(promotion)'''하고, 필요하면 '''압축(compaction)'''해 연속 공간을 만들고, 쓸모가 줄면 다시 '''쪼갠다(demotion)'''. 16강 p.39~45.
+
+{def}p.40 — "Linux kernel feature that '''automatically manages huge pages'''. ~1990s: Hardware support for huge pages appears / 2000s: OS research on huge pages appears / '''2011: Linux kernel integrates THP''' for automatic promotion of pages. Goal: Reduce TLB misses / Reduce page-table size and page-walk latency / Improve performance transparently."{/def}
+
+{analogy}🎭 '''자동 정리하는 창고 관리인.''' 같은 손님 짐 8상자가 창고 여기저기 흩어져 있으면, 관리인이 밤에 한 구역으로 모아(compaction) 구역 번호 하나로 등록한다(promotion). 손님이 그중 한 상자를 안 쓰게 되면 구역 등록을 풀고 상자 단위로 돌아간다(demotion). 손님은 모르지만, 정리하는 동안 창고가 잠깐씩 멈춘다(tail latency).{/analogy}
+
+[[anim:thp_promotion|흩어진 frame → compaction → promotion(PDE 가 huge page 를 직접) → demotion 순서를 보고 아래 세 절을 읽어라]]
+
+== Promotion (p.41) ⭐⭐⭐ ==
+{def}p.41 — "Idea: Promote the contiguous pages. If the pages are contiguous, it can be merged into the huge page. '''Condition: Virtually- and physically-contiguous pages'''."{/def}
+* 상위 레벨 entry(Level 1 PDT)가 page table 대신 huge page 를 직접 가리키게 바꾼다 → TLB 항목 1개, page table page 하나 불필요.
+* 영상 55:14 보충: 2MB = 4KB × '''512''' 개, '''alignment'''(2MB 경계) + 같은 mapping 속성 + 물리적으로 연속·정렬.
+
+[[img:L16-41.png|p.41 Promotion — Level 0 PDT → Level 1 PDT → Page Table 의 8칸이 가리키던 연속 frame 을 Level 1 PDT 가 Huge Page 로 직접|large]]
+
+== Compaction (p.42~43) ⭐⭐ ==
+{def}p.42 — "Problem: '''Virtually-contiguous is not physically-contiguous'''. Perform '''compaction''' to make '''linear mapping'''."{/def}
+* 가상으로는 연속이어도 물리 frame 이 흩어져 있으면 promotion 불가 → frame 을 옮겨(복사) 물리적으로도 연속으로 만든다. 프로세스는 같은 VA 를 계속 쓰고 커널이 mapping 을 고친다.
+* 14강 [[compaction]] 과 같은 말이지만 대상이 다르다: 14강은 '''segment''' 를 모아 external fragmentation 해결, 여기는 '''page frame''' 을 모아 huge page 자리 만들기.
+* 영상 58:36 "'''compaction is not guaranteed to succeed'''. It also takes time." — 지금 못 옮기는 page 도 있고, 애플리케이션이 기다리는 경로에서 일어나면 비용이 보인다.
+
+[[img:L16-42.png|p.42 Compaction — Page Table 이 가리키는 frame 이 흩어져 있고, 빨간 화살표로 연속 자리로 옮긴다|large]]
+
+== Demotion (p.44) ⭐⭐ ==
+{def}p.44 — "Problem: '''Internal Fragmentation'''. We '''cannot free the unused page in the huge page'''."{/def}
+* huge page 의 일부만 쓰이면 나머지는 낭비인데 huge page 단위로만 해제할 수 있다 → 다시 작은 page mapping 으로 쪼개서 안 쓰는 조각을 반납. 영상 60:14 "huge pages help when the region is used '''densely''', while smaller mappings provide flexibility when its use becomes sparse."
+
+[[img:L16-44.png|p.44 Demotion — Page Table 의 마지막 칸이 비었는데(안 쓰는 page) Huge Page 로 묶여 있어 free 할 수 없다|large]]
+
+== THP 의 한계 (p.45) ⭐⭐⭐ ==
+{|
+! 한계 || 원문 || 풀이
+|-
+| '''Increased memory usage''' || Increased internal fragmentation for aggressive THP || 공격적으로 승격할수록 안 쓰는 부분까지 잡힘
+|-
+| '''Tail latency''' || Kernel automatically promotes/demotes the pages — User suffers from the '''unpredictable latency spikes''' || compaction·복사가 언제 일어날지 모름
+|-
+| '''External Fragmentation''' || Explicit huge page pre-allocates the huge pages in a specific region; '''THP allows multiple page sizes in the physical memory''' || 크기 섞인 물리 메모리 → 큰 연속 공간 부족
+|}
+"'''Database application usually recommends to turn-off THP'''" — 영상 62:00 "DB 는 deterministic latency 를 원하는데 THP 의 demotion·compaction 이 latency spike 를 낸다."
+
+{exam}🎯 용어·객관식 후보: promotion 의 조건 → '''virtually- and physically-contiguous''' / 물리적으로 연속이 아닐 때 하는 일 → '''compaction''' / huge page 안 안 쓰는 page 때문에 쪼개는 것 → '''demotion''' / THP 한계 셋 → memory usage · '''tail latency''' · external fragmentation / DB 권장 → THP '''off'''.{/exam}
+
+== 관련 문서 ==
+* [[huge page]] · [[compaction]](14강) · [[internal fragmentation]] · [[external fragmentation]] · [[Sv39 PTE]] · [[고급 페이지 테이블]]

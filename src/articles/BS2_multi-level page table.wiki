@@ -1,0 +1,47 @@
+key: multi-level page table
+title: Multi-level Page Table (다단계 페이지 테이블)
+category: 16강 Advanced Page Table, 핵심
+---
+linear page table 을 '''page 크기 단위로 잘라서''' 나무(tree)처럼 만든 것. 조각 하나가 통째로 invalid 면 그 조각은 '''아예 할당하지 않고''', 어떤 조각이 있는지는 [[page directory]] 가 기록한다. 16강 p.17~29, OSTEP 20.3. x86·RISC-V 등 오늘날 대부분의 CPU 가 쓰는 방식이다.
+
+{def}p.18 원문 — "'''Turns the linear page table into something like a tree.''' Chop up the page table into '''page-sized units'''. If an entire page of page-table entries is invalid, '''don't allocate that page of the page table at all'''. To track whether a page of the page table is valid, use a new structure, called a '''page directory'''."{/def}
+
+{analogy}🎭 '''목차 있는 백과사전.''' 한 권짜리 두꺼운 책(linear table)은 빈 쪽까지 다 인쇄한다. 같은 두께의 분책(page-table page)으로 나누고, 앞에 목차(page directory)를 두면 내용 없는 분책은 인쇄하지 않고 목차에 "없음"만 적으면 된다. 분책은 아무 책장에나 꽂아도 목차가 위치를 알려 준다(indirection). 대신 찾을 때 목차 한 번 + 분책 한 번 = 두 번 펼친다.{/analogy}
+
+[[img:L16-19.png|p.19 — 왼쪽 Linear: PTBR 201 → PFN 201~204 네 page(202·203 은 전부 invalid). 오른쪽 Multi-level: PDBR 200 → Page Directory 의 PDE 4개 중 valid 2개(PFN 201·204) → page table page 두 장만 할당 ("Page 1·2 of PT: Not Allocated")|large]]
+
+[[anim:two_level_walk|2단계 walk 를 먼저 그림으로 — PDE 가 invalid 인 칸 아래엔 PT page 가 없다는 것까지 본 뒤 [[다단계 주소 변환 계산]]으로]]
+
+== 장점과 단점 (p.20) ⭐⭐⭐ ==
+{|
+! 구분 || 원문 || 풀이
+|-
+| 장점 1 || '''Memory saving''': "Only allocates page-table space in proportion to the amount of address space you are using" || 안 쓰는 영역은 invalid PDE 한 칸으로 끝. p.19 예: 4 page → 3 page, p.23 예: 1024B → 192B
+|-
+| 장점 2 || '''Easier memory management''': "In a linear page table, page-table … must reside '''contiguously''' in physical memory. In a multi-level page table, page-table pages can be located '''in any place''' — Thanks to a '''level of indirection'''" || 표 조각도 data page 와 같은 크기 → 빈 frame 아무거나. [[hybrid approach]] 의 external fragmentation 해결
+|-
+| 단점 1 || '''Time-space trade-off''': "on a TLB miss, it requires '''two loads''' (plus data)" || 2단계: PDE → PTE → data = 메모리 3번. 3단계면 4번
+|-
+| 단점 2 || '''Complexity''': "it should manage more than one table" || OS·하드웨어가 걷는 단계가 늘어난다
+|}
+
+{tip}영상 05:03 교수님: "'''Keep this fast path in mind.''' A more complicated page table mainly affects what happens on a '''TLB miss'''." [[TLB]] hit 이면 표를 아예 걷지 않으니, 깊은 tree 의 비용은 miss 때만 낸다 — [[locality]] 덕분에 miss 가 드물어서 이 trade-off 가 성립한다.{/tip}
+
+{warn}영상 19:28 "'''Be careful about two kinds of pages''' involved." '''page-table page''' 는 번역 정보(PTE 묶음, metadata), '''data page''' 는 프로그램의 코드·데이터. multi-level 이 아끼는 것은 앞의 것(metadata)이다.{/warn}
+
+== 비트 나누는 법 ⭐⭐⭐ ==
+교수님 요령(영상 24:22): "'''Always begin with the address space size and page size and entry size, and then derive the index width.'''"
+# offset 비트 = log2(page 크기)
+# VPN 비트 = log2(주소 공간) − offset 비트
+# PT index 비트 = log2(page 크기 / PTE 크기) — page 한 장에 PTE 가 몇 개 들어가나
+# 남은 VPN 비트 = PD index. 그 directory 가 한 page 에 안 들어가면(2^PD비트 × PDE 크기 > page) 또 쪼갠다 → [[3단계 page table]]
+* 예 1(p.21~24): 16KB, 64B, 4B → offset 6, VPN 8, PT index 4, PD index 4 → [[다단계 주소 변환 계산]]
+* 예 2(p.25~29): 1GB, 512B, 4B → offset 9, VPN 21, 인덱스 7 씩 → 7 | 7 | 7 | 9
+
+[[sim:multilevel_walk]]
+
+{quiz}32비트 VA, 4KB page, 4B PTE 를 2단계로 나누면 PD index·PT index·offset 은 각각 몇 비트? directory 는 한 page 에 들어가나?{/quiz}
+{answer}offset 12, VPN 20, PT index = log2(4096/4) = '''10''', PD index = 20 − 10 = '''10''' → 10 | 10 | 12. directory = 2^10 × 4B = 4KB = '''정확히 한 page''' → 2단계로 충분 (x86 32비트의 고전적 구성 — OSTEP 20장).{/answer}
+
+== 관련 문서 ==
+* [[고급 페이지 테이블]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]] · [[hybrid approach]] · [[페이지 테이블]] · [[TLB miss 처리]]

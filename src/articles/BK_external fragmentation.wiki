@@ -24,4 +24,5 @@ p.19 — "External fragmentation is unavoidable: The free space gets chopped int
 {answer}합은 24KB 지만 연속된 가장 큰 구멍이 10KB 라 '''실패''' — external fragmentation. (p.16 의 "24KB free 인데 20KB 실패"와 같은 구조){/answer}
 
 == 관련 문서 ==
+* 16강: [[hybrid approach]] 는 page table 이 가변 크기·연속 할당이라 이 문제가 '''page table 저장'''에서 되살아나고(p.16), THP 는 여러 page 크기가 섞여 다시 생긴다(p.45, [[transparent huge page]]).
 * [[internal fragmentation]] · [[compaction]] · [[free-space management]] · [[할당 전략]] · [[세그멘테이션]]

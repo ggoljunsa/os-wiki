@@ -1,0 +1,68 @@
+key: 다단계 주소 변환 계산
+title: 다단계 주소 변환 계산 — 16KB/64B 예제 (VA 5844 → PA 14740) ⭐⭐⭐
+category: 16강 Advanced Page Table, 핵심
+---
+16강 p.21~24 의 Detailed Example 을 손으로 한 번, 시뮬레이터로 한 번. 기출 형식("규칙을 주고 값만 쓰기")에 가장 잘 맞는 16강 계산이다. 3단계 판은 [[3단계 page table]].
+
+{analogy}🎭 '''주소를 우편번호처럼 자르기.''' VA 14비트를 "시·도(PD index) | 구(PT index) | 번지(offset)"로 자른다. 시·도 목차에서 구 장부 위치를, 구 장부에서 집(frame)을 찾고, 번지는 그대로 붙인다.{/analogy}
+
+== 1. 조건에서 비트 수 유도 (p.21~23) ==
+{|
+! 항목 || 값 || 계산
+|-
+| Address space || 16KB = 2^14 || VA '''14비트'''
+|-
+| Page size || 64B = 2^6 || offset '''6비트'''
+|-
+| VPN || 14 − 6 = '''8비트''' || page 256개
+|-
+| linear page table || 2^8 × 4B = '''1KB''' = 64B page '''16장''' || p.21 "(= 1 KB = 16 64B pages)"
+|-
+| PT index || 64B / 4B = 16 PTE/page → '''4비트''' || p.23 "2^4 (16) × 4B = 64B = a single page"
+|-
+| PD index || 8 − 4 = '''4비트''' → PDE 16개 × 4B = 64B = 한 page || p.22 "A page directory table and page tables fit into a single page"
+|}
+<pre class="ascii">
+   13 12 11 10 | 9  8  7  6 | 5  4  3  2  1  0
+   '''PD index (4)''' | '''PT index (4)''' |   '''offset (6)'''
+   \__________ VPN (8) ________/
+</pre>
+
+[[img:L16-21.png|p.21 Detailed Example — 16KB 주소 공간(code·code·free·free·heap·heap·free·free·stack·stack), 표: VA 14 bit, VPN 8 bit, Offset 6 bit, PTE 2^8 × 4B = 1KB = 16 page|large]]
+
+== 2. 메모리 절약량 (영상 25:45) ==
+이 프로세스가 실제로 쓰는 page: code '''VPN 0·1''', heap '''4·5''', stack '''254·255'''. code·heap 은 PT page 0 (VPN 0~15)에, stack 은 PT page 15 (VPN 240~255)에 들어간다. 나머지 14장은 PDE invalid → 할당 안 함.
+* multi-level: directory 1 + PT page 2 = 3 × 64B = '''192B'''
+* linear: '''1024B'''
+
+== 3. VA 5844 번역 (p.24) ⭐⭐⭐ ==
+<pre class="ascii">
+   5844 = 0x16D4 = 01 0110 1101 0100 (14비트)
+        = '''0101''' | '''1011''' | '''010100'''
+        =   PD 5 |  PT 11 | offset 20
+
+   ① PDE 주소 = PDBR 이 가리키는 곳 + 5 × 4  (= +20B)  → valid, PT page 위치
+   ② PTE 주소 = 그 PT page 시작   + 11 × 4 (= +44B)  → valid, PFN '''230'''
+   ③ PA = 230 × 64 + 20 = 14720 + 20 = '''14740'''
+</pre>
+* 검산(Python): `5844 >> 10 = 5`, `(5844 >> 6) & 15 = 11`, `5844 & 63 = 20`, `230*64+20 = 14740`.
+* 슬라이드는 PDE 의 PFN 값을 보여 주지 않는다 — 시험에 나오면 표가 주어질 것. 계산 순서만 정확히.
+* 영상 29:00 "each '''index selects an entry''' while the '''offset selects the final bytes'''. We '''multiply an index by the entry size''' when calculating where to read an entry."
+
+[[img:L16-24.png|p.24 — VA (5, 11, 20) → PDBR + 5 → PDE → + 11 → PTE 230 → Physical address (230, 20). Page Directory Table 과 Page Table 은 각각 64B|large]]
+
+[[anim:two_level_walk|VA 5844 가 PDBR → PDE 5 → PTE 11 → 14740 으로 가는 순서를 본 다음, 아래 sim 의 둘째·셋째 예(invalid PTE·PDE)로 exception 지점을 확인하라]]
+
+[[sim:multilevel_walk]]
+
+== 4. 메모리 접근 수 ==
+TLB miss 한 번에: PDE 1 + PTE 1 + data 1 = '''3번'''(캐시 무시, 영상 22:53). TLB hit 이면 1번. PDE 가 invalid 면 1번 읽고 바로 exception.
+
+{quiz}같은 16KB/64B/4B 2단계 구조에서 VA 0x3F80 의 PD index, PT index, offset 은? PTE 의 PFN 이 55 라면 PA 는?{/quiz}
+{answer}0x3F80 = 11 1111 1000 0000 → '''1111''' | '''1110''' | '''000000''' → PD '''15''', PT '''14''', offset '''0'''. PA = 55 × 64 + 0 = '''3520''' (= 0xDC0). (OSTEP 20.3 의 예제와 같은 주소 — 스택 영역 VPN 254.){/answer}
+
+{quiz}VA 0x2000 에서 PDE 가 invalid 라면 메모리 접근은 몇 번 일어나고 결과는?{/quiz}
+{answer}0x2000 = 8192 → PD index 8. PDE 를 '''1번''' 읽고 valid 0 → '''exception'''(p.22 "Raise an exception because the access is invalid"). PTE·data 는 읽지 않는다.{/answer}
+
+== 관련 문서 ==
+* [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[3단계 page table]] · [[VPN과 offset]](15강 1단계 계산)

@@ -1,0 +1,176 @@
+key: 고급 페이지 테이블
+title: 고급 페이지 테이블 (Advanced Page Table) — 16강 허브
+category: 16강 Advanced Page Table, 핵심
+---
+{info}📌 '''16강 슬라이드 `16-AdvPageTable.pdf`(50쪽) + 교수 배포 영상 `16-AdvPageTable.mp4`(67분) 기준.''' 덱 구성: p.2~6 15강 복습(paging 문제 셋, "small page 4KB 를 쓰고 '''더 나은 page table'''을 만든다") → '''p.7~16 Hybrid approach''' → '''p.17~29 Multi-level page table''' → '''p.30~36 Inverted page table''' → '''p.37~48 Huge page'''(THP, x86_64·RISC-V entry) → p.49 참고문헌(OSTEP 20장 Paging: Smaller Tables).{/info}
+
+16강의 질문은 하나다: '''"linear page table 은 너무 크다. 그런데 대부분이 invalid 항목이다. 어떻게 안 쓰는 부분을 저장하지 않을까?"''' 15강 [[페이징의 문제]] 셋 중 #3 '''Huge page tables''' 를 푸는 강의다. page 를 키우면 표는 작아지지만 [[internal fragmentation]]이 커지므로(p.9), 교수님의 선택은 "Use small page size (4KB) but introduce better page table"(p.6) — 그 '''더 나은 표'''가 네 가지 나온다.
+
+{analogy}🎭 '''전화번호부를 줄이는 네 가지 방법.''' ① [[hybrid approach]] — 동네(code·heap·stack)별로 따로 책을 만들고 빈 동네는 책을 안 만든다. 그런데 책 두께가 제각각이라 책장에 꽂을 자리 찾기가 어렵다. ② [[multi-level page table]] — 모든 책을 같은 두께(한 page)로 자르고 앞에 '''목차'''([[page directory]])를 둔다. 빈 쪽은 아예 인쇄 안 함. 대신 목차 → 본문 두 번 펼쳐야 한다. ③ [[inverted page table]] — 사람별 책 대신 '''집(물리 frame)별 명부''' 하나: "이 집엔 누구(PID)의 몇 번 page 가 산다". 대신 찾을 때 해시로 뒤져야 한다. ④ [[huge page]] — 한 줄이 한 집이 아니라 '''한 블록(2MB)'''을 가리키게 해서 줄 수 자체를 줄인다.{/analogy}
+
+[[anim:two_level_walk|먼저 p.24 예제(VA 5844 → 14740)가 PDBR → PDE → PTE → PA 로 가는 길을 보고, 아래 sim 에서 같은 숫자를 직접 따라가라]]
+
+[[sim:multilevel_walk]]
+
+== 1. 왜 — linear page table 이 너무 크다 (p.6~11) ==
+* 32비트 VA, 4KB page, 4B PTE → $2^{32}/2^{12} \times 4\text{B} = $ '''4MB''' / process. 100개면 수백 MB (p.8; 영상 07:23 "100 processes → 400 MB").
+* page 를 16KB 로 키우면 $2^{32}/2^{14} \times 4 = $ '''1MB''' — 하지만 "Big pages lead to internal fragmentation!" (p.9)
+{warn}p.9 그림의 수식 "2^32 / 2^16 × 4" 는 오타 — 16KB = 2^14 이므로 '''2^32 / 2^14 × 4 = 1MB''' 가 맞다(결과 1MB 만 맞음). 이 밖의 슬라이드 라벨 오류: p.14 비트 번호 → [[hybrid approach]], p.23·26·28 "Page dictionary"(directory 오타)와 p.27·28 비트 번호·p.29 주소 → [[3단계 page table]].{/warn}
+* p.10~11: 16 page 주소 공간에서 valid 는 code 1 · heap 1 · stack 3 = 5줄, 나머지 11줄은 "'''full of invalid entries'''". 영상 10:34 "An invalid entry is still an entry — valid 비트를 0 으로 해도 linear array 에서 저장 공간이 없어지지 않는다."
+
+[[img:L16-11.png|p.11 — VPN 0(code→9), 4(heap→15), 13~15(stack→3·23·25)만 valid, 나머지는 전부 invalid 인데도 표에 자리를 차지한다|large]]
+
+{tip}영상 11:06 교수님이 정리한 설계 원칙: "'''We should avoid allocating translation structures for the large ranges that contain no valid mappings.'''" 아래 네 방법은 전부 이 문장의 서로 다른 구현이다.{/tip}
+
+== 2. 네 가지 해법 한눈에 ⭐⭐⭐ ==
+{|
+! 방법 || 아이디어 || 남는 문제 || 문서
+|-
+| Hybrid approach (p.12~16) || segment 마다 page table 하나. base = '''page table 의 물리 주소''', bound = '''page table 의 끝''' || page table 크기가 제각각 → '''external fragmentation''', free-space management 어려움 || [[hybrid approach]]
+|-
+| Multi-level page table (p.17~29) || page table 을 page 크기로 자르고, 전부 invalid 인 조각은 할당 안 함. [[page directory]] 로 조각 추적 || '''time-space trade-off''': TLB miss 때 메모리 접근 2번(+data), 복잡도 || [[multi-level page table]], [[다단계 주소 변환 계산]], [[3단계 page table]]
+|-
+| Inverted page table (p.30~36) || 시스템 전체에 표 '''하나''', 물리 page 하나당 PTE 하나. hash(VPN) 로 찾기 || hash collision · page sharing · swapping || [[inverted page table]], [[hash collision]]
+|-
+| Huge page (p.37~48) || page 를 2MB·1GB 로 키워 TLB 항목·page table 을 줄임. 여러 크기 혼용 || internal fragmentation, THP 의 tail latency · 메모리 증가 · external fragmentation || [[huge page]], [[transparent huge page]], [[Sv39 PTE]]
+|}
+
+== 3. Hybrid approach (p.7~16) ==
+segmentation + paging. VA 위 2비트로 segment 를 고르고, 그 segment 의 page table 을 base/bound 레지스터 쌍으로 찾는다. 빈 구간(heap 과 stack 사이)의 PTE 는 저장하지 않지만, 표가 '''가변 크기 + 연속 할당'''이라 14강 문제(external fragmentation)가 되살아난다. → [[hybrid approach]]
+
+[[img:L16-13.png|p.13 Naïve(PTBR 하나 → 16줄짜리 표) vs Hybrid(Segment Table 의 Bound/Base 세 쌍 → code·heap·stack 각자의 작은 page table)|large]]
+
+== 4. Multi-level page table (p.17~29) ⭐⭐⭐ ==
+linear page table 을 '''page 크기 조각'''으로 자른다. 조각 전체가 invalid 면 그 조각은 만들지 않는다. 어떤 조각이 있는지는 [[page directory]](PDE 배열)가 기록하고, 그 시작은 [[PDBR]] 이 가리킨다.
+* 장점(p.20): 쓰는 주소 공간에 비례하는 메모리만 / page table 조각이 물리 메모리 '''어디에나''' 놓일 수 있음 ("Thanks to a level of indirection")
+* 단점(p.20): '''Time-space trade-off''' — TLB miss 때 두 번 load(+data) / 표가 여럿이라 복잡
+* 계산 → [[다단계 주소 변환 계산]] (p.21~24, VA 5844 → PA 14740) · [[3단계 page table]] (p.25~29, 7|7|7|9)
+
+[[img:L16-19.png|p.19 — Linear Page Table(PFN 201~204 네 page, 202·203 은 전부 invalid) vs Multi-level(PDBR 200 → Page Directory 의 PDE 2개만 valid → PFN 201·204 두 page 만)|large]]
+
+== 5. Inverted page table (p.30~36) ==
+프로세스마다 표를 두는 대신 '''물리 page 하나당 PTE 하나'''인 표를 시스템에 하나만 둔다. PTE 의 index 가 곧 PFN. VA 를 hash 해서 찾는다. → [[inverted page table]] · [[hash collision]]
+
+== 6. Huge page (p.37~48) ==
+메모리가 GB 단위가 되면 4KB page 가 수백만 개 → '''TLB pressure'''(TLB miss 와 비싼 page walk) + page table 메모리. "We need a larger page than 4KB!" — 그러나 internal fragmentation 때문에 '''여러 크기(4KB, 2MB, 1GB)'''를 같이 쓴다. → [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]
+
+[[anim:thp_promotion|THP 의 세 동작 — compaction 으로 물리적으로도 연속을 만들고, promotion 으로 PDE 가 huge page 를 직접 가리키고, 안 쓰는 조각이 생기면 demotion]]
+
+{exam}🎯 '''기출 형식([[2026F 중간고사]]: 객관식 + full-term 용어 + "규칙대로 손으로 돌리기", 설명 없음)에 맞춘 16강 후보'''
+* '''손 계산''' ⭐⭐⭐: 주소 공간·page 크기·PTE 크기 → offset/VPN 비트 → PT index 비트(= log2(page/PTE)) → PD index 비트 → 레벨 수. VA → 인덱스들 → PA. ([[다단계 주소 변환 계산]], [[3단계 page table]])
+* '''크기 계산''': linear 4MB vs 16KB page 1MB, 2단계 예제 192B vs 1024B, 3단계에서 PD 64KB = 128 page.
+* '''용어''': page directory · PDE · PDBR · time-space trade-off · inverted page table · hash collision · TLB pressure · hugetlbfs / THP · promotion · compaction · demotion · tail latency.
+* '''객관식 함정''': hybrid 의 base 는 segment 의 시작이 아니라 '''page table 의 물리 주소''' / hybrid 의 문제는 external fragmentation / inverted 의 장점 2개(메모리, TLB miss 때 메모리 참조 적음) vs 단점 3개(collision, sharing, swapping) / promotion 조건 = '''virtually- and physically-contiguous''' / DB 는 THP off 권장 / Sv39 에서 X=W=R=0 이면 '''branch'''(다음 레벨 포인터).
+* 시스템 프로그래밍(mmap 사용법 등)은 출제하지 않는다 — p.39 의 "Using a mmap (will be covered)" 는 개념만.{/exam}
+
+== 🎙 실제 수업 기록 (교수 배포 영상 `16-AdvPageTable.mp4` 67분, faster-whisper 전사 기준) ==
+
+진도: '''p.1 ~ p.50 전부'''. 시험·과제 공지는 '''없음''' — 마지막 말은 "This is the end of the lecture 16. If you have any questions, please send a mail to me." (66:26~66:40).
+
+{|
+! 시각 || 교수님 말 (요지·원문) || 슬라이드
+|-
+| 00:03 || "Today, we will focus on the '''memory needed to store those translations'''." 작은 부분만 써도 page table 이 매우 커질 수 있다 || p.1
+|-
+| 02:46 || offset 은 그대로 — "'''remember that separation''' because all the page table designs in this lecture preserve it" || p.3
+|-
+| 03:19 || internal fragmentation 예: 1KB stack + 4KB page → 3KB 낭비 || p.4
+|-
+| 05:03 || "'''Keep this fast path in mind.''' A more complicated page table mainly affects what happens on a '''TLB miss'''." TLB hit 이면 구조를 걷지 않는다 || p.5
+|-
+| 05:33 || page 크기 trade-off: 작으면 internal fragmentation ↓·entry ↑, 크면 반대. "we will keep pages really small and improve the organization of the table. Later, we will return to large pages" || p.6
+|-
+| 06:39 || 32비트·4KB·4B → 2^20 entry ≈ 1 million → 4MB, 100 process → '''400MB''' || p.8
+|-
+| 07:54 || 16KB page → 14비트 offset, 18비트 VPN → 1MB. "Making each page 4 times larger makes the linear page table 4 times smaller" — 대가는 internal fragmentation || p.9
+|-
+| 10:34 || "'''An invalid entry is still an entry''' and setting its valid bits to 0 does not remove its storage from a linear array" || p.10~11
+|-
+| 11:06 || 설계 원칙: "avoid allocating translation structures for the large ranges that contain no valid mappings" || p.11
+|-
+| 12:24 || hybrid: "we change the meaning of the base. It now points to the '''physical address of the segment's page table'''" · bound 는 그 표가 다룰 범위. 단 '''segment 안'''의 invalid 항목은 여전히 남는다 || p.12
+|-
+| 14:28 || 위 2비트 segment(00 unused/01 code/10 heap/11 stack), 아래 12비트 offset, 남은 '''18비트'''가 segment 안 page 번호. context switch 때 OS 가 base/bound 를 바꿔 끼운다 || p.14
+|-
+| 15:56 || 변환 순서: segment 비트로 base/bound 쌍 선택 → page 번호 범위 검사(벗어나면 exception) → PTE 주소 = base + VPN × entry 크기 → valid·permission 검사 → PFN | offset || p.15
+|-
+| 17:13 || hybrid 의 문제: 각 segment 의 page table 은 '''linear array 라 연속 물리 메모리'''가 필요 → 구멍 → "external fragmentation in the storage of page tables" || p.16
+|-
+| 19:28 || "'''Be careful about two kinds of pages''' involved. A '''page-table page''' contains translation metadata, and a '''data page''' contains the program's instructions or data." || p.18
+|-
+| 19:57 || p.19 그림: linear 는 PFN 201~204 네 page, multi-level 은 directory(PFN 200) + 201·204 → "reducing the total from four pages to three" || p.19
+|-
+| 21:25 || multi-level 이면 page table 조각도 data page 와 '''같은 단위'''라 할당이 훨씬 쉽다 || p.19~20
+|-
+| 22:36 || 단점: 2단계면 PDE → PTE → data, "Ignoring cache, there is '''three memory accesses''' in total." TLB hit 이면 필요 없음 || p.20
+|-
+| 24:22 || "'''Always begin with the address space size and page size and entry size, and then derive the index width.'''" || p.21
+|-
+| 25:45 || 16KB 예제의 실제 사용 page: code 0·1, heap 4·5, stack 254·255 → directory 1 + PT page 2 = 3 × 64 = '''192B''' (linear 는 1024B) || p.23
+|-
+| 27:10 || VA 5844 = 0x16D4 → PD 5, PT 11, offset 20. PDE 는 directory base + '''20'''바이트(5×4), PTE 는 PT page base + '''44'''바이트(11×4). frame 230 시작 = 14720, + 20 = '''14740''' || p.24
+|-
+| 29:07 || "We multiply an index by the entry size when calculating where to read an entry." || p.24
+|-
+| 29:27 || 1GB/512B → VPN 21비트, linear 8MB = 16384 page. page 당 128 entry → 7비트, 남은 14비트 directory = 64KB = 128 page. "This repeats the problem at a different level" → 한 레벨 더 || p.25~27
+|-
+| 32:05 || PDE 크기 = PTE 크기라 directory 도 page 당 128 entry → 7비트. "our 30-bit virtual address now has a '''7, 7, 7, and 9'''-bit layout" || p.27~28
+|-
+| 33:35 || "That does not mean that the process has only three table pages all together" — root 는 하나, 아래 노드는 필요한 범위만 || p.28
+|-
+| 34:51 || 3단계 예: "The virtual address is '''766,307,601'''" → 91 / 44 / 118 / 273. 오프셋 364·176·472 바이트, PFN 4131230 × 512 + 273. ('''슬라이드 글자 0x2DACECBB 와 다르다''' → [[3단계 page table]]) || p.29
+|-
+| 37:32 || inverted: "keep a '''system-wide record for each physical frame'''". 주의: free frame, 공유 page(한 frame 에 여러 매핑), swapping(물리 메모리 밖 page) || p.31
+|-
+| 39:22 || PID 가 필요한 이유: 다른 프로세스가 같은 VPN 을 쓸 수 있다 || p.32
+|-
+| 40:34 || 선형 탐색은 비싸서 hash. VPN 100 → hash 500 → 거기엔 VPN 200 → 다음 후보(다른 hash 또는 그 자리부터 선형 탐색) → VPN 100 발견 → '''table index = PFN''' || p.32
+|-
+| 42:47 || multi-level 3단계는 표 3번, inverted 는 collision 없으면 '''1번''' — 장점 2 || p.33
+|-
+| 44:01 || 단점: collision 으로 탐색 시간 가변 / 공유 library page 는 한 frame 에 여러 정체 → 추가 정보 / swapping 된 page 는 frame 이 없어 별도 메타데이터 필요 || p.34
+|-
+| 46:45 || collision 줄이기: bucket 을 늘리면 평균 길이 ↓ 대신 메모리 ↑ || p.35
+|-
+| 47:20 || 더 큰 표: slot > frame 이라 위치로 PFN 을 알 수 없음 → '''PFN 필드 추가''' → 여러 항목이 같은 PFN → sharing 표현 가능 || p.36
+|-
+| 48:58 || "'''the same with the fully associative cache'''" — VPN+PID 를 tag 처럼 매칭. "the original multi-level page table is much closer to the '''direct mapped cache'''" || p.36
+|-
+| 50:13 || huge page: 2MB page 하나 = 4KB page 512개. "greater '''TLB coverage'''" + page table 저장·walk 길이 절약. small/sparse 영역은 작은 page || p.38
+|-
+| 52:03 || explicit huge page(hugetlbfs, reserved pool, mmap flag — pool 은 다른 할당에 못 씀) vs '''THP'''(커널이 자동). "the distinction is '''who makes the allocation decision'''" || p.39
+|-
+| 54:11 || huge page 크기는 multi-level 의 '''계층'''이 정한다 — hardware-managed TLB 라 ISA 가 page table 을 정의 → 하드웨어가 결정 || p.40
+|-
+| 55:14 || promotion: 2MB = 4KB × 512, '''alignment''' + 같은 속성 + 물리적으로 연속·정렬. 흩어져 있으면 먼저 옮기거나 복사 || p.41
+|-
+| 56:52 || compaction: 이동은 내용 보존 + mapping 갱신 + 동시 접근 정확성. "'''compaction is not guaranteed to succeed'''. It also takes time" || p.42~43
+|-
+| 59:18 || demotion: huge page 일부만 쓰면 낭비 → 작은 mapping 으로. "huge pages help when the region is used '''densely'''" || p.44
+|-
+| 60:51 || THP 비용: 희소 사용 시 낭비, reclaim/copy/compaction 의 '''latency spike''', 물리 fragmentation. DB 는 deterministic latency 를 원해 보통 THP 를 안 쓴다 || p.45
+|-
+| 62:47 || x86_64 PMD entry: '''Page Size''' 비트 0 → 아래 table 로 계속, 1 → '''2MB page''' 를 직접 매핑하고 walk 멈춤, VA 하위 '''21비트'''가 offset || p.46~47
+|-
+| 64:27 || RISC-V: valid 먼저 확인 → R·W·X 가 모두 0 이면 다음 table 포인터, R 또는 X 가 있으면 leaf. W 만(R 없이)은 reserved. Sv39 에서 leaf 가 맨 아래면 4KB, 한 단계 위 2MB, 맨 위 1GB. "larger mapping requires virtual and physical '''alignment''' to their size" || p.48
+|}
+
+{warn}🎙 '''시험 관련 공지는 이 영상에 없다.''' "exam"·"important" 같은 직접적인 출제 발언도 없었다. 교수님이 '''명시적으로 기억하라고 한 문장'''은 셋: ① offset 은 어느 설계에서도 그대로(02:50) ② 복잡한 page table 은 TLB miss 경로에만 영향(05:03) ③ page-table page 와 data page 를 구분하라(19:28). 그리고 계산 요령 하나: "주소 공간·page 크기·entry 크기에서 시작해 index 폭을 유도하라"(24:22).{/warn}
+
+== 시험 대비 핵심 요약 ==
+# 16강 = 페이징 문제 #3(huge page tables)의 해법. "small page(4KB) + better page table"(p.6).
+# linear: 32비트·4KB·4B → '''4MB'''/process. 16KB page → 1MB 지만 internal fragmentation. 대부분 '''invalid entry''' 인데 자리는 차지.
+# '''Hybrid''': segment 별 page table. base = page table 물리 주소, bound = page table 끝. VA = Seg 2 | VPN 18 | offset 12. 문제: '''external fragmentation''' + free-space management.
+# '''Multi-level''': page table 을 page 크기로 자르고 invalid 조각은 할당 안 함. '''page directory''' 의 '''PDE'''(valid, PFN), 시작은 '''PDBR'''. 장점: 메모리 절약 · 조각이 어디든 OK. 단점: '''time-space trade-off'''(TLB miss 때 2 load + data), 복잡도.
+# 2단계 예: 16KB/64B → 4|4|6. VA 5844 = 0x16D4 → 5 | 11 | 20 → PFN 230 → PA = 230 × 64 + 20 = '''14740'''.
+# 3단계 예: 1GB/512B → VPN 21. page 당 128 entry → 7비트. PD 14비트 = 64KB 가 한 page 에 안 들어감 → 7|7|7|9. 91|44|118|273 → 4131230 × 512 + 273 = '''2115190033''' (VA = 766307601 = 0x2DACED11; 슬라이드의 16진수는 오타).
+# '''Inverted''': 시스템에 표 하나, '''# of PTEs = # of physical pages''', index = PFN, hash(VPN) 로 탐색, 항목에 VPN·PID. 장점 ① 메모리 ② TLB miss 때 메모리 참조 적음. 단점 ① hash collision(최악 시간) ② page sharing ③ swapping.
+# collision ↓ = 표를 키움(메모리 ↑) → PTE > frame 이라 '''PFN 필드 추가''' → page sharing 해결.
+# '''Huge page''': TLB pressure 해결, 4KB/2MB/1GB 혼용. explicit(hugetlbfs, mmap) vs '''THP'''(커널 자동, Linux 2011).
+# THP: '''promotion'''(조건 virtually- and physically-contiguous) · '''compaction'''(물리적으로 모으기) · '''demotion'''(안 쓰는 조각 → 쪼갬). 한계: 메모리 증가 · '''tail latency''' · external fragmentation → DB 는 THP off.
+# x86_64 PDE(PMD)의 '''Page Size''' 비트 = 1 이면 2MB leaf. RISC-V Sv39: X=W=R=0 → 다음 레벨 포인터(branch), 아니면 leaf.
+
+== 관련 문서 ==
+* [[기말고사]] · [[페이징]](15강) · [[페이징의 문제]] · [[페이지 테이블]] · [[PTBR]] · [[TLB]] · [[TLB miss 처리]]
+* [[hybrid approach]] · [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]]
+* [[inverted page table]] · [[hash collision]] · [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]

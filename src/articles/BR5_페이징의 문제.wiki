@@ -15,7 +15,7 @@ category: 15강 Paging, 핵심
 |-
 | 2 || '''Performance degradation''' (p.29) || 메모리 접근마다 ① PTE 읽기 ② data 읽기 = 2번 || '''TLB''' (Translation lookaside buffer)
 |-
-| 3 || '''Huge page tables''' (p.30) || 32비트·4KB → 4MB, 프로세스 100개면 400MB || hybrid 또는 '''multi-level paging'''
+| 3 || '''Huge page tables''' (p.30) || 32비트·4KB → 4MB, 프로세스 100개면 400MB || [[hybrid approach|hybrid]] 또는 '''[[multi-level page table|multi-level paging]]''' (16강 → [[고급 페이지 테이블]])
 |}
 
 [[img:L15-29.png|p.29 Performance Degradation — ① Fetch PTE from page table in memory ② Access data word in memory|large]]
@@ -38,4 +38,4 @@ page 를 '''키우면''' 표는 작아지지만 internal fragmentation 이 커�
 {answer}프로세스당 $2^{20}$ × 4B = 4MB → 50 × 4MB = '''200MB'''.{/answer}
 
 == 관련 문서 ==
-* [[페이징]] · [[페이지 테이블]] · [[TLB]] · [[internal fragmentation]] · [[external fragmentation]]
+* [[페이징]] · [[페이지 테이블]] · [[TLB]] · [[고급 페이지 테이블]](16강: #3 의 해법) · [[internal fragmentation]] · [[external fragmentation]]

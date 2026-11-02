@@ -1,0 +1,59 @@
+key: Sv39 PTE
+title: Sv39 PTE — RISC-V 의 branch 와 leaf
+category: 16강 Advanced Page Table, 용어
+---
+[[RISC-V]] 의 39비트 가상 주소 방식 '''Sv39''' 의 page table entry. x86_64 가 별도의 Page Size 비트로 huge page 를 표시하는 것과 달리, RISC-V 는 '''같은 형식의 entry''' 하나로 "다음 레벨 표를 가리키는가(branch) / page 를 가리키는가(leaf)" 를 '''X·W·R 비트'''로 구분한다. 16강 p.48. [[xv6]] 가 쓰는 방식이다.
+
+{def}p.48 — "Architectural Details (RISCV): '''Same entry for both page table and huge page'''." 그림: Figure 4.18 Sv39 page table entry, Table 4.4 Encoding of PTE R/W/X fields — X W R = 0 0 0 → "'''Pointer to next level of page table'''" ('''Branch'''), 나머지 → '''Leaf'''.{/def}
+
+{analogy}🎭 '''같은 양식의 카드에 "참조" 칸만 다르게.''' 권한 칸(R/W/X)이 전부 비어 있으면 "다음 서랍을 보시오"(branch), 하나라도 적혀 있으면 "물건이 여기 있음"(leaf).{/analogy}
+
+== entry 구조 (Figure 4.18) ==
+<pre class="ascii">
+   63 .. 54 | 53 .. 28 | 27 .. 19 | 18 .. 10 | 9 8 | 7 6 5 4 3 2 1 0
+   Reserved |  PPN[2]  |  PPN[1]  |  PPN[0]  | RSW | D A G U X W R V
+     (10)       (26)       (9)        (9)      (2)
+</pre>
+V = valid, R/W/X = read/write/execute, U = user, G = global, A = accessed, D = dirty (15강 [[PTE 플래그]] 의 이름들).
+
+== X W R 인코딩 (Table 4.4) ⭐⭐⭐ ==
+{|
+! X || W || R || 뜻 || 종류
+|-
+| 0 || 0 || 0 || '''Pointer to next level of page table''' || '''Branch'''
+|-
+| 0 || 0 || 1 || Read-only page || Leaf
+|-
+| 0 || 1 || 0 || ''Reserved for future use'' || —
+|-
+| 0 || 1 || 1 || Read-write page || Leaf
+|-
+| 1 || 0 || 0 || Execute-only page || Leaf
+|-
+| 1 || 0 || 1 || Read-execute page || Leaf
+|-
+| 1 || 1 || 0 || ''Reserved for future use'' || —
+|-
+| 1 || 1 || 1 || Read-write-execute page || Leaf
+|}
+영상 64:42: valid 비트를 먼저 보고, valid 면 R·W·X 가 모두 0 → 다음 표 포인터, R 또는 X 가 켜져 있으면 leaf. "Setting the write without read is a '''reserved''' encoding."
+
+[[img:L16-48.png|p.48 Sv39 page table entry 와 Encoding of PTE R/W/X fields — 000 은 Branch, 나머지는 Leaf|large]]
+
+== leaf 가 어느 레벨이냐 = page 크기 ⭐⭐ ==
+Sv39 = 9 | 9 | 9 | 12 의 3단계 ([[3단계 page table]] 과 같은 원리, page 4KB, PTE 8B → 512 = 2^9 개/page).
+{|
+! leaf 위치 || page 크기
+|-
+| 맨 아래 레벨 || '''4KB'''
+|-
+| 한 단계 위 || '''2MB''' (= 4KB × 2^9)
+|-
+| 맨 위 레벨 || '''1GB''' (= 2MB × 2^9)
+|}
+영상 66:01: "the larger mapping requires virtual and physical '''alignment''' to their size. The entry's '''position in the tree''' determines how much address space it covers, while its '''permission bits''' distinguish a leaf from a pointer." 교수님 64:12 "The same level can describe either a lower-level table or a huge page, depending on the entry's format."
+
+{exam}🎯 객관식·빈칸 후보: Sv39 entry 에서 X=W=R=0 이면? → '''다음 레벨 page table 포인터(branch)'''. W=1, R=0 은? → '''reserved'''. x86_64 에서 같은 역할을 하는 비트 → PDE(PMD)의 '''Page Size''' 비트 ([[huge page]]).{/exam}
+
+== 관련 문서 ==
+* [[huge page]] · [[RISC-V]] · [[xv6]] · [[PTE 플래그]] · [[3단계 page table]] · [[PDBR]]

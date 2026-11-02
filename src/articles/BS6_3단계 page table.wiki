@@ -1,0 +1,67 @@
+key: 3단계 page table
+title: 3단계 이상 Page Table (More than Two Level) — 1GB/512B, 7|7|7|9
+category: 16강 Advanced Page Table, 핵심
+---
+2단계로 나눴는데 '''page directory 자체가 한 page 에 안 들어가면''' 한 레벨을 더 만든다. 16강 p.25~29. 원리는 같다: "모든 노드를 한 page 크기로".
+
+{def}p.27 원문 — "If our page directory has 2^14 entries, it spans '''not one page but 128 pages'''. To remedy this problem, we build a '''further level of the tree''', by '''splitting the page directory itself''' into multiple pages of the page directory."{/def}
+
+{analogy}🎭 목차가 너무 길어 목차 자체가 책 128권 분량이 되면, '''목차의 목차'''를 만든다. 영상 31:25 "This repeats the problem at a different level."{/analogy}
+
+== 1. 왜 2단계로 안 되나 (p.25~26) ⭐⭐⭐ ==
+{|
+! 항목 || 값 || 계산
+|-
+| Virtual address || 1GB = 2^30 || VA 30비트
+|-
+| Page size || 512B = 2^9 || offset '''9비트'''
+|-
+| VPN || '''21비트''' || linear = 2^21 × 4B = '''8MB''' = 16384 page (p.25)
+|-
+| PTE per page || 512 / 4 = '''128 = 2^7''' || PT index '''7비트''', PT page = 512B
+|-
+| 2단계라면 PD index || 21 − 7 = 14비트 → '''2^14 = 16384''' PDE × 4B = '''64KB''' || "'''Does not fit into a single page'''" (p.26)
+|}
+{warn}p.23·p.26·p.28 표의 "Page '''dictionary''' entry" 는 page '''directory''' 의 오타. 또 p.27·p.28 그림의 비트 번호("29 … 16 | 15 … 16 | 15 … 9")는 경계 숫자가 겹쳐 있다. 올바른 범위: PD Index 0 = '''29~23''', PD Index 1 = '''22~16''', PT index = '''15~9''', offset = '''8~0'''.{/warn}
+
+== 2. 3단계로 (p.27~28) ==
+14비트 PD index 를 7 | 7 로 나눈다 — PDE 크기 = PTE 크기라 directory page 도 128 항목(영상 32:05).
+<pre class="ascii">
+   29 ...... 23 | 22 ...... 16 | 15 ....... 9 | 8 ........ 0
+   '''PD Index 0''' (7) | '''PD Index 1''' (7) | '''PT Index''' (7) |  '''offset''' (9)
+   Level 0 PDT 128칸   Level 1 PDT 128칸   Page Table 128칸    512B page
+</pre>
+p.28 표: Page table · 1st PD table · 0th PD table 모두 128 entry × 4B = '''512B''' — "Fit into a single page".
+
+[[img:L16-28.png|p.28 — PD Index 0 · PD Index 1 · Page Table Index · offset, 각 표 128 entry = 512 bytes "Fit into a single page"|large]]
+
+{tip}영상 33:35 "That does not mean that the process has only three table pages all together." root(Level 0) 는 '''하나''', Level 1 PDT 와 PT page 는 '''필요한 범위만''' 여러 장.{/tip}
+
+== 3. p.29 예제 ⭐⭐⭐ ==
+<pre class="ascii">
+   VA = '''766307601''' = 0x2DACED11
+      = 1011011 | 0101100 | 1110110 | 100010001
+      =   '''91'''    |   '''44'''    |  '''118'''    |   '''273'''
+
+   ① Level 0 PDT[91]  : root + 91 × 4  = +364B → Level 1 PDT 위치
+   ② Level 1 PDT[44]  : 그 표 + 44 × 4 = +176B → Page Table 위치
+   ③ Page Table[118]  : 그 표 + 118 × 4 = +472B → PFN '''4131230'''
+   ④ PA = 4131230 × 512 + 273 = '''2115190033'''
+</pre>
+TLB miss 한 번에 메모리 접근 '''4번'''(표 3 + data 1). 영상 34:06 "a successful 3-level walk requires three entry reads followed by the requested memory access."
+
+{warn}⚠️ '''슬라이드 p.29 의 주소 표기 오류 (Python 으로 확인).''' 슬라이드 본문은 "virtual address '''5553166273''' (or '''0x2DACECBB''')" 라고 쓰지만:
+* 두 수가 서로 다르다 — 0x2DACECBB = '''766307515''', 5553166273 = 0x14AFE97C1 (33비트라 1GB 주소 공간 밖).
+* 0x2DACECBB 를 7|7|7|9 로 자르면 91 | 44 | 118 | '''187''' — 그림의 offset 273 과 다르다.
+* 그림의 필드 91 | 44 | 118 | 273 에 맞는 주소는 '''0x2DACED11 = 766307601''' 이고, 영상 34:51 에서 교수님도 "The virtual address is '''766,307,601'''" 이라고 읽었다.
+→ 시험에서는 '''그림의 필드와 766307601''' 을 기준으로 할 것. PA = 4131230 × 512 + 273 = 2115190033. (0x2DACECBB 를 그대로 쓰면 PA = 4131230 × 512 + 187 = 2115189947.){/warn}
+
+[[img:L16-29.png|p.29 — PDBR + 91 → Level 0 PDT 의 PDE → + 44 → Level 1 PDT 의 PDE → + 118 → Page Table 의 PTE(4131230) → Physical address (4131230, 273). 본문의 주소 표기는 오류 — 위 경고 참고|large]]
+
+[[sim:multilevel_walk]]
+
+{quiz}48비트 VA, 4KB page, 8B PTE 를 "모든 노드가 한 page" 규칙으로 나누면 레벨 수와 각 index 비트는?{/quiz}
+{answer}offset 12 → VPN 36. page 당 PTE = 4096/8 = 512 = 2^9 → 각 index '''9비트''' → 36/9 = '''4단계''': 9 | 9 | 9 | 9 | 12. (x86-64 의 4-level paging 과 같은 구조. RISC-V [[Sv39 PTE|Sv39]] 는 39비트 VA → 9 | 9 | 9 | 12 의 3단계.){/answer}
+
+== 관련 문서 ==
+* [[multi-level page table]] · [[다단계 주소 변환 계산]] · [[page directory]] · [[PDBR]] · [[huge page]](상위 레벨 entry 가 큰 page 를 직접 가리키기)

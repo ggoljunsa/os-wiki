@@ -1,0 +1,24 @@
+key: PDBR
+title: PDBR (Page Directory Base Register)
+category: 16강 Advanced Page Table, 용어
+---
+[[multi-level page table]]에서 '''가장 위 [[page directory]] 가 물리 메모리 어디 있는지'''를 담은 CPU 레지스터. 15강 [[PTBR]] 의 multi-level 판이다. 16강 p.19, p.24, p.29.
+
+{def}p.19 — "(*'''PDBR''': Page Directory Base Register)" — 같은 쪽 왼쪽 그림의 "(*PTBR: Page-Table Base Register)" 와 짝.{/def}
+
+{analogy}🎭 '''백과사전 목차가 꽂힌 책장 번호.''' 목차만 찾으면 나머지 분책 위치는 목차가 다 알려 준다. 사람(프로세스)이 바뀌면 그 사람 백과사전 목차로 바꿔 꽂는다.{/analogy}
+
+{|
+! || PTBR (15강) || PDBR (16강)
+|-
+| 가리키는 것 || linear page table 의 시작 || 맨 위 page directory 의 시작(p.19 예: PFN 200)
+|-
+| 다음 단계 || VPN × PTE 크기를 더해 PTE 를 바로 읽음 || PD index × PDE 크기를 더해 PDE → 그 PFN 으로 다음 표
+|}
+* walk 를 시작하려면 '''root 위치 하나만''' 알면 된다 — "The processor only needs the root's location to begin a walk. Each entry supplies the location of the next node." (영상 33:55)
+* 프로세스마다 tree 가 다르므로 '''context switch 때 OS 가 PDBR 을 바꾼다''' — [[컨텍스트 스위치]]. 실제 이름: x86 '''CR3''', RISC-V '''satp''' (15강 [[PTBR]] 문서와 같은 레지스터 — 다단계 표에서는 root 를 가리킨다).
+
+[[img:L16-24.png|p.24 — PDBR + PD index 5 → Page Directory Table 의 PDE → + PT index 11 → Page Table 의 PTE(230) → Physical address (230, 20)|large]]
+
+== 관련 문서 ==
+* [[page directory]] · [[PTBR]] · [[multi-level page table]] · [[다단계 주소 변환 계산]]

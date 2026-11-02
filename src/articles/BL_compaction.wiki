@@ -22,5 +22,8 @@ category: 14강 Segmentation, 용어
 
 {tip}세그멘테이션이라서 compaction 이 '''가능'''하다는 점도 기억할 것: 프로그램은 가상 주소만 쓰므로 OS 가 base 만 바꾸면 프로그램 수정 없이 옮길 수 있다(13강 [[주소 변환 시점|execution time 변환]]의 장점). 반면 유저 레벨 `malloc` 은 포인터를 돌려줬기 때문에 '''compaction 이 불가능'''하다 — p.21 가정 "No compaction: Once the memory is allocated, it cannot be relocated".{/tip}
 
+== 16강 — THP 의 compaction ⭐ ==
+16강 p.42~43 에서 같은 단어가 다시 나온다: "Virtually-contiguous is not physically-contiguous — Perform compaction to make linear mapping." 이번엔 segment 가 아니라 '''page frame''' 을 옮겨 huge page 로 승격(promotion)할 연속·정렬된 물리 공간을 만든다. 비용도 같다(멈춤·복사·mapping 갱신) — 그래서 THP 의 tail latency 원인. → [[transparent huge page]]
+
 == 관련 문서 ==
-* [[external fragmentation]] · [[세그멘테이션]] · [[free-space management]] · [[base and bounds]]
+* [[external fragmentation]] · [[transparent huge page]] · [[세그멘테이션]] · [[free-space management]] · [[base and bounds]]

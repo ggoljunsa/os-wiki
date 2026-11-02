@@ -1,0 +1,55 @@
+key: hybrid approach
+title: Hybrid Approach (Segmentation + Paging)
+category: 16강 Advanced Page Table, 핵심
+---
+[[세그멘테이션]]과 [[페이징]]을 합쳐서, 주소 공간 전체에 page table 하나를 두는 대신 '''logical segment(code·heap·stack)마다 page table 을 하나씩''' 두는 방법. 16강 p.12~16. segment 사이의 큰 빈 구간에 대한 PTE 를 저장하지 않아 표가 작아진다.
+
+{def}p.12 원문 — "'''Combine segmentation and paging.''' Instead of having a single page table for the entire address space of the process, why not have '''one per logical segment'''? … For each segmentation, two registers are required: A '''base''' register pointing to each segment in physical memory → '''Point to the physical address of the page table of that segment'''. A '''bound''' or limit register indicating the size of said segment → '''Indicate the end of the page table'''."{/def}
+
+{analogy}🎭 '''동네별 전화번호부.''' 도시 전체를 한 권에 담으면 빈 땅(heap 과 stack 사이)까지 빈 줄로 채워야 한다. 동네(segment)마다 얇은 책을 따로 만들면 빈 땅의 줄은 사라진다. 대신 책 두께가 제각각이라 책장(물리 메모리)에 '''딱 맞는 연속 칸'''을 찾아야 한다 — 14강에서 겪은 그 문제.{/analogy}
+
+{warn}'''base 의 의미가 14강과 다르다.''' 14강 [[세그먼트 주소 변환]]의 base 는 '''segment 데이터'''의 물리 시작 주소였다. hybrid 의 base 는 '''그 segment 의 page table''' 의 물리 주소, bound 는 그 page table 의 끝(= segment 안 page 개수). 영상 12:24 "we change the meaning of the base."{/warn}
+
+[[img:L16-13.png|p.13 — 왼쪽 Naïve: PTBR 하나가 16줄 page table(대부분 invalid)을 가리킴. 오른쪽 Hybrid: Segment Table 의 Bound/Base 세 쌍이 code·heap·stack page table 을 따로 가리킴|large]]
+
+== VA 형식 (p.14) ⭐⭐ ==
+32비트 VA, 4KB page:
+<pre class="ascii">
+   31 30 | 29 ................ 12 | 11 ........ 0
+   '''Seg''' (2) |        '''VPN''' (18)        |  '''offset''' (12)
+
+   Seg 00 = Unused segment   01 = Code   10 = Heap   11 = Stack
+</pre>
+* Hardware(CPU): base/bound 쌍 '''세 개''' (code, heap, stack).
+* Software(OS): '''context switch''' 때 새로 실행할 프로세스의 page table 위치로 이 레지스터들을 바꾼다 — [[컨텍스트 스위치]], [[PCB]].
+
+{warn}p.14 그림의 비트 번호 "12 13" 은 VPN 과 offset 경계가 뒤바뀐 듯 보인다. 4KB = 2^12 이므로 offset 은 '''비트 11~0(12비트)''', VPN 은 '''29~12(18비트)'''가 맞다 (영상 14:57 "2 bits for the segment and 12 for the offset, then there remains 18 bits").{/warn}
+
+[[img:L16-14.png|p.14 Design of Hybrid Approach — 위 2비트 Seg, VPN, Offset 과 Seg value 표|medium]]
+
+== 주소 변환 (p.15) ⭐⭐ ==
+<pre class="c">
+SN      = (VA & SEG_MASK) >> SN_SHIFT;      // 위 2비트
+VPN     = (VA & VPN_MASK) >> VPN_SHIFT;
+if (VPN >= Bounds[SN]) RaiseException();    // Memory Trap (p.15 '<' 의 No)
+PTEAddr = Base[SN] + (VPN * sizeof(PTE));   // 이 segment 의 page table 에서
+PTE     = AccessMemory(PTEAddr);            // valid · protection 검사
+PA      = (PTE.PFN << SHIFT) | offset;      // offset 은 그대로
+</pre>
+(OSTEP 20.2 의 의사코드를 슬라이드 기호에 맞춤. p.15 그림 = Seg → Segment Table 의 Bound 와 비교 → No 면 Memory Trap, Yes 면 Page Table Base + VPN → f → f | VPO.)
+
+[[img:L16-15.png|p.15 — Seg 로 Segment Table 을 고르고, Bound 비교(<) 실패 시 Memory Trap, 통과 시 Page Table Base + VPN 으로 PTE(f)를 읽어 f | VPO|large]]
+
+15강 [[PTBR]] 이 레지스터 하나였다면, hybrid 는 segment 수만큼 (base, bound) 쌍이 있는 셈이다. 영상 16:52 "The extra work compared with the single linear table is selecting the segments and checking its bound."
+
+== 문제 (p.16) ⭐⭐⭐ ==
+{def}p.16 — "Hybrid approach has the problems as the segmentation: '''External fragmentation happens''' — Page tables must be allocated '''continuously''' and can be of '''arbitrary size'''. '''Free-space management is not easy''' — Best-fit, worst-fit, …"{/def}
+* 각 segment 의 page table 은 '''linear array''' → 연속 물리 메모리가 필요하고, 크기도 segment 마다 다르다 → [[external fragmentation]], [[free-space management]], [[할당 전략]].
+* 또 segment '''안'''이 드문드문 쓰이면(큰 heap 의 일부만 사용) 그 안의 invalid PTE 는 여전히 저장된다 (영상 12:51, 17:58).
+* 그래서 "표 조각도 page 크기로" 만드는 [[multi-level page table]] 로 넘어간다.
+
+{quiz}Hybrid approach 에서 base 레지스터가 가리키는 것은? 그리고 이 방식이 segmentation 에서 물려받은 문제 하나는?{/quiz}
+{answer}그 segment 의 '''page table 의 물리 주소'''(segment 데이터의 시작이 아님). 물려받은 문제: page table 이 가변 크기·연속 할당이라 '''external fragmentation'''(과 어려운 free-space management).{/answer}
+
+== 관련 문서 ==
+* [[고급 페이지 테이블]] · [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[페이지 테이블]] · [[PTBR]] · [[external fragmentation]] · [[multi-level page table]]

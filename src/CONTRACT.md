@@ -103,6 +103,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 세그멘테이션 · 세그먼트 주소 변환 · 스택 세그먼트 · 코드 공유와 protection bit · segmentation fault · internal fragmentation · external fragmentation · compaction · free-space management · splitting과 coalescing · 할당 헤더 · embedded free list · 할당 전략
 ### 15강 Paging — 파일 접두어 `BR0_`~`BRA_`. 슬라이드 `../../기말고사/강의자료/15-Paging.pdf` 53쪽 = `_slides/L15-{pp}.png`, 텍스트 `_text/15-Paging.txt`. 녹음 없음 (2026-10-26)
 페이징 · VPN과 offset · 페이지 테이블 · PTE 플래그 · copy-on-write · 페이징의 문제 · TLB · TLB hit와 miss · TLB miss 처리 · PTBR · ASID와 TLB flush
+### 16강 Advanced Page Table — 파일 접두어 `BS0_`(허브)~`BSB_`. 슬라이드 `../../기말고사/강의자료/16-AdvPageTable.pdf` 50쪽 = `_slides/L16-{pp}.png`, 텍스트 `_text/16-AdvPageTable.txt`. 녹음 = 교수 배포 영상 `16-AdvPageTable.mp4` 67분(전사 `기말고사/녹음본/16-AdvPageTable.txt`, 2026-11-02). 슬라이드 p.29 주소 표기 오류(그림·영상의 766307601 = 0x2DACED11 이 맞음)
+고급 페이지 테이블 · hybrid approach · multi-level page table · page directory · PDBR · 다단계 주소 변환 계산 · 3단계 page table · inverted page table · hash collision · huge page · transparent huge page · Sv39 PTE
 ### 과제2 퀴즈 문제 세트 (2026-10-28) — 접두어 `BZC_`~`BZE_`. 주간문제집 `과제2_퀴즈대비/units/u1~u3.html` 을 변환(문제 {quiz} + 접힌 {answer}). 원본 문제집을 고치면 여기도 같이 고칠 것
 과제2 문제 ① kalloc · 과제2 문제 ② bcache · 과제2 퀴즈 모의
 ### 과제1
@@ -152,6 +154,7 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | fit_strategies | 14강 p.37~39: head → 10 → 30 → 20 에 요청. 옵션 strat = best/worst/first/next, req = slide(15) / seq(15, 8, 12, 10, 9 → best·next 는 9 에서 실패). Next Fit ptr = 지난번 떼어 간 노드 | 할당 전략, free-space management |
 | page_translate | 15강 p.13~22: VA → VPN|offset → PTE → PFN×page+offset. 옵션 set = simple(p.14 64B AS 16B page, VA 21 → 117) / quiz(p.18, VA 0·3·9·13 → 20·23·5·9) / valid(p.22 2KB page, valid 0 fault · RE 에 store protection fault) | 페이징, VPN과 offset |
 | tlb_trace | 15강 p.36: a[10] 순회 메모리 접근 수. 옵션 tlb = none(20) / tlb(13, hit 7/10) / ctx(a[5] 뒤 flush → 14) | TLB, TLB hit와 miss, ASID와 TLB flush |
+| multilevel_walk | 16강 p.21~29: TLB miss 가정 multi-level walk(PDBR → PDE → … → PTE → PA, 메모리 접근 수). 옵션 set = two(16KB/64B 4|4|6: VA 5844 → 14740, PT 0 invalid, PD 8 invalid) / three(1GB/512B 7|7|7|9: 0x2DACED11 → 2115190033, 슬라이드 글자 0x2DACECBB → offset 187, L0 index 90 invalid). PDBR·중간 PDE 의 PFN 은 가정값 | 다단계 주소 변환 계산, 3단계 page table, multi-level page table |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
@@ -256,4 +259,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | bcache_hash | 과제2 ②: Before bcache.lock 하나 + LRU 리스트, P1·P2·P3 spinning → After blockno % 13 의 13 bucket: bget(27)→bucket 1 hit r1→2 ‖ bget(18)→bucket 5 동시 → bget(40) miss → bcache.lock, bucket 7 의 r0 buf(blk 59) → lock 1→7 → bucket 1 로 옮겨 blockno=40 (NBUF 30 그대로) | buffer cache, bcache 해시 버킷 |
 | segment_map | 14강 p.6·p.10~12: 주소 공간 code/heap/stack 이 물리 28K/32K/34K 로 따로 옮겨짐 → VA 4200 = 01|offset 104 → 34920 → VA 15KB = 11|3072 − 4096 → 27KB | 세그멘테이션 |
 | tlb_lookup | 15강 p.33~35·p.38: hit(VPN 27 → TLB 59 → 메모리 1번) vs miss(VPN 40 → PTEA → page table → TLB 갱신 → 메모리 2번) | TLB, TLB hit와 miss, 페이징 |
+| two_level_walk | 16강 p.24: VA 5844 = 5|11|20 → PDBR+5 → PDE → +11 → PTE 230 → PA 14740, 메모리 접근 1·2·3, invalid PDE 13개 아래 PT page 없음 | 다단계 주소 변환 계산, multi-level page table, 고급 페이지 테이블 |
+| thp_promotion | 16강 p.41~44: 흩어진 8 frame → compaction(빨간 화살표) → promotion(PDE 가 Huge Page 직접, PT page 불필요, TLB 8→1) → demotion(VPN 7 안 씀 → 7개 재매핑·frame 반납) | transparent huge page, 고급 페이지 테이블 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |
