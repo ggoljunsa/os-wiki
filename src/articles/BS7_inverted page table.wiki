@@ -2,45 +2,48 @@ key: inverted page table
 title: Inverted Page Table (역 페이지 테이블)
 category: 16강 Advanced Page Table, 핵심
 ---
-프로세스마다 page table 을 두는 대신, 시스템 전체에 '''물리 page(frame) 하나당 PTE 하나'''인 표를 '''하나만''' 둔다. 각 항목은 "이 frame 에는 어느 프로세스(PID)의 몇 번 VPN 이 있다"를 적고, '''항목의 index 가 곧 PFN''' 이다. 16강 p.30~36.
+시스템 전체에 물리 page(frame) 하나당 PTE 하나인 표를 하나만 두는 구조를 다룬다. 슬라이드 범위는 16강 p.30~36이다.
 
-{def}p.32 원문 — "The inverted page table keeps '''a single page table''' that has a page table entry '''for each physical page''' of the system. A virtual address is '''hashed''' to a specific PTE in the table. '''The index of the PTE is equal to the page frame number''' of the page it maps. '''# of PTEs = # of physical pages'''."{/def}
+== p.31 도입 배경 ==
+"In the paging, all the processes maintain their own page tables. The number of valid PTEs in all the processes, however, are usually '''equal to the number of page frames''' in physical memory." 표 크기를 가상 주소 공간이 아니라 물리 메모리에 묶는 발상이다.
 
-{analogy}🎭 '''주민 명부 대신 집 명부.''' 보통 page table 은 '''사람(프로세스)마다''' "내 물건은 몇 번 집에" 장부를 들고 다닌다 — 사람이 많으면 장부가 산더미. inverted 는 동네에 '''집마다 한 줄'''인 명부 하나: "3번 집: 2번 가족(PID)의 100번 물건". 집 수는 정해져 있으니 명부 크기도 고정. 대신 "100번 물건 어디 있지?"를 물으면 명부를 뒤져야 해서 색인(hash)을 쓴다.{/analogy}
+{info}영상 37:55 교수 보충: 정확히 같지는 않다. free frame 은 어떤 page 에도 대응하지 않고, 공유 메모리는 frame 하나에 여러 매핑이 있으며, swapping 된 page 는 물리 메모리 밖에 있다. 이 셋은 p.34 의 단점과 이어진다.{/info}
 
-== 왜 (p.31) ==
-"In the paging, all the processes maintain their own page tables. The number of valid PTEs in all the processes, however, are usually '''equal to the number of page frames''' in physical memory." → 표 크기를 '''가상 주소 공간'''이 아니라 '''물리 메모리'''에 묶자는 발상.
+== p.32 정의와 동작 ⭐⭐ ==
+{def}p.32 원문: "The inverted page table keeps '''a single page table''' that has a page table entry '''for each physical page''' of the system. A virtual address is hashed to a specific PTE in the table. The index of the PTE is equal to the page frame number of the page it maps. # of PTEs = # of physical pages."{/def}
 
-{info}영상 37:55 교수님 보충: 정확히 같지는 않다 — free frame 은 어떤 page 에도 대응하지 않고, 공유 메모리는 frame 하나에 여러 매핑, swapping 된 page 는 물리 메모리 밖에 있다. 이 셋이 곧 아래 단점과 이어진다.{/info}
+각 항목은 이 frame 에 어느 프로세스(PID)의 몇 번 VPN 이 있는지 적는다. 항목의 index 가 PFN 이다.
 
-== 동작 (p.32) ⭐⭐ ==
+{analogy}사람마다 장부를 드는 대신 집마다 한 줄인 명부 하나를 둔다. 집 수가 정해져 있어 명부 크기는 고정이지만, 물건을 찾으려면 색인(hash)이 필요하다.{/analogy}
+
+[[img:L16-32.png|p.32: VPN 100, Hash Function, Hashed Index 500, 거기엔 200. 400, 100 순으로 찾아 일치, 그 Table Index 가 PFN. 항목 필드는 VPN, PID, Others|large]]
+
 # CPU 가 VA(VPN | VPO)를 낸다.
-# '''Hash Function'''(VPN, 그리고 PID)으로 표의 위치(Hashed Index)를 구한다 — p.32 그림: VPN 100 → 500.
-# 그 자리 항목의 VPN·PID 가 맞는지 비교. 그림에서는 500 번에 VPN 200 → 아니다 → 다음 후보(400) → 다음(100) '''일치'''. ([[hash collision]])
-# 일치한 항목의 '''Table Index = PFN''' → PA = PFN | VPO.
+# Hash Function(VPN, 그리고 PID)으로 표의 위치(Hashed Index)를 구한다. p.32 그림에서 VPN 100 은 500 이 된다.
+# 그 자리 항목의 VPN·PID 가 맞는지 비교한다. 그림에서는 500 번에 VPN 200 이 있어 틀리다. 다음 후보 400, 그다음 100 에서 일치한다. ([[hash collision]])
+# 일치한 항목의 Table Index 가 PFN 이다. PA = PFN | VPO.
 
-[[img:L16-32.png|p.32 — VPN 100 → Hash Function → Hashed Index 500, 거기엔 200 → 400 → 100 에서 일치, 그 Table Index 가 PFN. 항목 필드는 VPN · PID · Others|large]]
+{tip}PID 가 필요한 이유(영상 39:22): 다른 프로세스가 같은 VPN 을 쓸 수 있다. 시스템 전체 표이므로 (PID, VPN) 쌍이 열쇠다.{/tip}
 
-{tip}PID 가 필요한 이유 (영상 39:22): 다른 프로세스가 '''같은 VPN''' 을 쓸 수 있다. 시스템 전체 표이므로 (PID, VPN) 쌍이 열쇠다.{/tip}
-
-== 장점 2 · 단점 3 (p.33~34) ⭐⭐⭐ ==
+== p.33~34 장점 2 · 단점 3 ⭐⭐⭐ ==
 {|
 ! || 원문 || 풀이
 |-
-| 장점 1 || '''Memory efficiency''' — No need to maintain individual page tables for processes, thereby '''scaling with the size of physical memory''' || 프로세스 수·가상 주소 공간 크기와 무관
+| 장점 1 || Memory efficiency: No need to maintain individual page tables for processes, thereby scaling with the size of physical memory || 프로세스 수·가상 주소 공간 크기와 무관
 |-
-| 장점 2 || '''Fewer memory references to service a TLB miss''' || collision 이 없으면 표 1번 읽기 (3단계 multi-level 은 3번) — 영상 42:47
+| 장점 2 || Fewer memory references to service a TLB miss || collision 이 없으면 표 1번 읽기 (3단계 multi-level 은 3번), 영상 42:47
 |-
-| 단점 1 || '''Hash collision''' causes long worst-case access time || 후보를 여러 개 봐야 할 수 있음 → [[hash collision]]
+| 단점 1 || Hash collision causes long worst-case access time || 후보를 여러 개 봐야 할 수 있음. [[hash collision]]
 |-
-| 단점 2 || '''Page sharing''' is not easy (but can be supported) || frame 하나 = 항목 하나라 여러 (PID, VPN) 을 한 줄에 못 적는다
+| 단점 2 || Page sharing is not easy (but can be supported) || frame 하나 = 항목 하나라 여러 (PID, VPN) 을 한 줄에 못 적는다
 |-
-| 단점 3 || Inefficient to support '''swapping''' || 디스크로 나간 page 는 frame 이 없어 표에 줄이 없음 → 별도 메타데이터 필요
+| 단점 3 || Inefficient to support swapping || 디스크로 나간 page 는 frame 이 없어 표에 줄이 없음. 별도 메타데이터 필요
 |}
 
-{analogy}🎭 영상 48:58 교수님 비유: inverted page table 은 '''fully associative cache''' 와 같다 — (VPN, PID) 를 tag 처럼 맞춰 보고 찾는다. 원래의 multi-level page table 은 '''direct mapped cache''' 에 더 가깝다 — index 로 바로 그 칸을 찾아간다.{/analogy}
+== p.36 cache 구조와의 대응 ==
+영상 48:58 교수 비유: inverted page table 은 fully associative cache 와 같다. (VPN, PID) 를 tag 처럼 맞춰 보고 찾는다. 원래의 multi-level page table 은 direct mapped cache 에 더 가깝다. index 로 그 칸을 찾아간다.
 
-{exam}🎯 객관식 후보: "inverted page table 의 PTE 개수 = ?" → '''물리 page 수'''. "장점이 아닌 것은?" → page sharing 이 쉽다(✗, 단점). "TLB miss 처리 때 메모리 참조가 적다"(○).{/exam}
+{exam}객관식 후보: "inverted page table 의 PTE 개수 = ?" → '''물리 page 수'''. "장점이 아닌 것은?" → page sharing 이 쉽다(✗, 단점). "TLB miss 처리 때 메모리 참조가 적다"(○).{/exam}
 
 == 관련 문서 ==
 * [[고급 페이지 테이블]] · [[hash collision]] · [[페이지 테이블]] · [[multi-level page table]] · [[TLB miss 처리]] · [[copy-on-write]](page sharing)

@@ -2,15 +2,16 @@ key: Optimal 교체
 title: Optimal 교체 정책 (OPT)
 category: 17강 Swapping, 핵심
 ---
-가장 먼 미래에 접근될 page 를 내보낸다. miss 가 가장 적지만 미래를 알아야 한다. 17강 p.31~32.
+가장 먼 미래에 접근될 page 를 내보내는 정책을 다룬다. 슬라이드 17강 p.31~32.
 
-{def}p.31 — "Leads to the '''fewest number of misses''' overall. Replaces the page that will be accessed '''furthest in the future'''. Serve only as a '''comparison point''' to know how close we are to be perfect."{/def}
+== p.31 정의 ==
+{def}p.31: "Leads to the '''fewest number of misses''' overall. Replaces the page that will be accessed '''furthest in the future'''. Serve only as a '''comparison point''' to know how close we are to be perfect."{/def}
 
-{analogy}🎭 시험 시간표를 다 아는 학생이 가방에서 가장 늦게 시험 보는 과목의 책을 뺀다. 시간표(미래)를 모르면 불가능하다.{/analogy}
+Miss 가 가장 적지만 미래의 참조를 알아야 한다. 그래서 실제 구현이 아니라 다른 정책과 비교하는 기준으로 쓴다.
 
-[[img:L17-32.png|p.32 Tracing the Optimal Policy — hit 6, miss 5|large]]
+== p.32 손으로 돌리기 ⭐⭐⭐ ==
+[[img:L17-32.png|p.32 Tracing the Optimal Policy: hit 6, miss 5|large]]
 
-== 손으로 돌리기 (p.32) ⭐⭐⭐ ==
 {|
 ! Access || Hit/Miss || Evict || Cache
 |-
@@ -36,11 +37,12 @@ category: 17강 Swapping, 핵심
 |-
 | 1 || Hit || || 0,1,2
 |}
+
 3 을 넣을 때 앞으로의 참조는 0 3 1 2 1 이다. 2 가 가장 늦게 나오므로 2 를 뺀다. 마지막 2 를 넣을 때 남은 참조는 1 뿐이라 0 과 3 은 동률이고, 슬라이드는 3 을 뺐다.
 
-[[sim:page_replace]]
-
 {warn}Miss 5번 중 앞의 3번은 처음 올리는 page 라 어떤 정책도 피할 수 없다(compulsory miss).{/warn}
+
+[[sim:page_replace]]
 
 == 관련 문서 ==
 * [[페이지 교체 정책]] · [[LRU]] · [[FIFO 교체]]

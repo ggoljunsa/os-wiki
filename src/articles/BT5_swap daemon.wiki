@@ -2,11 +2,12 @@ key: swap daemon
 title: Swap Daemon (Page Daemon)과 Watermark
 category: 17강 Swapping, 용어
 ---
-메모리가 완전히 찰 때까지 기다리지 않고 미리 page 를 비우는 백그라운드 스레드. 17강 p.28.
+메모리가 완전히 찰 때까지 기다리지 않고 미리 page 를 비우는 백그라운드 스레드를 다룬다. 슬라이드 17강 p.28.
 
-{def}p.28 — "'''Swap Daemon, Page Daemon''': There are fewer than '''Low Watermark (LW)''' pages available, a background thread that is responsible for freeing memory runs. The thread evicts pages until there are '''High Watermark (HW)''' pages available."{/def}
+== p.28 언제 교체하나 ==
+{def}p.28: "'''Swap Daemon, Page Daemon''': There are fewer than '''Low Watermark (LW)''' pages available, a background thread that is responsible for freeing memory runs. The thread evicts pages until there are '''High Watermark (HW)''' pages available."{/def}
 
-{analogy}🎭 '''쓰레기통 비우기.''' 넘칠 때까지 두지 않고, 빈 공간이 LW 아래로 내려가면 청소부가 와서 HW 만큼 빌 때까지 비운다.{/analogy}
+빈 page 수가 LW 아래로 내려가면 daemon 이 깨어난다. HW 만큼 비면 daemon 은 잠든다.
 
 <pre class="ascii">
 빈 page 수

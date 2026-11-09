@@ -55,7 +55,7 @@
 
   global.SIMS["fit_strategies"] = {
     title: "free list 할당 전략 — Best / Worst / First / Next Fit (14강 p.37~39)",
-    desc: "같은 free list(head → 10 → 30 → 20)에 같은 요청을 넣어도 전략마다 남는 조각이 다르다. 고른 chunk 는 [[splitting과 coalescing|split]] 된다. → [[할당 전략]], [[external fragmentation]]",
+    desc: "요청마다 전략별로 chunk 를 고른다. → [[할당 전략]]",
     options: [
       { key: "strat", label: "전략", values: [
         { value: "best", label: "Best Fit" }, { value: "worst", label: "Worst Fit" },
@@ -66,31 +66,29 @@
     ],
     build: function (opts) {
       var strat = opts.strat || "best", reqs = REQS[opts.req] || REQS.slide;
-      var L = INIT.slice(), ptr = 0, steps = [], done = [];
-      steps.push({ desc: "시작: free list '''head → 10 → 30 → 20 → NULL''' (p.39). 전략 = '''" + NAMES[strat] + "'''.", pc: { CODE: 1 },
-        vars: { "free list": L.join(" → "), "요청": "-", "고른 chunk": "-", "결과": "-" }, svg: svg(L, -1, ptr, strat) });
+      var L = INIT.slice(), ptr = 0, steps = [];
+      steps.push({ desc: "free list: 10 → 30 → 20, 전략 " + NAMES[strat], pc: { CODE: null },
+        vars: { "free list": L.join(" → "), "요청": "-", "고른 chunk": "-" }, svg: svg(L, -1, ptr, strat) });
       reqs.forEach(function (r) {
         var i = pick(strat, L, r, ptr);
         if (i < 0) {
-          done.push(r + ": 실패");
-          var st = { desc: "요청 '''" + r + "''' — 리스트에 " + r + " 이상인 chunk 가 없다 → '''실패'''. 남은 공간 합은 " + L.reduce(function (a, b) { return a + b; }, 0) + " 인데도 — [[external fragmentation]].", pc: { CODE: 3 },
-            vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": "없음", "결과": done.join(" / ") }, svg: svg(L, -1, ptr, strat) };
-          st.note = "요청 " + r + " 실패 (남은 합 " + L.reduce(function (a, b) { return a + b; }, 0) + ")";
-          steps.push(st);
+          var sum = L.reduce(function (a, b) { return a + b; }, 0);
+          steps.push({ desc: "요청 " + r + ": " + r + " 이상인 chunk 없음 → 실패", pc: { CODE: 3 },
+            vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": "없음" }, svg: svg(L, -1, ptr, strat),
+            note: "요청 " + r + " 실패 (남은 합 " + sum + ")" });
           return;
         }
         var before = L[i];
-        steps.push({ desc: "요청 '''" + r + "''' — " + NAMES[strat] + " 는 '''" + before + "''' 짜리 chunk(" + (i + 1) + "번째)를 고른다.", pc: { CODE: 3 },
-          vars: { "free list": L.join(" → "), "요청": r, "고른 chunk": before + " (" + (i + 1) + "번째)", "결과": done.join(" / ") || "-" }, svg: svg(L, i, ptr, strat) });
+        steps.push({ desc: "요청 " + r + ": " + (i + 1) + "번째 chunk " + before + " 선택", pc: { CODE: 3 },
+          vars: { "free list": L.join(" → "), "요청": r, "고른 chunk": before }, svg: svg(L, i, ptr, strat) });
         L[i] -= r;
         if (L[i] === 0) { L.splice(i, 1); ptr = L.length ? i % L.length : 0; } else { ptr = i; }
-        done.push(r + "→" + before);
-        steps.push({ desc: "split: " + r + " 을 떼어 주고 " + (before - r) + (before - r === 0 ? " — chunk 가 다 쓰여 노드가 빠진다" : " 이 리스트에 남는다") + ".", pc: { CODE: 4 },
-          vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": before + " → " + (before - r), "결과": done.join(" / ") }, svg: svg(L, before - r ? i : -1, ptr, strat) });
+        steps.push({ desc: "split: " + before + " − " + r + " = " + (before - r) + (before - r === 0 ? ", 노드 제거" : ""), pc: { CODE: 4 },
+          vars: { "free list": L.join(" → ") || "(비었음)", "요청": r, "고른 chunk": before }, svg: svg(L, before - r ? i : -1, ptr, strat) });
       });
       return {
         panels: [{ id: "CODE", title: NAMES[strat], lang: "txt", lines: CODE[strat] }],
-        vars: [{ name: "free list", group: "상태" }, { name: "요청", group: "이번 요청" }, { name: "고른 chunk", group: "이번 요청" }, { name: "결과", group: "누적" }],
+        vars: [{ name: "free list", group: "상태" }, { name: "요청", group: "이번 요청" }, { name: "고른 chunk", group: "이번 요청" }],
         steps: steps
       };
     }

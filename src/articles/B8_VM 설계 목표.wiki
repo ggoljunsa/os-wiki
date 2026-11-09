@@ -2,15 +2,17 @@ key: VM 설계 목표
 title: VM 설계 목표 (Transparency · Protection · Flexibility · Efficiency)
 category: 13강 Virtual Memory, 용어
 ---
-가상 메모리(주소 변환)를 설계할 때 노리는 네 가지 목표. 13강 p.27에 처음, p.37에 "→ '''Main topics in the rest of VM lectures'''"와 함께 다시 나온다. '''정의→용어''' 문제로 내기 딱 좋은 형태.
+가상 메모리(주소 변환)를 설계할 때 노리는 네 가지 목표를 정리한다. 13강 p.27에 처음 나오고, p.37에 "→ Main topics in the rest of VM lectures"와 함께 다시 나온다. 정의→용어 문제로 내기 좋은 형태다.
 
-{def}p.27 '''Design Goals'''
-* '''Transparency''': The program '''shouldn't be aware''' of the fact that memory is virtualized
-* '''Protection''': The OS should make sure to '''protect processes from one another'''
-* '''Flexibility''': Make the system '''easier to program'''
-* '''Efficiency''' — '''Time efficiency''': not making programs run much more slowly / '''Space efficiency''': (1) not wasting available physical memory and (2) not using too much memory for virtualization{/def}
+== p.27 Design Goals ⭐⭐⭐ ==
 
-{analogy}🎭 '''좋은 통역사의 조건'''. 손님이 통역사가 있는 줄도 모를 만큼 자연스럽고(Transparency), 손님끼리 비밀이 새지 않고(Protection), 손님이 어떤 말이든 편하게 할 수 있고(Flexibility), 대화가 느려지지 않고 통역 장비가 방을 다 차지하지 않아야(Efficiency) 한다.{/analogy}
+{def}p.27 Design Goals
+* '''Transparency''': The program shouldn't be aware of the fact that memory is virtualized
+* '''Protection''': The OS should make sure to protect processes from one another
+* '''Flexibility''': Make the system easier to program
+* '''Efficiency''': Time efficiency: not making programs run much more slowly / Space efficiency: (1) not wasting available physical memory and (2) not using too much memory for virtualization{/def}
+
+[[img:L13-27.png|p.27 Design Goals 원문|medium]]
 
 {|
 ! 목표 || 이게 깨지면 || 13강에서 [[base and bounds]]는?
@@ -23,13 +25,11 @@ category: 13강 Virtual Memory, 용어
 |-
 | Efficiency (time) || 매 접근이 느려짐 || ✓ 덧셈·비교 하나, 하드웨어
 |-
-| Efficiency (space) || 물리 메모리 낭비 || ✗ heap~stack 사이 free 공간까지 물리 메모리 차지 → [[동적 재배치의 한계]]
+| Efficiency (space) || 물리 메모리 낭비 || ✗ heap~stack 사이 free 공간까지 물리 메모리 차지. [[동적 재배치의 한계]] 참고
 |}
-(표의 오른쪽 열은 위키 정리 — 슬라이드는 p.55에서 space 문제만 명시한다.)
+(표의 오른쪽 열은 위키 정리다. 슬라이드는 p.55에서 space 문제만 명시한다.)
 
-[[img:L13-27.png|p.27 Design Goals 원문|medium]]
-
-{warn}"Space efficiency"의 '''두 가지'''를 다 써야 한다: ① 사용 가능한 물리 메모리를 낭비하지 않기 ② '''가상화 자체에 메모리를 너무 많이 쓰지 않기'''. ②는 나중에 page table 크기 문제로 다시 나온다.{/warn}
+{warn}"Space efficiency"의 두 가지를 다 써야 한다. ① 사용 가능한 물리 메모리를 낭비하지 않기 ② 가상화 자체에 메모리를 너무 많이 쓰지 않기. ②는 나중에 page table 크기 문제로 다시 나온다.{/warn}
 
 {quiz}다음 정의에 해당하는 용어를 쓰라. "The program shouldn't be aware of the fact that memory is virtualized."{/quiz}
 {answer}'''Transparency'''{/answer}

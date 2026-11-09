@@ -2,38 +2,36 @@ key: huge page
 title: Huge Page (큰 페이지, 여러 page 크기)
 category: 16강 Advanced Page Table, 핵심
 ---
-4KB 보다 큰 page(보통 '''2MB''', '''1GB''')를 4KB 와 '''함께''' 쓰는 것. page 하나가 덮는 메모리가 커져 TLB 항목 하나의 coverage 가 늘고, page table 도 작아진다. 16강 p.37~40, p.46~48.
+4KB 보다 큰 page(보통 2MB, 1GB)를 4KB 와 함께 쓰는 방법을 다룬다. 슬라이드 범위는 16강 p.37~40, p.46~48이다.
 
-{def}p.38 원문 — "Modern systems have gigabytes of memory → millions of pages. '''High TLB pressure''' — Expensive page table walk from TLB misses. '''Large page table memory overhead''' — Even with the multi-level page table! … We need a larger page than 4KB! But how about internal fragmentation? How about stack? (usually 4KB) Idea: '''Support multiple page size''' — Usually '''4KB, 2MB, and 1GB'''."{/def}
+== p.38 필요한 이유 ⭐⭐ ==
+{def}p.38 원문: "Modern systems have gigabytes of memory → millions of pages. '''High TLB pressure''': Expensive page table walk from TLB misses. '''Large page table memory overhead''': Even with the multi-level page table! … We need a larger page than 4KB! But how about internal fragmentation? How about stack? (usually 4KB) Idea: Support multiple page size: Usually 4KB, 2MB, and 1GB."{/def}
 
-{analogy}🎭 '''택배 주소를 동 단위로.''' 집집마다 주소 카드(PTE)를 쓰면 카드가 수백만 장이고 배달원 수첩(TLB)에 다 못 적는다. 한 사람이 아파트 한 동을 통째로 쓰면 카드 한 장으로 512 집을 덮는다. 그러나 원룸에 사는 사람(stack 4KB)에게 한 동을 주면 낭비 — 그래서 크기를 섞는다.{/analogy}
+* TLB pressure: TLB 항목 수는 고정이다. 4KB page 면 2MB 를 덮는 데 항목 512개가 필요하고, 2MB page 면 1개다. 영상 50:57 "a 2 megabyte page covers the same amount of memory as 512 4 kilobytes pages."
+* multi-level 은 표의 메모리는 줄이지만 TLB miss 때 walk 는 더 길어진다. 영상 50:38 "the performance depends on the TLB" 라서 multi-level 만으로는 이 문제를 못 푼다.
+* 모든 page 를 크게 하면 [[internal fragmentation]] 이 생긴다(15강의 trade-off). 그래서 크기를 섞어 촘촘히 쓰는 큰 영역만 huge page 로 만든다.
 
-== 왜 (p.38) ⭐⭐ ==
-* '''TLB pressure''': TLB 항목 수는 고정. 4KB page 면 2MB 를 덮는 데 항목 512개, 2MB page 면 '''1개'''. 영상 50:57 "a 2 megabyte page covers the same amount of memory as 512 4 kilobytes pages."
-* multi-level 은 표의 '''메모리'''는 줄이지만 TLB miss 때 walk 는 더 길어진다 — 영상 50:38 "the performance depends on the TLB" 라서 multi-level 만으로는 이 문제를 못 푼다.
-* 그런데 모든 page 를 크게 하면 [[internal fragmentation]] (15강의 trade-off). → '''여러 크기 혼용''': 촘촘히 쓰는 큰 영역만 huge page.
-
-== 누가 page 크기를 정하나 (p.39) ⭐⭐ ==
+== p.39 page 크기를 정하는 주체 ⭐⭐ ==
 {|
 ! || Explicit Huge Page (User) || Transparent Huge Page (System)
 |-
-| 결정 || 애플리케이션이 요청 || '''커널이 자동'''
+| 결정 || 애플리케이션이 요청 || 커널이 자동
 |-
-| 방법 || Huge table file system('''hugetlbfs'''), OS 가 huge page 를 '''미리 예약'''해 두고 프로세스가 가져다 씀 (mmap 사용) || 작은 page 를 모아 승격(promotion) 등 → [[transparent huge page]]
+| 방법 || Huge table file system(hugetlbfs), OS 가 huge page 를 미리 예약해 두고 프로세스가 가져다 씀 (mmap 사용) || 작은 page 를 모아 승격(promotion) 등. [[transparent huge page]]
 |-
 | 대가 || 설정 필요, 예약된 pool 은 다른 할당에 못 씀(영상 52:46) || 자동 관리의 비용(compaction, tail latency)
 |}
-영상 53:25 "the distinction is '''who makes the allocation decision''' and how much application involves."
+영상 53:25 "the distinction is who makes the allocation decision and how much application involves."
 
-== 하드웨어가 표현하는 법 — 상위 레벨 entry 가 leaf (p.46~48) ⭐⭐ ==
-huge page 크기는 아무 값이나 되는 게 아니라 '''multi-level 의 계층'''이 정한다(영상 54:11). 상위 레벨 entry 가 다음 표 대신 '''큰 page 를 직접''' 가리키면 walk 가 거기서 멈춘다.
-* '''x86_64''' PMD(PDE) entry 의 '''Page Size''' 비트: 0 → "PT Physical Address" (아래 page table 로 계속), 1 → "'''2MB Page Physical Address'''" (2MB page 를 직접 매핑, VA 하위 21비트가 offset). 영상 62:47~64:03.
-* '''RISC-V''' 는 별도 비트 없이 같은 형식의 entry 를 R/W/X 로 구분 → [[Sv39 PTE]].
-* 영상 64:12 교수님: "'''The same level can describe either a lower-level table or a huge page, depending on the entry's format.'''"
+== p.46~48 상위 레벨 entry 가 leaf 가 되는 방식 ⭐⭐ ==
+huge page 크기는 아무 값이나 되지 않는다. multi-level 의 계층이 정한다(영상 54:11). 상위 레벨 entry 가 다음 표 대신 큰 page 를 직접 가리키면 walk 가 거기서 멈춘다.
+* x86_64 PMD(PDE) entry 의 Page Size 비트: 0 이면 "PT Physical Address" (아래 page table 로 계속), 1 이면 "2MB Page Physical Address" (2MB page 를 직접 매핑, VA 하위 21비트가 offset). 영상 62:47~64:03.
+* RISC-V 는 별도 비트 없이 같은 형식의 entry 를 R/W/X 로 구분한다. [[Sv39 PTE]] 참고.
+* 영상 64:12: "The same level can describe either a lower-level table or a huge page, depending on the entry's format."
 
-[[img:L16-46.png|p.46 Normal PDTE of x86_64 — PMD Entry, Page Size unset: PT Physical Address 를 가리킴|large]]
+[[img:L16-46.png|p.46 Normal PDTE of x86_64: PMD Entry, Page Size unset, PT Physical Address 를 가리킴|large]]
 
-[[img:L16-47.png|p.47 2MB Huge Page entry for PDTE — PMD Entry, Page Size set: 2MB Page Physical Address 를 직접 담음|large]]
+[[img:L16-47.png|p.47 2MB Huge Page entry for PDTE: PMD Entry, Page Size set, 2MB Page Physical Address 를 직접 담음|large]]
 
 {quiz}4KB page 로 1GB 를 덮으려면 TLB 항목이 몇 개 필요한가? 2MB page 라면?{/quiz}
 {answer}2^30 / 2^12 = '''262144''' 개. 2MB 면 2^30 / 2^21 = '''512''' 개.{/answer}

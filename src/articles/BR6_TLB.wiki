@@ -2,42 +2,51 @@ key: TLB
 title: TLB (Translation Lookaside Buffer)
 category: 15강 Paging, 핵심
 ---
-페이징의 성능 문제(메모리 접근 1번에 PTE 읽기 1번이 더 붙음)를 푸는 '''MMU 안의 하드웨어 캐시'''. 15강 p.31~51.
+페이징의 성능 문제를 푸는 MMU 안의 하드웨어 캐시를 다룬다. 슬라이드 15강 p.31~51.
 
-{def}p.32 원문 — "'''Translation Lookaside Buffers (TLB)''': A part of the chip's memory-management unit (MMU). A '''hardware cache''' of popular virtual-to-physical address translation. Keep popular PTEs in '''SRAM'''."
-p.38 — "TLB is managed by '''full associative''' method. A typical TLB might have '''32, 64, or 128 entries'''. Hardware searches the entire TLB '''in parallel''' to find the desired translation. Other bits: valid bits, protection bits, address-space identifier ('''ASID'''), …"{/def}
+== p.31~32 TLB의 정의 ==
+{def}p.32 원문: "'''Translation Lookaside Buffers (TLB)''': A part of the chip's memory-management unit (MMU). A hardware cache of popular virtual-to-physical address translation. Keep popular PTEs in SRAM."{/def}
 
-{analogy}🎭 '''자주 가는 사물함 번호를 손바닥에 적어 두기.''' 매번 배정표(page table, 메모리)를 펼치는 대신 최근 몇 개는 손바닥(TLB, SRAM)에 적어 둔다. 손바닥에 있으면(hit) 바로 사물함으로, 없으면(miss) 배정표를 펼쳐 보고 손바닥에 새로 적는다.{/analogy}
+페이징에서는 메모리 접근 1번에 PTE 읽기 1번이 더 붙는다. TLB 는 자주 쓰는 번역을 SRAM 에 담아 이 읽기를 건너뛴다.
+
+{analogy}매번 배정표(page table, 메모리)를 펼치는 대신 최근 번호 몇 개를 손바닥(TLB, SRAM)에 적어 둔다. 손바닥에 있으면(hit) 바로 사물함으로 가고, 없으면(miss) 배정표를 펼쳐 보고 손바닥에 새로 적는다.{/analogy}
+
+== p.33~35 TLB를 거치는 경로 ==
+단계별 경로는 [[TLB hit와 miss]]에 있다.
 
 [[anim:tlb_lookup|hit 은 TLB 에서 바로 PFN 을 얻어 메모리 1번, miss 는 page table 을 읽어 TLB 를 채운 뒤 메모리 2번]]
 
-== TLB 항목 (p.38) ==
+== p.35~37 TLB miss가 드문 이유 ⭐⭐ ==
+p.35 는 "Fortunately, TLB misses are rare. Why?" 라고 묻는다. 답은 [[locality]]다. 같은 page 를 연달아 쓰면(spatial) 첫 접근만 miss 이고 나머지는 hit 이다. 루프가 같은 page 를 반복해 쓰면(temporal) 계속 hit 이다.
+
+[[img:L15-36.png|p.36 a[0]~a[9] 가 VPN 6·7·8 에 걸쳐 있다. TLB 없으면 20번(a[i] 10 + PTE 10), 있으면 13번(a[i] 10 + PTE 3)|large]]
+
+[[sim:tlb_trace]]
+
+== p.38 TLB 항목 ==
+{def}p.38 원문: "TLB is managed by '''full associative''' method. A typical TLB might have 32, 64, or 128 entries. Hardware searches the entire TLB in parallel to find the desired translation. Other bits: valid bits, protection bits, address-space identifier (ASID), …"{/def}
+
+VA 의 VPN(=27)을 모든 항목과 동시에 비교한다(fully associative). 맞는 항목의 PFN(=59)에 VPO 를 붙이면 PA 다.
+
 {|
 ! VPN || PFN || other bits
 |-
 | 19 || … ||
 |-
-| 27 || '''59''' || valid, protection, ASID, …
+| 27 || 59 || valid, protection, ASID, …
 |-
 | … || … ||
 |}
-VA 의 VPN(=27)을 '''모든 항목과 동시에''' 비교(fully associative) → 맞는 항목의 PFN(=59) | VPO = PA.
 
-[[img:L15-38.png|p.38 TLB Entry — VPN 27 을 병렬 검색해 PFN 59 를 찾고 VPO 를 붙여 Physical address|large]]
+[[img:L15-38.png|p.38 TLB Entry. VPN 27 을 병렬 검색해 PFN 59 를 찾고 VPO 를 붙여 Physical address|large]]
 
-== 왜 잘 맞나 — locality (p.36~37) ⭐⭐ ==
-p.35: "Fortunately, TLB misses are rare. Why?" → '''[[locality]]'''. 같은 page 를 연달아 쓰면(spatial) 첫 접근만 miss, 나머지는 hit. 루프가 같은 page 를 반복해 쓰면(temporal) 계속 hit.
+== p.39~44 TLB miss 처리 ==
+miss 를 처리하는 방법은 hardware-managed(PTBR 로 page table walk)와 software-managed(trap 핸들러) 두 가지다. [[TLB miss 처리]]에 있다.
 
-[[img:L15-36.png|p.36 — a[0]~a[9] 가 VPN 6·7·8 에 걸쳐 있다. TLB 없으면 20번(a[i] 10 + PTE 10), 있으면 13번(a[i] 10 + PTE 3)|large]]
+== p.45~49 Context switch와 TLB ==
+context switch 때 다른 프로세스의 항목을 구분하는 문제는 [[ASID와 TLB flush]]에 있다.
 
-[[sim:tlb_trace]]
-
-== 세부 문서 ==
-* [[TLB hit와 miss]] — 단계별 경로(p.33~35)
-* [[TLB miss 처리]] — hardware-managed(PTBR 로 page table walk) vs software-managed(trap 핸들러) (p.39~44)
-* [[ASID와 TLB flush]] — context switch 때 다른 프로세스 항목 구분 (p.45~49)
-
-{exam}🎯 예상 출제: ① 정의→용어 "A hardware cache of popular virtual-to-physical address translation" → '''translation lookaside buffer''' (full term — 2026F 중간은 약어 금지) ② p.36 처럼 배열 순회의 메모리 접근 횟수·hit rate 계산 ③ HW- vs SW-managed 장단점 표 ④ context switch 시 flush vs ASID.{/exam}
+{exam}예상 출제: ① 정의→용어 "A hardware cache of popular virtual-to-physical address translation" → translation lookaside buffer (full term, 2026F 중간은 약어 금지) ② p.36 처럼 배열 순회의 메모리 접근 횟수·hit rate 계산 ③ HW- vs SW-managed 장단점 표 ④ context switch 시 flush vs ASID.{/exam}
 
 == 관련 문서 ==
 * [[페이징]] · [[페이징의 문제]] · [[MMU]] · [[locality]] · [[SRAM과 DRAM]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]

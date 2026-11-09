@@ -2,19 +2,21 @@ key: LRU
 title: LRU (Least-Recently-Used)
 category: 17강 Swapping, 핵심
 ---
-가장 오래전에 사용한 page 를 내보낸다. 과거로 미래를 예측한다([[locality]]). 17강 p.38~39, p.43~45.
+가장 오래전에 사용한 page 를 내보내는 정책과 구현을 다룬다. 슬라이드 17강 p.38~39, p.43~45.
 
-{def}p.38 — "Learn on the past and use history to predict future."
-'''Recency''': "The more recently a page has been accessed, the more likely it will be accessed again" → LRU.
-'''Frequency''': "If a page has been accessed many times, it should not be replaced as it clearly has some value" → LFU (Least-Frequently-Used).
-p.39 — "Replaces the Least-Recently-Used page."{/def}
+== p.38 recency 와 frequency ==
+{def}p.38: "Learn on the past and use history to predict future."
+'''Recency''': "The more recently a page has been accessed, the more likely it will be accessed again". 이를 쓰는 정책이 LRU 다.
+'''Frequency''': "If a page has been accessed many times, it should not be replaced as it clearly has some value". 이를 쓰는 정책이 LFU (Least-Frequently-Used) 다.{/def}
 
-{analogy}🎭 옷장에서 가장 오래 안 입은 옷부터 버리기. 최근에 입은 옷은 또 입을 가능성이 높다.{/analogy}
+LRU 는 과거의 참조로 미래를 예측한다. 그 근거는 [[locality]]다.
 
-[[img:L17-39.png|p.39 Using History: LRU — hit 6, Optimal 과 같음|large]]
+== p.39 손으로 돌리기 ⭐⭐⭐ ==
+{def}p.39: "Replaces the Least-Recently-Used page."{/def}
 
-== 손으로 돌리기 (p.39) ⭐⭐⭐ ==
-표의 Cache 는 왼쪽이 가장 오래된(LRU) 쪽, 오른쪽이 가장 최근(MRU) 쪽이다. '''Hit 때도 순서가 바뀐다.'''
+[[img:L17-39.png|p.39 Using History: LRU, hit 6, Optimal 과 같음|large]]
+
+표의 Cache 는 왼쪽이 가장 오래된(LRU) 쪽, 오른쪽이 가장 최근(MRU) 쪽이다. Hit 때도 순서가 바뀐다.
 {|
 ! Access || Hit/Miss || Evict || Cache (LRU → MRU)
 |-
@@ -43,7 +45,7 @@ p.39 — "Replaces the Least-Recently-Used page."{/def}
 
 [[sim:page_replace]]
 
-== 구현 (p.43~45) ⭐⭐ ==
+== p.43~45 구현 ⭐⭐ ==
 매 메모리 참조마다 기록해야 하므로 "a little bit of hardware support"가 필요하다.
 {|
 ! || Counter (p.44) || Stack (p.45)

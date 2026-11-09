@@ -1,16 +1,10 @@
 key: 스와핑
-title: 스와핑 (Swapping) — 17강 허브
+title: 스와핑 (Swapping)
 category: 17강 Swapping, 핵심
 ---
-{info}📌 '''17강 슬라이드 `17-Swapping.pdf`(56쪽) 기준, 수업 전에 쓴 문서라 녹음 내용은 아직 없다.''' 수업 중에는 아래 '슬라이드 ↔ 문서' 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}
+{info}17강 슬라이드 `17-Swapping.pdf`(56쪽) 기준이다. 수업 전에 쓴 문서라 녹음 내용은 아직 없다. 수업 중에는 아래 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}
 
-'''스와핑'''은 물리 메모리에 다 못 올리는 page 를 디스크의 [[swap space]]로 내보냈다가(swap out) 필요할 때 다시 가져오는(swap in) 메커니즘이다. 덕분에 프로세스는 물리 메모리보다 큰 가상 주소 공간을 쓸 수 있다. 17강의 질문은 둘이다: '''① 없는 page 를 건드리면 어떻게 되나([[page fault]]) ② 메모리가 꽉 찼을 때 누구를 내보내나([[페이지 교체 정책]]).'''
-
-{analogy}🎭 '''책상과 책장.''' 책상(DRAM)은 좁고 책장(디스크)은 넓다. 지금 보는 책만 책상에 둔다. 책상에 없는 책이 필요하면(page fault) 책장까지 걸어가야 하는데 아주 오래 걸린다. 책상이 꽉 찼으면 한 권을 치워야 하고, 어떤 책을 치울지가 교체 정책이다. 밑줄을 친 책(dirty)은 책장의 원본도 고쳐 놓아야 해서 더 번거롭다.{/analogy}
-
-[[anim:page_fault_flow|page fault 한 번의 전체 흐름을 먼저 보고, 아래 시뮬레이터에서 값을 한 단계씩 확인하라]]
-
-[[sim:page_fault_trace]]
+17강은 물리 메모리에 다 못 올리는 page 를 다루는 '''스와핑'''을 p.11~54 에서 설명한다.
 
 == 슬라이드 ↔ 문서 (수업 중 따라가기) ==
 {|
@@ -45,7 +39,26 @@ category: 17강 Swapping, 핵심
 | p.50~53 || dirty page, demand paging, prefetching, clustering ⭐⭐ || [[demand paging]]
 |}
 
-== 정책 한눈에 (p.32~39, 같은 참조열 · frame 3개) ==
+== p.12~15 스와핑이란 ==
+스와핑은 물리 메모리에 다 못 올리는 page 를 디스크의 [[swap space]]로 내보냈다가(swap out) 필요할 때 다시 가져오는(swap in) 메커니즘이다. 프로세스는 이 덕분에 물리 메모리보다 큰 가상 주소 공간을 쓸 수 있다.
+
+17강의 질문은 둘이다.
+# 없는 page 를 건드리면 어떻게 되나 ([[page fault]])
+# 메모리가 꽉 찼을 때 누구를 내보내나 ([[페이지 교체 정책]])
+
+{analogy}책상(DRAM)은 좁고 책장(디스크)은 넓어서, 지금 보는 책만 책상에 둔다. 책상이 꽉 찼을 때 어떤 책을 치울지가 교체 정책이고, 밑줄 친 책(dirty)은 책장의 원본도 고쳐 놓아야 한다.{/analogy}
+
+== p.16~23 page fault 한 번의 흐름 ⭐⭐⭐ ==
+Present bit 가 0 인 page 를 접근하면 page fault 가 난다. OS 는 디스크에서 page 를 가져오고, page table 을 고친 뒤, 그 명령을 다시 실행한다. 자세한 단계는 [[page fault]] 에 있다.
+
+[[anim:page_fault_flow|page fault 한 번의 전체 흐름]]
+
+[[sim:page_fault_trace]]
+
+== p.25~32 슬라이드 숫자 주의 ==
+{warn}p.25 의 "200 + 799800 × p" 는 자릿수 오타다. 8,000,000 − 200 = '''7,999,800''' 이고 p.26 은 맞게 쓰였다. p.26 의 "factor of 40" 은 8199.8 / 200 = 41 의 어림값이다. p.32 의 54.6% 는 6/11 = 54.545…% 이므로 54.5% 가 맞다.{/warn}
+
+== p.32~39 정책 한눈에 (같은 참조열, frame 3개) ==
 <pre class="ascii">
 참조열: 0 1 2 0 1 3 0 3 1 2 1   (11번)
 정책       hit   hit rate    무엇을 내보내나
@@ -57,15 +70,13 @@ FIFO        4    36.4%      가장 먼저 들어온 page
 
 [[sim:page_replace]]
 
-{warn}'''슬라이드 숫자 주의''' (검산함) ① p.25 의 "200 + 799800 × p" 는 자릿수 오타다. 8,000,000 − 200 = '''7,999,800''' 이고 p.26 은 맞게 쓰였다. ② p.32 의 54.6% 는 6/11 = 54.545…% 이므로 54.5% 가 맞다. ③ p.26 의 "factor of 40" 은 8199.8 / 200 = 41 의 어림값이다.{/warn}
-
 == 시험 대비 핵심 요약 ==
 # Swap space: 디스크에 page 크기 단위로 잡은 공간. OS 가 page 별 위치를 기억한다.
 # Present bit 1 = 메모리에 있음, 0 = 디스크에 있음. 0 인 page 접근 = page fault(exception).
 # Page fault 처리: Reference → Trap → 디스크 확인 → Page 가져오기 → Page table 갱신 → 명령 재실행.
-# 재실행이 핵심: fault 낸 명령을 '''다시''' 실행하면 이번엔 page hit.
+# Fault 를 낸 명령을 '''다시''' 실행하면 이번에는 page hit 이다.
 # EAT = (1 − p) × 메모리 접근 + p × page-fault 시간. p = 1/1000 이면 약 8.2 µs.
-# Working set > 메모리 → thrashing.
+# Working set > 메모리 이면 thrashing.
 # Optimal: 가장 먼 미래. 비교 기준일 뿐 구현 불가.
 # FIFO: Belady's anomaly 가능. LRU: recency. Clock: reference bit 로 LRU 근사.
 # Dirty page 는 내보낼 때 디스크에 써야 하므로 clean page 를 우선 고른다.

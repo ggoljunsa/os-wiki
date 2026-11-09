@@ -667,6 +667,44 @@
     font-weight: 700;
     font-size: 14px;
   }
+
+  /* ===== 사이드바 탭 ===== */
+  .nav-tabs { display: flex; gap: 4px; margin: 0 0 8px; }
+  .nav-tab { flex: 1; padding: 6px 0; font-size: 13px; font-weight: 600; color: #34466b; background: #eef2f8; border: 1px solid #d5dde9; border-radius: 5px; cursor: pointer; }
+  .nav-tab.on { background: var(--header); color: #fff; border-color: var(--header); }
+  .nav-group { display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; font-weight: 700; font-size: 12px; color: #34466b; padding: 6px 4px 3px; }
+  .nav-group::before { content: "▸ "; color: #8a97ad; }
+  .nav-group.open::before { content: "▾ "; }
+
+  /* ===== 넓은 본문 ===== */
+  .layout { grid-template-columns: 210px minmax(0, 1fr) 190px; max-width: 1560px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 200px minmax(0, 1fr); } }
+  @media (max-width: 720px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ===== 시뮬레이터: 한 화면 2단 ===== */
+  .sim .sim-head { padding: 6px 12px; }
+  .sim .sim-head .sim-subtitle { display: inline; margin-left: 10px; }
+  .sim .sim-head a { color: #ffd75e; }
+  .sim .sim-body { padding: 8px 10px 10px; }
+  .sim .sim-opts { margin-bottom: 6px; padding: 4px 6px; }
+  .sim .sim-ctrl { margin-bottom: 6px; }
+  .sim .sim-descbox { margin: 0 0 6px; padding: 6px 10px; min-height: 2.1em; font-size: 14px; }
+  .sim .sim-note { margin: 0 0 6px; padding: 4px 10px; font-size: 12.5px; }
+  .sim .sim-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: start; }
+  .sim .sim-stage.wide { grid-template-columns: minmax(0, 1fr); }
+  .sim .sim-panels { margin: 0; }
+  .sim .sim-code { max-height: 300px; font-size: 12px; }
+  .sim .sim-vars { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 3px; width: 100%; margin: 0; font-size: 12px; }
+  .sim .sim-group { grid-column: 1 / -1; font-weight: 700; color: #34466b; font-size: 11px; padding-top: 2px; }
+  .sim .sim-var { display: flex; justify-content: space-between; gap: 6px; padding: 2px 6px; background: #f6f8fb; border: 1px solid #e3e8f0; border-radius: 3px; min-width: 0; }
+  .sim .sim-k { color: #56657f; overflow-wrap: anywhere; }
+  .sim .sim-v { font-family: Menlo, Consolas, monospace; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+  .sim .sim-v.changed { background: #fff3bf; }
+  .sim .sim-v .sim-prev { font-size: 10px; color: #9a7b1f; font-weight: 400; margin-right: 4px; }
+  .sim .sim-svgbox { margin-top: 6px; text-align: center; }
+  .sim .sim-svgbox svg { max-height: 230px; width: auto; max-width: 100%; }
+  @media (max-width: 1000px) { .sim .sim-stage { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 720px) { .sim .sim-head .sim-subtitle { display: block; margin: 2px 0 0; } }
 </style>
 </head>
 <body>
@@ -677,13 +715,14 @@
   <div class="search">
     <input id="searchBox" type="text" placeholder="문서 검색... (예: trapframe, MLFQ, ticket lock)">
   </div>
-  <div class="tagline">DGIST CSE304 운영체제 — 중간고사·퀴즈·과제1</div>
+  <div class="tagline">DGIST CSE304 운영체제 — 중간·기말</div>
 </header>
 
 <div class="layout">
 
   <aside class="nav-side">
     <h3>📚 문서 목록</h3>
+    <div class="nav-tabs" id="navTabs"></div>
     <ul id="navList"></ul>
   </aside>
 

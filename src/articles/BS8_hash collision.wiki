@@ -2,22 +2,24 @@ key: hash collision
 title: Hash Collision (inverted page table 에서)
 category: 16강 Advanced Page Table, 용어
 ---
-서로 다른 (PID, VPN) 이 hash function 을 거쳐 '''같은 자리'''로 떨어지는 것. [[inverted page table]]의 첫 번째 단점. 16강 p.35~36.
+서로 다른 (PID, VPN) 이 hash function 을 거쳐 같은 자리로 떨어지는 현상을 다룬다. [[inverted page table]]의 첫 번째 단점이고, 슬라이드 범위는 16강 p.32, p.35~36이다.
 
-{def}p.35 — "Owing to hash collision, it has a '''longer worst-case access time'''. '''Maximum memory references required to find a PTE are not fixed'''. How to reduce the hash collision rate? '''Increase the number of entries''' in the inverted page table, which results in a lower hash collision rate. But '''consume more memory space'''."{/def}
+== p.32 충돌이 났을 때 ==
+p.32 그림에서 VPN 100 의 hash 는 500 이다. 그 자리엔 VPN 200 이 있다. 다음 후보 400 을 거쳐 100 에서 일치한다. 다음 후보를 찾는 법은 영상 41:15: "a different hash function to find the next candidate, or just start the linear search from this position."
 
-{analogy}🎭 '''같은 사물함 번호를 받은 두 사람.''' 열어 보니 남의 짐이면 다음 칸을 열어 봐야 한다. 칸 수를 늘리면 겹칠 일은 줄지만 사물함 자체가 공간을 먹는다.{/analogy}
+== p.35 충돌을 줄이는 법 ==
+{def}p.35: "Owing to hash collision, it has a '''longer worst-case access time'''. Maximum memory references required to find a PTE are not fixed. How to reduce the hash collision rate? Increase the number of entries in the inverted page table, which results in a lower hash collision rate. But consume more memory space."{/def}
 
-== 충돌이 나면 ==
-p.32 그림: VPN 100 → hash 500 → 그 자리엔 VPN 200 → 다음 후보 400 → 100 에서 일치. 다음 후보를 찾는 법은 영상 41:15: "a different hash function to find the next candidate, or just start the linear search from this position." 그래서 '''메모리 참조 횟수가 고정되지 않는다''' — multi-level 은 tree 깊이만큼 정확히 정해진 것과 대비(영상 46:24).
+메모리 참조 횟수가 고정되지 않는다. multi-level 은 tree 깊이만큼 정확히 정해져 있어 대비된다(영상 46:24).
 
-== 표를 키우면 (p.36) ⭐⭐ ==
-{def}p.36 — "A '''PFN field must be added to every PTE'''. More PTEs than physical pages exist (i.e., # of PTEs > # of physical pages). Page frame numbers '''cannot be deduced from PTE's locations''' in the table. '''But it solves the page sharing problem'''."{/def}
-* 항목이 frame 보다 많아지면 "index = PFN" 규칙이 깨진다 → 항목마다 '''PFN 필드'''를 둔다(항목 크기 ↑).
-* 덤: 여러 항목이 '''같은 PFN''' 을 적을 수 있어 page sharing 이 된다. p.36 그림: (VPN 200, PID 3, PFN 500) 과 (VPN 100, PID 2, PFN 500) — 두 프로세스가 frame 500 을 공유.
-* 영상 48:13: 이건 엄밀한 "one entry per frame" inverted table 이라기보다 '''hash mapping table''' 이라 부르는 게 정확하다.
+== p.36 표를 키우면 ⭐⭐ ==
+{def}p.36: "A '''PFN field must be added to every PTE'''. More PTEs than physical pages exist (i.e., # of PTEs > # of physical pages). Page frame numbers cannot be deduced from PTE's locations in the table. But it solves the page sharing problem."{/def}
 
-[[img:L16-36.png|p.36 Larger Inverted Page Table — 항목에 PFN 필드 추가. (200, 3, 500) 과 (100, 2, 500) 이 같은 frame 500 을 가리켜 sharing|large]]
+* 항목이 frame 보다 많아지면 "index = PFN" 규칙이 깨진다. 그래서 항목마다 PFN 필드를 둔다(항목 크기 증가).
+* 여러 항목이 같은 PFN 을 적을 수 있어 page sharing 이 된다. p.36 그림의 (VPN 200, PID 3, PFN 500) 과 (VPN 100, PID 2, PFN 500) 은 두 프로세스가 frame 500 을 공유하는 예다.
+* 영상 48:13: 이 구조는 엄밀한 "one entry per frame" inverted table 이라기보다 hash mapping table 이라 부르는 게 정확하다.
+
+[[img:L16-36.png|p.36 Larger Inverted Page Table: 항목에 PFN 필드 추가. (200, 3, 500) 과 (100, 2, 500) 이 같은 frame 500 을 가리켜 sharing|large]]
 
 {quiz}inverted page table 에서 hash collision 을 줄이려고 표의 항목 수를 늘렸을 때 반드시 추가해야 하는 필드와, 그 덕에 풀리는 문제는?{/quiz}
 {answer}'''PFN 필드''' (항목 수 > 물리 page 수라 위치로 PFN 을 알 수 없음). 덕분에 '''page sharing''' 문제가 풀린다. 대가: 메모리 증가.{/answer}

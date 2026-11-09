@@ -2,44 +2,46 @@ key: page directory
 title: Page Directory · PDE (Page Directory Entry)
 category: 16강 Advanced Page Table, 용어
 ---
-[[multi-level page table]]에서 '''page table 의 각 page(조각)가 있는지, 있다면 물리 메모리 어디에 있는지'''를 적어 둔 표. 그 한 줄이 '''PDE'''(page directory entry). 16강 p.18~19, p.22.
+[[multi-level page table]]에서 page table 의 각 조각이 있는지와 그 물리 위치를 적어 둔 표를 다룬다. 슬라이드 범위는 16강 p.18~19, p.22, p.24이다.
 
-{def}p.18 — "To track whether a page of the page table is valid, use a new structure, called a '''page directory'''."
-p.22 — "The page directory needs '''one entry per page of the page table'''." "The PDE is '''invalid''' — '''Raise an exception''' because the access is invalid." "The PDE is '''valid''', we have more work to do — Fetch the page table entry (PTE) from the page of the page table pointed to by this page directory entry (PDE)."{/def}
+== p.18~19 정의와 PDE 필드 ==
+{def}p.18: "To track whether a page of the page table is valid, use a new structure, called a '''page directory'''."{/def}
 
-{analogy}🎭 '''백과사전 목차의 한 줄.''' "3권: 12번 책장" 또는 "4권: 발행 안 함". 목차 한 줄(PDE)이 분책 한 권(page-table page = PTE 묶음)을 대표한다.{/analogy}
+page directory 의 한 줄이 '''PDE'''(page directory entry)다. PDE 하나는 page-table page 하나(PTE 묶음)를 대표한다.
 
-== PDE 에 들어 있는 것 ==
 {|
 ! 필드 || 뜻
 |-
-| '''valid''' || 이 PDE 가 가리키는 page-table page 안에 valid PTE 가 '''하나라도''' 있으면 1 (OSTEP 20.3). 0 이면 그 조각은 할당되지 않았다
+| valid || 이 PDE 가 가리키는 page-table page 안에 valid PTE 가 하나라도 있으면 1 (OSTEP 20.3). 0 이면 그 조각은 할당되지 않았다
 |-
-| '''PFN''' || 그 page-table page 가 들어 있는 물리 frame 번호
+| PFN || 그 page-table page 가 들어 있는 물리 frame 번호
 |}
-p.19 그림: PDBR = 200 → PFN 200 의 page directory = [ (1, 201), (0, −), (0, −), (1, 204) ] → page table 의 page 0·3 만 PFN 201·204 에 있고 page 1·2 는 "Not Allocated".
 
-[[img:L16-19.png|p.19 — Page Directory Entry(PDE)는 valid 비트와 PFN. The Page Directory 는 PFN 200 에 있고 PDBR 이 그곳을 가리킨다|large]]
+[[img:L16-19.png|p.19: Page Directory Entry(PDE)는 valid 비트와 PFN. The Page Directory 는 PFN 200 에 있고 PDBR 이 그곳을 가리킨다|large]]
 
-== PTE 와의 차이 ==
+p.19 그림에서 PDBR = 200 이다. PFN 200 의 page directory 는 [ (1, 201), (0, −), (0, −), (1, 204) ] 이다. page table 의 page 0·3 만 PFN 201·204 에 있고 page 1·2 는 "Not Allocated" 다.
+
+== p.22 PDE 의 valid 와 PTE 와의 차이 ==
+{def}p.22: "The page directory needs '''one entry per page of the page table'''." "The PDE is invalid: Raise an exception because the access is invalid." "The PDE is valid, we have more work to do: Fetch the page table entry (PTE) from the page of the page table pointed to by this page directory entry (PDE)."{/def}
+
 {|
 ! || PDE || PTE
 |-
-| 가리키는 것 || '''page-table page''' (번역 정보) || '''data page''' (코드·데이터)
+| 가리키는 것 || page-table page (번역 정보) || data page (코드·데이터)
 |-
-| valid 0 의 뜻 || 그 아래 PTE 묶음 전체가 없음 → '''exception''' || 이 page 하나를 안 씀 → exception
+| valid 0 의 뜻 || 그 아래 PTE 묶음 전체가 없음 → exception || 이 page 하나를 안 씀 → exception
 |-
-| 크기 || 보통 PTE 와 같음(예제 4B) — 그래서 directory 도 page 당 같은 개수(영상 32:05) || 4B
+| 크기 || 보통 PTE 와 같음(예제 4B). 그래서 directory 도 page 당 같은 개수(영상 32:05) || 4B
 |}
 
-== 주소 계산 공식 (OSTEP Fig 20.6) ⭐⭐ ==
+== p.24 주소 계산 공식 (OSTEP Fig 20.6) ⭐⭐ ==
 <pre class="c">
 PDEAddr = PageDirBase + (PDIndex * sizeof(PDE));             // PageDirBase = PDBR 이 가리키는 곳
 PTEAddr = (PDE.PFN << SHIFT) + (PTIndex * sizeof(PTE));      // SHIFT = offset 비트 수
 </pre>
-p.24 예: PDE[5] 는 directory 시작 + 5 × 4 = '''+20바이트''', PTE[11] 은 PT page 시작 + 11 × 4 = '''+44바이트''' (영상 28:00). → [[다단계 주소 변환 계산]]
+p.24 예에서 PDE[5] 는 directory 시작 + 5 × 4 = +20바이트이고, PTE[11] 은 PT page 시작 + 11 × 4 = +44바이트다(영상 28:00). 전체 계산은 [[다단계 주소 변환 계산]].
 
-{exam}🎯 용어 문제 후보: "multi-level page table 에서 page table 의 각 page 가 valid 한지와 위치를 추적하는 구조" → '''page directory'''. 그 한 줄 → '''PDE'''. 그 시작 주소를 담는 레지스터 → '''[[PDBR]]'''.{/exam}
+{exam}용어 문제 후보: "multi-level page table 에서 page table 의 각 page 가 valid 한지와 위치를 추적하는 구조" → '''page directory'''. 그 한 줄 → '''PDE'''. 그 시작 주소를 담는 레지스터 → '''[[PDBR]]'''.{/exam}
 
 == 관련 문서 ==
 * [[multi-level page table]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[PTE 플래그]] · [[페이지 테이블]]

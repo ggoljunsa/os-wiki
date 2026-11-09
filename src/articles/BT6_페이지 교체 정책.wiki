@@ -2,12 +2,13 @@ key: 페이지 교체 정책
 title: 페이지 교체 정책 (Replacement Policy)
 category: 17강 Swapping, 핵심
 ---
-메모리가 부족할 때 어떤 page 를 내보낼지 정하는 규칙. 목표는 miss 를 줄여 [[effective access time]]을 낮추는 것이다. 17강 p.24, p.30, p.40~42.
+메모리가 부족할 때 어떤 page 를 내보낼지 정하는 규칙과, workload 별 결과를 다룬다. 슬라이드 17강 p.24, p.30, p.40~42.
 
-{def}p.24 — "The process of picking a page to kick out, or replace is known as a '''page-replacement policy'''."
-p.30 — "Memory pressure forces the OS to start paging out pages. Goal in picking a replacement policy for this cache is to '''minimize the number of cache misses'''."{/def}
+== p.24, p.30 교체 정책의 목표 ==
+{def}p.24: "The process of picking a page to kick out, or replace is known as a '''page-replacement policy'''."
+p.30: "Memory pressure forces the OS to start paging out pages. Goal in picking a replacement policy for this cache is to '''minimize the number of cache misses'''."{/def}
 
-{analogy}🎭 냉장고가 꽉 찼을 때 무엇을 뺄까? 다음에 가장 늦게 먹을 것(Optimal), 가장 먼저 산 것(FIFO), 아무거나(Random), 가장 오래 안 꺼낸 것(LRU).{/analogy}
+Miss 가 줄면 [[effective access time]]이 낮아진다. 정책은 다섯 가지를 배운다.
 
 {|
 ! 정책 || 내보내는 page || 특징 || 문서
@@ -25,7 +26,7 @@ p.30 — "Memory pressure forces the OS to start paging out pages. Goal in picki
 
 [[sim:page_replace]]
 
-== 세 workload (p.40~42) ⭐⭐ ==
+== p.40~42 세 workload ⭐⭐ ==
 {|
 ! Workload || 내용 || 결과
 |-
@@ -39,7 +40,7 @@ p.30 — "Memory pressure forces the OS to start paging out pages. Goal in picki
 [[img:L17-41.png|p.41 The 80-20 Workload|large]]
 [[img:L17-42.png|p.42 The Looping-Sequential Workload|large]]
 
-{exam}🎯 "어떤 workload 에서 어떤 정책이 왜 좋은가/나쁜가" 객관식과, 참조열을 주고 정책별 hit 수를 세는 문제가 가장 유력하다.{/exam}
+{exam}"어떤 workload 에서 어떤 정책이 왜 좋은가/나쁜가" 객관식과, 참조열을 주고 정책별 hit 수를 세는 문제가 가장 유력하다.{/exam}
 
 == 관련 문서 ==
 * [[스와핑]] · [[page fault]] · [[effective access time]] · [[locality]]

@@ -5,16 +5,86 @@
 
 var BOX_TYPES = ["info", "warn", "tip", "joke", "analogy", "def", "quiz", "exam"];
 
+// 사이드바: 기말 / 중간 / 공통 탭. 한 탭 안에서는 강의별로 접고 편다.
+var NAV_TAB_NAMES = ["기말", "중간", "공통"];
+var navOpenGroups = {};   // group → true/false (사용자가 직접 접거나 편 것)
+var navTab = null;
+var navLastActive = null;
+
+function navSectionOf(group) {
+  if (/^(기말고사|1[3-7]강|과제2)/.test(group)) return "기말";
+  if (/^([1-9]강|1[0-2]강|과제1|퀴즈)/.test(group)) return "중간";
+  return "공통";
+}
+
+function navGroupOfKey(key) {
+  var list = typeof NAV_ORDER !== "undefined" ? NAV_ORDER : [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].items.indexOf(key) >= 0) return list[i].group;
+  }
+  return null;
+}
+
+function navStoredTab() {
+  try { return localStorage.getItem("osw-nav-tab"); } catch (e) { return null; }
+}
+
+function navStoreTab(t) {
+  try { localStorage.setItem("osw-nav-tab", t); } catch (e) { /* 저장 불가 환경 */ }
+}
+
 function renderNav(active) {
   var nav = document.getElementById("navList");
+  var groups = typeof NAV_ORDER !== "undefined" ? NAV_ORDER : [];
+  var activeGroup = navGroupOfKey(active);
+  var isHome = !active || active === "main";
+  // 문서가 바뀔 때만 그 문서의 탭으로 맞춘다 (탭·그룹 클릭 재렌더에서는 유지)
+  if (active !== navLastActive) {
+    if (!isHome && activeGroup) navTab = navSectionOf(activeGroup);
+    navLastActive = active;
+  }
+  if (!navTab) navTab = navStoredTab() || "기말";
+  if (NAV_TAB_NAMES.indexOf(navTab) < 0) navTab = "기말";
+
+  var tabs = document.getElementById("navTabs");
+  if (tabs) {
+    tabs.innerHTML = "";
+    NAV_TAB_NAMES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = t;
+      b.className = "nav-tab" + (t === navTab ? " on" : "");
+      b.addEventListener("click", function () {
+        navTab = t;
+        navStoreTab(t);
+        renderNav(currentArticle());
+      });
+      tabs.appendChild(b);
+    });
+  }
+
   nav.innerHTML = "";
-  (typeof NAV_ORDER !== "undefined" ? NAV_ORDER : []).forEach(function (group) {
-    var groupHeader = document.createElement("li");
-    var gdiv = document.createElement("div");
-    gdiv.style.cssText = "font-weight:700; color:#34466b; padding:6px 4px 2px; font-size:12px;";
-    gdiv.textContent = group.group;
-    groupHeader.appendChild(gdiv);
-    nav.appendChild(groupHeader);
+  var shown = groups.filter(function (g) { return navSectionOf(g.group) === navTab; });
+  // 문서를 보고 있지 않을 때 기본으로 펼칠 강의: 그 탭의 마지막 '강의' 그룹
+  var lectures = shown.filter(function (g) { return /^\d+강/.test(g.group); });
+  var defaultOpen = activeGroup && navSectionOf(activeGroup) === navTab ? activeGroup
+    : (lectures.length ? lectures[lectures.length - 1].group : null);
+
+  shown.forEach(function (group) {
+    var open = navOpenGroups[group.group];
+    if (open === undefined) open = group.group === defaultOpen || group.items.length <= 2;
+    var head = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-group" + (open ? " open" : "");
+    btn.textContent = group.group;
+    btn.addEventListener("click", function () {
+      navOpenGroups[group.group] = !open;
+      renderNav(currentArticle());
+    });
+    head.appendChild(btn);
+    nav.appendChild(head);
+    if (!open) return;
     group.items.forEach(function (key) {
       var li = document.createElement("li");
       var a = document.createElement("a");
@@ -25,6 +95,12 @@ function renderNav(active) {
       nav.appendChild(li);
     });
   });
+
+  var cur = nav.querySelector ? nav.querySelector("a.active") : null;
+  var side = nav.closest ? nav.closest("aside") : null;
+  if (cur && side && side.scrollHeight > side.clientHeight) {
+    side.scrollTop = Math.max(0, cur.offsetTop - side.clientHeight / 2);
+  }
 }
 
 function renderArticle(key) {

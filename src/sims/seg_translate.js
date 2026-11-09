@@ -16,34 +16,22 @@
     3: { name: "Stack", base: 28 * KB, size: 2 * KB, pos: false, prot: "RW" }
   };
   var HW = [
-    "// MMU (p.9, p.12, p.15) — 매 메모리 참조마다",
-    "seg    = VA >> 12;            // 위 2비트",
-    "offset = VA & 0xFFF;          // 아래 12비트",
-    "if (seg 가 미사용 '10') fault;",
+    "seg = VA >> 12;",
+    "offset = VA & 0xFFF;",
+    "if (seg == 2) fault;",
     "if (GrowsPositive[seg]) {",
-    "    if (offset >= Size[seg]) Segmentation Fault;",
+    "    if (offset >= Size[seg]) segfault;",
     "    PA = Base[seg] + offset;",
-    "} else {                      // stack: 아래로 자람",
-    "    neg = offset - MAXSEG;    // MAXSEG = 4KB",
-    "    if (-neg > Size[seg]) Segmentation Fault;",
+    "} else {",
+    "    neg = offset - MAXSEG;",
+    "    if (-neg > Size[seg]) segfault;",
     "    PA = Base[seg] + neg;",
     "}",
-    "if (write && !(Prot[seg] has W)) Protection Fault;",
-    "access PA"
+    "if (write && !W[seg]) protection fault;"
   ];
   var SETS = {
-    slide: [
-      { va: 100, w: false, why: "p.10 — code 세그먼트의 명령어 fetch" },
-      { va: 4200, w: false, why: "p.11 — heap 데이터 load. 'VA + base' 가 아니라 'offset + base'" },
-      { va: 15 * KB, w: true, why: "p.12 — stack 에 push(store). 스택은 28KB 에서 26KB 쪽으로 자란다" }
-    ],
-    faults: [
-      { va: 7 * KB, w: false, why: "heap 세그먼트지만 offset 3KB 가 size 2KB 를 넘는다" },
-      { va: 8200, w: false, why: "위 2비트가 10 — 슬라이드 표에서 쓰지 않는 세그먼트" },
-      { va: 100, w: true, why: "p.15 — code 세그먼트에 store. 범위는 맞지만 Read-Execute 라 쓰기 금지" },
-      { va: 14 * KB, w: true, why: "stack 의 가장 아래 칸(offset 2KB → neg −2KB, |−2KB| = size 라 통과)" },
-      { va: 14 * KB - 1, w: false, why: "stack 영역 바로 아래 한 바이트 — 세그 11, offset 2047 → neg −2049 로 size 2KB 를 넘는다" }
-    ]
+    slide: [{ va: 100, w: false }, { va: 4200, w: false }, { va: 15 * KB, w: true }],
+    faults: [{ va: 7 * KB, w: false }, { va: 8200, w: false }, { va: 100, w: true }, { va: 14 * KB, w: true }, { va: 14 * KB - 1, w: false }]
   };
 
   function bin14(v) { var s = v.toString(2); while (s.length < 14) s = "0" + s; return s.slice(0, 2) + " " + s.slice(2); }
@@ -66,7 +54,7 @@
 
   global.SIMS["seg_translate"] = {
     title: "세그먼트 주소 변환 (14강 p.7~15)",
-    desc: "가상 주소의 위 2비트로 세그먼트를 고르고, 아래 12비트 offset 을 그 세그먼트의 size 와 비교한 뒤 base 에 더한다. stack 은 음의 방향, code 는 Read-Execute. → [[세그멘테이션]], [[세그먼트 주소 변환]]",
+    desc: "VA 를 seg·offset 으로 나눠 변환한다. → [[세그멘테이션]]",
     options: [
       { key: "set", label: "주소 묶음", values: [
         { value: "slide", label: "슬라이드 예제 (VA 100 · 4200 · 15KB)" },
@@ -76,36 +64,63 @@
     build: function (opts) {
       var list = SETS[opts.set] || SETS.slide;
       var steps = [];
-      var rows = "Code 00: base 32K size 2K +, RE / Heap 01: base 34K size 2K +, RW / Stack 11: base 28K size 2K −, RW / 10: 미사용";
-      steps.push({ desc: "세그먼트 테이블(p.6, p.12, p.13): " + rows + ". 주소 하나씩 MMU 를 통과시킨다.", pc: { HW: 1 },
-        vars: { VA: "-", "bits": "-", seg: "-", offset: "-", "검사": "-", PA: "-" },
-        svg: svg({ bits: "", result: "", fault: false }) });
+      function add(desc, line, v, bits, res, fault, note) {
+        var st = { desc: desc, pc: { HW: line }, vars: Object.assign({}, v), svg: svg({ bits: bits, result: res || "", fault: !!fault }) };
+        if (note) st.note = note;
+        steps.push(st);
+      }
+      add("가정: Code 32K/2K RE, Heap 34K/2K, Stack 28K/2K(−)", null,
+        { VA: "-", "접근": "-", bits: "-", seg: "-", offset: "-", neg: "-", "검사": "-", PA: "-" }, "", "", false);
       list.forEach(function (e) {
-        var bits = bin14(e.va), seg = e.va >> 12, off = e.va & 0xFFF;
-        var v = { VA: kb(e.va) + (e.w ? " (store)" : " (load/fetch)"), bits: bits, seg: "-", offset: "-", "검사": "-", PA: "-" };
-        steps.push({ desc: "'''VA " + e.va + "''' — " + e.why + ".", pc: { HW: 1 }, vars: Object.assign({}, v), svg: svg({ bits: bits, result: "", fault: false }) });
-        v.seg = seg.toString(2).padStart(2, "0") + " → " + (TABLE[seg] ? TABLE[seg].name : "미사용");
-        v.offset = String(off);
-        steps.push({ desc: "위 2비트 = '''" + v.seg + "''', 아래 12비트 offset = '''" + off + "'''.", pc: { HW: 3 }, vars: Object.assign({}, v), svg: svg({ bits: bits, result: "", fault: false }) });
-        var t = TABLE[seg], res, fault = false, line;
+        var bits = bin14(e.va), seg = e.va >> 12, off = e.va & 0xFFF, t = TABLE[seg];
+        var v = { VA: kb(e.va), "접근": e.w ? "store" : "load/fetch", bits: bits, seg: "-", offset: "-", neg: "-", "검사": "-", PA: "-" };
+        add("VA = " + e.va + " = " + bits, null, v, bits);
+        v.seg = seg.toString(2).padStart(2, "0") + " " + (t ? t.name : "미사용");
+        add("seg = " + e.va + " >> 12 = " + seg, 1, v, bits);
+        v.offset = off;
+        add("offset = " + e.va + " & 0xFFF = " + off, 2, v, bits);
+        var res;
         if (!t) {
-          v["검사"] = "세그먼트 10 은 테이블에 없음"; res = "Fault — 쓰지 않는 세그먼트"; fault = true; line = 4;
-        } else if (t.pos) {
-          if (off >= t.size) { v["검사"] = off + " ≥ size " + t.size + " ✗"; res = "Segmentation Fault"; fault = true; line = 6; }
-          else { v["검사"] = off + " < size " + t.size + " ✓"; v.PA = kb(t.base + off) + " = " + (t.base / KB) + "K + " + off; res = "PA " + (t.base + off); line = 7; }
+          v["검사"] = "fault"; res = "Fault — 쓰지 않는 세그먼트";
+          add("seg == 2 → 미사용 세그먼트 fault", 3, v, bits, res, true, res);
+          return;
+        }
+        var pa, paLine;
+        if (t.pos) {
+          if (off >= t.size) {
+            v["검사"] = "segfault"; res = "Segmentation Fault";
+            add(off + " >= size " + t.size + " → Segmentation Fault", 5, v, bits, res, true, res);
+            return;
+          }
+          v["검사"] = "통과";
+          add(off + " < size " + t.size + " → 통과", 5, v, bits);
+          pa = t.base + off; paLine = 6;
+          v.PA = kb(pa);
+          add("PA = " + t.base + " + " + off + " = " + pa, paLine, v, bits, "PA " + pa);
         } else {
           var neg = off - MAXSEG;
-          if (-neg > t.size) { v["검사"] = "neg = " + off + " − 4096 = " + neg + ", |neg| > size " + t.size + " ✗"; res = "Segmentation Fault"; fault = true; line = 10; }
-          else { v["검사"] = "neg = " + off + " − 4096 = " + neg + ", |neg| ≤ " + t.size + " ✓"; v.PA = kb(t.base + neg) + " = 28K − " + (-neg); res = "PA " + (t.base + neg); line = 11; }
+          v.neg = neg;
+          add("neg = " + off + " − 4096 = " + neg, 8, v, bits);
+          if (-neg > t.size) {
+            v["검사"] = "segfault"; res = "Segmentation Fault";
+            add("|" + neg + "| > size " + t.size + " → Segmentation Fault", 9, v, bits, res, true, res);
+            return;
+          }
+          v["검사"] = "통과";
+          add("|" + neg + "| <= size " + t.size + " → 통과", 9, v, bits);
+          pa = t.base + neg; paLine = 10;
+          v.PA = kb(pa);
+          add("PA = " + t.base + " − " + (-neg) + " = " + pa, paLine, v, bits, "PA " + pa);
         }
-        if (!fault && e.w && t.prot.indexOf("W") < 0) { v["검사"] += " / store 인데 " + t.prot; res = "Protection Fault (" + t.name + " 는 " + t.prot + ")"; fault = true; line = 13; v.PA = "-"; }
-        var st = { desc: (fault ? "'''" + res + "'''" : "통과 → '''" + res + "'''") + ".", pc: { HW: line }, vars: v, svg: svg({ bits: bits, result: res, fault: fault }) };
-        if (fault) st.note = res;
-        steps.push(st);
+        if (e.w && t.prot.indexOf("W") < 0) {
+          v["검사"] = "prot fault"; v.PA = "-";
+          res = "Protection Fault (" + t.name + " 는 " + t.prot + ")";
+          add("store, Prot = " + t.prot + " → Protection Fault", 12, v, bits, res, true, res);
+        }
       });
       return {
         panels: [{ id: "HW", title: "MMU + 세그먼트 테이블", lang: "c", lines: HW }],
-        vars: [{ name: "VA", group: "주소" }, { name: "bits", group: "주소" }, { name: "seg", group: "분해" }, { name: "offset", group: "분해" }, { name: "검사", group: "MMU" }, { name: "PA", group: "MMU" }],
+        vars: [{ name: "VA", group: "주소" }, { name: "접근", group: "주소" }, { name: "bits", group: "주소" }, { name: "seg", group: "분해" }, { name: "offset", group: "분해" }, { name: "neg", group: "분해" }, { name: "검사", group: "MMU" }, { name: "PA", group: "MMU" }],
         steps: steps
       };
     }

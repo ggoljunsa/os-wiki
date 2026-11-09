@@ -18,12 +18,11 @@
         { 200: { 0: 101, 5: 201, 15: 102 } },
         { 201: { 11: 230 }, 101: { 0: 9 }, 102: { 15: 25 } }
       ],
-      intro: "p.21~23 — 주소 공간 16KB(2^14), page 64B(2^6) → VA 14비트 = VPN 8비트 + offset 6비트. PTE 2^8 = 256개 × 4B = 1KB = 64B page '''16장''' → 그 16장을 가리키는 [[page directory]] 는 16 × 4B = 64B = 한 page. 그래서 VPN 8비트 = PD index 4 | PT index 4.",
-      assume: "가정(그림에 없음): PDBR = PFN 200, PDE[5] → PT page PFN 201, PDE[0]·PDE[15] 만 valid. 슬라이드 값: PD 5 · PT 11 · PTE 230 · offset 20.",
+      assume: "16KB/64B, 4|4|6. PDBR 200, PDE[5] → 201",
       list: [
-        { va: 5844, why: "p.24 의 그 예제 (0x16D4)" },
-        { va: 5124, why: "PD 5 의 page 는 있지만 그 안의 PTE 0 은 invalid" },
-        { va: 8192, why: "PD 8 — 주소 공간의 (free) 영역이라 PT page 를 아예 안 만들었다" }
+        { va: 5844, hex: "0x16D4" },
+        { va: 5124, hex: "0x1404" },
+        { va: 8192, hex: "0x2000" }
       ]
     },
     three: {
@@ -33,42 +32,41 @@
         { 1001: { 44: 1002 } },
         { 1002: { 118: 4131230 } }
       ],
-      intro: "p.25~28 — 주소 공간 1GB(2^30), page 512B(2^9) → VPN 21비트 + offset 9비트. page 하나에 PTE 512/4 = 128 = 2^7 개 → PT index 7비트. 남은 14비트를 PD 하나로 쓰면 2^14 × 4B = 64KB = 128 page 라 '''한 page 에 안 들어간다''' → PD 를 둘로 쪼개 7 | 7. 결과 7 | 7 | 7 | 9.",
-      assume: "가정(그림에 없음): PDBR = PFN 1000, L0[91] → PFN 1001, L1[44] → PFN 1002. 슬라이드 값: 91 · 44 · 118 · PTE 4131230 · offset 273.",
+      assume: "1GB/512B, 7|7|7|9. PDBR 1000, L0[91]→1001, L1[44]→1002",
       list: [
-        { va: 766307601, hex: "0x2DACED11", why: "p.29 그림의 필드 91 | 44 | 118 | 273 에 맞는 주소 (슬라이드 글자 '0x2DACECBB' 는 오타 — 아래 둘째 예)" },
-        { va: 766307515, hex: "0x2DACECBB", why: "슬라이드 본문에 적힌 16진수 그대로 — 자르면 offset 이 273 이 아니라 187" },
-        { va: 754974720, hex: "0x2D000000", why: "Level 0 index 90 — 그 아래 트리를 안 만든 영역" }
+        { va: 766307601, hex: "0x2DACED11" },
+        { va: 766307515, hex: "0x2DACECBB" },
+        { va: 754974720, hex: "0x2D000000" }
       ]
     }
   };
 
   function linesFor(S) {
-    var ob = Math.log2(S.page), n = S.idx.length, L = [];
-    if (n === 2) {
-      L.push("// 2단계 page table walk (TLB miss 가정, OSTEP Fig 20.6)");
-      L.push("VPN = VA >> 6;   offset = VA & 0x3F;");
-      L.push("PDIndex = VPN >> 4;   PTIndex = VPN & 0xF;");
-      L.push("PDE = Mem[PDBR*64 + PDIndex*4];     // 메모리 접근 ①");
-      L.push("if (!PDE.valid) RaiseException();");
-      L.push("PTE = Mem[PDE.PFN*64 + PTIndex*4];  // 메모리 접근 ②");
-      L.push("if (!PTE.valid) RaiseException();");
-      L.push("PA = PTE.PFN*64 + offset;           // offset 은 그대로");
-      L.push("data = Mem[PA];                     // 메모리 접근 ③");
-    } else {
-      L.push("// 3단계 page table walk (TLB miss 가정)");
-      L.push("VPN = VA >> 9;   offset = VA & 0x1FF;");
-      L.push("i0 = VPN >> 14;  i1 = (VPN >> 7) & 0x7F;  i2 = VPN & 0x7F;");
-      L.push("PDE0 = Mem[PDBR*512 + i0*4];      // ① Level 0 PDT");
-      L.push("if (!PDE0.valid) RaiseException();");
-      L.push("PDE1 = Mem[PDE0.PFN*512 + i1*4];  // ② Level 1 PDT");
-      L.push("if (!PDE1.valid) RaiseException();");
-      L.push("PTE  = Mem[PDE1.PFN*512 + i2*4];  // ③ Page Table");
-      L.push("if (!PTE.valid) RaiseException();");
-      L.push("PA = PTE.PFN*512 + offset;");
-      L.push("data = Mem[PA];                   // ④");
-    }
-    return L;
+    if (S.idx.length === 2) return [
+      "VPN = VA >> 6;   offset = VA & 0x3F;",
+      "PDIndex = VPN >> 4;",
+      "PTIndex = VPN & 0xF;",
+      "PDE = Mem[PDBR*64 + PDIndex*4];",
+      "if (!PDE.valid) RaiseException();",
+      "PTE = Mem[PDE.PFN*64 + PTIndex*4];",
+      "if (!PTE.valid) RaiseException();",
+      "PA = PTE.PFN*64 + offset;",
+      "data = Mem[PA];"
+    ];
+    return [
+      "VPN = VA >> 9;   offset = VA & 0x1FF;",
+      "i0 = VPN >> 14;",
+      "i1 = (VPN >> 7) & 0x7F;",
+      "i2 = VPN & 0x7F;",
+      "PDE0 = Mem[PDBR*512 + i0*4];",
+      "if (!PDE0.valid) RaiseException();",
+      "PDE1 = Mem[PDE0.PFN*512 + i1*4];",
+      "if (!PDE1.valid) RaiseException();",
+      "PTE = Mem[PDE1.PFN*512 + i2*4];",
+      "if (!PTE.valid) RaiseException();",
+      "PA = PTE.PFN*512 + offset;",
+      "data = Mem[PA];"
+    ];
   }
 
   function split(S, va) {
@@ -115,57 +113,66 @@
 
   global.SIMS["multilevel_walk"] = {
     title: "Multi-level page table walk — PDBR → PDE → PTE → PA (16강 p.22~29)",
-    desc: "VA 의 VPN 을 PD index 와 PT index 로 자르고, [[PDBR]] 에서 시작해 [[page directory|PDE]] → PTE 를 차례로 읽는다. 어느 단계든 valid 0 이면 exception. → [[다단계 주소 변환 계산]], [[multi-level page table]]",
+    desc: "PDBR 에서 PDE, PTE 를 차례로 읽는다.",
     options: [{ key: "set", label: "예제", values: [
       { value: "two", label: "2단계 — p.24 16KB/64B, VA 5844 → 14740" },
       { value: "three", label: "3단계 — p.29 1GB/512B, 7|7|7|9" } ] }],
     build: function (opts) {
       var S = SETS[opts.set] || SETS.two, n = S.idx.length, steps = [], lines = linesFor(S);
-      var base = { VA: "-", "인덱스": "-", PDBR: "PFN " + S.pdbr + " (가정)" };
+      var base = { VA: "-", VPN: "-", offset: "-", PDBR: "PFN " + S.pdbr + " (가정)" };
       for (var k = 0; k < n; k++) base[S.names[k] + " 항목"] = "-";
       base.PA = "-"; base["메모리 접근"] = 0;
-      var v0 = Object.assign({}, base);
-      steps.push({ desc: S.intro + " " + S.assume, pc: { HW: 1 }, vars: v0, svg: draw(S, split(S, 0), 0, null, null) });
+      function add(desc, line, v, sp, reached, bad, pa, note) {
+        var st = { desc: desc, pc: { HW: line }, vars: Object.assign({}, v), svg: draw(S, sp, reached, bad, pa) };
+        if (note) st.note = note;
+        steps.push(st);
+      }
+      add(S.assume, null, base, split(S, 0), 0, null, null);
 
       S.list.forEach(function (e) {
         var sp = split(S, e.va), v = Object.assign({}, base), tot = 0;
         S.idx.forEach(function (w) { tot += w; });
         var b = bin(e.va, tot + sp.ob), pos = 0, parts = [];
         S.idx.concat([sp.ob]).forEach(function (w) { parts.push(b.substr(pos, w)); pos += w; });
-        v.VA = e.va + (e.hex ? " (" + e.hex + ")" : " (0x" + e.va.toString(16).toUpperCase() + ")");
-        v["인덱스"] = sp.idx.join(" | ") + " | offset " + sp.off;
-        steps.push({ desc: "'''VA " + v.VA + "''' — " + e.why + ". 2진수로 " + parts.join(" | ") + " → VPN " + sp.vpn + ", 인덱스 '''" + sp.idx.join(" | ") + "''', offset '''" + sp.off + "'''.",
-          pc: { HW: n === 2 ? 3 : 3 }, vars: Object.assign({}, v), svg: draw(S, sp, 0, null, null) });
+        v.VA = n === 2 ? e.va : e.hex;
+        add("VA = " + e.va + " = " + e.hex, null, v, sp, 0, null, null);
+        add("2진수: " + parts.join(" | "), null, v, sp, 0, null, null);
+        var sh = sp.ob, mask = S.page - 1;
+        v.VPN = sp.vpn;
+        add("VPN = " + e.va + " >> " + sh + " = " + sp.vpn, 1, v, sp, 0, null, null);
+        v.offset = sp.off;
+        add("offset = " + e.va + " & 0x" + mask.toString(16).toUpperCase() + " = " + sp.off, 1, v, sp, 0, null, null);
+        if (n === 2) {
+          add("PDIndex = " + sp.vpn + " >> 4 = " + sp.idx[0], 2, v, sp, 0, null, null);
+          add("PTIndex = " + sp.vpn + " & 0xF = " + sp.idx[1], 3, v, sp, 0, null, null);
+        } else {
+          add("i0 = " + sp.vpn + " >> 14 = " + sp.idx[0], 2, v, sp, 0, null, null);
+          add("i1 = (" + sp.vpn + " >> 7) & 0x7F = " + sp.idx[1], 3, v, sp, 0, null, null);
+          add("i2 = " + sp.vpn + " & 0x7F = " + sp.idx[2], 4, v, sp, 0, null, null);
+        }
         var pfn = S.pdbr, acc = 0;
         for (var k = 0; k < n; k++) {
-          var tbl = S.tables[k][pfn] || {}, next = tbl[sp.idx[k]], addr = pfn * S.page + sp.idx[k] * 4;
+          var next = (S.tables[k][pfn] || {})[sp.idx[k]], addr = pfn * S.page + sp.idx[k] * 4;
+          var read = n + 2 + 2 * k, what = k === n - 1 ? "PTE" : (n === 2 ? "PDE" : "PDE" + k);
           acc++; v["메모리 접근"] = acc;
-          var line = n === 2 ? (k === 0 ? 4 : 6) : 4 + k * 2;
-          var what = k === n - 1 ? "PTE" : (n === 2 ? "PDE" : "Level " + k + " PDE");
+          add(what + " 주소 = " + pfn + " × " + S.page + " + " + sp.idx[k] + " × 4 = " + addr, read, v, sp, k, null, null);
           if (next == null) {
-            v[S.names[k] + " 항목"] = "[" + sp.idx[k] + "] @" + addr + " : valid 0";
-            var st = { desc: what + " 주소 = " + pfn + " × " + S.page + " + " + sp.idx[k] + " × 4 = " + addr + " → 읽어 보니 '''valid 0''' → '''RaiseException'''. " +
-              (k < n - 1 ? "이 PDE 가 invalid 라는 것은 그 아래 page table page 를 '''아예 할당하지 않았다'''는 뜻 — multi-level 이 메모리를 아끼는 바로 그 지점(p.18)." : "PT page 는 있지만 이 page 는 안 쓰는 page."),
-              pc: { HW: line + 1 }, vars: Object.assign({}, v), svg: draw(S, sp, k, k, null) };
-            st.note = "invalid " + what + " → exception";
-            steps.push(st);
+            v[S.names[k] + " 항목"] = "[" + sp.idx[k] + "] valid 0";
+            add(what + "[" + sp.idx[k] + "].valid = 0 → RaiseException", read + 1, v, sp, k, k, null, "invalid " + what + " → exception");
             return;
           }
-          v[S.names[k] + " 항목"] = "[" + sp.idx[k] + "] @" + addr + " → PFN " + next + (k === n - 1 ? "" : " (가정)");
-          steps.push({ desc: what + " 주소 = " + (k === 0 ? "PDBR " : "앞 단계 PFN ") + pfn + " × " + S.page + " + index " + sp.idx[k] + " × 4 = '''" + addr + "''' → valid, PFN '''" + next + "'''" +
-            (k === n - 1 ? " (슬라이드 값)." : " — 다음 레벨 표가 있는 page.") + " 메모리 접근 " + acc + "번째.",
-            pc: { HW: line }, vars: Object.assign({}, v), svg: draw(S, sp, k + 1, null, null) });
+          v[S.names[k] + " 항목"] = "[" + sp.idx[k] + "] PFN " + next;
+          add(what + "[" + sp.idx[k] + "]: valid, PFN = " + next, read + 1, v, sp, k + 1, null, null);
           pfn = next;
         }
         var pa = pfn * S.page + sp.off;
-        v.PA = pa + " = " + pfn + " × " + S.page + " + " + sp.off;
-        steps.push({ desc: "PA = PFN × page size + offset = " + pfn + " × " + S.page + " + " + sp.off + " = '''" + pa + "'''. offset 은 변환하지 않는다.", pc: { HW: lines.length - 1 }, vars: Object.assign({}, v), svg: draw(S, sp, n, null, pa) });
+        v.PA = pa;
+        add("PA = " + pfn + " × " + S.page + " + " + sp.off + " = " + pa, 3 * n + 2, v, sp, n, null, pa);
         acc++; v["메모리 접근"] = acc;
-        var last = { desc: "data 를 읽는다 — TLB miss 한 번에 메모리 접근 '''" + acc + "번'''(표 " + n + " + data 1). 이것이 p.20 의 '''time-space trade-off''': 표를 쪼갤수록 메모리는 아끼지만 miss 가 비싸진다.", pc: { HW: lines.length }, vars: Object.assign({}, v), svg: draw(S, sp, n, null, pa) };
-        if (e.hex === "0x2DACECBB") last.note = "슬라이드 글자 0x2DACECBB 로는 offset 187, PA " + pa + " — 그림의 273 / 2115190033 과 다르다";
-        steps.push(last);
+        add("data = Mem[" + pa + "], 메모리 접근 " + acc + "번째", 3 * n + 3, v, sp, n, null, pa,
+          e.hex === "0x2DACECBB" ? "슬라이드 글자 0x2DACECBB 는 offset 187, 그림은 273" : null);
       });
-      var vars = [{ name: "VA", group: "가상" }, { name: "인덱스", group: "가상" }, { name: "PDBR", group: "레지스터" }];
+      var vars = [{ name: "VA", group: "가상" }, { name: "VPN", group: "가상" }, { name: "offset", group: "가상" }, { name: "PDBR", group: "레지스터" }];
       for (var k = 0; k < n; k++) vars.push({ name: S.names[k] + " 항목", group: "page table (메모리)" });
       vars.push({ name: "PA", group: "물리" }, { name: "메모리 접근", group: "물리" });
       return { panels: [{ id: "HW", title: "MMU (hardware-managed walk)", lang: "c", lines: lines }], vars: vars, steps: steps };

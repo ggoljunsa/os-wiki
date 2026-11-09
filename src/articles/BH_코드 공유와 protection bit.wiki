@@ -2,11 +2,12 @@ key: 코드 공유와 protection bit
 title: 코드 공유와 Protection Bit (Support for Sharing)
 category: 14강 Segmentation, 용어
 ---
-세그먼트는 여러 주소 공간이 '''같은 물리 메모리 조각을 함께 쓰게''' 할 수 있다. 대표가 code 공유이고, 그러려면 세그먼트마다 '''권한 비트'''가 필요하다. 14강 p.13~14.
+여러 주소 공간이 세그먼트를 공유하는 방법과 이에 필요한 권한 비트를 정리한다. 14강 p.13~15.
 
-{def}p.13 원문 — "Segment can be '''shared''' between address space. Code sharing is still in use in systems today. Extra hardware support is needed for form of a '''protection bit''': A few more bits per segment to indicate permissions of '''read, write and execute'''."{/def}
+== p.13 Support for Sharing ⭐ ==
+{def}p.13 원문: "Segment can be '''shared''' between address space. Code sharing is still in use in systems today. Extra hardware support is needed for form of a '''protection bit''': A few more bits per segment to indicate permissions of read, write and execute."{/def}
 
-{analogy}🎭 '''도서관 열람실 책.''' 같은 책(code)을 여러 사람이 동시에 읽어도(Read-Execute) 되지만, 아무도 그 책에 낙서(Write)하면 안 된다. 각자 쓰는 노트(heap·stack)는 따로 받는다.{/analogy}
+세그먼트를 공유하면 여러 주소 공간이 같은 물리 메모리 조각을 함께 쓴다. 대표적인 예가 code 공유다. 그러려면 세그먼트마다 권한 비트가 필요하다.
 
 {|
 ! Segment || Base || Size || Grows Positive? || Protection
@@ -18,14 +19,18 @@ category: 14강 Segmentation, 용어
 | Stack || 28K || 2K || 0 || Read-Write
 |}
 
-[[img:L14-14.png|p.14 Example: Code Sharing — Process A 와 B 의 세그먼트 테이블이 code 를 같은 32KB(RE)로 가리키고, heap·stack 은 각자 다른 곳|large]]
+== p.14 Example: Code Sharing ⭐ ==
+공유의 이점은 p.14 의 "Use available memory space in a more efficient manner"이다. 같은 코드를 한 번만 올린다.
 
-* 공유의 이점(p.14): "Use available memory space in a more efficient manner" — 같은 코드를 한 번만 올린다.
-* 공유가 안전하려면 code 는 '''쓰기 금지'''(RE)여야 한다. 한 프로세스가 고치면 다른 프로세스 코드가 바뀌므로.
-* 하드웨어 검사 순서(p.15): 범위(offset < size) → 더하기 → '''권한'''. 권한 위반은 '''Protection Fault''' ([[segmentation fault]] 와 구별).
+공유가 안전하려면 code 는 쓰기 금지(RE)여야 한다. 한 프로세스가 코드를 고치면 다른 프로세스의 코드도 바뀌기 때문이다.
 
-{quiz}Process A 가 code 세그먼트(RE) 안의 VA 100 에 `mov %eax, X` 로 store 하면?{/quiz}
-{answer}offset 100 < size 2K 라 범위 검사는 통과하지만, store(Write)인데 code 가 Read-Execute 라 '''Protection Fault'''.{/answer}
+[[img:L14-14.png|p.14 Example: Code Sharing. Process A 와 B 의 세그먼트 테이블이 code 를 같은 32KB(RE)로 가리키고, heap·stack 은 각자 다른 곳|large]]
+
+== p.15 Protection 검사 순서 ⭐⭐ ==
+하드웨어는 범위(offset < size), 더하기, 권한 순서로 검사한다. 권한 위반은 '''Protection Fault''' 이고, [[segmentation fault]]와 구별한다.
+
+{quiz}Process A 가 code 세그먼트(RE) 안의 VA 100(10진수)에 `mov %eax, X` 로 store 하면?{/quiz}
+{answer}offset 100 < size 2K 라 범위 검사는 통과한다. store(Write)인데 code 가 Read-Execute 라 '''Protection Fault''' 가 난다.{/answer}
 
 == 관련 문서 ==
 * [[세그멘테이션]] · [[segmentation fault]] · [[세그먼트 주소 변환]] · [[주소 공간]]

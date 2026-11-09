@@ -2,16 +2,19 @@ key: Random 교체
 title: Random 교체 정책
 category: 17강 Swapping, 용어
 ---
-무작위로 내보낸다. 성능은 운에 달려 있다. 17강 p.36~37.
+무작위로 page 를 내보내는 정책을 다룬다. 슬라이드 17강 p.36~37.
 
-{def}p.36 — "Picks a random page to replace under memory pressure. It doesn't really try to be too intelligent in picking which blocks to evict. Random does depends entirely upon how lucky Random gets in its choice."
-p.37 — "Sometimes, Random is as good as optimal, achieving 6 hits on the example trace."{/def}
+== p.36 정의 ==
+{def}p.36: "Picks a random page to replace under memory pressure. It doesn't really try to be too intelligent in picking which blocks to evict. Random does depends entirely upon how lucky Random gets in its choice."{/def}
 
-{analogy}🎭 냉장고에서 눈 감고 하나 꺼내 버리기. 운이 좋으면 안 먹을 것을 버린다.{/analogy}
+성능은 운에 달려 있다. p.36 표의 한 실행은 hit 5번(0, 1, 3, 2, 1)이다. 시행마다 결과가 달라진다.
 
-[[img:L17-37.png|p.37 Random Performance over 10,000 Trials — hit 6 이 Optimal 과 같고 가장 많이 나옴|large]]
+== p.37 10,000번 시행 ==
+{def}p.37: "Sometimes, Random is as good as optimal, achieving 6 hits on the example trace."{/def}
 
-p.36 표의 한 실행은 hit 5번(0, 1, 3, 2, 1)이다. 시행마다 달라지고, 운이 좋으면 p.37 처럼 Optimal 과 같은 6 hits 를 낸다.
+운이 좋으면 Optimal 과 같은 6 hits 를 낸다.
+
+[[img:L17-37.png|p.37 Random Performance over 10,000 Trials: hit 6 이 Optimal 과 같고 가장 많이 나옴|large]]
 
 == 관련 문서 ==
 * [[페이지 교체 정책]] · [[Optimal 교체]] · [[FIFO 교체]]

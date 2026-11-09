@@ -152,6 +152,7 @@
     this.btnPrev.title = "이전 (←)";
     this.btnNext.title = "다음 (→)";
     this.btnLast.title = "마지막";
+    this.btnNext.setAttribute("aria-label", "다음 단계");
 
     var speedSel = el("select", "sim-speed");
     SPEEDS.forEach(function (s) {
@@ -186,20 +187,22 @@
     this.btnLast.addEventListener("click", function () { self.stop(); self.go(self.trace.steps.length - 1); });
     this.btnPlay.addEventListener("click", function () { self.timer ? self.stop() : self.play(); });
 
-    // 동적 영역
-    this.panelsBox = el("div", "sim-panels");
-    body.appendChild(this.panelsBox);
-    this.varsBox = el("div", "sim-varsbox");
-    body.appendChild(this.varsBox);
+    // 동적 영역: 위에 이번 단계 설명, 아래 왼쪽 코드 · 오른쪽 변수와 그림
     this.descBox = el("div", "sim-descbox");
     body.appendChild(this.descBox);
     this.noteBox = el("div", "sim-note");
     this.noteBox.style.display = "none";
     body.appendChild(this.noteBox);
+    this.stage = el("div", "sim-stage");
+    this.panelsBox = el("div", "sim-panels");
+    this.stage.appendChild(this.panelsBox);
+    var right = el("div", "sim-right");
+    this.varsBox = el("div", "sim-varsbox");
+    right.appendChild(this.varsBox);
     this.svgBox = el("div", "sim-svgbox");
-    body.appendChild(this.svgBox);
-    var hint = el("div", "sim-hint", "클릭 후 ← → 키로 단계 이동");
-    body.appendChild(hint);
+    right.appendChild(this.svgBox);
+    this.stage.appendChild(right);
+    body.appendChild(this.stage);
   };
 
   Sim.prototype.rebuild = function () {
@@ -220,6 +223,12 @@
     // 패널이 3개 이상이면 좁게 나란히 (세로로 길어지는 것 방지)
     var np = this.trace.panels.length;
     this.panelsBox.className = "sim-panels" + (np >= 3 ? " many" : "") + (np === 4 ? " p4" : "");
+    // 패널이 둘 이상이거나 긴 줄이 있으면 코드를 전체 폭으로 쓴다
+    var longest = 0;
+    this.trace.panels.forEach(function (p) {
+      (p.lines || []).forEach(function (l) { longest = Math.max(longest, String(l).length); });
+    });
+    this.stage.classList.toggle("wide", np >= 2 || longest > 48);
     this.trace.panels.forEach(function (p) {
       var wrap = el("div", "sim-panel");
       var ph = el("div", "sim-panel-head");
@@ -253,29 +262,23 @@
     var self = this;
     this.varsBox.innerHTML = "";
     if (!this.trace.vars.length) return;
-    var table = el("table", "sim-vars");
+    var grid = el("div", "sim-vars");
     var lastGroup = null;
     this.varCells = {};
     this.trace.vars.forEach(function (v) {
       var g = v.group || "";
       if (g !== lastGroup) {
         lastGroup = g;
-        if (g) {
-          var gr = el("tr", "sim-group");
-          var gth = el("th", null, g);
-          gth.colSpan = 2;
-          gr.appendChild(gth);
-          table.appendChild(gr);
-        }
+        if (g) grid.appendChild(el("div", "sim-group", g));
       }
-      var tr = el("tr");
-      tr.appendChild(el("th", null, v.label || v.name));
-      var td = el("td");
-      tr.appendChild(td);
-      table.appendChild(tr);
-      self.varCells[v.name] = td;
+      var cell = el("div", "sim-var");
+      cell.appendChild(el("span", "sim-k", v.label || v.name));
+      var val = el("span", "sim-v");
+      cell.appendChild(val);
+      grid.appendChild(cell);
+      self.varCells[v.name] = val;
     });
-    this.varsBox.appendChild(table);
+    this.varsBox.appendChild(grid);
   };
 
   Sim.prototype.go = function (i) {

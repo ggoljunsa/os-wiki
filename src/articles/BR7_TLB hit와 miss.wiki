@@ -1,15 +1,16 @@
 key: TLB hit와 miss
-title: TLB Hit와 Miss — 메모리 접근 경로
+title: TLB Hit와 Miss (메모리 접근 경로)
 category: 15강 Paging, 핵심
 ---
-TLB 가 없을 때·hit 일 때·miss 일 때 CPU 가 data 하나를 얻기까지 거치는 단계. 15강 p.33~35. 번호 순서를 묻는 문제(2026F 중간 P3 처럼)가 나오기 좋다.
+TLB 가 없을 때, hit 일 때, miss 일 때 CPU 가 data 하나를 얻기까지 거치는 단계를 다룬다. 슬라이드 15강 p.33~36이고, 2026F 중간 P3 처럼 번호 순서를 묻는 문제가 나오기 좋다.
 
-{def}p.34 — "A '''TLB hit''' eliminates a memory access: Fetch PTE directly from TLB – remove one memory reference."
-p.35 — "A '''TLB miss''' incurs an additional memory access (the PTE). Fortunately, TLB misses are rare."{/def}
+== p.33~35 세 경로 비교 ==
+{def}p.34: "A '''TLB hit''' eliminates a memory access: Fetch PTE directly from TLB – remove one memory reference."
+p.35: "A '''TLB miss''' incurs an additional memory access (the PTE). Fortunately, TLB misses are rare."{/def}
 
-{analogy}🎭 hit = 메모장에 사물함 번호가 있어 바로 사물함으로(한 번 걷기). miss = 메모장에 없어서 사무실(page table)에 가서 번호를 받아 적고, 그다음 사물함으로(두 번 걷기).{/analogy}
+hit 이면 PTE 를 TLB 에서 받으므로 메모리에는 data 를 읽으러 한 번만 간다. miss 이면 PTE 를 메모리에서 읽어 TLB 에 저장한 뒤 data 를 읽으므로 두 번 간다.
 
-[[anim:tlb_lookup|hit 경로와 miss 경로를 나란히]]
+아래 표의 PTEA 는 PTE address, 즉 메모리에서 읽을 PTE 의 주소다.
 
 {|
 ! 단계 || TLB 없음 (p.33) || TLB hit (p.34) || TLB miss (p.35)
@@ -26,20 +27,40 @@ p.35 — "A '''TLB miss''' incurs an additional memory access (the PTE). Fortuna
 |-
 | 6 || || || 메모리가 data 를 CPU 에
 |-
-| '''메모리 접근''' || '''2번''' || '''1번''' || '''2번'''
+| 메모리 접근 || '''2번''' || '''1번''' || '''2번'''
 |}
 
-[[img:L15-35.png|p.35 TLB Miss — ① VA ② VPN → TLB miss ③ PTEA → Memory ④ PTE → TLB ⑤ PA ⑥ Data|large]]
+[[img:L15-35.png|p.35 TLB Miss. ① VA ② VPN → TLB miss ③ PTEA → Memory ④ PTE → TLB ⑤ PA ⑥ Data|large]]
 
-== 계산 — p.36 배열 예제 ⭐⭐⭐ ==
+[[anim:tlb_lookup|hit 경로와 miss 경로를 나란히]]
+
+== p.36 배열 예제 계산 ⭐⭐⭐ ==
 <pre class="c">
 int sum = 0;                  /* int = 4 bytes, page = 16 bytes */
 for (i = 0; i < 10; i++)
     sum += a[i];              /* a[0] = VPN 6 의 offset 4 */
 </pre>
-* a[0]~a[2] → VPN 6, a[3]~a[6] → VPN 7, a[7]~a[9] → VPN 8
-* TLB 없음: 10 × (PTE + data) = '''20번'''
-* TLB 있음: miss 는 a[0]·a[3]·a[7] 세 번 → data 10 + PTE 3 = '''13번''', hit rate '''7/10 = 70%'''
+
+배열 원소가 어느 page 에 들어가는지 먼저 구한다.
+<pre class="ascii">
+   a[0]~a[2] → VPN 6
+   a[3]~a[6] → VPN 7
+   a[7]~a[9] → VPN 8
+</pre>
+
+TLB 가 없을 때 접근 횟수를 센다.
+<pre class="ascii">
+   원소 하나당 PTE 1번 + data 1번 = 2번
+   10 × 2 = '''20번'''
+</pre>
+
+TLB 가 있을 때는 새 page 에 처음 들어갈 때만 miss 다.
+<pre class="ascii">
+   miss = a[0], a[3], a[7] = 3번
+   hit = 10 − 3 = 7번
+   hit rate = 7/10 = '''70%'''
+   메모리 접근 = data 10 + PTE 3 = '''13번'''
+</pre>
 
 [[sim:tlb_trace]]
 
