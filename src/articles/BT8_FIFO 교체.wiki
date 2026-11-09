@@ -1,0 +1,33 @@
+key: FIFO 교체
+title: FIFO 교체와 Belady's Anomaly
+category: 17강 Swapping, 핵심
+---
+가장 먼저 들어온 page 를 내보낸다. 단순하지만 page 의 중요도를 보지 못한다. CPU 스케줄링의 [[FIFO]]와는 다른 문서다. 17강 p.33~35.
+
+{def}p.33 — "Pages were placed in a queue when they enter the system. When a replacement occurs, the page on the tail of the queue (the 'First-in' pages) is evicted. It is simple to implement, but can't determine the importance of blocks."
+p.35 — "FIFO often shows a lower hit ratio with more page frames. It is called a '''Belady's anomaly'''."{/def}
+
+{analogy}🎭 줄 선 순서대로 내보내는 놀이기구. 매일 오는 단골이든 처음 온 손님이든 먼저 들어왔으면 먼저 나간다.{/analogy}
+
+[[img:L17-34.png|p.34 Tracing the FIFO Policy — hit 4, 36.4%|large]]
+
+p.34 의 핵심 장면: page 0 을 여러 번 썼는데도 3 이 들어올 때 FIFO 는 0 을 내보내고, 곧바로 0 에서 miss 가 난다. "Even though page 0 had been accessed a number of times, FIFO still kicks it out."
+
+== Belady's anomaly (p.35) ⭐⭐⭐ ==
+Frame 이 늘면 hit 가 늘어야 할 것 같지만 FIFO 는 아닐 수 있다. 슬라이드 그래프는 frame 3 → 4 에서 fault 수가 늘어난다. 고전 예시(OSTEP 22장)로 확인할 수 있다.
+
+<pre class="ascii">
+참조열 1 2 3 4 1 2 5 1 2 3 4 5 (FIFO)
+frame 3개 → page fault  '''9번'''
+frame 4개 → page fault '''10번'''   ← 늘었다!
+</pre>
+
+[[img:L17-35.png|p.35 Belady's Anomaly — frame 3→4 에서 page fault count 가 증가|large]]
+
+[[sim:page_replace]]
+
+{quiz}시뮬레이터에서 참조열을 Belady 로 고르고 정책 FIFO · LRU 를 frame 3개/4개로 돌려 보라. LRU 도 이상 현상이 생기나?{/quiz}
+{answer}아니다. LRU 는 frame 3개 10번, 4개 8번으로 줄어든다.{/answer}
+
+== 관련 문서 ==
+* [[페이지 교체 정책]] · [[LRU]] · [[Clock 알고리즘]] · [[FIFO]](스케줄링)

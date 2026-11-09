@@ -89,6 +89,7 @@ category: 안내
 * 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]
 * 15강 Paging: [[페이징]] · [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]] · [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]
 * 16강 Advanced Page Table: [[고급 페이지 테이블]] · [[hybrid approach]] · [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]] · [[inverted page table]] · [[hash collision]] · [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]
+* 17강 Swapping: [[스와핑]] · [[swap space]] · [[page fault]] · [[effective access time]] · [[working set과 thrashing]] · [[swap daemon]] · [[페이지 교체 정책]] · [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] · [[demand paging]]
 
 === 시험·과제 ===
 * [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

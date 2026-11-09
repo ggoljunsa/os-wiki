@@ -156,6 +156,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | tlb_trace | 15강 p.36: a[10] 순회 메모리 접근 수. 옵션 tlb = none(20) / tlb(13, hit 7/10) / ctx(a[5] 뒤 flush → 14) | TLB, TLB hit와 miss, ASID와 TLB flush |
 | multilevel_walk | 16강 p.21~29: TLB miss 가정 multi-level walk(PDBR → PDE → … → PTE → PA, 메모리 접근 수). 옵션 set = two(16KB/64B 4|4|6: VA 5844 → 14740, PT 0 invalid, PD 8 invalid) / three(1GB/512B 7|7|7|9: 0x2DACED11 → 2115190033, 슬라이드 글자 0x2DACECBB → offset 187, L0 index 90 invalid). PDBR·중간 PDE 의 PFN 은 가정값 | 다단계 주소 변환 계산, 3단계 page table, multi-level page table |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
+| page_replace | 17강 p.32~39·p.46: 참조열을 정책별로 한 칸씩. 옵션 policy = opt/fifo/random/lru/clock, set = slide(frame 3) / b3 / b4(Belady, FIFO 9 → 10) | 페이지 교체 정책, Optimal 교체, FIFO 교체, LRU, Clock 알고리즘 |
+| page_fault_trace | 17강 p.18~23·p.50: VP 3 fault → victim VP 4 → swap in → PTE 갱신 → 재실행. 옵션 victim = clean/dirty | 스와핑, page fault |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
@@ -262,3 +264,5 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | two_level_walk | 16강 p.24: VA 5844 = 5|11|20 → PDBR+5 → PDE → +11 → PTE 230 → PA 14740, 메모리 접근 1·2·3, invalid PDE 13개 아래 PT page 없음 | 다단계 주소 변환 계산, multi-level page table, 고급 페이지 테이블 |
 | thp_promotion | 16강 p.41~44: 흩어진 8 frame → compaction(빨간 화살표) → promotion(PDE 가 Huge Page 직접, PT page 불필요, TLB 8→1) → demotion(VPN 7 안 씀 → 7개 재매핑·frame 반납) | transparent huge page, 고급 페이지 테이블 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |
+| clock_hand | 17강 p.47: B(1) 를 0 으로 지우고 C(0) 를 victim 으로, X 삽입 | Clock 알고리즘 |
+| page_fault_flow | 17강 p.19~23: Reference → Trap → victim VP 4 → VP 3 가져오기 → PTE 갱신 → 재실행 | 스와핑, page fault |

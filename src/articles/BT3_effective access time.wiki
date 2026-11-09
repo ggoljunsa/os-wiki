@@ -1,0 +1,28 @@
+key: effective access time
+title: Effective Access Time (EAT, 평균 접근 시간)
+category: 17강 Swapping, 핵심
+---
+Page fault 를 고려한 메모리 접근의 평균 시간. Page fault 가 아주 드물어야 하는 이유를 숫자로 보여 준다. 17강 p.24~26.
+
+{def}p.25 — '''EAT''' = (1 − p) × memory access + p × (page-fault time). p = page-fault rate (0 ≤ p ≤ 1). 가정: memory access 200 ns, page-fault time 8 ms (= 8,000,000 ns).
+p.24 — "Swapping is a very expensive task. Disk is about '''10,000x slower''' than DRAM."{/def}
+
+{analogy}🎭 평소 10분 걸리는 출근길에 가끔 비행기를 타고 돌아가야 하는 날이 있다고 하자. 1000일에 하루뿐이어도 그 하루의 시간이 평균을 지배한다.{/analogy}
+
+== 계산 ⭐⭐⭐ ==
+<pre class="txt">
+EAT = (1 − p) × 200 + p × 8,000,000
+    = 200 + 7,999,800 × p  (ns)      ← p.25 의 799800 은 오타
+
+p = 1/1000:  0.999 × 200 + 8,000 = 199.8 + 8,000 = 8,199.8 ns ≈ '''8.2 µs'''  → 약 40배 느림
+10% 이내(EAT &lt; 220):  20 &gt; 7,999,800 × p  → p &lt; 0.0000025
+                   → '''400,000번에 1번''' 미만
+</pre>
+
+{exam}🎯 숫자만 바꾼 EAT 계산이 출제되기 좋다. p.25 처럼 전개한 뒤 p 를 넣는 순서를 연습할 것.{/exam}
+
+{quiz}메모리 접근 200 ns, page-fault 시간 8 ms, p = 1/10,000 일 때 EAT 는?{/quiz}
+{answer}200 + 7,999,800 × 0.0001 = 200 + 799.98 = '''999.98 ns''' (약 5배).{/answer}
+
+== 관련 문서 ==
+* [[스와핑]] · [[page fault]] · [[페이지 교체 정책]] · [[working set과 thrashing]]

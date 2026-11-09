@@ -1,0 +1,32 @@
+key: working set과 thrashing
+title: Working Set과 Thrashing
+category: 17강 Swapping, 핵심
+---
+가상 메모리가 잘 동작하는 이유는 [[locality]]이고, 그것이 깨지면 thrashing 이 온다. 17강 p.27, p.54.
+
+{def}p.27 — "At any point in time, programs tend to access a set of active virtual pages called the '''working set'''. Programs with better temporal locality will have smaller working sets."
+"'''Thrashing''': Performance meltdown where pages are swapped (copied) in and out continuously."
+p.54 — "Memory is '''oversubscribed''' and the memory demands of the set of running processes exceeds the available physical memory."{/def}
+
+{analogy}🎭 책상에 책 3권만 놓이는데 동시에 5권을 번갈아 봐야 하면, 공부는 못 하고 책장과 책상 사이만 왕복한다.{/analogy}
+
+[[img:L17-27.png|p.27 Locality to the Rescue Again!|medium]]
+
+{|
+! 조건 || 결과
+|-
+| working set size &lt; main memory size || compulsory miss 뒤에는 좋은 성능
+|-
+| working set size &gt; main memory size || '''thrashing'''
+|}
+
+== Thrashing 대처 (p.54) ⭐⭐ ==
+"Decide '''not to run a subset of processes'''" — 일부 프로세스를 돌리지 않아서 남은 프로세스의 working set 이 메모리에 들어가게 한다.
+
+[[img:L17-54.png|p.54 — degree of multiprogramming 이 커지면 CPU utilization 이 오르다가 thrashing 에서 급락|large]]
+
+{quiz}Degree of multiprogramming 을 계속 올릴 때 CPU utilization 은 어떻게 되나?{/quiz}
+{answer}처음엔 오르다가 thrashing 구간에서 '''급격히 떨어진다''' (p.54).{/answer}
+
+== 관련 문서 ==
+* [[스와핑]] · [[locality]] · [[effective access time]] · [[페이지 교체 정책]]

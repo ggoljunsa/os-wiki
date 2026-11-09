@@ -1,0 +1,47 @@
+key: Clock 알고리즘
+title: Clock 알고리즘 (LRU 근사)
+category: 17강 Swapping, 핵심
+---
+정확한 LRU 는 비싸므로 page 마다 reference bit 하나만 두고 LRU 를 흉내 낸다. 17강 p.46~49.
+
+{def}p.46 — "Require some hardware support, in the form of a '''reference bit'''. Whenever a page is referenced, the reference bit is set by hardware to 1. Hardware never clears the bit, though; that is the responsibility of the OS."
+"If a reference bit is 0: selects it as a victim to evict. If a reference bit is 1: set it to 0 and go to the next one until it finds a victim."{/def}
+
+{analogy}🎭 '''한 번의 기회.''' 원탁을 도는 감독관이 "최근에 일했나?" 묻는다. 일했다(1)면 표시를 지우고 한 번 봐주고, 다음번에도 표시가 없으면(0) 내보낸다.{/analogy}
+
+[[anim:clock_hand|B 는 1 이라 0 으로 지우고 넘어가고, C 는 0 이라 victim 이 되는 장면]]
+
+{|
+! Use bit || 동작 (p.47)
+|-
+| 0 || Evict the page
+|-
+| 1 || Clear a reference bit and advance hand
+|}
+
+[[img:L17-47.png|p.47 Example: Clock Algorithm — B 1→0, 다음 C(0)가 Victim|large]]
+[[img:L17-48.png|p.48 — next victim 포인터가 1 들을 0 으로 지우며 내려가 0 인 page 에서 멈춤|large]]
+
+== 역할 분담 ⭐⭐⭐ ==
+{|
+! 누가 || 무엇을
+|-
+| Hardware || 참조될 때 reference bit 을 1 로 '''set'''
+|-
+| OS || 교체 때 1 을 0 으로 '''clear'''
+|}
+
+== 성능 (p.49) ⭐ ==
+"Clock algorithm doesn't do as well as perfect LRU, it does better than approach that don't consider history at all." 80-20 workload 에서 LRU 와 FIFO/RAND 사이다.
+
+[[img:L17-49.png|p.49 Workload with Clock Algorithm|large]]
+
+{warn}손으로 돌릴 때는 문제가 주는 규칙을 먼저 볼 것. 시뮬레이터는 새로 들어온 page 의 bit 을 1 로 두고, 교체 뒤 hand 를 다음 칸으로 옮긴다(OSTEP 방식). 슬라이드에는 이 세부 규칙이 없다.{/warn}
+
+[[sim:page_replace]]
+
+{quiz}Page A(1), B(0), C(1) 이 원형으로 있고 hand 는 A 에 있다. Page fault 시 victim 과 교체 직전 A 의 bit 은?{/quiz}
+{answer}A 는 1 → 0 으로 지우고 넘어감, B 는 0 → '''victim 은 B'''. A 의 bit 은 '''0'''.{/answer}
+
+== 관련 문서 ==
+* [[LRU]] · [[페이지 교체 정책]] · [[PTE 플래그]] · [[demand paging]]

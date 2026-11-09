@@ -1,0 +1,33 @@
+key: demand paging
+title: Demand Paging, Prefetching, Dirty Page, Clustering
+category: 17강 Swapping, 용어
+---
+교체 정책 외에 OS 가 정해야 하는 것들: 언제 가져오나, 언제 어떻게 내보내나. 17강 p.50~53.
+
+{def}p.52 — "'''Demand paging''': Brings the page into memory when it is accessed. '''Prefetching''': If a page is about to be used, bring it in ahead of time."
+p.50 — "The hardware include a '''modified bit (a.k.a dirty bit)'''. If a page has been modified and is thus dirty, it must be written back to disk to evict it. If a page has not been modified, the eviction is free. Usually, a '''clean page''' is selected as a victim."
+p.53 — "'''Clustering, Grouping''': Collect a number of pending writes together in memory and write them to disk in one write. Perform a single large write more efficiently than many small ones."{/def}
+
+{analogy}🎭 택배. 주문이 들어오면 보내기(demand), 잘 나갈 물건을 미리 근처로 옮겨 두기(prefetch), 한 건씩 보내지 않고 모아서 트럭 한 대로 보내기(clustering).{/analogy}
+
+== 정리 ⭐⭐ ==
+{|
+! 질문 || 답 || 슬라이드
+|-
+| 언제 가져오나 || 접근할 때(demand paging) 또는 미리(prefetching) || p.52
+|-
+| 어떤 page 를 우선 내보내나 || clean page. dirty page 는 디스크 쓰기가 필요하다 || p.50
+|-
+| Dirty page 를 어떻게 쓰나 || 여러 쓰기를 모아 한 번에(clustering, grouping) || p.53
+|}
+
+[[img:L17-52.png|p.52 — Page 1 을 올릴 때 Page 2 도 곧 쓸 것 같아 함께 올림|large]]
+[[img:L17-53.png|p.53 — Pending writes 를 한 번의 write 로|large]]
+
+p.51 은 15강 [[PTE 플래그]] 복습이다: valid, protection, present, dirty, reference.
+
+{quiz}Prefetching 과 demand paging 의 차이를 한 문장으로.{/quiz}
+{answer}Demand paging 은 '''접근할 때''', prefetching 은 곧 쓰일 것 같은 page 를 '''미리''' 가져온다.{/answer}
+
+== 관련 문서 ==
+* [[스와핑]] · [[페이지 교체 정책]] · [[Clock 알고리즘]] · [[PTE 플래그]]

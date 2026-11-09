@@ -23,7 +23,7 @@ category: 기말고사
 |-
 | '''16강''' Advanced Page Table (교수 배포 영상 67분 — p.1~50 전부) || `16-AdvPageTable.pdf` 50쪽 || linear page table 이 너무 크다 → hybrid · multi-level · inverted page table · huge page(THP) || [[고급 페이지 테이블]]
 |-
-| 17강~ || (아직 배포 전) || OSTEP 순서상 다음은 swapping(21~22장: mechanisms · policies) || —
+| '''17강''' Swapping (수업 전 작성 — 녹음 없음) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]
 |}
 
 {info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지 — 수업 기록은 [[가상 메모리]] 허브의 '실제 수업 기록' 표. 교수님: "'''기말까지 시간이 많지 않다'''". p.3~10(계층·locality)은 "system programming 에서 배웠을 것"이라 출제 우선순위 낮음.{/info}
@@ -73,6 +73,15 @@ category: 기말고사
 # [[huge page]] → [[transparent huge page]](promotion · compaction · demotion · 한계) → [[Sv39 PTE]] (p.37~48)
 
 {exam}🎯 16강에서 기출 형식(객관식 + full-term 용어 + 규칙대로 손 계산)에 맞는 것: '''비트 분할과 VA → PA'''(2단계 4|4|6, 3단계 7|7|7|9), '''크기 계산'''(4MB/1MB, 192B vs 1KB, PD 64KB), '''용어'''(page directory · PDE · PDBR · time-space trade-off · inverted page table · hash collision · TLB pressure · THP · promotion · compaction · demotion · tail latency), '''객관식'''(inverted 의 장단점, promotion 조건 virtually- and physically-contiguous, DB 는 THP off, Sv39 X=W=R=0 은 branch). 영상에 시험 공지는 없다. 시스템 프로그래밍(mmap 사용법)은 출제 대상 아님.{/exam}
+
+== 17강 읽는 순서 ==
+
+# [[스와핑]] — 허브. 슬라이드 페이지 ↔ 문서 표 (p.11~54)
+# [[swap space]] → [[page fault]] — present bit, 처리 흐름 6단계 ⭐⭐⭐ (p.12~23)
+# [[effective access time]] — EAT 계산 ⭐⭐⭐ (p.24~26)
+# [[working set과 thrashing]] · [[swap daemon]] (p.27~28, p.54)
+# [[페이지 교체 정책]] → [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] ⭐⭐⭐ (p.30~49)
+# [[demand paging]] — dirty page, prefetching, clustering (p.50~53)
 
 == 중간 범위와 이어지는 곳 ==
 

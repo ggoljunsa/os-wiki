@@ -1,0 +1,62 @@
+key: page fault
+title: Page Fault (페이지 폴트)
+category: 17강 Swapping, 핵심
+---
+메모리에 없는(present 0) page 를 참조했을 때 하드웨어가 일으키는 exception. OS 가 디스크에서 page 를 가져온 뒤 그 명령을 '''다시''' 실행한다. 17강 p.16~23.
+
+{def}p.17 — "'''Page hit''': reference to VM word that is in physical memory (DRAM cache hit)."
+p.18 — "'''Page fault''': reference to VM word that is not in physical memory (DRAM cache miss)."
+p.16 — "Add an additional bit (a '''present''' or valid bit) to PTE in the page table." 1 = Page is present in physical memory, 0 = Page is not in memory but rather on disk.
+p.20 — "OS page-fault handler selects a '''victim''' to be evicted (VP 4) – '''page replacement'''."
+p.22 — "Offending instruction is '''restarted''': page hit!"{/def}
+
+{analogy}🎭 '''도서관 대출.''' 서가(메모리)에 없는 책을 신청하면(접근) 사서(OS)가 호출되고(trap), 보존서고(디스크)에서 책을 꺼내 온다. 서가가 꽉 찼으면 한 권을 치운다. 목록(page table)을 고친 뒤 처음부터 다시 신청하면 이번엔 바로 받는다.{/analogy}
+
+[[anim:page_fault_flow|PTE 3 의 present 0 에서 시작해 VP 4 를 내보내고 VP 3 을 가져오기까지]]
+
+== Page table 그림 읽기 (p.16) ⭐⭐ ==
+[[img:L17-16.png|p.16 — Valid 1 은 DRAM 의 PP 를, Valid 0 은 디스크 주소 또는 null 을 가리킨다|large]]
+{|
+! Valid || 주소 칸 || 뜻
+|-
+| 1 || physical page 번호 || 메모리에 있음
+|-
+| 0 || disk address || 디스크에 있음 → 접근하면 page fault
+|-
+| 0 || null || 아직 할당되지 않음
+|}
+
+== 처리 과정 (p.19~22, VP 3 접근) ⭐⭐⭐ ==
+{|
+! 슬라이드 || 일어나는 일 || PTE 3 || PTE 4 || PP 3
+|-
+| p.18~19 || PTE 3 의 valid 0 → page fault (exception) || 0 (disk) || 1 (PP 3) || VP 4
+|-
+| p.20 || OS handler 가 victim VP 4 선택 (page replacement) || 0 (disk) || 1 (PP 3) || VP 4 (분홍)
+|-
+| p.21 || VP 4 내보내고 VP 3 가져와 PTE 갱신 || '''1 (PP 3)''' || '''0 (disk)''' || '''VP 3'''
+|-
+| p.22 || 명령 재실행 → page hit || 1 || 0 || VP 3
+|}
+
+[[img:L17-20.png|p.20 — victim VP 4 가 분홍색으로 표시됨|large]]
+[[img:L17-21.png|p.21 — PP 3 에 VP 3, PTE 3 은 1, PTE 4 는 0|large]]
+
+[[sim:page_fault_trace]]
+
+== Control flow (p.23) ⭐⭐⭐ — 번호 순서 문제 후보 ==
+[[img:L17-23.png|p.23 Summary — 1 Reference, 2 Trap, 3 Check storage, 4 Get the page, 5 Reset Page Table, 6 reinstruction|large]]
+# '''Reference''' — 명령(Load M)이 page table 을 참조
+# '''Trap''' — present 0 이라 OS 로 trap
+# '''Check storage''' whether the page exists
+# '''Get the page''' — 디스크에서 빈 page frame 으로
+# '''Reset page table'''
+# '''Reinstruction''' — 그 명령을 다시 실행
+
+{tip}15강 [[TLB miss 처리]]의 software-managed 방식과 뼈대가 같다: HW exception → OS 처리 → return-from-trap → 같은 명령 재실행. 시스템 콜은 trap 뒤 '''다음''' 명령으로 가지만, page fault 는 '''같은''' 명령을 재실행한다.{/tip}
+
+{quiz}① Valid 0 인데 주소 칸이 null 인 PTE 의 뜻은? ② Page fault 처리 후 CPU 는 어느 명령부터 실행하나?{/quiz}
+{answer}① 그 page 는 아직 할당되지 않았다(디스크에도 없음). ② fault 를 낸 '''바로 그 명령'''(restart).{/answer}
+
+== 관련 문서 ==
+* [[스와핑]] · [[swap space]] · [[페이지 교체 정책]] · [[PTE 플래그]] · [[TLB miss 처리]] · [[트랩]]

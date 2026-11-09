@@ -1,0 +1,45 @@
+key: 페이지 교체 정책
+title: 페이지 교체 정책 (Replacement Policy)
+category: 17강 Swapping, 핵심
+---
+메모리가 부족할 때 어떤 page 를 내보낼지 정하는 규칙. 목표는 miss 를 줄여 [[effective access time]]을 낮추는 것이다. 17강 p.24, p.30, p.40~42.
+
+{def}p.24 — "The process of picking a page to kick out, or replace is known as a '''page-replacement policy'''."
+p.30 — "Memory pressure forces the OS to start paging out pages. Goal in picking a replacement policy for this cache is to '''minimize the number of cache misses'''."{/def}
+
+{analogy}🎭 냉장고가 꽉 찼을 때 무엇을 뺄까? 다음에 가장 늦게 먹을 것(Optimal), 가장 먼저 산 것(FIFO), 아무거나(Random), 가장 오래 안 꺼낸 것(LRU).{/analogy}
+
+{|
+! 정책 || 내보내는 page || 특징 || 문서
+|-
+| Optimal || 가장 먼 미래에 쓸 page || miss 최소, 미래를 알아야 해서 비교 기준용 || [[Optimal 교체]]
+|-
+| FIFO || 가장 먼저 들어온 page || 단순, Belady's anomaly || [[FIFO 교체]]
+|-
+| Random || 무작위 || 운에 달림 || [[Random 교체]]
+|-
+| LRU || 가장 오래전에 쓴 page || recency, 구현 비용 큼 || [[LRU]]
+|-
+| Clock || reference bit 0 인 page || LRU 근사 || [[Clock 알고리즘]]
+|}
+
+[[sim:page_replace]]
+
+== 세 workload (p.40~42) ⭐⭐ ==
+{|
+! Workload || 내용 || 결과
+|-
+| No-Locality (p.40) || 100 page 를 무작위로 참조 || OPT 외 정책은 차이 없음. 캐시가 workload 전체를 담으면 어떤 정책이든 같다
+|-
+| 80-20 (p.41) || 참조 80% 가 page 20% 에 집중 || LRU 가 hot page 를 잘 붙든다
+|-
+| Looping Sequential (p.42) || 0~49 page 반복, 총 10,000회 || LRU·FIFO 는 곧 쓸 오래된 page 를 내보낸다. frame 이 50개를 넘으면 100%
+|}
+
+[[img:L17-41.png|p.41 The 80-20 Workload|large]]
+[[img:L17-42.png|p.42 The Looping-Sequential Workload|large]]
+
+{exam}🎯 "어떤 workload 에서 어떤 정책이 왜 좋은가/나쁜가" 객관식과, 참조열을 주고 정책별 hit 수를 세는 문제가 가장 유력하다.{/exam}
+
+== 관련 문서 ==
+* [[스와핑]] · [[page fault]] · [[effective access time]] · [[locality]]
