@@ -19,9 +19,9 @@ category: 기말고사
 |-
 | '''16강''' Advanced Page Table (교수 배포 영상 67분, p.1~50 전부) || `16-AdvPageTable.pdf` 50쪽 || linear page table 이 너무 크다 → hybrid · multi-level · inverted page table · huge page(THP) || [[고급 페이지 테이블]]
 |-
-| '''17강''' Swapping (수업 전 작성, 녹음 없음) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]
+| '''17강''' Swapping (11/9 p.11~37, 11/11 p.38~54, 녹음 有) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]
 |-
-| '''18강''' I/O Devices and HDD (수업 전 작성, 녹음 없음) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
+| '''18강''' I/O Devices and HDD (11/11 p.2~19, 녹음 有, HDD 는 다음 시간) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
 |}
 
 == 13강 읽는 순서 ==

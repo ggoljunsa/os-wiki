@@ -2,7 +2,7 @@ key: 스와핑
 title: 스와핑 (Swapping)
 category: 17강 Swapping, 핵심
 ---
-{info}17강 슬라이드 `17-Swapping.pdf`(56쪽) 기준이다. 수업 전에 쓴 문서라 녹음 내용은 아직 없다. 수업 중에는 아래 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}
+{info}17강 슬라이드 `17-Swapping.pdf`(56쪽) 기준이다. 11/9(월)·11/11(수) 두 번에 걸쳐 끝났고, 녹음 내용은 아래 "실제 수업 기록" 에 있다.{/info}
 
 17강은 물리 메모리에 다 못 올리는 page 를 다루는 '''스와핑'''을 p.11~54 에서 설명한다.
 
@@ -69,6 +69,40 @@ FIFO        4    36.4%      가장 먼저 들어온 page
 </pre>
 
 [[sim:page_replace]]
+
+== 실제 수업 기록 (11/9 월 · 11/11 수, 녹음 기준) ==
+11/9 는 16강 복습 뒤 p.11~37(Random 까지), 11/11 은 첫 44분에 p.38~54 를 마쳤다. 슬라이드에 없는 설명과 교수님 질문만 모았다.
+
+=== 16강 복습에서 나온 것 ===
+* Inverted page table 은 valid 이지만 frame 에 없는 page 를 표현할 수 없어서 '''swapping 구현이 어렵다'''. hash collision 이 나면 최악에는 entry 수만큼 접근하지만, multi-level 은 단계 수만큼으로 정해져 있다.
+* Huge page 가 512배씩 커지는 이유: page table 한 장 4KB / PTE 8B = 512 entry. 4KB × 512 = 2MB, 2MB × 512 = 1GB.
+
+=== page fault ===
+* "valid bit 이 0 이면 MMU 는?" → page fault. '''복구할 수 있어서 fault''' 라고 부른다. disk address 도 없으면 abort.
+* SW-managed TLB 에서도 같은 흐름이다. TLB miss 에서 바로 OS 로 trap 하고 OS 가 page table 을 본다는 점만 다르다.
+* page fault 흐름은 mechanism, 누구를 내보낼지는 policy. OS 는 둘을 나눈다.
+
+=== EAT 와 교체 정책 ===
+* 교체 정책은 SW 로 만든다. miss 비용이 DRAM 의 약 10,000배라 비싼 알고리즘을 써도 이득이다. TLB 는 HW 로 단순하게 한다.
+* p.26 "factor of 40" 은 실제로 '''41배''' 라고 교수님이 말했다. 0.1% miss rate 는 TLB 에선 괜찮지만 page fault 로는 받아들일 수 없다.
+* p.32 hit rate 54.6% 는 교수님도 "맞는지 모르겠다" 고 했다. 6/11 = 54.5% 다. 마지막 2 를 넣을 때 0 과 3 은 동률이라 아무거나 빼도 된다.
+
+=== thrashing ===
+* thrashing 이 오면 SSH 가 느려지고 회복되지 않는다. '''서버는 보통 swapping 을 끈다'''. 메모리가 모자라면 프로세스가 죽는 편이 낫다("they choose to die"). 죽으면 원인을 찾고 재시작하면 되지만 thrashing 은 응답이 없다. 데스크톱·노트북·스마트폰에서는 swapping 이 효과적이다.
+* '''oversubscription 은 thrashing 의 필요조건일 뿐이다.''' 할당한 메모리가 모두 hot 하지 않으므로 working set 이 메모리보다 커야 thrashing 이 난다.
+
+=== swap daemon ===
+* 질문: "low watermark 와 high watermark 를 왜 다르게 두나?" 답: '''background thread 를 부르는 횟수를 줄이려고'''. 둘이 같으면 free page 가 한 장만 모자라도 thread 가 깨어나 한 장만 회수한다. 교수님 비유는 "배고프면 배부를 때까지 먹는다".
+
+=== 정책 ===
+* Belady: 교수님은 "non-optimal policy 는 frame 이 늘면 fault 가 준다는 관계를 보장하지 않는다" 고 했다. 그래도 LRU·OPT 는 Belady 가 생기지 않는다. [[FIFO 교체]] 참고.
+* Random 을 여러 번 돌리면 약 40% 가 OPT 와 같은 hit 6 이고, 대부분은 miss 하나 차이다.
+* 질문: "recency 와 frequency 중 실제로 무엇이 잘 맞나?" frequency 는 긴 기간의 평균이다. 실제 접근은 짧은 구간에 몰리므로(burst) '''LRU 가 LFU 보다 대개 낫다'''.
+* 80-20 곡선이 위로 볼록한 이유는 hot page 20% 만 담으면 80% 가 hit 이기 때문이다.
+* Looping sequential 을 교수님은 '''scan workload''' 라 불렀다. LRU 는 scan resistant 가 아니다. 작업을 나눠 working set 을 줄이는(blocking) 방법도 있다. [[페이지 교체 정책]]
+* LRU 를 그대로 만들려면 접근마다 기록이 필요해 HW 지원이 있어야 한다. timestamp 는 교체 때 표 전체를 검색하고, stack(doubly linked list) 은 접근마다 포인터 4~6개를 고친다. 그래서 Clock 을 쓴다. HW 는 reference bit 를 1 로만 하고 '''지우는 것은 OS''' 다.
+* swapping 으로 PTE 에 present · dirty · reference 세 비트가 생겼다. x86 과 RISC-V 모두 있다.
+* Prefetching 은 기대만큼 잘 되지 않지만 "too strong to neglect" 라 쓴다. Clustering 은 SSD 의 read/write 단위가 달라서 특히 유리하다(다음 강의).
 
 == 시험 대비 핵심 요약 ==
 # Swap space: 디스크에 page 크기 단위로 잡은 공간. OS 가 page 별 위치를 기억한다.

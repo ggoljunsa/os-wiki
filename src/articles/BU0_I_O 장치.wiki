@@ -2,7 +2,7 @@ key: I/O 장치
 title: I/O 장치와 HDD (18강)
 category: 18강 I/O Devices and HDD, 핵심
 ---
-{info}18강 슬라이드 `18-IO_Devices_and_HDD.pdf`(53쪽) 기준이다. 수업 전에 쓴 문서라 녹음 내용은 아직 없다. 수업 중에는 아래 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}
+{info}18강 슬라이드 `18-IO_Devices_and_HDD.pdf`(53쪽) 기준이다. 11/11(수) 수업은 p.2~19 까지 나갔고 HDD(p.20~) 는 다음 시간이다. 녹음 내용은 아래 "실제 수업 기록" 에 있다.{/info}
 
 17강까지는 메모리 가상화를 다뤘다. 18강부터는 '''영속성'''([[영속성]]) 부분이다. OS 가 장치와 어떻게 이야기하는지(p.2~19), 하드디스크가 어떻게 생겼고 얼마나 느린지(p.20~30), 요청 순서를 어떻게 정하는지(p.31~40), 디스크 여러 개를 어떻게 묶는지(p.41~51)를 배운다.
 
@@ -73,6 +73,35 @@ C-SCAN    53 65 67 98 122 124 183 199 → 0 14 37               382  (복귀 199
 [[sim:disk_sched]]
 
 {warn}p.37 SCAN 의 "Total head movement of 208" 은 그림과 맞지 않는다. 그림은 0 까지 내려가므로 53 + 183 = '''236''' 이다. 208 은 0 까지 가지 않고 14 에서 바로 도는 LOOK 의 값(39 + 169)이다. 자세한 것은 [[SCAN]].{/warn}
+
+== 실제 수업 기록 (11/11 수, 녹음 기준) ==
+17강을 44분에 마치고 p.2~19 를 했다. 마지막 말은 "다음 주제는 HDD 이고 꽤 다르다" 였다. 그래서 p.37 SCAN 의 208 과 p.42 "Don't memorize" 는 아직 확인하지 못했다.
+
+=== 도입 ===
+* 세 기둥 중 마지막 persistence 로 넘어간다. 컴퓨터는 CPU 와 메모리가 계산하고 나머지는 모두 I/O 장치다. HDD·SSD 도 I/O 장치다.
+* "이 수업은 architecture 가 아니라 OS 라서 장치 자체보다 '''I/O 를 software 에 어떻게 넣느냐''' 가 중요하다."
+* p.5: 키보드는 초당 600 byte 면 충분하다. 10 Gbps 연결이 필요 없으니 느린 장치는 싼 bus 에 둔다.
+
+=== 레지스터와 세 질문 ===
+* status·command 는 control, data 는 data 다. '''control 은 latency, data 는 bandwidth''' 가 중요해서 장치는 두 경로를 보통 나눈다.
+* SSD 는 안에 CPU·메모리·firmware 가 있는 작은 컴퓨터다. 그래도 인터페이스가 같아서 CPU 는 레지스터 세 개로 똑같이 다룬다.
+* 질문: "장치가 알려 주는 asynchronous exception 의 이름은?" → '''interrupt'''.
+
+=== polling, interrupt ===
+* polling 은 spin lock 과 같은 문제다. lock 을 sleeping lock 으로 바꿨듯 interrupt 로 바꾼다. 디스크는 10,000 cycle 이상 걸린다.
+* 질문: "interrupt 의 overhead 는?" → '''context switch'''. interrupt 는 고정 비용이고 polling 은 기다린 만큼 든다. context switch 는 100 cycle 이상이라 장치가 그보다 빨리 끝나면 polling 이 낫다.
+
+=== PIO, DMA ===
+* PIO 는 polling 과 잘 맞는다. 둘 다 CPU 를 쓴다.
+* DMA 가 아는 것은 '''physical address 와 length''' 다. DMA 도 장치라서 끝나면 interrupt 를 건다.
+* '''p.15 DMA 6단계 그림은 "설명하지 않겠다, 궁금하면 읽어라"''' 라고 했다.
+
+=== port-mapped, memory-mapped ===
+* 특수 I/O 명령은 CPU·ISA·software 를 복잡하게 만든다(old style).
+* '''"내가 알기로 port-mapped I/O 는 이제 쓰지 않는다."''' 현대 시스템의 답은 memory-mapped I/O 하나다.
+
+=== 공지 ===
+{exam}남은 lab 2개 중 '''1개만''' 낸다. 전체 lab 3개, 퀴즈 3개다. 새 lab 은 이번 주에 올라오고 기간은 2주다. '''기말 전 주가 퀴즈 주간'''이다.{/exam}
 
 == 시험 대비 핵심 요약 ==
 # Device 의 hardware interface 는 status, command, data register 세 개다.

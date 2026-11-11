@@ -31,5 +31,7 @@ frame 4개: page fault '''10번'''
 {quiz}시뮬레이터에서 참조열을 Belady 로 고르고 정책 FIFO · LRU 를 frame 3개/4개로 돌려 보라. LRU 도 이상 현상이 생기나?{/quiz}
 {answer}아니다. LRU 는 frame 3개 10번, 4개 8번으로 줄어든다.{/answer}
 
+{warn}11/9 수업에서 교수님은 "Belady 는 FIFO 만의 문제가 아니라 non-optimal policy 의 문제" 라고 했다. LRU 와 OPT 는 frame 이 n 개일 때의 내용이 n+1 개일 때 내용에 항상 포함되는 stack algorithm 이라 Belady 가 생기지 않는다(위 퀴즈). 객관식에서 "Belady 가 생길 수 있는 정책" 은 FIFO 를 고른다.{/warn}
+
 == 관련 문서 ==
 * [[페이지 교체 정책]] · [[LRU]] · [[Clock 알고리즘]] · [[FIFO]](스케줄링)

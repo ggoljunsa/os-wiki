@@ -60,6 +60,8 @@ frame 이 50개보다 하나라도 적으면 LRU 와 FIFO 의 hit rate 는 0% �
 * 캐시 50 미만: LRU 와 FIFO 는 0% 라 x축 위에 깔려 있고, 둘의 값이 같아 선 하나만 보인다. Random 은 일부 page 가 운 좋게 살아남아 조금씩 오르고, OPT 는 캐시 크기에 비례해 오른다.
 * 캐시 50 이상: 첫 바퀴의 miss 50번 뒤로는 전부 hit 다. (10,000 − 50) / 10,000 = 99.5% 로 네 정책이 같아서 선이 한 줄로 겹친다. 맨 위에 그린 초록(RAND)만 보인다.
 
+{info}11/11 수업: 교수님은 이 workload 를 '''scan workload''' 라고 불렀다. LRU 는 scan resistant 가 아니다. OPT 는 0~48 을 계속 붙잡고 48·49 자리 하나만 바꿔 써서 거의 100% 를 낸다. 해결책으로는 따로 메커니즘을 두거나, cache 를 키우거나, 작업을 나눠(0~25 를 여러 번 돈 뒤 나머지) working set 을 줄이는 방법을 들었다.{/info}
+
 {tip}frame 50개면 디스크에서 50번만 읽고, 49개면 LRU 로 약 10,000번 읽는다. 이 workload 의 working set 이 50 page 이고, 그보다 메모리를 적게 주면 [[working set과 thrashing|thrashing]] 이 된다.{/tip}
 
 {exam}"어떤 workload 에서 어떤 정책이 왜 좋은가/나쁜가" 객관식과, 참조열을 주고 정책별 hit 수를 세는 문제가 가장 유력하다.{/exam}
