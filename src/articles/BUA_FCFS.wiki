@@ -1,0 +1,31 @@
+key: FCFS
+title: FCFS 디스크 스케줄링 (First-Come First-Served)
+category: 18강 I/O Devices and HDD
+---
+요청이 들어온 순서대로 처리하는 가장 단순한 디스크 스케줄링이다. 슬라이드 18강 p.35.
+
+== p.35 정의와 예제 ⭐⭐⭐ ==
+{def}p.35: "First-Come and First-Served (FCFS) is the simplest algorithm. → Total head movement of '''640'''."{/def}
+
+[[img:L18-35.png|p.35 head 53 에서 queue 순서대로 왔다 갔다 한다|medium]]
+
+<pre class="txt">
+53 → 98    45
+98 → 183   85
+183 → 37   146
+37 → 122   85
+122 → 14   108
+14 → 124   110
+124 → 65   59
+65 → 67    2
+합계       '''640'''
+</pre>
+
+공평하지만 head 가 디스크 양 끝을 계속 오간다. 183 에서 37 로 갔다가 다시 122 로 가는 것처럼 낭비가 크다.
+
+5강 CPU 스케줄링의 [[FIFO]] 와 같은 생각이다.
+
+[[sim:disk_sched]]
+
+== 관련 문서 ==
+* [[디스크 스케줄링]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]]

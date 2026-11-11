@@ -1,0 +1,60 @@
+key: 디스크 스케줄링
+title: 디스크 스케줄링 (Disk Scheduling)
+category: 18강 I/O Devices and HDD, 핵심
+---
+밀린 I/O 요청 중 무엇을 먼저 처리할지 정해 head 이동을 줄이는 방법을 다룬다. 슬라이드 18강 p.32~40.
+
+== p.32 왜 필요한가 ==
+{def}p.32: "How to improve access time & throughput of HDDs. Seek time and rotational latency are dominant. '''Reduce the movement of disk arms!'''"{/def}
+
+[[디스크 접근 시간]]은 seek 과 rotation 이 거의 전부다. 요청 순서만 바꿔도 arm 이 덜 움직인다.
+
+== p.33 I/O 요청과 I/O queue ==
+[[img:L18-33.png|p.33 App → OS 의 I/O Queue → Disk request|medium]]
+
+I/O 요청에는 다음 정보가 있다.
+* 읽기인지 쓰기인지
+* 메모리 주소
+* 디스크 주소(offset)
+* 옮길 sector 수(length)
+
+디스크가 놀고 있으면 요청을 바로 처리한다. 바쁘면 '''I/O queue''' 에 넣는다. Queue 에 요청이 여러 개 쌓이면 OS 가 다음에 처리할 것을 고른다. 이것이 '''I/O (disk) scheduling''' 이다.
+
+== p.34 예제 ⭐⭐⭐ ==
+{def}p.34: Head pointer: '''53''' (LBA). Requests: '''98, 183, 37, 122, 14, 124, 65, 67'''.{/def}
+
+디스크 범위 0~199 는 p.35~39 그림의 눈금에서 가져왔다.
+
+이 예제로 네 정책을 비교한다. 이동량은 지나간 위치 차이의 절댓값을 모두 더한 것이다.
+
+{|
+! 정책 || 방문 순서 || 이동량 || 문서
+|-
+| FCFS || 53 98 183 37 122 14 124 65 67 || 640 || [[FCFS]]
+|-
+| SSTF || 53 65 67 37 14 98 122 124 183 || 236 || [[SSTF]]
+|-
+| SCAN || 53 37 14 0 65 67 98 122 124 183 || 236 (슬라이드 글자 208) || [[SCAN]]
+|-
+| C-SCAN || 53 65 67 98 122 124 183 199 0 14 37 || 382 (복귀 199 포함) || [[C-SCAN]]
+|}
+
+[[sim:disk_sched]]
+
+== p.40 어떤 정책을 고르나 ⭐⭐ ==
+{def}p.40: "Scheduling performance depends on the number and types of requests. '''SSTF is common''' and has a natural appeal. '''SCAN and C-SCAN''' perform better for systems that place a '''heavy load''' on the disk because of '''less starvation'''."{/def}
+
+* 보통은 SSTF 를 많이 쓴다. 이동량이 작고 자연스럽다.
+* 디스크 부하가 크면 SCAN, C-SCAN 이 낫다. SSTF 는 먼 요청을 계속 미뤄 starvation 이 생기지만, SCAN 계열은 한 번 쓸고 지나갈 때 반드시 처리한다.
+
+{quiz}head 100, 디스크 0~199, queue = 55, 58, 39, 18, 90, 160, 150, 38, 184 일 때 FCFS, SSTF, SCAN(0 쪽으로 먼저), C-SCAN(199 쪽으로, 복귀 포함)의 이동량을 구하시오.{/quiz}
+{answer}
+* FCFS: 45 + 3 + 19 + 21 + 72 + 70 + 10 + 112 + 146 = '''498'''
+* SSTF: 100 → 90 → 58 → 55 → 39 → 38 → 18 → 150 → 160 → 184, 10 + 32 + 3 + 16 + 1 + 20 + 132 + 10 + 24 = '''248'''
+* SCAN: 100 → … → 18 → 0 → 150 → 160 → 184, 100 + 184 = '''284'''
+* C-SCAN: 100 → 150 → 160 → 184 → 199 → 0 → 18 → … → 90, 99 + 199 + 90 = '''388'''
+시뮬레이터에서 요청을 "연습" 으로 바꾸면 같은 값이 나온다.
+{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[디스크 접근 시간]] · [[스케줄링]](5강 CPU 스케줄링과 비교) · [[SJF]]

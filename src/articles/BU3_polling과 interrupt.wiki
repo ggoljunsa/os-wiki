@@ -1,0 +1,77 @@
+key: polling과 interrupt
+title: Polling 과 Interrupt
+category: 18강 I/O Devices and HDD, 핵심
+---
+I/O 가 끝났는지 CPU 가 계속 확인하는 방식(polling)과 장치가 알려 주는 방식(interrupt)을 비교한다. 슬라이드 18강 p.9~12.
+
+== p.9 전형적인 상호작용 ==
+[[img:L18-09.png|p.9 두 while 문이 polling, 가운데 두 줄이 programmed I/O|medium]]
+
+<pre class="c">
+while (STATUS == BUSY)
+    ;   // wait until device is not busy
+write data to data register
+write command to command register
+    // (Doing so starts the device and executes the command)
+while (STATUS == BUSY)
+    ;   // wait until device is done with your request
+</pre>
+
+# 1~2줄: 장치가 바쁘지 않을 때까지 status 를 읽는다. 이것이 '''polling''' 이다.
+# 3줄: data register 에 데이터를 쓴다.
+# 4줄: command register 에 명령을 쓴다. 이 순간 장치가 일을 시작한다.
+# 6~7줄: 장치가 끝날 때까지 다시 polling 한다.
+
+3~4줄처럼 CPU 가 직접 데이터를 옮기는 것을 '''programmed I/O''' 라 한다([[PIO와 DMA]]).
+
+== p.10 Polling ⭐⭐⭐ ==
+{def}p.10: "Operating system waits until the device is ready by '''repeatedly reading the status register'''. A positive aspect is simple and working. However, it '''wastes CPU time''' just waiting for the device."{/def}
+
+[[img:L18-10.png|p.10 CPU 가 p(polling)로 5칸을 버린다|medium]]
+
+<pre class="ascii">
+CPU   1 1 1 1 1 p p p p p 1 1 1 1 1      p = polling
+Disk            1 1 1 1 1
+</pre>
+
+디스크가 task 1 의 I/O 를 하는 5칸 동안 CPU 는 status 만 읽는다. 그 시간에 다른 ready 프로세스를 돌리는 편이 CPU 를 더 잘 쓴다.
+
+== p.11 Interrupt ⭐⭐⭐ ==
+{def}p.11: "Issue a request, '''put the calling process to sleep''', and '''context switch''' to another task. When the device is finished, wake the process waiting for I/O by interrupt."{/def}
+
+<pre class="ascii">
+CPU   1 1 1 1 1 2 2 2 2 2 1 1 1 1 1
+Disk            1 1 1 1 1
+</pre>
+
+# task 1 이 I/O 를 요청한다.
+# OS 가 task 1 을 재우고(blocked) task 2 로 [[컨텍스트 스위치|context switch]] 한다.
+# 디스크가 끝나면 [[인터럽트|interrupt]] 를 건다.
+# OS 의 interrupt handler 가 task 1 을 깨운다.
+
+CPU 와 디스크가 같은 시간에 둘 다 일한다. 5강 [[I/O와 스케줄링]]의 overlap 과 같은 그림이다.
+
+[[sim:io_timeline]]
+
+== p.12 무엇을 쓸까 ⭐⭐⭐ ==
+{def}p.12: "Interrupts is not always the best solution. If device performs very quickly, interrupt will 'slow down' the system, because '''context switch is expensive'''. If a device is fast → '''poll''' is best. If it is slow → '''interrupt''' is better."{/def}
+
+Interrupt 는 공짜가 아니다. 프로세스를 재우고 다른 프로세스로 바꾸고 다시 깨우는 데 비용이 든다. 장치가 그 비용보다 빨리 끝나면 잠깐 polling 하는 쪽이 오히려 빠르다.
+
+{|
+! 장치 || 고를 것 || 이유
+|-
+| 빠름 || polling || 기다리는 시간이 context switch 비용보다 짧다
+|-
+| 느림 || interrupt || 기다리는 동안 다른 task 를 돌릴 수 있다
+|}
+
+{quiz}다음 중 옳은 것을 모두 고르시오.
+① Polling 은 구현이 간단하다.
+② Interrupt 는 항상 polling 보다 빠르다.
+③ 매우 빠른 장치에서 interrupt 를 쓰면 context switch 비용 때문에 오히려 느려질 수 있다.
+④ Interrupt 방식에서 I/O 를 요청한 프로세스는 I/O 가 끝날 때까지 sleep 한다.{/quiz}
+{answer}'''①, ③, ④'''. ② 는 p.12 "interrupts is not always the best solution" 에 어긋난다.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[PIO와 DMA]] · [[인터럽트]] · [[프로세스 상태]] · [[I/O와 스케줄링]]

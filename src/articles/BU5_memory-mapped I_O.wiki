@@ -1,0 +1,55 @@
+key: memory-mapped I/O
+title: Port-mapped I/O 와 Memory-mapped I/O
+category: 18강 I/O Devices and HDD, 핵심
+---
+OS 가 특정 장치의 레지스터를 가리키는 두 방법을 다룬다. 슬라이드 18강 p.16~19.
+
+== p.16 두 방법 ==
+{def}p.16: "How does OS know which registers it should use to communicate with specific I/O devices? There are two popular methods: '''Special I/O instructions''' (old style), '''Memory-mapped I/O'''."{/def}
+
+== p.17 I/O Instruction (Port-mapped I/O) ⭐⭐ ==
+{def}p.17: "Uses a special class of CPU instructions designed specifically for performing I/O. A representative example is '''in and out instructions''' in x86 machines. Such instructions are usually '''privileged'''."{/def}
+
+<pre class="c">
+outb(0x1f2, reg);   // 0x1f2 = port (장치 이름), reg = 데이터가 든 register
+</pre>
+
+장치에 데이터를 보낼 때는 두 가지를 정한다.
+# 데이터가 든 register
+# 장치를 가리키는 port 번호
+
+I/O 명령은 보통 [[특권 명령|privileged]] 이다. 그래서 유저 프로그램은 장치를 직접 못 건드리고 OS 를 거쳐야 한다.
+
+== p.18 Memory-mapped I/O ⭐⭐ ==
+{def}p.18: "The hardware makes device registers available '''as if they were memory locations'''. To access a particular register, the OS issues a '''load''' (to read) or '''store''' (to write) the address (e.g., mov). HW then routes the load/store to the device instead of main memory."{/def}
+
+[[img:L18-18.png|p.18 메모리 주소 공간의 일부 범위가 I/O 장치에 배정됨|small]]
+
+주소 공간의 한 구간을 장치 레지스터에 배정한다. 그 구간에 load/store 하면 하드웨어가 메인 메모리 대신 장치로 보낸다. 새 명령이 필요 없다.
+
+{|
+! || Port-mapped I/O || Memory-mapped I/O
+|-
+| 장치를 부르는 법 || 메모리와 다른 port 번호 || 메모리 주소의 한 구간
+|-
+| 쓰는 명령 || in, out 같은 전용 명령 || 보통의 load/store (mov)
+|-
+| p.19 의 분류 || "Unlike Memory" || "Like Memory"
+|}
+
+== p.19 세 질문의 답 ==
+{|
+! 질문 || 1) || 2)
+|-
+| 누가 I/O 완료를 확인하나 || CPU: Polling || 장치: Interrupt
+|-
+| 누가 데이터를 옮기나 || CPU: Programmed I/O || 장치: DMA
+|-
+| 장치를 어떻게 부르나 || 메모리와 다르게: Port-mapped I/O || 메모리처럼: Memory-mapped I/O
+|}
+
+{quiz}"장치 레지스터를 메모리 위치처럼 보이게 해서 OS 가 load/store 로 접근하는 방식"의 이름은?{/quiz}
+{answer}'''Memory-mapped I/O'''.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[canonical device]] · [[특권 명령]] · [[주소 공간]]

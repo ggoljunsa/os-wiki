@@ -749,7 +749,7 @@ const ARTICLES = {
   "category": [
    "안내"
   ],
-  "body": "== 기말고사 바로가기 ==\n{|\n! 강의 || 시작 문서 || 범위\n|-\n| 13강 Virtual Memory || [[가상 메모리]] || 주소 공간, 주소 변환, base and bounds\n|-\n| 14강 Segmentation || [[세그멘테이션]] || 세그먼트 변환, free-space management\n|-\n| 15강 Paging || [[페이징]] || page table, TLB\n|-\n| 16강 Advanced Page Table || [[고급 페이지 테이블]] || multi-level, inverted, huge page\n|-\n| 17강 Swapping || [[스와핑]] || page fault, 교체 정책\n|-\n| 과제2 || [[과제2 xv6 lock]] || kalloc, bcache\n|}\n전체 진도와 강별 읽는 순서는 [[기말고사]] 문서에 있다. 왼쪽 목록의 기말·중간·공통 탭으로 범위를 바꿀 수 있다.\n\n'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|-\n| multi-level page table walk (기말 16강) || [[다단계 주소 변환 계산]], [[3단계 page table]], [[multi-level page table]] || PDBR → PDE → PTE → PA 를 2단계(VA 5844 → 14740)·3단계(91·44·118·273 → 2115190033)로, invalid PDE 면 exception\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]\n* 15강 Paging: [[페이징]] · [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]] · [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]\n* 16강 Advanced Page Table: [[고급 페이지 테이블]] · [[hybrid approach]] · [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]] · [[inverted page table]] · [[hash collision]] · [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]\n* 17강 Swapping: [[스와핑]] · [[swap space]] · [[page fault]] · [[effective access time]] · [[working set과 thrashing]] · [[swap daemon]] · [[페이지 교체 정책]] · [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] · [[demand paging]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
+  "body": "== 기말고사 바로가기 ==\n{|\n! 강의 || 시작 문서 || 범위\n|-\n| 13강 Virtual Memory || [[가상 메모리]] || 주소 공간, 주소 변환, base and bounds\n|-\n| 14강 Segmentation || [[세그멘테이션]] || 세그먼트 변환, free-space management\n|-\n| 15강 Paging || [[페이징]] || page table, TLB\n|-\n| 16강 Advanced Page Table || [[고급 페이지 테이블]] || multi-level, inverted, huge page\n|-\n| 17강 Swapping || [[스와핑]] || page fault, 교체 정책\n|-\n| 18강 I/O Devices and HDD || [[I/O 장치]] || polling·DMA, 디스크 접근 시간, 디스크 스케줄링, RAID\n|-\n| 과제2 || [[과제2 xv6 lock]] || kalloc, bcache\n|}\n전체 진도와 강별 읽는 순서는 [[기말고사]] 문서에 있다. 왼쪽 목록의 기말·중간·공통 탭으로 범위를 바꿀 수 있다.\n\n'''운체위키'''에 오신 것을 환영합니다. 이 위키는 [[xv6|DGIST]] '''CSE304 운영체제'''(Prof. Yongwoo Lee, 교재 [[OSTEP]]) 중간고사·퀴즈·과제1 범위를 나무위키 스타일로 정리한 문서 모음이다. 강의는 영어로 진행되므로 기술 용어는 영어 그대로 두고, 설명은 한국어로 썼다.\n\n{tip}이 위키의 존재 이유는 딱 두 가지다. '''① 그림·시뮬레이터로 본다''' — 코드가 나오면 그 옆에서 변수가 어떻게 바뀌는지 C 디버거처럼 한 단계씩 돌려 볼 수 있다(▶ 버튼). '''② 변수·용어를 까먹으면 클릭한다''' — 본문의 모든 [[trapframe]], [[epc]], [[vruntime]] 같은 파란 글씨는 그 변수가 뭔지 설명하는 사전 문서로 이어진다.{/tip}\n\n{warn}'''2026-09-23 퀴즈'''는 100점 전부가 [[과제1 xv6 alarm|과제 1(xv6 alarm)]]에서 나왔다. 한 문장 서술 + 코드 빈칸 + 출력 예측. 실제 문제와 모범답안은 [[퀴즈1 복기]]에 있다. 중간고사도 이 경향(코드를 읽고 결과를 쓰는 문제)이 이어질 가능성이 크다.{/warn}\n\n== 빠른 시작 ==\n\n처음 방문했다면 [[읽는 순서]]를 따라가면 된다. 요약하면:\n\n# [[운영체제란]] — OS가 하는 일 세 가지: [[가상화]] · [[동시성]] · [[영속성]]\n# [[프로세스]] — 프로그램이 프로세스가 되기까지, [[fork]]/[[exec]]/[[wait]], [[struct proc]]\n# [[제한적 직접 실행]] — [[트랩]]으로 커널에 들어갔다 [[return-from-trap]]으로 나오기, [[타이머 인터럽트]], [[컨텍스트 스위치]]\n# [[과제1 xv6 alarm]] — 3·4강을 손으로 구현한 것. [[sigalarm]]/[[sigreturn]], [[alarm_saved]], [[a0 복원]], [[재진입 금지]]\n# [[스케줄링]] — [[FIFO]] → [[SJF]] → [[STCF]] → [[Round Robin]] → [[MLFQ]]\n# [[비례 지분 스케줄링]] — [[Lottery 스케줄링]], [[Stride 스케줄링]], [[CFS]], [[EEVDF]]\n# [[멀티프로세서 스케줄링]] — [[cache affinity]], [[SQMS]] vs [[MQMS]], [[work stealing]]\n# [[스레드]] — 스택이 여러 개인 주소 공간, [[counter 예제]]로 보는 [[race condition]]\n# [[락]] — 막 구현하면 뭐가 고장나는지 순서대로: [[flag 락]] → [[test-and-set]] → [[ticket lock]] → [[queue 락]] → [[futex]]\n# [[조건 변수]] — 락만으로는 부족한 이유: [[wait와 signal]], [[producer-consumer]], [[Mesa semantics]](왜 while인가), [[covering condition]]. 9/28 수업 기록 포함\n# [[세마포어]] — 정수 하나로 락도 CV도: producer/consumer 네 번의 시도(mutex 위치 → [[데드락]]), [[reader-writer lock]], [[dining philosophers]]\n# [[데드락]] — 4조건과 처리 방법: [[lock ordering]] · [[trylock]]→[[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]]. 12강 p.30~52 요약 = 동시성 시험 범위\n\n{exam}🎯 '''2026F 중간고사 실제 시험 복기 → [[2026F 중간고사]]''' (10문제 정답·교수님 풀이·내 감점 위치). 시스템 프로그래밍 내용(fork/exec)은 출제되지 않았다.{/exam}\n\n\n{tip}😵 '''락 단원이 막히면 → [[락 그림 요약]]''' (움직이는 그림 3개, 글 거의 없음){/tip}\n\n{info}시험 24시간 전이라면 [[자주 틀리는 함정 모음]]과 [[1단계 오답 노트]]만 보자. 모의고사에서 실제로 틀린 것들과 작년 [[2025F 중간고사 족보]]에서 나온 함정을 모아 두었다.{/info}\n\n[[img:L1-11.png|1강 p.11 — 교재 OSTEP 'Three Easy Pieces' 목차. Virtualization / Concurrency / Persistence 세 기둥이 이 위키의 3강~9강 구성과 그대로 겹친다|medium]]\n\n== 시뮬레이터 모음 ==\n\n각 문서 안에 박혀 있지만, 한 번에 찾고 싶을 때:\n\n{|\n! 주제 || 시뮬레이터가 있는 문서 || 무엇을 보여주나\n|-\n| 두 스레드의 counter++ || [[counter 예제]], [[스레드]] || mov/add/mov 사이에 인터럽트가 끼면 51이 되는 과정\n|-\n| 잘못된 flag 락 || [[flag 락]], [[락]] || 두 스레드가 동시에 critical section에 들어가는 인터리빙\n|-\n| test-and-set / CAS / LL-SC || [[test-and-set]], [[compare-and-swap]], [[load-linked store-conditional]] || 하드웨어 atomic 명령이 왜 락을 고치는지\n|-\n| ticket lock || [[ticket lock]], [[fetch-and-add]] || 번호표로 공정성을 얻는 과정\n|-\n| park/unpark 큐 락 || [[queue 락]], [[park와 unpark]] || wakeup/waiting race와 [[setpark]]\n|-\n| 과제1 alarm tick 추적 || [[과제1 xv6 alarm]], [[퀴즈1 복기]] || 퀴즈 5번 프로그램을 tick 단위로 — [[epc]]/[[alarm_saved]]/[[a0]]가 바뀌는 순간\n|-\n| 시스템 콜 트랩 왕복 || [[제한적 직접 실행]], [[트랩]], [[xv6 시스템 콜 경로]] || user → ecall → [[usertrap]] → syscall → [[usertrapret]] → [[sret]]\n|-\n| 컨텍스트 스위치 || [[컨텍스트 스위치]], [[타이머 인터럽트]] || 레지스터가 [[커널 스택]]과 [[struct proc]]에 두 번 저장되는 이유\n|-\n| 프로세스 상태 기계 || [[프로세스 상태]], [[프로세스]] || Running/Ready/Blocked 전이\n|-\n| fork/exec/wait || [[fork]], [[exec]], [[wait]] || p1.c~p3.c 출력 순서\n|-\n| 스케줄링 Gantt || [[스케줄링]], [[FIFO]], [[SJF]], [[STCF]], [[Round Robin]] || turnaround/response 평균이 어떻게 계산되는지\n|-\n| MLFQ || [[MLFQ]] || 규칙 1~5, allotment, priority boost\n|-\n| Stride / Lottery || [[Stride 스케줄링]], [[Lottery 스케줄링]] || pass 표가 채워지는 과정, 추첨\n|-\n| CFS / EEVDF || [[CFS]], [[EEVDF]] || [[vruntime]]과 [[lag]]/[[virtual deadline]]\n|-\n| 스레드 스택 || [[스레드 스택]], [[스레드]] || 주소 공간 안에 스택이 두 개 생기는 과정\n|-\n| 조건 변수 join / producer-consumer || [[조건 변수]], [[done flag 예제]], [[producer-consumer]] || 상태 변수·락을 빼면 왜 영원히 잠드는지, if 대신 while 이어야 하는 이유\n|-\n| sloppy counter || [[락 기반 자료구조]], [[sloppy counter]] || threshold S 에 따라 global lock 을 얼마나 덜 잡는지\n|-\n| base and bounds 주소 변환 (기말) || [[base and bounds]], [[가상 메모리]] || x = x + 3 의 메모리 참조 5번이 VA < bounds 검사 → VA + base 를 지나는 과정, exception, context switch 때 PCB 저장\n|-\n| multi-level page table walk (기말 16강) || [[다단계 주소 변환 계산]], [[3단계 page table]], [[multi-level page table]] || PDBR → PDE → PTE → PA 를 2단계(VA 5844 → 14740)·3단계(91·44·118·273 → 2115190033)로, invalid PDE 면 exception\n|}\n\n== 분류별 문서 ==\n\n=== 기말고사 (13강~) ===\n* [[기말고사]] — 진도표·읽는 순서·중간 범위와의 연결\n* 13강 Virtual Memory: [[가상 메모리]] · [[메모리 계층]] · [[SRAM과 DRAM]] · [[locality]] · [[메모리 가상화]] · [[가상 주소 공간]] · [[주소 변환]] · [[VM 설계 목표]] · [[주소 변환 시점]] · [[MMU]] · [[base and bounds]] · [[free list]] · [[동적 재배치의 한계]]\n* 14강 Segmentation: [[세그멘테이션]] · [[세그먼트 주소 변환]] · [[스택 세그먼트]] · [[코드 공유와 protection bit]] · [[segmentation fault]] · [[internal fragmentation]] · [[external fragmentation]] · [[compaction]] · [[free-space management]] · [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] · [[할당 전략]]\n* 15강 Paging: [[페이징]] · [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]] · [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]\n* 16강 Advanced Page Table: [[고급 페이지 테이블]] · [[hybrid approach]] · [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]] · [[inverted page table]] · [[hash collision]] · [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]\n* 17강 Swapping: [[스와핑]] · [[swap space]] · [[page fault]] · [[effective access time]] · [[working set과 thrashing]] · [[swap daemon]] · [[페이지 교체 정책]] · [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] · [[demand paging]]\n* 18강 I/O Devices and HDD: [[I/O 장치]] · [[I/O 시스템 구조]] · [[canonical device]] · [[polling과 interrupt]] · [[PIO와 DMA]] · [[memory-mapped I/O]] · [[HDD 구조]] · [[디스크 접근 시간]] · [[logical block]] · [[디스크 스케줄링]] · [[FCFS]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]] · [[RAID]] · [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]]\n\n=== 시험·과제 ===\n* [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]\n* [[과제1 xv6 alarm]] · [[sigalarm]] · [[sigreturn]] · [[alarmtest]] · [[xv6 시스템 콜 경로]]\n* '''[[과제2 xv6 lock]]''' (마감 10/25) · [[lock contention]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]\n\n=== 1~2강 ===\n* [[운영체제란]] · [[가상화]] · [[동시성]] · [[영속성]] · [[커널]] · [[시스템 콜]] · [[유저 모드와 커널 모드]] · [[OS 설계 목표]]\n\n=== 3강 ===\n* [[프로세스]] · [[프로세스 상태]] · [[프로세스 API]] · [[struct proc]] · [[fork]] · [[exec]] · [[wait]] · [[프로그램 로딩]] · [[주소 공간]] · [[시스템 콜 추가 절차]]\n\n=== 4강 ===\n* [[제한적 직접 실행]] · [[트랩]] · [[트랩 테이블]] · [[trapframe]] · [[epc]] · [[sepc]] · [[return-from-trap]] · [[usertrap]] · [[usertrapret]] · [[타이머 인터럽트]] · [[컨텍스트 스위치]] · [[커널 스택]] · [[협력적 방식]] · [[비협력적 방식]]\n\n=== 5~7강 ===\n* [[스케줄링]] · [[스케줄링 지표]] · [[FIFO]] · [[SJF]] · [[STCF]] · [[Round Robin]] · [[MLFQ]] · [[convoy effect]]\n* [[비례 지분 스케줄링]] · [[Lottery 스케줄링]] · [[Stride 스케줄링]] · [[CFS]] · [[vruntime]] · [[EEVDF]] · [[lag]]\n* [[멀티프로세서 스케줄링]] · [[cache affinity]] · [[SQMS]] · [[MQMS]] · [[work stealing]]\n\n=== 10강 Condition Variable (9/28) · 11강 Semaphore (9/30) · 12강 Deadlock (10/7, 중간 전 마지막) ===\n* 9/28 진도: [[조건 변수]] · [[wait와 signal]] · [[Mesa semantics]] · [[spurious wakeup]] · [[producer-consumer]] · [[bounded buffer]] · [[covering condition]] · [[broadcast]] · [[done flag 예제]]\n* 11강 (9/30 진도, `11-Semaphore.pdf` 42쪽): [[세마포어]] · [[reader-writer lock]] · [[dining philosophers]]\n* 12강 (10/7 진도, `12-Deadlock.pdf`): [[데드락]] · [[데드락 4조건]] · [[lock ordering]] · [[hold and wait 방지]] · [[trylock]] · [[livelock]] · [[lock-free]] · [[데드락 avoidance]] · [[데드락 detection]] — p.30~52 는 교수님이 추린 동시성 복습 목록\n* OSTEP 29장 참고: [[락 기반 자료구조]] · [[sloppy counter]] · [[concurrent linked list]] · [[concurrent queue]] · [[concurrent hash table]]\n\n=== 8~9강 ===\n* [[스레드]] · [[TCB]] · [[스레드 스택]] · [[pthread_create]] · [[TLS]] · [[race condition]] · [[critical section]] · [[atomic]] · [[counter 예제]]\n* [[락]] · [[락 평가 기준]] · [[flag 락]] · [[인터럽트 비활성화]] · [[test-and-set]] · [[spin lock]] · [[compare-and-swap]] · [[load-linked store-conditional]] · [[fetch-and-add]] · [[ticket lock]] · [[yield 락]] · [[queue 락]] · [[park와 unpark]] · [[setpark]] · [[futex]] · [[two-phase lock]]\n\n{joke}컴구위키에 이어 두 번째 위키다. 지난 학기엔 \"TLB가 뭐더라\"를 스무 번 검색했다면, 이번 학기엔 \"trapframe이 뭐더라\"를 스무 번 클릭하게 될 것이다. 클릭이 검색보다 빠르다.{/joke}"
  },
  "읽는 순서": {
   "title": "읽는 순서",
@@ -2003,7 +2003,7 @@ const ARTICLES = {
   "category": [
    "기말고사"
   ],
-  "body": "{info}기말고사 범위인 13~17강과 과제 2 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지는 [[가상화]] 중 CPU 가상화([[스케줄링]] 등)와 [[동시성]]을 배웠다. 기말은 메모리 가상화를 다룬다.\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有, '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\", 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| '''14강''' Segmentation (결석, 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]\n|-\n| '''15강''' Paging (녹음 없음) || `15-Paging.pdf` 53쪽 || 고정 크기 page 와 page table 로 external fragmentation 없애기 → 메모리 접근 2배 문제를 TLB 로 || [[페이징]]\n|-\n| '''16강''' Advanced Page Table (교수 배포 영상 67분, p.1~50 전부) || `16-AdvPageTable.pdf` 50쪽 || linear page table 이 너무 크다 → hybrid · multi-level · inverted page table · huge page(THP) || [[고급 페이지 테이블]]\n|-\n| '''17강''' Swapping (수업 전 작성, 녹음 없음) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]\n|}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]]: 13강 전체를 슬라이드 순서로 (p.1~57)\n# [[메모리 계층]]: RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10), [[locality]]\n# [[메모리 가상화]]: 가상화 없음, multiprogramming, protection 문제, illusion (p.11~18)\n# [[가상 주소 공간]]: code·heap·stack, `mem.c` (p.19~24)\n# [[주소 변환]]과 [[VM 설계 목표]] (p.25~27, p.37)\n# [[주소 변환 시점]]: compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]]: 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]]: dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]]: 프로세스 시작·종료·context switch 때 OS 가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]]: 128 TB짜리 \"free\" 공간 문제 (p.55)\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지]]\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지다. 수업 기록은 [[가상 메모리]]의 '실제 수업 기록' 표에 있다. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위가 낮다.{/info}\n\n{exam}'''중간고사에서 확인된 형식'''([[2026F 중간고사]]): 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 14강 읽는 순서 ==\n\n# [[세그멘테이션]]: base and bounds 의 internal fragmentation, 세그먼트 배치, 변환, stack·sharing·protection, fragmentation (p.2~17)\n# [[세그먼트 주소 변환]]: 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]]: 음의 방향\n# [[코드 공유와 protection bit]] · [[segmentation fault]]: 범위 위반 vs 권한 위반\n# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]\n# [[free-space management]] (p.18~39)\n# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐\n# [[할당 전략]]: Best / Worst / First / Next Fit ⭐⭐⭐\n\n== 15강 읽는 순서 ==\n\n# [[페이징]]: segmentation 의 문제, page·page frame·page table, 문제 셋, TLB (p.7~51)\n# [[VPN과 offset]]: 비트 수 구하기와 VA → PA 계산 ⭐⭐⭐ (p.13~18, Quiz 포함)\n# [[페이지 테이블]] · [[PTBR]]: 왜 메모리에 두나, 크기 4MB 계산\n# [[PTE 플래그]]: valid · protection · present · dirty · reference / [[copy-on-write]]\n# [[페이징의 문제]]: internal fragmentation · 메모리 접근 2배 · 큰 page table ⭐⭐⭐\n# [[TLB]], [[TLB hit와 miss]](p.36 배열 계산 ⭐⭐⭐), [[TLB miss 처리]](HW vs SW, 순서·장단점), [[ASID와 TLB flush]]\n\n== 16강 읽는 순서 ==\n\n# [[고급 페이지 테이블]]: linear 4MB, invalid 투성이, 네 해법 비교표, 영상 수업 기록 (p.2~48)\n# [[hybrid approach]]: segment 별 page table, base = page table 주소, 문제는 external fragmentation (p.12~16)\n# [[multi-level page table]], [[page directory]] · [[PDBR]]: 장단점 time-space trade-off (p.17~20) ⭐⭐\n# [[다단계 주소 변환 계산]]: 16KB/64B, VA 5844 → 14740 ⭐⭐⭐ (p.21~24)\n# [[3단계 page table]]: 1GB/512B, 7|7|7|9, 슬라이드 주소 오타 주의 ⭐⭐⭐ (p.25~29)\n# [[inverted page table]], [[hash collision]]: 장점 2 · 단점 3, PFN 필드 추가 (p.30~36)\n# [[huge page]], [[transparent huge page]](promotion · compaction · demotion · 한계), [[Sv39 PTE]] (p.37~48)\n\n{exam}16강에서 기출 형식(객관식 + full-term 용어 + 규칙대로 손 계산)에 맞는 것: '''비트 분할과 VA → PA'''(2단계 4|4|6, 3단계 7|7|7|9), '''크기 계산'''(4MB/1MB, 192B vs 1KB, PD 64KB), '''용어'''(page directory · PDE · PDBR · time-space trade-off · inverted page table · hash collision · TLB pressure · THP · promotion · compaction · demotion · tail latency), '''객관식'''(inverted 의 장단점, promotion 조건 virtually- and physically-contiguous, DB 는 THP off, Sv39 X=W=R=0 은 branch). 영상에 시험 공지는 없다. 시스템 프로그래밍(mmap 사용법)은 출제 대상 아님.{/exam}\n\n== 17강 읽는 순서 ==\n\n# [[스와핑]]: 슬라이드 페이지 ↔ 문서 표 (p.11~54)\n# [[swap space]], [[page fault]]: present bit, 처리 흐름 6단계 ⭐⭐⭐ (p.12~23)\n# [[effective access time]]: EAT 계산 ⭐⭐⭐ (p.24~26)\n# [[working set과 thrashing]] · [[swap daemon]] (p.27~28, p.54)\n# [[페이지 교체 정책]], [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] ⭐⭐⭐ (p.30~49)\n# [[demand paging]]: dirty page, prefetching, clustering (p.50~53)\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]]: \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]]. 13강은 그 주소가 virtual 이라는 내용\n|-\n| 3강 [[프로그램 로딩]]: 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]]: 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]]: 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54: 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]]: 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2: xv6 Lock ==\n\n{warn}'''마감 2026-10-25 (토) 23:00'''. 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]]: 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]]: `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]], [[per-CPU free list]]: Problem 1. CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]], [[bcache 해시 버킷]]: Problem 2. 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]]: 예상문제 20개\n\n9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 푼다. lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]]과 같고, free list 는 13강 [[free list]]의 페이지판이다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]] · [[세그멘테이션]] · [[페이징]] · [[고급 페이지 테이블]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
+  "body": "{info}기말고사 범위인 13~18강과 과제 2 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}\n\n중간고사까지는 [[가상화]] 중 CPU 가상화([[스케줄링]] 등)와 [[동시성]]을 배웠다. 기말은 메모리 가상화를 다룬다.\n\n== 진도표 ==\n\n{|\n! 강의 || 슬라이드 || 핵심 질문 || 시작 문서\n|-\n| '''13강''' Virtual Memory (10/19 월, 녹음 有, '''p.1~18''' 진행, p.19~ 다음 시간) || `13-Virtual_Memory.pdf` 57쪽 (표지는 \"12. Virtual Memory\", 마지막 장 \"End of Lecture 12\", 파일명 기준으로 13강이라 부른다) || 물리 메모리를 프로세스마다 private한 virtual address space로 보이게 하는 법 → [[base and bounds]] || [[가상 메모리]]\n|-\n| '''14강''' Segmentation (결석, 녹음 없음) || `14-Segmentation.pdf` 41쪽 || 세그먼트마다 base/size 를 따로 두어 빈 공간을 물리 메모리에 안 올리기 → 대신 생기는 external fragmentation 과 free-space management || [[세그멘테이션]]\n|-\n| '''15강''' Paging (녹음 없음) || `15-Paging.pdf` 53쪽 || 고정 크기 page 와 page table 로 external fragmentation 없애기 → 메모리 접근 2배 문제를 TLB 로 || [[페이징]]\n|-\n| '''16강''' Advanced Page Table (교수 배포 영상 67분, p.1~50 전부) || `16-AdvPageTable.pdf` 50쪽 || linear page table 이 너무 크다 → hybrid · multi-level · inverted page table · huge page(THP) || [[고급 페이지 테이블]]\n|-\n| '''17강''' Swapping (수업 전 작성, 녹음 없음) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]\n|-\n| '''18강''' I/O Devices and HDD (수업 전 작성, 녹음 없음) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]\n|}\n\n== 13강 읽는 순서 ==\n\n# [[가상 메모리]]: 13강 전체를 슬라이드 순서로 (p.1~57)\n# [[메모리 계층]]: RAM 종류([[SRAM과 DRAM]]), 계층 피라미드, 캐싱 표 (p.3~10), [[locality]]\n# [[메모리 가상화]]: 가상화 없음, multiprogramming, protection 문제, illusion (p.11~18)\n# [[가상 주소 공간]]: code·heap·stack, `mem.c` (p.19~24)\n# [[주소 변환]]과 [[VM 설계 목표]] (p.25~27, p.37)\n# [[주소 변환 시점]]: compile time / load time / execution time (p.28~36) ⭐\n# [[MMU]]: 실행 시점 변환을 하는 CPU 안 하드웨어 (p.38)\n# [[base and bounds]]: dynamic relocation, `x = x + 3` 예제 계산 (p.39~49) ⭐⭐⭐\n# [[free list]]: 프로세스 시작·종료·context switch 때 OS 가 하는 일 (p.50~54)\n# [[동적 재배치의 한계]]: 128 TB짜리 \"free\" 공간 문제 (p.55)\n\n[[anim:addr_bind_time|컴파일 시점·로드 시점·실행 시점 주소 변환이 각각 어디서 깨지고 어디서 해결되는지]]\n\n{info}🎙 13강 녹음(10/19, 34분)은 p.18 Benefits 까지다. 수업 기록은 [[가상 메모리]]의 '실제 수업 기록' 표에 있다. 교수님: \"'''기말까지 시간이 많지 않다'''\". p.3~10(계층·locality)은 \"system programming 에서 배웠을 것\"이라 출제 우선순위가 낮다.{/info}\n\n{exam}'''중간고사에서 확인된 형식'''([[2026F 중간고사]]): 객관식 + full-term 용어 + \"규칙을 주고 손으로 돌리기\"(값·순서·코드만, 설명 없음). '''시스템 프로그래밍 수업 내용(fork/exec 등)은 출제하지 않는다'''(사용자 확인). 기말에서 그 형식에 맞는 13강 후보: [[base and bounds]] 주소 계산·exception 판정, [[주소 변환 시점]] 비교, [[VM 설계 목표]]·[[MMU]]·[[free list]] 용어.{/exam}\n\n== 14강 읽는 순서 ==\n\n# [[세그멘테이션]]: base and bounds 의 internal fragmentation, 세그먼트 배치, 변환, stack·sharing·protection, fragmentation (p.2~17)\n# [[세그먼트 주소 변환]]: 위 2비트 세그먼트 + 12비트 offset, PA = offset + base ⭐⭐⭐ / [[스택 세그먼트]]: 음의 방향\n# [[코드 공유와 protection bit]] · [[segmentation fault]]: 범위 위반 vs 권한 위반\n# [[internal fragmentation]] vs [[external fragmentation]] · [[compaction]]\n# [[free-space management]] (p.18~39)\n# [[splitting과 coalescing]] · [[할당 헤더]] · [[embedded free list]] (4KB heap 따라가기) ⭐⭐\n# [[할당 전략]]: Best / Worst / First / Next Fit ⭐⭐⭐\n\n== 15강 읽는 순서 ==\n\n# [[페이징]]: segmentation 의 문제, page·page frame·page table, 문제 셋, TLB (p.7~51)\n# [[VPN과 offset]]: 비트 수 구하기와 VA → PA 계산 ⭐⭐⭐ (p.13~18, Quiz 포함)\n# [[페이지 테이블]] · [[PTBR]]: 왜 메모리에 두나, 크기 4MB 계산\n# [[PTE 플래그]]: valid · protection · present · dirty · reference / [[copy-on-write]]\n# [[페이징의 문제]]: internal fragmentation · 메모리 접근 2배 · 큰 page table ⭐⭐⭐\n# [[TLB]], [[TLB hit와 miss]](p.36 배열 계산 ⭐⭐⭐), [[TLB miss 처리]](HW vs SW, 순서·장단점), [[ASID와 TLB flush]]\n\n== 16강 읽는 순서 ==\n\n# [[고급 페이지 테이블]]: linear 4MB, invalid 투성이, 네 해법 비교표, 영상 수업 기록 (p.2~48)\n# [[hybrid approach]]: segment 별 page table, base = page table 주소, 문제는 external fragmentation (p.12~16)\n# [[multi-level page table]], [[page directory]] · [[PDBR]]: 장단점 time-space trade-off (p.17~20) ⭐⭐\n# [[다단계 주소 변환 계산]]: 16KB/64B, VA 5844 → 14740 ⭐⭐⭐ (p.21~24)\n# [[3단계 page table]]: 1GB/512B, 7|7|7|9, 슬라이드 주소 오타 주의 ⭐⭐⭐ (p.25~29)\n# [[inverted page table]], [[hash collision]]: 장점 2 · 단점 3, PFN 필드 추가 (p.30~36)\n# [[huge page]], [[transparent huge page]](promotion · compaction · demotion · 한계), [[Sv39 PTE]] (p.37~48)\n\n{exam}16강에서 기출 형식(객관식 + full-term 용어 + 규칙대로 손 계산)에 맞는 것: '''비트 분할과 VA → PA'''(2단계 4|4|6, 3단계 7|7|7|9), '''크기 계산'''(4MB/1MB, 192B vs 1KB, PD 64KB), '''용어'''(page directory · PDE · PDBR · time-space trade-off · inverted page table · hash collision · TLB pressure · THP · promotion · compaction · demotion · tail latency), '''객관식'''(inverted 의 장단점, promotion 조건 virtually- and physically-contiguous, DB 는 THP off, Sv39 X=W=R=0 은 branch). 영상에 시험 공지는 없다. 시스템 프로그래밍(mmap 사용법)은 출제 대상 아님.{/exam}\n\n== 17강 읽는 순서 ==\n\n# [[스와핑]]: 슬라이드 페이지 ↔ 문서 표 (p.11~54)\n# [[swap space]], [[page fault]]: present bit, 처리 흐름 6단계 ⭐⭐⭐ (p.12~23)\n# [[effective access time]]: EAT 계산 ⭐⭐⭐ (p.24~26)\n# [[working set과 thrashing]] · [[swap daemon]] (p.27~28, p.54)\n# [[페이지 교체 정책]], [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] ⭐⭐⭐ (p.30~49)\n# [[demand paging]]: dirty page, prefetching, clustering (p.50~53)\n\n== 18강 읽는 순서 ==\n\n# [[I/O 장치]]: 슬라이드 페이지 ↔ 문서 표 (p.2~51)\n# [[I/O 시스템 구조]] · [[canonical device]] (p.3~8)\n# [[polling과 interrupt]] · [[PIO와 DMA]] · [[memory-mapped I/O]] ⭐⭐⭐ (p.9~19)\n# [[HDD 구조]] · [[디스크 접근 시간]] ⭐⭐⭐ · [[logical block]] (p.21~30)\n# [[디스크 스케줄링]], [[FCFS]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]] ⭐⭐⭐ (p.32~40)\n# [[RAID]], [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]] (p.42~51)\n\n{warn}18강 슬라이드 숫자 주의: p.37 SCAN 의 208 은 그림(0 까지 이동)과 맞지 않고 그림대로면 236 이다. 208 은 LOOK 의 값. p.48 RAID 4 의 중간식 (0.9025 + 0.1 × 0.95) 은 n = 2 의 값이고 n = 4 이면 (0.8145 + 0.1715), 최종 1.4% 는 맞다.{/warn}\n\n== 시험 정보 ==\n\n기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.\n\n== 중간 범위와 이어지는 곳 ==\n\n{|\n! 중간 범위에서 배운 것 || 13강에서 다시 쓰이는 곳\n|-\n| 3강 [[주소 공간]]: \"set of rights\", code/data/heap/stack 배치 || [[가상 주소 공간]]. 13강은 그 주소가 virtual 이라는 내용\n|-\n| 3강 [[프로그램 로딩]]: 디스크 ELF를 메모리에 올림 || [[주소 변환 시점|load time 변환]]: 올리면서 주소를 고쳐 쓰는 방식\n|-\n| 4강 [[제한적 직접 실행]]: 하드웨어 도움 + 특권 명령으로 OS가 통제권 유지 || [[base and bounds|base/bounds 레지스터]]: 매 메모리 접근은 하드웨어가 직접, OS는 레지스터만 설정\n|-\n| 4강 [[컨텍스트 스위치]] · 3강 [[PCB]] || p.54: 전환 때 base/bounds 쌍을 [[PCB]]에 저장·복원\n|-\n| 4강 [[트랩]] · [[인터럽트 핸들러]] || bounds를 넘는 접근 → MMU가 '''exception''' → OS 핸들러 (보통 프로세스 종료)\n|-\n| 8강 [[스레드와 프로세스 비교]]: 스레드 전환은 페이지 테이블 교체가 없다 || 주소 공간을 바꾼다 = 변환 정보(지금은 base/bounds, 나중엔 page table)를 바꾼다\n|}\n\n== 과제 2: xv6 Lock ==\n\n{warn}'''마감 2026-10-25 (토) 23:00'''. 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 고칠 파일은 `kernel/kalloc.c`, `kernel/bio.c` 둘. 과제 1 때 퀴즈 100점이 전부 과제에서 나왔으므로([[퀴즈1 복기]]) 과제 2 도 '''직접 구현하며 이유를 한 문장으로 말할 수 있게''' 할 것.{/warn}\n\n# [[과제2 xv6 lock]]: 사양·채점표(원본 60/100)·환경·작업 순서\n# [[lock contention]]: `#test-and-set` 이 무엇을 세는지, kalloctest/bcachetest 출력 읽는 법\n# [[kalloc]], [[per-CPU free list]]: Problem 1. CPU별 free list + [[steal]], [[cpuid]] 와 push_off\n# [[buffer cache]], [[bcache 해시 버킷]]: Problem 2. 버킷별 lock, miss 후 재검색, same-bucket 함정. 용어 [[refcnt]] · [[sleeplock]] · [[NBUF]]\n# [[과제2 퀴즈 대비]]: 예상문제 20개\n\n9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 푼다. lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]]과 같고, free list 는 13강 [[free list]]의 페이지판이다.\n\n== 관련 문서 ==\n* [[main|대문]] · [[읽는 순서]] · [[시험 정보]]\n* [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]] · [[세그멘테이션]] · [[페이징]] · [[고급 페이지 테이블]]\n* [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]"
  },
  "가상 메모리": {
   "title": "가상 메모리 (Virtual Memory)",
@@ -2496,6 +2496,145 @@ const ARTICLES = {
    "용어"
   ],
   "body": "교체 정책 외에 OS 가 정해야 하는 것들을 다룬다. 언제 가져오나, 언제 어떻게 내보내나의 문제다. 슬라이드 17강 p.50~53.\n\n== p.50 dirty page ⭐⭐ ==\n{def}p.50: \"The hardware include a '''modified bit (a.k.a dirty bit)'''. If a page has been modified and is thus dirty, it must be written back to disk to evict it. If a page has not been modified, the eviction is free. Usually, a '''clean page''' is selected as a victim.\"{/def}\n\nDirty page 를 내보내려면 디스크 쓰기가 필요하다. 그래서 clean page 를 우선 내보낸다.\n\n== p.51 PTE 플래그 복습 ==\n15강 [[PTE 플래그]] 복습이다. valid, protection, present, dirty, reference.\n\n== p.52 demand paging 과 prefetching ⭐⭐ ==\n{def}p.52: \"'''Demand paging''': Brings the page into memory when it is accessed. '''Prefetching''': If a page is about to be used, bring it in ahead of time.\"{/def}\n\nPage 를 가져오는 시점은 접근할 때이거나 그보다 미리이다.\n\n[[img:L17-52.png|p.52: Page 1 을 올릴 때 Page 2 도 곧 쓸 것 같아 함께 올림|large]]\n\n== p.53 clustering ⭐⭐ ==\n{def}p.53: \"'''Clustering, Grouping''': Collect a number of pending writes together in memory and write them to disk in one write. Perform a single large write more efficiently than many small ones.\"{/def}\n\nDirty page 의 쓰기는 여러 개를 모아 한 번에 한다.\n\n[[img:L17-53.png|p.53: Pending writes 를 한 번의 write 로|large]]\n\n{quiz}Prefetching 과 demand paging 의 차이를 한 문장으로.{/quiz}\n{answer}Demand paging 은 '''접근할 때''', prefetching 은 곧 쓰일 것 같은 page 를 '''미리''' 가져온다.{/answer}\n\n== 관련 문서 ==\n* [[스와핑]] · [[페이지 교체 정책]] · [[Clock 알고리즘]] · [[PTE 플래그]]"
+ },
+ "I/O 장치": {
+  "title": "I/O 장치와 HDD (18강)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "{info}18강 슬라이드 `18-IO_Devices_and_HDD.pdf`(53쪽) 기준이다. 수업 전에 쓴 문서라 녹음 내용은 아직 없다. 수업 중에는 아래 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}\n\n17강까지는 메모리 가상화를 다뤘다. 18강부터는 '''영속성'''([[영속성]]) 부분이다. OS 가 장치와 어떻게 이야기하는지(p.2~19), 하드디스크가 어떻게 생겼고 얼마나 느린지(p.20~30), 요청 순서를 어떻게 정하는지(p.31~40), 디스크 여러 개를 어떻게 묶는지(p.41~51)를 배운다.\n\n== 슬라이드 ↔ 문서 (수업 중 따라가기) ==\n{|\n! 슬라이드 || 내용 || 문서\n|-\n| p.2~5 || I/O 의 중요성, bus 계층 구조 || [[I/O 시스템 구조]]\n|-\n| p.6~8 || status · command · data register, canonical device, 세 가지 질문 || [[canonical device]]\n|-\n| p.9~12 || polling, interrupt, 언제 무엇을 쓰나 ⭐⭐⭐ || [[polling과 interrupt]]\n|-\n| p.13~15 || programmed I/O, DMA ⭐⭐⭐ || [[PIO와 DMA]]\n|-\n| p.16~19 || port-mapped I/O, memory-mapped I/O, 세 질문의 답 ⭐⭐ || [[memory-mapped I/O]]\n|-\n| p.21~26 || platter · surface · track · sector · cylinder ⭐⭐ || [[HDD 구조]]\n|-\n| p.27~28 || seek · rotational latency · transfer 계산 ⭐⭐⭐ || [[디스크 접근 시간]]\n|-\n| p.29~30 || logical block, bad sector remap ⭐ || [[logical block]]\n|-\n| p.32~34, p.40 || 디스크 스케줄링이 왜 필요한가, I/O queue, 정책 고르기 ⭐⭐ || [[디스크 스케줄링]]\n|-\n| p.35 || FCFS, 640 ⭐⭐⭐ || [[FCFS]]\n|-\n| p.36 || SSTF, 236, starvation ⭐⭐⭐ || [[SSTF]]\n|-\n| p.37~38 || SCAN (elevator), 슬라이드 208 의 정체 ⭐⭐⭐ || [[SCAN]]\n|-\n| p.39 || C-SCAN ⭐⭐⭐ || [[C-SCAN]]\n|-\n| p.42~43 || RAID 개념, 평가 기준 (p.42 위에 \"Don't memorize\") || [[RAID]]\n|-\n| p.44~47 || RAID 0 striping, RAID 1 mirroring, 실패율 계산 ⭐⭐ || [[RAID 0과 RAID 1]]\n|-\n| p.48~49 || RAID 4, parity XOR, 복구 ⭐⭐ || [[RAID 4와 parity]]\n|-\n| p.50~51 || RAID 5 분산 parity, RAID 6 || [[RAID 5와 RAID 6]]\n|}\n\n== p.2 질문 세 개 ==\n{def}p.2: \"How should I/O be integrated into systems? What are the general mechanisms? How can we make this efficiently?\"{/def}\n\n프로그램은 입력과 출력이 없으면 쓸모가 없다. 그래서 OS 는 장치를 시스템에 붙이는 방법, 장치를 다루는 일반적인 방법, 그것을 효율적으로 하는 방법을 정해야 한다. p.8 의 세 질문과 p.19 의 답이 이 강의 앞부분의 뼈대다.\n\n<pre class=\"ascii\">\n질문 (p.8)                              답 (p.19)\nI/O 가 끝났는지 누가 확인하나?         CPU 가 확인 = [[polling과 interrupt|Polling]]     장치가 알림 = [[polling과 interrupt|Interrupt]]\n메모리 ↔ 장치 데이터는 누가 옮기나?     CPU 가 복사 = [[PIO와 DMA|Programmed I/O]]     장치가 복사 = [[PIO와 DMA|DMA]]\n장치를 어떻게 \"주소\"로 부르나?          메모리와 다르게 = [[memory-mapped I/O|Port-mapped I/O]]   메모리처럼 = [[memory-mapped I/O|Memory-mapped I/O]]\n<\/pre>\n\n== p.25~28 디스크 접근 한 번 ==\n[[anim:disk_seek_rotate|seek, rotation, transfer 순서를 보고 나서 디스크 접근 시간 계산을 읽을 것]]\n\n== p.34~39 같은 요청, 네 정책 ==\n<pre class=\"ascii\">\nhead 53, queue = 98, 183, 37, 122, 14, 124, 65, 67, 디스크 0~199\n정책      방문 순서                                          이동량\nFCFS      53 98 183 37 122 14 124 65 67                       640\nSSTF      53 65 67 37 14 98 122 124 183                       236\nSCAN      53 37 14 0 65 67 98 122 124 183                     236  (슬라이드 글자는 208)\nC-SCAN    53 65 67 98 122 124 183 199 → 0 14 37               382  (복귀 199 포함)\n<\/pre>\n\n[[sim:disk_sched]]\n\n{warn}p.37 SCAN 의 \"Total head movement of 208\" 은 그림과 맞지 않는다. 그림은 0 까지 내려가므로 53 + 183 = '''236''' 이다. 208 은 0 까지 가지 않고 14 에서 바로 도는 LOOK 의 값(39 + 169)이다. 자세한 것은 [[SCAN]].{/warn}\n\n== 시험 대비 핵심 요약 ==\n# Device 의 hardware interface 는 status, command, data register 세 개다.\n# Polling 은 CPU 가 status 를 반복해서 읽는다. Interrupt 는 장치가 끝나면 알린다. 빠른 장치는 polling, 느린 장치는 interrupt.\n# PIO 는 CPU 가 데이터를 옮긴다. DMA 는 DMA controller 가 옮기고 끝나면 interrupt 를 건다.\n# Port-mapped I/O 는 in/out 같은 특권 명령, memory-mapped I/O 는 보통 load/store.\n# Taccess = Tavg seek + Tavg rotation + Tavg transfer. Tavg rotation = 1/2 × 60/RPM. Seek 과 rotation 이 거의 전부다.\n# 7200 RPM, seek 9 ms, 400 sectors/track 이면 4 ms, 0.02 ms, 합 약 13.02 ms.\n# 디스크 스케줄링 이동량: FCFS 640, SSTF 236, SCAN 236(그림 기준), C-SCAN 382(복귀 포함).\n# SSTF 는 SJF 와 같은 꼴이라 starvation 이 생길 수 있다. 부하가 크면 SCAN, C-SCAN 이 낫다.\n# RAID 0 은 striping(실패율 1 − (1 − r)^n), RAID 1 은 mirroring(r^n), RAID 4 는 parity 디스크 하나, RAID 5 는 parity 분산, RAID 6 은 parity 둘.\n# Parity 는 XOR 이다. 잃은 블록은 나머지 블록을 모두 XOR 하면 나온다.\n\n== 관련 문서 ==\n* [[기말고사]] · [[스와핑]](17강, 디스크를 swap space 로 쓰는 쪽) · [[I/O와 스케줄링]](5강, I/O 중 CPU 겹치기) · [[인터럽트]] · [[영속성]]"
+ },
+ "I/O 시스템 구조": {
+  "title": "I/O 시스템 구조 (bus 계층)",
+  "category": [
+   "18강 I/O Devices and HDD"
+  ],
+  "body": "CPU, 메모리, 장치가 어떤 bus 로 이어지는지와 그 구조가 계층인 이유를 다룬다. 슬라이드 18강 p.3~5.\n\n== p.3 Prototypical System Architecture ==\n[[img:L18-03.png|p.3 memory bus, general I/O bus, peripheral I/O bus|medium]]\n\n* CPU 는 '''memory bus'''(예: AXI)로 메인 메모리와 붙는다.\n* 그래픽처럼 빠른 장치는 '''general I/O bus'''(예: PCIe)에 붙는다.\n* 디스크, USB 같은 느린 장치는 '''peripheral I/O bus'''(예: SCSI, SATA, USB)에 붙는다.\n\nCPU 에서 멀어질수록 bus 가 느려진다.\n\n== p.4 실제 메인보드 ==\n[[img:L18-04.png|p.4 DIMM, PCIe 슬롯, SATA 포트, USB 포트|medium]]\n\nDIMM 슬롯이 CPU 바로 옆에 있고, PCIe 슬롯, SATA 포트, USB 포트가 차례로 더 멀리 있다.\n\n== p.5 왜 계층으로 만드나 ==\n{def}p.5: \"Why do we need a hierarchical structure? '''physics and cost'''. The faster a bus is, the shorter it must be.\"{/def}\n\n이유는 물리와 비용 두 가지다.\n# 빠른 bus 는 짧아야 한다. 그래서 고성능 memory bus 에는 장치를 꽂을 자리가 많지 않다.\n# 빠른 bus 를 만드는 데는 돈이 많이 든다.\n\n그래서 GPU 처럼 높은 성능이 필요한 장치는 CPU 가까이에 두고, HDD 처럼 느린 장치는 멀리 있는 느린 bus 에 많이 붙인다.\n\n{quiz}HDD 를 memory bus 에 직접 붙이지 않는 이유 두 가지를 p.5 의 표현으로 쓰시오.{/quiz}\n{answer}Physics(빠른 bus 는 짧아야 해서 꽂을 자리가 적다)와 cost(고성능 bus 는 만들기 비싸다). 느린 장치는 멀리 있는 느린 bus 에 많이 붙인다.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[canonical device]] · [[메모리 계층]]"
+ },
+ "canonical device": {
+  "title": "Canonical Device (표준 장치 모델)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "OS 가 보는 장치의 모양(레지스터 세 개)과 장치 안쪽 구조, 그리고 장치와 주고받을 때 생기는 세 질문을 다룬다. 슬라이드 18강 p.6~8.\n\n== p.6 Hardware Interface ⭐⭐ ==\n{def}p.6: \"Three registers are minimally required. '''Status register''': see the current status of the device. '''Command register''': tell the device to perform a certain task. '''Data register''': pass data to the device or get data from the device.\"{/def}\n\nOS 는 이 세 레지스터를 읽고 쓰는 것만으로 장치를 다룬다.\n{|\n! 레지스터 || 하는 일\n|-\n| status || 장치가 지금 어떤 상태인지 본다 (예: BUSY)\n|-\n| command || 장치에게 할 일을 시킨다\n|-\n| data || 장치에 데이터를 주거나 받아 온다\n|}\n\n== p.7 Canonical Device ==\n[[img:L18-07.png|p.7 interface(레지스터)와 internals(마이크로컨트롤러·메모리·전용 칩)|medium]]\n\n{def}p.7: \"'''Hardware interface''' allows the system software to control its operation. '''Internal structure''' which is implementation specific.\"{/def}\n\n장치는 두 부분으로 나뉜다.\n* Interface: 위의 레지스터 세 개. OS 는 이것만 본다.\n* Internals: 펌웨어를 돌리는 마이크로컨트롤러, DRAM/SRAM, 전용 칩. 장치마다 다르다.\n\nOS 는 안쪽을 몰라도 된다. 인터페이스만 같으면 같은 방법으로 다룰 수 있다.\n\n== p.8 세 가지 질문 ==\np.8 은 장치와 주고받을 때 정해야 하는 것을 세 질문으로 묻는다. 답은 p.19 에 있다.\n# I/O 가 끝났는지 누가 확인하나? CPU 가 확인하거나 장치가 알린다. [[polling과 interrupt]]\n# 메모리와 장치 사이의 데이터는 누가 옮기나? CPU 가 복사하거나 장치가 메모리에서 가져간다. [[PIO와 DMA]]\n# 장치를 어떻게 \"주소\"로 부르나? 메모리와 다르게 부르거나 메모리처럼 부른다. [[memory-mapped I/O]]\n\n{quiz}OS 가 장치에 \"이 일을 하라\"고 시킬 때 쓰는 레지스터와, 장치가 바쁜지 확인할 때 읽는 레지스터는 각각 무엇인가?{/quiz}\n{answer}시킬 때는 '''command register''', 확인할 때는 '''status register'''. 데이터는 data register 로 주고받는다.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[polling과 interrupt]] · [[I/O 시스템 구조]]"
+ },
+ "polling과 interrupt": {
+  "title": "Polling 과 Interrupt",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "I/O 가 끝났는지 CPU 가 계속 확인하는 방식(polling)과 장치가 알려 주는 방식(interrupt)을 비교한다. 슬라이드 18강 p.9~12.\n\n== p.9 전형적인 상호작용 ==\n[[img:L18-09.png|p.9 두 while 문이 polling, 가운데 두 줄이 programmed I/O|medium]]\n\n<pre class=\"c\">\nwhile (STATUS == BUSY)\n    ;   // wait until device is not busy\nwrite data to data register\nwrite command to command register\n    // (Doing so starts the device and executes the command)\nwhile (STATUS == BUSY)\n    ;   // wait until device is done with your request\n<\/pre>\n\n# 1~2줄: 장치가 바쁘지 않을 때까지 status 를 읽는다. 이것이 '''polling''' 이다.\n# 3줄: data register 에 데이터를 쓴다.\n# 4줄: command register 에 명령을 쓴다. 이 순간 장치가 일을 시작한다.\n# 6~7줄: 장치가 끝날 때까지 다시 polling 한다.\n\n3~4줄처럼 CPU 가 직접 데이터를 옮기는 것을 '''programmed I/O''' 라 한다([[PIO와 DMA]]).\n\n== p.10 Polling ⭐⭐⭐ ==\n{def}p.10: \"Operating system waits until the device is ready by '''repeatedly reading the status register'''. A positive aspect is simple and working. However, it '''wastes CPU time''' just waiting for the device.\"{/def}\n\n[[img:L18-10.png|p.10 CPU 가 p(polling)로 5칸을 버린다|medium]]\n\n<pre class=\"ascii\">\nCPU   1 1 1 1 1 p p p p p 1 1 1 1 1      p = polling\nDisk            1 1 1 1 1\n<\/pre>\n\n디스크가 task 1 의 I/O 를 하는 5칸 동안 CPU 는 status 만 읽는다. 그 시간에 다른 ready 프로세스를 돌리는 편이 CPU 를 더 잘 쓴다.\n\n== p.11 Interrupt ⭐⭐⭐ ==\n{def}p.11: \"Issue a request, '''put the calling process to sleep''', and '''context switch''' to another task. When the device is finished, wake the process waiting for I/O by interrupt.\"{/def}\n\n<pre class=\"ascii\">\nCPU   1 1 1 1 1 2 2 2 2 2 1 1 1 1 1\nDisk            1 1 1 1 1\n<\/pre>\n\n# task 1 이 I/O 를 요청한다.\n# OS 가 task 1 을 재우고(blocked) task 2 로 [[컨텍스트 스위치|context switch]] 한다.\n# 디스크가 끝나면 [[인터럽트|interrupt]] 를 건다.\n# OS 의 interrupt handler 가 task 1 을 깨운다.\n\nCPU 와 디스크가 같은 시간에 둘 다 일한다. 5강 [[I/O와 스케줄링]]의 overlap 과 같은 그림이다.\n\n[[sim:io_timeline]]\n\n== p.12 무엇을 쓸까 ⭐⭐⭐ ==\n{def}p.12: \"Interrupts is not always the best solution. If device performs very quickly, interrupt will 'slow down' the system, because '''context switch is expensive'''. If a device is fast → '''poll''' is best. If it is slow → '''interrupt''' is better.\"{/def}\n\nInterrupt 는 공짜가 아니다. 프로세스를 재우고 다른 프로세스로 바꾸고 다시 깨우는 데 비용이 든다. 장치가 그 비용보다 빨리 끝나면 잠깐 polling 하는 쪽이 오히려 빠르다.\n\n{|\n! 장치 || 고를 것 || 이유\n|-\n| 빠름 || polling || 기다리는 시간이 context switch 비용보다 짧다\n|-\n| 느림 || interrupt || 기다리는 동안 다른 task 를 돌릴 수 있다\n|}\n\n{quiz}다음 중 옳은 것을 모두 고르시오.\n① Polling 은 구현이 간단하다.\n② Interrupt 는 항상 polling 보다 빠르다.\n③ 매우 빠른 장치에서 interrupt 를 쓰면 context switch 비용 때문에 오히려 느려질 수 있다.\n④ Interrupt 방식에서 I/O 를 요청한 프로세스는 I/O 가 끝날 때까지 sleep 한다.{/quiz}\n{answer}'''①, ③, ④'''. ② 는 p.12 \"interrupts is not always the best solution\" 에 어긋난다.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[PIO와 DMA]] · [[인터럽트]] · [[프로세스 상태]] · [[I/O와 스케줄링]]"
+ },
+ "PIO와 DMA": {
+  "title": "Programmed I/O (PIO) 와 DMA",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "메모리와 장치 사이의 데이터를 CPU 가 옮기는 방식(PIO)과 전용 장치가 옮기는 방식(DMA)을 다룬다. 슬라이드 18강 p.13~15.\n\n== p.13 Programmed I/O ⭐⭐⭐ ==\n{def}p.13: \"CPU wastes a lot of time to copy a large chunk of data from memory to the device. When CPU is involved with the data movement, we refer to it as '''programmed I/O (PIO)'''.\"{/def}\n\n[[img:L18-13.png|p.13 task 1 이 디스크에 쓰려고 CPU 가 c 3칸을 복사한다(over-burdened)|medium]]\n\n<pre class=\"ascii\">\nCPU   1 1 1 1 c c c 2 2 2 2 2 1 1 1      c = copy data from memory\nDisk                1 1 1 1 1\n<\/pre>\n\nInterrupt 를 써도 데이터 복사는 여전히 CPU 몫이다. 데이터가 크면 c 칸이 길어진다. 슬라이드는 이 구간을 \"over-burdened\" 라고 표시했다.\n\n== p.14 DMA ⭐⭐⭐ ==\n{def}p.14: \"Offload some of the work to a special-purpose processor, called a '''direct-memory-access (DMA) controller'''. Copy data in memory by knowing 1) '''where the data lives in memory''' and 2) '''how much data to copy'''. When completed, DMA '''raises an interrupt'''.\"{/def}\n\n<pre class=\"ascii\">\nCPU   1 1 1 1 2 2 2 2 2 2 2 2 1 1 1\nDMA           C C C\nDisk                1 1 1 1 1\n<\/pre>\n\nCPU 는 DMA controller 에게 \"어디에 있는 데이터를 얼마만큼\" 만 알려 주고 바로 task 2 를 돌린다. 복사는 DMA 가 한다. 그래서 task 2 가 5칸에서 8칸으로 늘었다.\n\n[[sim:io_timeline]]\n\n== p.15 DMA 전송 6단계 ==\n[[img:L18-15.png|p.15 CPU, DMA/bus/interrupt controller, IDE disk controller, buffer X|medium]]\n\n# device driver 가 디스크 데이터를 주소 X 의 buffer 로 옮기라는 지시를 받는다.\n# device driver 가 disk controller 에게 C bytes 를 디스크에서 buffer X 로 옮기라고 한다.\n# disk controller 가 DMA 전송을 시작한다.\n# disk controller 가 각 byte 를 DMA controller 로 보낸다.\n# DMA controller 가 byte 를 buffer X 로 옮긴다. 메모리 주소는 증가하고 C 는 감소한다. C = 0 이 될 때까지 한다.\n# C = 0 이 되면 DMA 가 CPU 에 interrupt 를 걸어 전송이 끝났다고 알린다.\n\n[[anim:dma_flow|CPU 가 2단계 뒤에는 손을 떼고, 6단계 interrupt 에서만 다시 등장하는 것을 볼 것]]\n\n{quiz}PIO 와 DMA 에서 CPU 가 하는 일의 차이를 한 문장으로 쓰고, DMA controller 가 전송을 시작하려면 알아야 하는 두 가지를 쓰시오.{/quiz}\n{answer}PIO 는 CPU 가 데이터를 직접 옮기고, DMA 는 CPU 가 위치와 크기만 알려 주고 다른 일을 한다. DMA 가 알아야 하는 것은 '''데이터가 메모리 어디에 있는지'''와 '''얼마나 옮길지'''.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[polling과 interrupt]] · [[memory-mapped I/O]] · [[인터럽트]]"
+ },
+ "memory-mapped I/O": {
+  "title": "Port-mapped I/O 와 Memory-mapped I/O",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "OS 가 특정 장치의 레지스터를 가리키는 두 방법을 다룬다. 슬라이드 18강 p.16~19.\n\n== p.16 두 방법 ==\n{def}p.16: \"How does OS know which registers it should use to communicate with specific I/O devices? There are two popular methods: '''Special I/O instructions''' (old style), '''Memory-mapped I/O'''.\"{/def}\n\n== p.17 I/O Instruction (Port-mapped I/O) ⭐⭐ ==\n{def}p.17: \"Uses a special class of CPU instructions designed specifically for performing I/O. A representative example is '''in and out instructions''' in x86 machines. Such instructions are usually '''privileged'''.\"{/def}\n\n<pre class=\"c\">\noutb(0x1f2, reg);   // 0x1f2 = port (장치 이름), reg = 데이터가 든 register\n<\/pre>\n\n장치에 데이터를 보낼 때는 두 가지를 정한다.\n# 데이터가 든 register\n# 장치를 가리키는 port 번호\n\nI/O 명령은 보통 [[특권 명령|privileged]] 이다. 그래서 유저 프로그램은 장치를 직접 못 건드리고 OS 를 거쳐야 한다.\n\n== p.18 Memory-mapped I/O ⭐⭐ ==\n{def}p.18: \"The hardware makes device registers available '''as if they were memory locations'''. To access a particular register, the OS issues a '''load''' (to read) or '''store''' (to write) the address (e.g., mov). HW then routes the load/store to the device instead of main memory.\"{/def}\n\n[[img:L18-18.png|p.18 메모리 주소 공간의 일부 범위가 I/O 장치에 배정됨|small]]\n\n주소 공간의 한 구간을 장치 레지스터에 배정한다. 그 구간에 load/store 하면 하드웨어가 메인 메모리 대신 장치로 보낸다. 새 명령이 필요 없다.\n\n{|\n! || Port-mapped I/O || Memory-mapped I/O\n|-\n| 장치를 부르는 법 || 메모리와 다른 port 번호 || 메모리 주소의 한 구간\n|-\n| 쓰는 명령 || in, out 같은 전용 명령 || 보통의 load/store (mov)\n|-\n| p.19 의 분류 || \"Unlike Memory\" || \"Like Memory\"\n|}\n\n== p.19 세 질문의 답 ==\n{|\n! 질문 || 1) || 2)\n|-\n| 누가 I/O 완료를 확인하나 || CPU: Polling || 장치: Interrupt\n|-\n| 누가 데이터를 옮기나 || CPU: Programmed I/O || 장치: DMA\n|-\n| 장치를 어떻게 부르나 || 메모리와 다르게: Port-mapped I/O || 메모리처럼: Memory-mapped I/O\n|}\n\n{quiz}\"장치 레지스터를 메모리 위치처럼 보이게 해서 OS 가 load/store 로 접근하는 방식\"의 이름은?{/quiz}\n{answer}'''Memory-mapped I/O'''.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[canonical device]] · [[특권 명령]] · [[주소 공간]]"
+ },
+ "HDD 구조": {
+  "title": "HDD 구조 (platter, track, sector, cylinder)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "하드디스크의 부품과 데이터가 놓이는 단위, 그리고 sector 하나를 읽는 과정을 다룬다. 슬라이드 18강 p.21~26.\n\n== p.21 부품 ==\n[[img:L18-21.png|p.21 spindle, arm, platters, actuator, electronics, SCSI connector|medium]]\n\nSpindle 이 platter 들을 돌리고, actuator 가 arm 을 움직인다. 디스크 안에는 프로세서와 메모리가 든 전자 회로도 있다([[canonical device]]의 internals).\n\n== p.22~23 Disk Geometry ⭐⭐ ==\n{def}p.22: \"Disks consist of '''platters''', each with two '''surfaces'''. Each surface consists of concentric rings called '''tracks'''. Each track consists of '''sectors''' separated by gaps.\"{/def}\n{def}p.23: \"Aligned tracks form a '''cylinder'''. Read/write heads move in unison from cylinder to cylinder.\"{/def}\n\n[[img:L18-23.png|p.23 platter 3장, surface 6면, 같은 반지름의 track 들이 cylinder k|medium]]\n\n<pre class=\"ascii\">\nplatter ⊃ surface (양면 2개) ⊃ track (동심원) ⊃ sector (gap 으로 구분)\ncylinder = 모든 surface 에서 같은 반지름에 있는 track 들\n<\/pre>\n\nHead 는 surface 마다 하나씩 있고 함께 움직인다. 그래서 head 를 한 번 옮기면 한 cylinder 전체가 head 아래에 놓인다.\n\n== p.24~25 Disk Operation ==\n* Surface 는 일정한 속도로 돈다. p.25 그림은 counter-clockwise 다.\n* Head 는 arm 끝에 붙어 얇은 공기층 위를 난다.\n* Arm 이 반지름 방향으로 움직여 head 를 원하는 track 위에 둔다.\n* Head 가 sector 위를 지나는 동안 controller 가 그 sector 를 읽거나 쓴다.\n\n== p.26 sector 하나를 읽는 과정 ⭐⭐⭐ ==\n[[img:L18-26.png|p.26 After BLUE read → Seek for RED → Rotational latency → After RED read|large]]\n\n# 파란 sector 를 다 읽었다 (data transfer).\n# 빨간 sector 가 있는 track 으로 head 를 옮긴다 (seek).\n# 빨간 sector 가 head 밑으로 돌아올 때까지 기다린다 (rotational latency).\n# 빨간 sector 를 읽는다 (data transfer).\n\n[[anim:disk_seek_rotate|세 구간 시간이 어떻게 나뉘는지 보고 디스크 접근 시간으로 넘어갈 것]]\n\n이 세 구간의 시간을 더한 것이 [[디스크 접근 시간]]이다.\n\n{quiz}모든 surface 에서 같은 반지름 위치에 있는 track 들의 묶음을 무엇이라 하는가?{/quiz}\n{answer}'''Cylinder'''.{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[디스크 접근 시간]] · [[logical block]]"
+ },
+ "디스크 접근 시간": {
+  "title": "디스크 접근 시간 (Seek, Rotational latency, Transfer)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "Sector 하나에 접근하는 평균 시간을 세 부분으로 나눠 계산한다. 슬라이드 18강 p.27~28.\n\n== p.27 세 구성 요소 ⭐⭐⭐ ==\n{def}p.27: \"Taccess = Tavg seek + Tavg rotation + Tavg transfer.\"{/def}\n\n{|\n! 구성 요소 || 정의 (p.27) || 식\n|-\n| '''Seek time''' || Time to position heads over cylinder containing target sector || 주어진 값 (보통 3~9 ms)\n|-\n| '''Rotational latency''' || Time waiting for first bit of target sector to pass under r/w head || 1/2 × (60 / RPM) 초\n|-\n| '''Transfer time''' || Time to read the bits in the target sector || (60 / RPM) × 1 / (avg sectors/track) 초\n|}\n\n* 60 / RPM 은 한 바퀴 도는 시간(초)이다.\n* 평균으로는 반 바퀴를 기다리므로 rotation 은 그 1/2 이다.\n* Sector 하나는 한 바퀴의 1/(sectors/track) 만큼이라 transfer 는 한 바퀴 시간을 sector 수로 나눈다.\n\n{warn}p.27 의 \"Typical Tavg rotation = 7200 RPMs\" 는 표현이 어긋났다. 7200 RPM 은 회전 속도이고, 그때의 Tavg rotation 은 약 4 ms 다.{/warn}\n\n== p.28 계산 예 ⭐⭐⭐ ==\n{def}p.28 Given: rotational rate = 7,200 RPM, average seek time = 9 ms, avg # sectors/track = 400.{/def}\n\n<pre class=\"txt\">\n한 바퀴 = 60 / 7200 초 = 8.33 ms\nTavg rotation = 1/2 × 8.33 ms = 4.17 ms ≈ 4 ms\nTavg transfer = 8.33 ms / 400 = 0.0208 ms ≈ 0.02 ms\nTaccess = 9 + 4 + 0.02 = '''13.02 ms'''\n<\/pre>\n\n슬라이드는 합을 적지 않았다. 반올림 전 값으로 더하면 13.19 ms 다.\n\n{def}p.28 Important points: \"Access time dominated by '''seek time and rotational latency'''. '''First bit in a sector is the most expensive, the rest are free.'''\"{/def}\n\n13.02 ms 중 transfer 는 0.02 ms 뿐이다. Sector 의 첫 bit 까지 가는 데 거의 모든 시간이 들고, 그다음 bit 들은 거의 공짜다. 그래서 OS 는 seek 와 rotation 을 줄이려고 [[디스크 스케줄링]]을 한다.\n\n== p.28 메모리와 비교 ==\np.28 은 SRAM 이 doubleword 당 약 4 ns, DRAM 이 약 60 ns 이고 디스크는 SRAM 보다 약 40,000 배, DRAM 보다 약 2,500 배 느리다고 한다.\n\n슬라이드에는 결과만 있다. 아래 유도는 참고 문헌 CSAPP 6.1.2 의 계산으로, 512 byte sector 크기 블록(doubleword 64개)을 읽는 시간으로 비교한다. 디스크 10 ms 와 4,000 ns 는 어림값이다(슬라이드 예제의 13.02 ms 와 다르다).\n<pre class=\"txt\">\nSRAM: 64 × 4 ns = 256 ns\nDRAM: 64 × 60 ns = 3,840 ns ≈ 4,000 ns\n디스크 ≈ 10 ms = 10,000,000 ns\n10,000,000 / 256 ≈ 40,000\n10,000,000 / 4,000 = 2,500\n<\/pre>\n\n[[anim:disk_seek_rotate|막대 길이가 실제 비율이다. transfer 는 거의 보이지 않는다]]\n\n{quiz}15,000 RPM, 평균 seek 4 ms, track 당 평균 500 sector 인 디스크의 Taccess 는?{/quiz}\n{answer}한 바퀴 60/15000 = 4 ms. rotation = 2 ms. transfer = 4 / 500 = 0.008 ms. Taccess = 4 + 2 + 0.008 = '''6.008 ms'''.{/answer}\n\n{quiz}10,000 RPM, 평균 seek 5 ms, track 당 평균 500 sector 일 때 Tavg rotation 과 Taccess 는?{/quiz}\n{answer}한 바퀴 6 ms, rotation '''3 ms''', transfer 6/500 = 0.012 ms. Taccess = 5 + 3 + 0.012 = '''8.012 ms'''.{/answer}\n\n== 관련 문서 ==\n* [[HDD 구조]] · [[디스크 스케줄링]] · [[effective access time]](17강, page fault 8 ms 의 출처) · [[SRAM과 DRAM]]"
+ },
+ "logical block": {
+  "title": "Logical Block (논리 블록과 sector 매핑)",
+  "category": [
+   "18강 I/O Devices and HDD"
+  ],
+  "body": "디스크가 복잡한 sector 위치를 숨기고 OS 에게 번호 붙은 블록 배열만 보여 주는 방법을 다룬다. 슬라이드 18강 p.29~30.\n\n== p.29 Logical Disk Blocks ==\n{def}p.29: \"The set of available sectors is modeled as a sequence of b-sized '''logical blocks''' (0, 1, 2, ...). Mapping between logical blocks and actual (physical) sectors is maintained by hardware/firmware device called '''disk controller'''. Converts requests for logical blocks into '''(surface, track, sector)''' triples.\"{/def}\n\nOS 는 \"블록 n 을 읽어라\" 라고만 한다. Disk controller 가 n 을 (surface, track, sector) 로 바꾼다. OS 는 디스크 안쪽 구조를 몰라도 된다.\n\n== p.30 매핑 방법 ==\n[[img:L18-30.png|p.30 연속 블록 0~5 를 이웃 sector 에, bad sector 의 블록 4 를 다른 곳으로|medium]]\n\n# 연속된 logical block 을 이웃한 sector 에 그대로 놓는다. 간단하고, I/O 의 spatial [[locality]] 를 살린다.\n# Bad sector 에 놓일 블록 몇 개는 멀쩡한 sector 로 옮긴다(remap). 이 블록을 읽으면 head 가 멀리 다녀와야 해서 성능이 떨어질 수 있다.\n\n{info}[[디스크 스케줄링]]의 예제(p.34)도 \"logical blocks\", \"LBA\" 로 위치를 적는다. 이웃한 번호가 실제로도 가깝다는 가정 덕분에 번호 차이를 head 이동 거리로 쓸 수 있다.{/info}\n\n{quiz}Logical block 번호를 (surface, track, sector) 로 바꾸는 주체는?{/quiz}\n{answer}디스크 안의 hardware/firmware 인 '''disk controller'''. OS 가 아니다.{/answer}\n\n== 관련 문서 ==\n* [[HDD 구조]] · [[디스크 스케줄링]] · [[locality]]"
+ },
+ "디스크 스케줄링": {
+  "title": "디스크 스케줄링 (Disk Scheduling)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "밀린 I/O 요청 중 무엇을 먼저 처리할지 정해 head 이동을 줄이는 방법을 다룬다. 슬라이드 18강 p.32~40.\n\n== p.32 왜 필요한가 ==\n{def}p.32: \"How to improve access time & throughput of HDDs. Seek time and rotational latency are dominant. '''Reduce the movement of disk arms!'''\"{/def}\n\n[[디스크 접근 시간]]은 seek 과 rotation 이 거의 전부다. 요청 순서만 바꿔도 arm 이 덜 움직인다.\n\n== p.33 I/O 요청과 I/O queue ==\n[[img:L18-33.png|p.33 App → OS 의 I/O Queue → Disk request|medium]]\n\nI/O 요청에는 다음 정보가 있다.\n* 읽기인지 쓰기인지\n* 메모리 주소\n* 디스크 주소(offset)\n* 옮길 sector 수(length)\n\n디스크가 놀고 있으면 요청을 바로 처리한다. 바쁘면 '''I/O queue''' 에 넣는다. Queue 에 요청이 여러 개 쌓이면 OS 가 다음에 처리할 것을 고른다. 이것이 '''I/O (disk) scheduling''' 이다.\n\n== p.34 예제 ⭐⭐⭐ ==\n{def}p.34: Head pointer: '''53''' (LBA). Requests: '''98, 183, 37, 122, 14, 124, 65, 67'''.{/def}\n\n디스크 범위 0~199 는 p.35~39 그림의 눈금에서 가져왔다.\n\n이 예제로 네 정책을 비교한다. 이동량은 지나간 위치 차이의 절댓값을 모두 더한 것이다.\n\n{|\n! 정책 || 방문 순서 || 이동량 || 문서\n|-\n| FCFS || 53 98 183 37 122 14 124 65 67 || 640 || [[FCFS]]\n|-\n| SSTF || 53 65 67 37 14 98 122 124 183 || 236 || [[SSTF]]\n|-\n| SCAN || 53 37 14 0 65 67 98 122 124 183 || 236 (슬라이드 글자 208) || [[SCAN]]\n|-\n| C-SCAN || 53 65 67 98 122 124 183 199 0 14 37 || 382 (복귀 199 포함) || [[C-SCAN]]\n|}\n\n[[sim:disk_sched]]\n\n== p.40 어떤 정책을 고르나 ⭐⭐ ==\n{def}p.40: \"Scheduling performance depends on the number and types of requests. '''SSTF is common''' and has a natural appeal. '''SCAN and C-SCAN''' perform better for systems that place a '''heavy load''' on the disk because of '''less starvation'''.\"{/def}\n\n* 보통은 SSTF 를 많이 쓴다. 이동량이 작고 자연스럽다.\n* 디스크 부하가 크면 SCAN, C-SCAN 이 낫다. SSTF 는 먼 요청을 계속 미뤄 starvation 이 생기지만, SCAN 계열은 한 번 쓸고 지나갈 때 반드시 처리한다.\n\n{quiz}head 100, 디스크 0~199, queue = 55, 58, 39, 18, 90, 160, 150, 38, 184 일 때 FCFS, SSTF, SCAN(0 쪽으로 먼저), C-SCAN(199 쪽으로, 복귀 포함)의 이동량을 구하시오.{/quiz}\n{answer}\n* FCFS: 45 + 3 + 19 + 21 + 72 + 70 + 10 + 112 + 146 = '''498'''\n* SSTF: 100 → 90 → 58 → 55 → 39 → 38 → 18 → 150 → 160 → 184, 10 + 32 + 3 + 16 + 1 + 20 + 132 + 10 + 24 = '''248'''\n* SCAN: 100 → … → 18 → 0 → 150 → 160 → 184, 100 + 184 = '''284'''\n* C-SCAN: 100 → 150 → 160 → 184 → 199 → 0 → 18 → … → 90, 99 + 199 + 90 = '''388'''\n시뮬레이터에서 요청을 \"연습\" 으로 바꾸면 같은 값이 나온다.\n{/answer}\n\n== 관련 문서 ==\n* [[I/O 장치]] · [[디스크 접근 시간]] · [[스케줄링]](5강 CPU 스케줄링과 비교) · [[SJF]]"
+ },
+ "FCFS": {
+  "title": "FCFS 디스크 스케줄링 (First-Come First-Served)",
+  "category": [
+   "18강 I/O Devices and HDD"
+  ],
+  "body": "요청이 들어온 순서대로 처리하는 가장 단순한 디스크 스케줄링이다. 슬라이드 18강 p.35.\n\n== p.35 정의와 예제 ⭐⭐⭐ ==\n{def}p.35: \"First-Come and First-Served (FCFS) is the simplest algorithm. → Total head movement of '''640'''.\"{/def}\n\n[[img:L18-35.png|p.35 head 53 에서 queue 순서대로 왔다 갔다 한다|medium]]\n\n<pre class=\"txt\">\n53 → 98    45\n98 → 183   85\n183 → 37   146\n37 → 122   85\n122 → 14   108\n14 → 124   110\n124 → 65   59\n65 → 67    2\n합계       '''640'''\n<\/pre>\n\n공평하지만 head 가 디스크 양 끝을 계속 오간다. 183 에서 37 로 갔다가 다시 122 로 가는 것처럼 낭비가 크다.\n\n5강 CPU 스케줄링의 [[FIFO]] 와 같은 생각이다.\n\n[[sim:disk_sched]]\n\n== 관련 문서 ==\n* [[디스크 스케줄링]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]]"
+ },
+ "SSTF": {
+  "title": "SSTF 디스크 스케줄링 (Shortest Seek Time First)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "지금 head 위치에서 가장 가까운 요청을 먼저 처리한다. 슬라이드 18강 p.36.\n\n== p.36 정의 ⭐⭐⭐ ==\n{def}p.36: \"Shortest Seek Time First (SSTF) selects the request with the '''minimum seek time from the current head position'''. SSTF scheduling is a form of '''SJF''' scheduling; may cause '''starvation''' of some requests. → Total head movement of '''236'''.\"{/def}\n\n[[img:L18-36.png|p.36 53 → 65 → 67 → 37 → 14 → 98 → 122 → 124 → 183|medium]]\n\n== 손으로 돌리기 ==\n매번 남은 요청 중 지금 위치와 차이가 가장 작은 것을 고른다.\n\n<pre class=\"txt\">\n53: 65(12) vs 37(16)        → 65   이동 12\n65: 67(2)                   → 67   이동 2\n67: 37(30) vs 98(31)        → 37   이동 30\n37: 14(23) vs 98(61)        → 14   이동 23\n14: 98(84)                  → 98   이동 84\n98: 122(24)                 → 122  이동 24\n122: 124(2)                 → 124  이동 2\n124: 183(59)                → 183  이동 59\n합계                        '''236'''\n<\/pre>\n\n67 에서 37(30) 과 98(31) 이 한 칸 차이다. 여기서 잘못 고르면 답이 달라지므로 시험에서는 차이를 꼭 적어 비교한다.\n\n[[sim:disk_sched]]\n\n== starvation ==\nSSTF 는 CPU 스케줄링의 [[SJF]] 와 같은 꼴이다. 가까운 요청이 계속 들어오면 멀리 있는 요청은 계속 밀린다. 그래서 일부 요청이 starvation 에 빠질 수 있다.\n\n{quiz}SSTF 가 SJF 의 한 형태라고 하는 이유와, 그로 인해 생기는 문제를 쓰시오.{/quiz}\n{answer}\"처리 비용(seek 거리)이 가장 작은 것부터\" 고르는 점이 \"실행 시간이 가장 짧은 job 부터\" 고르는 SJF 와 같다. 그래서 멀리 있는 요청이 계속 밀리는 '''starvation''' 이 생길 수 있다.{/answer}\n\n== 관련 문서 ==\n* [[디스크 스케줄링]] · [[FCFS]] · [[SCAN]] · [[SJF]]"
+ },
+ "SCAN": {
+  "title": "SCAN 디스크 스케줄링 (Elevator Algorithm)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "Arm 이 한쪽 끝에서 다른 쪽 끝으로 쓸고 가며 요청을 처리한다. 엘리베이터와 같은 방식이다. 슬라이드 18강 p.37~38.\n\n== p.37 정의 ⭐⭐⭐ ==\n{def}p.37: \"The disk arm starts at one end of the disk and moves toward the other end, servicing requests until it gets to the other end of the disk.\"{/def}\n\n[[img:L18-37.png|p.37 53 에서 아래로 37, 14, 0 까지 간 뒤 위로 65 ~ 183|medium]]\n\n그림에서는 head 가 53 에서 아래(0 쪽)로 움직인다. 37, 14 를 처리하고 디스크 끝 0 까지 간 뒤 방향을 바꿔 65, 67, 98, 122, 124, 183 을 처리한다.\n\n<pre class=\"txt\">\n53 → 37    16\n37 → 14    23\n14 → 0     14\n0 → 65     65\n65 → 67    2\n67 → 98    31\n98 → 122   24\n122 → 124  2\n124 → 183  59\n합계       '''236'''   (= 53 + 183)\n<\/pre>\n\n{warn}슬라이드의 \"Total head movement of '''208'''\" 은 그림과 맞지 않는다. 그림대로 0 까지 가면 '''236''' 이다. 208 은 0 까지 가지 않고 14 에서 바로 방향을 바꾸는 '''LOOK''' 의 값이다(53 − 14 = 39, 183 − 14 = 169, 합 208). 시험에서는 문제가 \"끝까지 간다\" 고 하면 236 으로, 슬라이드 숫자를 그대로 물으면 208 로 답이 갈릴 수 있으니 수업에서 교수님이 어느 쪽으로 말하는지 확인할 것.{/warn}\n\n[[sim:disk_sched]]\n\n그림 왼쪽 아래의 \"I/O requests may arrive while moving the head\" 는 arm 이 움직이는 중에도 새 요청이 들어올 수 있다는 뜻이다. 그런 요청은 arm 이 지나갈 때 처리된다.\n\n== p.38 SCAN 의 문제 ==\n{def}p.38: \"If a request arrives in the queue just in front of the head, it will be served almost immediately. Otherwise, a request will have to wait until the arm moves to the end of the disk, reverses direction, and comes back.\"{/def}\n\nHead 바로 앞에 들어온 요청은 곧바로 처리된다. 방금 지나간 자리에 들어온 요청은 끝까지 갔다가 돌아올 때까지 기다린다. 위치에 따라 기다리는 시간이 크게 다르다. 이것을 고친 것이 [[C-SCAN]] 이다.\n\n{quiz}SCAN 에서 대기 시간이 가장 긴 요청은 어디에 들어온 요청인가?{/quiz}\n{answer}Head 가 '''방금 지나간 자리 바로 뒤'''에 들어온 요청. 끝까지 갔다가 방향을 바꿔 돌아올 때까지 기다린다.{/answer}\n\n== 관련 문서 ==\n* [[디스크 스케줄링]] · [[SSTF]] · [[C-SCAN]]"
+ },
+ "C-SCAN": {
+  "title": "C-SCAN 디스크 스케줄링 (Circular SCAN)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "한 방향으로만 요청을 처리하고, 끝에 닿으면 처리 없이 처음으로 돌아간다. 슬라이드 18강 p.39.\n\n== p.39 정의 ⭐⭐⭐ ==\n{def}p.39: \"The head moves from one end of the disk to the other, servicing requests. When it reaches the other end, however, it '''immediately returns to the beginning''' of the disk, '''without servicing any requests on the return trip'''.\"{/def}\n\n[[img:L18-39.png|p.39 53 에서 위로 199 까지, 0 으로 복귀, 14, 37|medium]]\n\n<pre class=\"txt\">\n53 → 65 → 67 → 98 → 122 → 124 → 183   130\n183 → 199 (끝)                          16\n199 → 0 (복귀, 처리 없음)               199\n0 → 14 → 37                             37\n합계 (복귀 포함)                        '''382'''\n복귀를 빼면                             183\n<\/pre>\n\n슬라이드에는 C-SCAN 이동량이 없다. 복귀를 더할지는 문제의 말을 따른다.\n\n[[sim:disk_sched]]\n\n== SCAN 과 비교 ==\n[[SCAN]] 은 양방향으로 처리해서 위치에 따라 대기 시간이 많이 다르다. C-SCAN 은 디스크를 원형 리스트처럼 다룬다. 모든 위치가 한 바퀴에 한 번씩 같은 방향으로 처리되므로 대기 시간이 더 고르다.\n\n{quiz}C-SCAN 이 돌아오는 길(199 → 0)에 요청을 처리하지 않는 이유는?{/quiz}\n{answer}모든 요청을 같은 방향으로만 처리해 대기 시간을 고르게 하려고. 돌아오는 길에도 처리하면 SCAN 과 같아져 위치에 따른 대기 시간 차이가 다시 생긴다.{/answer}\n\n== 관련 문서 ==\n* [[디스크 스케줄링]] · [[SCAN]] · [[FCFS]]"
+ },
+ "RAID": {
+  "title": "RAID (Redundant Array of Inexpensive Disks)",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "디스크 여러 개를 하나의 큰 디스크처럼 묶는 방법과 그 평가 기준을 다룬다. 슬라이드 18강 p.42~43.\n\n{info}p.42 제목 위에 작은 글씨로 \"Don't memorize\" 가 있다. 제목 바로 위라서 약어 풀이(Redundant Array of Inexpensive Disks)를 외우지 말라는 뜻인지, RAID 절 전체를 외우지 말라는 뜻인지 슬라이드만으로는 알 수 없다. 수업에서 확인할 것. 레벨별 장단점과 실패율 계산은 아래 문서에 정리해 두었다.{/info}\n\n== p.42 개념 ==\n{def}p.42: \"Use multiple disks in concert to build a '''faster, bigger, and more reliable''' disk system. RAID just looks like '''a big disk''' to the host system. RAIDs provide these advantages '''transparently''' to systems that use them.\"{/def}\n\n장점은 두 가지다.\n* Performance, Capacity: 디스크 여러 개를 병렬로 쓴다.\n* Reliability: 디스크 하나를 잃어도 버틸 수 있다.\n\n호스트는 RAID 를 디스크 하나로 본다. 그래서 OS 나 프로그램을 고치지 않고도 이 장점을 얻는다(transparent).\n\n== p.43 추상화와 평가 기준 ==\n[[img:L18-43.png|p.43 OS 는 logical block 배열 하나를 보고, RAID 가 Disk 0~3 으로 나눈다|medium]]\n\n{def}p.43: \"An array of disks are abstracted as a linear array of logical blocks. When an I/O request arrives, RAID calculates which disk to access and issues one or more physical I/Os.\"{/def}\n\nOS 에게는 [[logical block]] 배열 하나로 보인다. 요청이 오면 RAID 가 어느 디스크의 어느 블록인지 계산해 실제 I/O 를 하나 이상 낸다.\n\n평가 기준은 셋이다.\n# Reliability: 디스크가 몇 개 고장 나도 버티나\n# Capacity: 시스템이 실제로 쓸 수 있는 용량이 얼마나\n# Performance\n\n== 레벨 비교 (n = 디스크 수, r = 디스크 하나의 고장률) ==\n{|\n! 레벨 || 방식 || 성능 || 공간 효율 || 배열 실패율 || 슬라이드 평\n|-\n| RAID 0 || striping || n 배 || 1.0 || 1 − (1 − r)^n || Don't use\n|-\n| RAID 1 || mirroring || 읽기 n 배, 쓰기 1 || 1/n || r^n || Use if possible\n|-\n| RAID 4 || striping + parity 디스크 1개 || (n − 1) 배 || 1 − 1/n || 1 − {(1 − r)^n + nr(1 − r)^(n−1)} ||\n|-\n| RAID 5 || parity 분산 || random 쓰기가 RAID 4 보다 좋음 || (1 − 1/n) || (RAID 4 와 같은 꼴) ||\n|-\n| RAID 6 || parity 2개 분산 || 쓰기가 더 느림 || (1 − 2/n) || RAID 5 보다 낮음 || 기업에서 가장 흔함\n|}\n괄호 안 값은 슬라이드에 없고 구조에서 바로 나오는 값이다.\n\n== 관련 문서 ==\n* [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]] · [[I/O 장치]]"
+ },
+ "RAID 0과 RAID 1": {
+  "title": "RAID 0 (Striping) 과 RAID 1 (Mirroring)",
+  "category": [
+   "18강 I/O Devices and HDD"
+  ],
+  "body": "중복 없이 나눠 담는 RAID 0 과 똑같이 복사해 두는 RAID 1 을 비교한다. 슬라이드 18강 p.44~47.\n\n== p.44 RAID 0 ==\n{def}p.44: \"RAID 0 splits ('''stripes''') data evenly across two or more disks (n) '''without parity information, redundancy, or fault tolerance'''.\"{/def}\n\n[[img:L18-44.png|p.44 A1, A3, A5, A7 은 Disk 0, A2, A4, A6, A8 은 Disk 1|small]]\n\n연속 블록을 디스크에 번갈아 놓는다. 블록 i 는 디스크 (i mod n) 에 간다.\n\n== p.45 RAID 0 분석 ⭐⭐ ==\n* 성능 n 배: 디스크 n 개가 동시에 일한다.\n* 공간 효율 1.0: 버리는 공간이 없다.\n* 단점: 디스크 하나만 고장 나도 배열 전체가 망가진다.\n\n{def}p.45: Array failure rate = 1 − (1 − r)^n. r = 5%, n = 2 이면 '''0.0975''' (0.05 보다 높다). \"Don't use\".{/def}\n\n<pre class=\"txt\">\n모든 디스크가 살아 있을 확률 = (1 − r)^n = 0.95^2 = 0.9025\n배열 실패율 = 1 − 0.9025 = '''0.0975'''\n<\/pre>\n\n디스크를 늘릴수록 실패율이 올라간다.\n\n== p.46 RAID 1 ==\n{def}p.46: \"RAID 1 consists of an exact copy (or '''mirror''') of a set of data on two or more disks. The array can only be as big as the '''smallest member disk'''.\"{/def}\n\n[[img:L18-46.png|p.46 Disk 0, Disk 1 모두 A1~A4|small]]\n\n== p.47 RAID 1 분석 ⭐⭐ ==\n{def}p.47: Array failure rate = r^n. r = 5%, n = 2 이면 '''0.0025''' (= 0.25%). Read performance n 배, write performance 1, space efficiency 1/n. \"Use if possible\".{/def}\n\n<pre class=\"txt\">\n모든 사본이 동시에 고장 날 확률 = r^n = 0.05^2 = '''0.0025'''\n<\/pre>\n\n* 읽기 n 배: 아무 사본에서나 읽을 수 있어 n 개가 나눠 읽는다.\n* 쓰기 1 배: 모든 사본에 같은 것을 써야 한다.\n* 공간 1/n: n 개 중 하나만 실제 용량이다.\n\n{quiz}r = 10%, n = 3 일 때 RAID 0 과 RAID 1 의 배열 실패율은?{/quiz}\n{answer}RAID 0: 1 − 0.9^3 = 1 − 0.729 = '''0.271'''. RAID 1: 0.1^3 = '''0.001'''.{/answer}\n\n== 관련 문서 ==\n* [[RAID]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]]"
+ },
+ "RAID 4와 parity": {
+  "title": "RAID 4 와 Parity",
+  "category": [
+   "18강 I/O Devices and HDD",
+   "핵심"
+  ],
+  "body": "데이터를 나눠 담고 parity 블록 하나를 전용 디스크에 두어 고장 하나를 복구하는 RAID 4 를 다룬다. 슬라이드 18강 p.48~49.\n\n== p.48 RAID 4 ⭐⭐ ==\n{def}p.48: \"RAID 4 consists of block-level striping with a '''parity block in a dedicated disk'''. Relatively high performance: (n − 1) times for both reads and writes. Relatively high space efficiency: 1 − 1/n. Relatively low failure rate: 1 − {(1 − r)^n + nr(1 − r)^(n−1)} (*Recover 1 failure).\"{/def}\n\n[[img:L18-48.png|p.48 A1~A3 는 Disk 0~2, parity Ap 는 Disk 3|medium]]\n\n* 데이터 디스크 n − 1 개, parity 디스크 1 개다. 그래서 성능 (n − 1) 배, 공간 효율 1 − 1/n.\n* 디스크 하나까지는 고장 나도 복구한다. 배열이 살아 있는 경우는 \"모두 정상\" 또는 \"정확히 하나 고장\" 이다.\n\n<pre class=\"txt\">\nr = 0.05, n = 4\n모두 정상 = 0.95^4 = 0.8145\n정확히 하나 고장 = 4 × 0.05 × 0.95^3 = 0.2 × 0.8574 = 0.1715\n배열 실패율 = 1 − (0.8145 + 0.1715) = '''0.0140 = 1.4%'''\n<\/pre>\n\n{warn}p.48 의 중간식 \"1 − (0.9025 + 0.1 × 0.95)\" 는 n = 2 일 때의 값(0.95^2, 2 × 0.05 × 0.95)이고 계산하면 0.0025 다. n = 4 이면 위처럼 0.8145 와 0.1715 를 써야 한다. 최종값 0.014 = 1.4% 는 n = 4 기준으로 맞다.{/warn}\n\n{info}슬라이드는 쓰기도 (n − 1) 배라고 했다. 큰 연속 쓰기는 그렇다. 작은 random 쓰기는 매번 parity 디스크 하나를 같이 써야 해서 parity 디스크가 병목이 된다. p.50 의 RAID 5 가 이 문제를 푼다.{/info}\n\n== p.49 Parity 계산과 복구 ⭐⭐⭐ ==\n{def}p.49: \"How to calculate a parity block: XOR(101, 010, 011) = 100. How to recover a fault block: recover the data block in the Disk 1, XOR(101, 011, 100) = 010.\"{/def}\n\n[[img:L18-49.png|p.49 Disk0~2 의 101, 010, 011 과 parity 100|medium]]\n\nParity 는 같은 줄의 데이터 블록을 bit 마다 XOR 한 값이다. XOR 는 1 의 개수가 홀수면 1 이다.\n\n<pre class=\"txt\">\nparity:\n101 XOR 010 = 111\n111 XOR 011 = '''100'''\n\nDisk 1 복구 (살아 있는 것 모두 XOR):\n101 XOR 011 = 110\n110 XOR 100 = '''010'''\n<\/pre>\n\n모든 블록(parity 포함)을 XOR 하면 0 이 된다. 그래서 하나가 빠져도 나머지를 XOR 하면 빠진 값이 나온다. 둘이 빠지면 복구할 수 없다.\n\n{quiz}Disk 0~2 가 1100, 1010, 0110 일 때 parity 는? Disk 2 가 고장 나면 어떻게 복구하나?{/quiz}\n{answer}1100 XOR 1010 = 0110, 0110 XOR 0110 = '''0000'''. 복구: 1100 XOR 1010 XOR 0000 = '''0110'''.{/answer}\n\n== 관련 문서 ==\n* [[RAID]] · [[RAID 0과 RAID 1]] · [[RAID 5와 RAID 6]]"
+ },
+ "RAID 5와 RAID 6": {
+  "title": "RAID 5 (분산 parity) 와 RAID 6 (parity 2개)",
+  "category": [
+   "18강 I/O Devices and HDD"
+  ],
+  "body": "Parity 를 여러 디스크에 흩어 놓는 RAID 5 와 parity 를 하나 더 두는 RAID 6 을 다룬다. 슬라이드 18강 p.50~51.\n\n== p.50 RAID 5 ⭐⭐ ==\n{def}p.50: \"RAID 5 consists of block-level striping with '''distributed parity'''. Unlike in RAID 4, parity information is distributed among the drives. Shows better '''random performance''': a parity disk is not a bottleneck.\"{/def}\n\n[[img:L18-50.png|p.50 Ap 는 Disk 3, Bp 는 Disk 2, Cp 는 Disk 1, Dp 는 Disk 0|medium]]\n\n줄마다 parity 가 다른 디스크에 있다. 그래서 쓰기마다 같은 parity 디스크를 기다리지 않는다.\n\n슬라이드의 예: A1 과 B2 를 동시에 쓴다.\n<pre class=\"txt\">\nRAID 5: A1 → Disk 0, Ap → Disk 3 / B2 → Disk 1, Bp → Disk 2   네 디스크가 다름 → 동시에 가능\nRAID 4: Ap 와 Bp 가 둘 다 Disk 3                               parity 디스크에서 줄을 섬\n<\/pre>\n\n== p.51 RAID 6 ==\n{def}p.51: \"RAID 6 extends RAID 5 by adding '''another parity block'''. Block-level striping with two parity blocks distributed across all disks. A lower failure rate than RAID 5, but a performance penalty on write operations due to the overhead associated with parity calculations. Known to be the most popular solution in enterprise systems.\"{/def}\n\n[[img:L18-51.png|p.51 디스크 5개, 줄마다 p 와 q 두 parity|medium]]\n\n* Parity 가 두 개(p, q)라 디스크 두 개가 동시에 고장 나도 버틴다. 그래서 실패율이 RAID 5 보다 낮다.\n* 쓰기마다 parity 두 개를 계산하고 써야 해서 쓰기가 느리다.\n* 기업 시스템에서 가장 많이 쓴다.\n\n{quiz}RAID 4 에서 작은 random 쓰기가 느린 이유와 RAID 5 가 그것을 어떻게 해결하는지 쓰시오.{/quiz}\n{answer}RAID 4 는 모든 쓰기가 '''같은 parity 디스크'''를 갱신해야 해서 그 디스크가 병목이 된다. RAID 5 는 parity 를 '''줄마다 다른 디스크에 분산'''해 서로 다른 줄의 쓰기를 동시에 할 수 있다.{/answer}\n\n== 관련 문서 ==\n* [[RAID]] · [[RAID 4와 parity]] · [[RAID 0과 RAID 1]]"
  },
  "과제2 xv6 lock": {
   "title": "과제 2 — xv6 Lock (per-CPU kalloc · bcache 해시 버킷)",
@@ -3103,6 +3242,29 @@ const NAV_ORDER = [
    "LRU",
    "Clock 알고리즘",
    "demand paging"
+  ]
+ },
+ {
+  "group": "18강 I/O Devices and HDD",
+  "items": [
+   "I/O 장치",
+   "I/O 시스템 구조",
+   "canonical device",
+   "polling과 interrupt",
+   "PIO와 DMA",
+   "memory-mapped I/O",
+   "HDD 구조",
+   "디스크 접근 시간",
+   "logical block",
+   "디스크 스케줄링",
+   "FCFS",
+   "SSTF",
+   "SCAN",
+   "C-SCAN",
+   "RAID",
+   "RAID 0과 RAID 1",
+   "RAID 4와 parity",
+   "RAID 5와 RAID 6"
   ]
  },
  {
@@ -6592,6 +6754,122 @@ window.SIMS = window.SIMS || {};
   }
 })(typeof window !== "undefined" ? window : globalThis);
 
+// ===== sims/disk_sched.js =====
+// disk_sched — 18강 p.34~39: 같은 요청 큐를 FCFS/SSTF/SCAN/C-SCAN 으로 돌려 head 이동량을 센다.
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+  var MAX = 199;
+  var SETS = {
+    slide: { head: 53, reqs: [98, 183, 37, 122, 14, 124, 65, 67], label: "슬라이드 p.34 (head 53)" },
+    prac: { head: 100, reqs: [55, 58, 39, 18, 90, 160, 150, 38, 184], label: "연습 (head 100)" }
+  };
+  var CODE = {
+    fcfs: ["next = 큐에 먼저 들어온 요청;", "head 를 next 로 이동;"],
+    sstf: ["next = 현재 head 에서 가장 가까운 요청;", "head 를 next 로 이동;"],
+    scan: ["아래로: head 보다 작은 요청을 차례로;", "디스크 끝 0 까지 이동;", "방향 반대: 남은 요청을 위로 차례로;"],
+    look: ["아래로: head 보다 작은 요청을 차례로;", "끝까지 가지 않고 방향 반대;", "남은 요청을 위로 차례로;"],
+    cscan: ["위로: head 이상인 요청을 차례로;", "디스크 끝 199 까지 이동;", "0 으로 복귀 (요청 처리 없음);", "남은 요청을 위로 차례로;"]
+  };
+  function route(pol, head, reqs) {
+    var up = reqs.filter(function (r) { return r >= head; }).sort(function (a, b) { return a - b; });
+    var down = reqs.filter(function (r) { return r < head; }).sort(function (a, b) { return b - a; });
+    var low = down.slice().reverse(), out = [];
+    function req(p, line) { out.push({ pos: p, kind: "req", line: line }); }
+    if (pol === "fcfs") reqs.forEach(function (p) { req(p, 2); });
+    if (pol === "sstf") {
+      var rest = reqs.slice(), cur = head;
+      while (rest.length) {
+        var best = 0;
+        for (var i = 1; i < rest.length; i++) {
+          var d = Math.abs(rest[i] - cur), bd = Math.abs(rest[best] - cur);
+          if (d < bd || (d === bd && rest[i] < rest[best])) best = i;
+        }
+        cur = rest.splice(best, 1)[0];
+        req(cur, 2);
+      }
+    }
+    if (pol === "scan") {
+      down.forEach(function (p) { req(p, 1); });
+      out.push({ pos: 0, kind: "end", line: 2 });
+      up.forEach(function (p) { req(p, 3); });
+    }
+    if (pol === "look") {
+      down.forEach(function (p) { req(p, 1); });
+      up.forEach(function (p) { req(p, 3); });
+    }
+    if (pol === "cscan") {
+      up.forEach(function (p) { req(p, 1); });
+      out.push({ pos: MAX, kind: "end", line: 2 });
+      out.push({ pos: 0, kind: "jump", line: 3 });
+      low.forEach(function (p) { req(p, 4); });
+    }
+    return out;
+  }
+  function chart(S, path, done) {
+    var L = 30, W = 620, top = 62, gap = 26;
+    function X(v) { return Math.round(L + v * W / MAX); }
+    var H = top + gap * Math.max(S.reqs.length + 3, 1) + 14;
+    var s = '<svg viewBox="0 0 680 ' + H + '" xmlns="http://www.w3.org/2000/svg" font-size="12">';
+    s += '<defs><marker id="ds_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1d65b3"/></marker></defs>';
+    s += '<text x="30" y="16" fill="#3b2f4a" font-weight="700">queue:</text>';
+    var qx = 78;
+    S.reqs.forEach(function (r) {
+      var isDone = done.indexOf(r) >= 0;
+      s += '<text x="' + qx + '" y="16" fill="' + (isDone ? "#bbb" : "#222") + '"' + (isDone ? ' text-decoration="line-through"' : "") + '>' + r + '</text>';
+      qx += 36;
+    });
+    s += '<line x1="' + L + '" y1="' + (top - 8) + '" x2="' + (L + W) + '" y2="' + (top - 8) + '" stroke="#555"/>';
+    var marks = [0, MAX].concat(S.reqs.concat([S.head]).sort(function (a, b) { return a - b; }));
+    var lastX = -99, tier = 0;
+    marks.sort(function (a, b) { return a - b; }).forEach(function (m) {
+      var x = X(m);
+      tier = x - lastX < 22 ? (tier ? 0 : 1) : 0;
+      lastX = x;
+      s += '<line x1="' + x + '" y1="' + (top - 12) + '" x2="' + x + '" y2="' + (top - 4) + '" stroke="#555"/>';
+      s += '<text x="' + x + '" y="' + (tier ? 28 : 42) + '" text-anchor="middle" fill="' + (m === S.head ? "#d6465f" : "#555") + '">' + m + '</text>';
+    });
+    var y = top + 6, px = X(S.head);
+    s += '<circle cx="' + px + '" cy="' + y + '" r="4" fill="#d6465f"/>';
+    path.forEach(function (p, i) {
+      var nx = X(p.pos), ny = top + 6 + (i + 1) * gap, last = i === path.length - 1;
+      var col = p.kind === "jump" ? "#999" : last ? "#d6465f" : "#1d65b3";
+      s += '<line x1="' + px + '" y1="' + y + '" x2="' + nx + '" y2="' + ny + '" stroke="' + col + '" stroke-width="' + (last ? 2.4 : 1.5) + '"' + (p.kind === "jump" ? ' stroke-dasharray="5 4"' : ' marker-end="url(#ds_arrow)"') + '/>';
+      s += '<circle cx="' + nx + '" cy="' + ny + '" r="3.5" fill="' + (p.kind === "req" ? col : "#fff") + '" stroke="' + col + '"/>';
+      px = nx; y = ny;
+    });
+    return s + '</svg>';
+  }
+  global.SIMS["disk_sched"] = {
+    title: "디스크 스케줄링 손으로 돌리기 (18강 p.34~39)",
+    desc: "head 이동량을 한 칸씩 더한다. → [[디스크 스케줄링]]",
+    options: [
+      { key: "policy", label: "정책", values: [{ value: "fcfs", label: "FCFS" }, { value: "sstf", label: "SSTF" }, { value: "scan", label: "SCAN (아래로)" }, { value: "cscan", label: "C-SCAN (위로)" }, { value: "look", label: "LOOK (208 확인용)" }] },
+      { key: "set", label: "요청", values: [{ value: "slide", label: SETS.slide.label }, { value: "prac", label: SETS.prac.label }] }
+    ],
+    build: function (opts) {
+      var pol = opts.policy || "fcfs", S = SETS[opts.set || "slide"];
+      var r = route(pol, S.head, S.reqs), path = [], done = [], steps = [], head = S.head, total = 0;
+      function vars(dist) {
+        return { "head": head, "이번 이동": dist === null ? "-" : dist, "누적 이동": total, "남은 요청": S.reqs.length - done.length };
+      }
+      steps.push({ desc: "head 는 " + S.head + ", 디스크 범위는 0~" + MAX, pc: { P: null }, vars: vars(null), svg: chart(S, [], []) });
+      r.forEach(function (p) {
+        var from = head, d = Math.abs(p.pos - from);
+        head = p.pos; total += d; path.push(p);
+        if (p.kind === "req") done.push(p.pos);
+        var txt = p.kind === "req" ? "요청 " + p.pos + " 처리" : p.kind === "end" ? "디스크 끝 " + p.pos + " 도착" : "시작점 0 으로 복귀";
+        steps.push({ desc: txt + ": |" + from + " − " + p.pos + "| = " + d, pc: { P: p.line }, vars: vars(d), svg: chart(S, path, done) });
+      });
+      return {
+        panels: [{ id: "P", title: pol.toUpperCase() + " 규칙", lang: "c", lines: CODE[pol] }],
+        vars: ["head", "이번 이동", "누적 이동", "남은 요청"].map(function (n) { return { name: n, group: "디스크" }; }),
+        steps: steps
+      };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+
 // ===== sims/fit_strategies.js =====
 // fit_strategies — 14강 p.37~39: free list 에서 요청 크기에 맞는 chunk 를 고르는 네 전략
 // Best Fit(가장 작은 충분한 chunk) / Worst Fit(가장 큰 chunk) / First Fit(앞에서 첫 충분한 chunk) /
@@ -7086,6 +7364,70 @@ window.SIMS = window.SIMS || {};
     }
   };
 })();
+
+// ===== sims/io_timeline.js =====
+// io_timeline — 18강 p.10·11·13·14: polling / interrupt / PIO / DMA 의 CPU 사용 그림을 tick 단위로.
+(function (global) {
+  "use strict";
+  global.SIMS = global.SIMS || {};
+  var M = {
+    polling: { cpu: "11111ppppp11111", dma: "...............", disk: ".....11111.....", cuts: [5, 10],
+      lines: ["task 1 실행", "while (STATUS == BUSY) ;", "task 1 계속 실행"] },
+    interrupt: { cpu: "111112222211111", dma: "...............", disk: ".....11111.....", cuts: [5, 10],
+      lines: ["task 1 실행", "I/O 요청, task 1 sleep, task 2 실행", "interrupt 로 task 1 깨움, 실행"] },
+    pio: { cpu: "1111ccc22222111", dma: "...............", disk: ".......11111...", cuts: [4, 7, 12],
+      lines: ["task 1 실행", "CPU 가 메모리 → 디바이스 복사", "task 2 실행, 디스크 동작", "task 1 다시 실행"] },
+    dma: { cpu: "111122222222111", dma: "....CCC........", disk: ".......11111...", cuts: [4, 7, 12],
+      lines: ["task 1 실행", "DMA 가 복사, CPU 는 task 2 실행", "task 2 실행, 디스크 동작", "task 1 다시 실행"] }
+  };
+  var COL = { "1": "#dbe8f7", "2": "#dff3e4", p: "#ffd9d9", c: "#ffd9d9", C: "#fdeec2" };
+  function row(y, label, str, t) {
+    var s = '<text x="8" y="' + (y + 20) + '" font-size="13" fill="#3b2f4a" font-weight="700">' + label + '</text>';
+    for (var i = 0; i < str.length; i++) {
+      var x = 62 + i * 40, ch = i < t ? str[i] : ".";
+      s += '<rect x="' + x + '" y="' + y + '" width="38" height="30" fill="' + (ch === "." ? "#f6f6f6" : COL[ch]) + '" stroke="#ccc"/>';
+      if (ch !== ".") s += '<text x="' + (x + 19) + '" y="' + (y + 20) + '" font-size="14" text-anchor="middle" fill="#222">' + ch + '</text>';
+    }
+    return s;
+  }
+  function chart(m, t) {
+    var withDma = m.dma.replace(/\./g, "").length > 0, y = 8;
+    var s = '<svg viewBox="0 0 670 ' + (withDma ? 122 : 86) + '" xmlns="http://www.w3.org/2000/svg">';
+    s += row(y, "CPU", m.cpu, t); y += 38;
+    if (withDma) { s += row(y, "DMA", m.dma, t); y += 38; }
+    return s + row(y, "Disk", m.disk, t) + '</svg>';
+  }
+  function say(m, i, mode) {
+    var c = m.cpu[i], prev = i ? m.cpu[i - 1] : null, d = m.disk[i] !== ".", x = m.dma[i] !== ".";
+    if (c === "1") return !prev || prev === "1" ? "task 1 실행" : mode === "polling" ? "STATUS 가 BUSY 아님, polling 끝" : mode === "interrupt" ? "interrupt 로 task 1 이 다시 실행" : "task 1 다시 실행";
+    if (c === "p") return "CPU 가 STATUS 를 읽으며 기다림 (낭비)";
+    if (c === "c") return "CPU 가 데이터를 복사 (낭비)";
+    if (x) return prev === "1" ? "task 2 로 전환, DMA 가 복사 시작" : "task 2 실행, DMA 가 복사";
+    return prev === "1" ? "task 1 sleep, task 2 로 context switch" : d ? "task 2 실행, 디스크는 task 1 I/O" : "task 2 실행";
+  }
+  global.SIMS["io_timeline"] = {
+    title: "Polling · Interrupt · PIO · DMA 의 CPU 사용 (18강 p.10~14)",
+    desc: "tick 마다 CPU 가 무엇을 하는지 본다. → [[polling과 interrupt]], [[PIO와 DMA]]",
+    options: [{ key: "mode", label: "방식", values: [{ value: "polling", label: "Polling (p.10)" }, { value: "interrupt", label: "Interrupt (p.11)" }, { value: "pio", label: "PIO (p.13)" }, { value: "dma", label: "DMA (p.14)" }] }],
+    build: function (opts) {
+      var mode = opts.mode || "polling", m = M[mode], steps = [], waste = 0, n = m.cpu.length;
+      function line(i) { for (var k = 0; k < m.cuts.length; k++) if (i < m.cuts[k]) return k + 1; return m.lines.length; }
+      steps.push({ desc: "tick 0, 아직 아무것도 실행하지 않음", pc: { P: null }, vars: { "tick": 0, "CPU": "-", "Disk": "-", "CPU 낭비": 0 }, svg: chart(m, 0) });
+      for (var i = 0; i < n; i++) {
+        var c = m.cpu[i];
+        if (c === "p" || c === "c") waste++;
+        steps.push({ desc: say(m, i, mode), pc: { P: line(i) },
+          vars: { "tick": i + 1, "CPU": c === "p" ? "polling" : c === "c" ? "copy" : "task " + c, "Disk": m.disk[i] === "." ? "idle" : "task 1 I/O", "CPU 낭비": waste },
+          svg: chart(m, i + 1) });
+      }
+      return {
+        panels: [{ id: "P", title: mode.toUpperCase(), lang: "txt", lines: m.lines }],
+        vars: ["tick", "CPU", "Disk", "CPU 낭비"].map(function (x) { return { name: x, group: "상태" }; }),
+        steps: steps
+      };
+    }
+  };
+})(typeof window !== "undefined" ? window : globalThis);
 
 // ===== sims/kalloc_batch.js =====
 // kalloc_batch — 과제2 문제 ① kalloc ④-02: STEAL = 2 묶음 steal 을 ④-01 코드 그대로 줄 단위로.
@@ -15406,6 +15748,87 @@ ANIMS["dining_philosophers"] = {
   }
 };
 
+// ===== anims/disk_seek_rotate.js =====
+// disk_seek_rotate — 18강 p.26~28: 파란 sector 다음에 빨간 sector 를 읽는다. seek → rotational latency → transfer.
+window.ANIMS = window.ANIMS || {};
+ANIMS["disk_seek_rotate"] = {
+  title: "디스크 접근 한 번: seek, rotational latency, transfer",
+  desc: "[[디스크 접근 시간]] p.26. 안쪽 track 의 파란 sector 를 읽은 뒤 바깥쪽 track 의 빨간 sector 를 읽는다.",
+  duration: 12,
+  build: function () {
+    var D = 12, cx = 210, cy = 215;
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function show(a, b) { return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(a / D) + ';' + r3(a / D + 0.003) + ';' + r3(b / D) + ';' + r3(Math.min(0.999, b / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>'; }
+    function pt(r, deg) { var a = deg * Math.PI / 180; return r3(cx + r * Math.cos(a)) + ' ' + r3(cy + r * Math.sin(a)); }
+    function sector(r1, r2, mid, half, fill) {
+      return '<path d="M' + pt(r1, mid - half) + ' L' + pt(r2, mid - half) + ' A' + r2 + ' ' + r2 + ' 0 0 1 ' + pt(r2, mid + half) + ' L' + pt(r1, mid + half) + ' A' + r1 + ' ' + r1 + ' 0 0 0 ' + pt(r1, mid - half) + ' Z" fill="' + fill + '" stroke="#333"/>';
+    }
+    var s = '<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="디스크 접근 세 단계">';
+    [[0, 1.5, "파란 sector 읽기 끝. 다음 요청은 바깥 track 의 빨간 sector"], [1.5, 4, "Seek: head 를 빨간 sector 의 track 으로 옮긴다"], [4, 8.55, "Rotational latency: head 는 멈춰 있고 sector 가 올 때까지 기다린다"], [8.55, 9.75, "Transfer: sector 가 head 아래를 지나는 동안 읽는다"], [9.75, 11.99, "Taccess = seek + rotation + transfer"]].forEach(function (c) {
+      s += '<text x="380" y="26" font-size="15" text-anchor="middle" font-weight="700" fill="#3b2f4a" opacity="0">' + c[2] + show(c[0], c[1]) + '</text>';
+    });
+    s += '<g><animateTransform attributeName="transform" type="rotate" values="0 ' + cx + ' ' + cy + ';0 ' + cx + ' ' + cy + ';-200 ' + cx + ' ' + cy + ';-200 ' + cx + ' ' + cy + '" keyTimes="0;0.125;' + r3(10 / D) + ';1" dur="' + D + 's" fill="freeze"/>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="135" fill="#f4f4f4" stroke="#555"/>';
+    [112, 90, 67, 45].forEach(function (r) { s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#aaa"/>'; });
+    for (var i = 0; i < 12; i++) {
+      var d = i * 30 + 15;
+      s += '<line x1="' + pt(45, d).replace(" ", '" y1="') + '" x2="' + pt(135, d).replace(" ", '" y2="') + '" stroke="#ccc"/>';
+    }
+    s += sector(45, 67, 0, 14, "#1d65b3") + sector(112, 135, 180, 14, "#d6465f");
+    s += '</g><circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#fff" stroke="#555"/><text x="' + cx + '" y="' + (cy + 4) + '" font-size="11" text-anchor="middle" fill="#555">spindle</text>';
+    s += '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 0;67 0;67 0" keyTimes="0;0.125;' + r3(4 / D) + ';1" dur="' + D + 's" fill="freeze"/>';
+    s += '<rect x="282" y="' + (cy - 4) + '" width="180" height="8" fill="#3b2f4a"/><path d="M266 ' + cy + ' L284 ' + (cy - 10) + ' L284 ' + (cy + 10) + ' Z" fill="#3b2f4a"/><text x="375" y="' + (cy - 12) + '" font-size="12" text-anchor="middle" fill="#3b2f4a">arm + head</text></g>';
+    var bars = [["Seek", 9, 1.5, 4, "#1d65b3"], ["Rotation", 4, 4, 8.55, "#e09a40"], ["Transfer", 0.02, 8.55, 9.75, "#d6465f"]];
+    bars.forEach(function (b, i) {
+      var y = 120 + i * 62, w = Math.max(1.5, b[1] * 20);
+      s += '<rect x="536" y="' + (y - 22) + '" width="214" height="54" rx="6" fill="#efe9f6" opacity="0">' + show(b[2], b[3]) + '</rect>';
+      s += '<text x="546" y="' + (y - 4) + '" font-size="14" fill="#222">' + b[0] + ' ' + b[1] + ' ms</text>';
+      s += '<rect x="546" y="' + (y + 6) + '" width="' + w + '" height="12" fill="' + b[4] + '"/>';
+    });
+    s += '<text x="546" y="310" font-size="13" fill="#555">p.28 예: 합계 13.02 ms</text>';
+    s += '<text x="380" y="372" font-size="14" text-anchor="middle" fill="#777">막대는 실제 비율이다. 접근 시간은 seek 과 rotation 이 거의 전부다</text>';
+    return s + '</svg>';
+  }
+};
+
+// ===== anims/dma_flow.js =====
+// dma_flow — 18강 p.15: DMA 전송 6단계. CPU 는 지시만 하고 복사는 DMA controller 가 한다.
+window.ANIMS = window.ANIMS || {};
+ANIMS["dma_flow"] = {
+  title: "DMA 전송 6단계",
+  desc: "[[PIO와 DMA]] p.15 그림. 디스크 데이터를 메모리 주소 X 의 buffer 로 옮긴다.",
+  duration: 14,
+  build: function () {
+    var D = 14;
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function show(a, b) { return '<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;' + r3(a / D) + ';' + r3(a / D + 0.003) + ';' + r3(b / D) + ';' + r3(Math.min(0.999, b / D + 0.003)) + ';1" dur="' + D + 's" fill="freeze"/>'; }
+    function box(x, y, w, h, t, fill, st) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="' + fill + '" stroke="' + st + '"/><text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 5) + '" font-size="14" text-anchor="middle" fill="#222">' + t + '</text>'; }
+    function arrow(x1, y1, x2, y2, col, a, b) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + col + '" stroke-width="3" marker-end="url(#dmaf_arrow_' + (col === "#d6465f" ? "r" : "b") + ')" opacity="0">' + show(a, b) + '</line>'; }
+    var s = '<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DMA 전송 여섯 단계">';
+    s += '<defs><marker id="dmaf_arrow_b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1d65b3"/></marker><marker id="dmaf_arrow_r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#d6465f"/></marker></defs>';
+    [[0.5, 2.5, "1. device driver 가 디스크 데이터를 주소 X 로 옮기라는 지시를 받는다"], [2.5, 4.5, "2. driver 가 disk controller 에게 C bytes 를 X 로 보내라고 한다"], [4.5, 6, "3. disk controller 가 DMA 전송을 시작한다"], [6, 8, "4. disk controller 가 byte 를 DMA controller 로 보낸다"], [8, 11, "5. DMA 가 buffer X 로 옮긴다. 주소는 증가, C 는 감소"], [11, 13.98, "6. C = 0 이면 DMA 가 CPU 에 interrupt 를 건다"]].forEach(function (c) {
+      s += '<text x="380" y="26" font-size="15" text-anchor="middle" font-weight="700" fill="#3b2f4a" opacity="0">' + c[2] + show(c[0], c[1]) + '</text>';
+    });
+    s += '<line x1="170" y1="95" x2="590" y2="95" stroke="#9cc4e8" stroke-width="10"/><text x="520" y="84" font-size="12" text-anchor="middle" fill="#555">memory bus</text>';
+    s += '<line x1="380" y1="125" x2="380" y2="235" stroke="#9cc4e8" stroke-width="10"/><text x="396" y="185" font-size="12" fill="#555">PCI bus</text>';
+    s += box(60, 65, 110, 60, "CPU", "#efe9f6", "#3b2f4a") + box(310, 65, 140, 60, "DMA controller", "#fdeec2", "#e09a40") + box(590, 55, 140, 80, "", "#dff3e4", "#2e9e4f") + box(310, 235, 140, 60, "disk controller", "#dbe8f7", "#1d65b3");
+    s += '<text x="660" y="78" font-size="14" text-anchor="middle" fill="#222">memory</text><rect x="620" y="88" width="80" height="34" fill="#fff" stroke="#2e9e4f"/><text x="660" y="110" font-size="13" text-anchor="middle" fill="#222">buffer X</text>';
+    s += '<text x="115" y="150" font-size="13" text-anchor="middle" fill="#1d6b2a" font-weight="700" opacity="0">task 2 실행 중' + show(4.5, 11) + '</text>';
+    s += arrow(170, 110, 350, 235, "#1d65b3", 2.5, 4.5);
+    s += '<rect x="310" y="235" width="140" height="60" rx="6" fill="none" stroke="#d6465f" stroke-width="3" opacity="0">' + show(4.5, 6) + '</rect>';
+    [6.2, 7.2, 8.2, 9.2].forEach(function (b, i) {
+      s += '<circle r="7" fill="#e09a40" stroke="#8a6000" opacity="0">' + show(b, b + 1.6) + '<animateMotion path="M380 235 L380 95 L660 105" begin="' + b + 's" dur="1.6s" fill="freeze"/></circle>';
+      s += '<rect x="' + (624 + i * 18) + '" y="124" width="14" height="8" fill="#e09a40" opacity="0">' + show(b + 1.6, 13.99) + '</rect>';
+    });
+    var cs = [[4.5, 7.8, 4], [7.8, 8.8, 3], [8.8, 9.8, 2], [9.8, 10.8, 1], [10.8, 13.99, 0]];
+    cs.forEach(function (c) { s += '<text x="380" y="330" font-size="20" text-anchor="middle" font-weight="700" fill="#3b2f4a" opacity="0">C = ' + c[2] + show(c[0], c[1]) + '</text>'; });
+    s += arrow(310, 80, 172, 80, "#d6465f", 11, 13.99);
+    s += '<text x="240" y="68" font-size="13" text-anchor="middle" fill="#d6465f" font-weight="700" opacity="0">interrupt' + show(11, 13.99) + '</text>';
+    s += '<text x="170" y="330" font-size="14" text-anchor="middle" fill="#777">CPU 는 위치와 크기만 알려 준다</text>';
+    return s + '</svg>';
+  }
+};
+
 // ===== anims/fork_exec_wait.js =====
 // ============================================================
 // fork_exec_wait — OSTEP p3.c: fork() 로 복제 → 자식 execvp("wc") 로 내용물 교체 → 부모 wait() 로 회수
@@ -19020,7 +19443,7 @@ var navTab = null;
 var navLastActive = null;
 
 function navSectionOf(group) {
-  if (/^(기말고사|1[3-7]강|과제2)/.test(group)) return "기말";
+  if (/^(기말고사|1[3-8]강|과제2)/.test(group)) return "기말";
   if (/^([1-9]강|1[0-2]강|과제1|퀴즈)/.test(group)) return "중간";
   return "공통";
 }

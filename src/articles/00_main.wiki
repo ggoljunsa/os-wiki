@@ -16,6 +16,8 @@ category: 안내
 |-
 | 17강 Swapping || [[스와핑]] || page fault, 교체 정책
 |-
+| 18강 I/O Devices and HDD || [[I/O 장치]] || polling·DMA, 디스크 접근 시간, 디스크 스케줄링, RAID
+|-
 | 과제2 || [[과제2 xv6 lock]] || kalloc, bcache
 |}
 전체 진도와 강별 읽는 순서는 [[기말고사]] 문서에 있다. 왼쪽 목록의 기말·중간·공통 탭으로 범위를 바꿀 수 있다.
@@ -107,6 +109,7 @@ category: 안내
 * 15강 Paging: [[페이징]] · [[VPN과 offset]] · [[페이지 테이블]] · [[PTBR]] · [[PTE 플래그]] · [[copy-on-write]] · [[페이징의 문제]] · [[TLB]] · [[TLB hit와 miss]] · [[TLB miss 처리]] · [[ASID와 TLB flush]]
 * 16강 Advanced Page Table: [[고급 페이지 테이블]] · [[hybrid approach]] · [[multi-level page table]] · [[page directory]] · [[PDBR]] · [[다단계 주소 변환 계산]] · [[3단계 page table]] · [[inverted page table]] · [[hash collision]] · [[huge page]] · [[transparent huge page]] · [[Sv39 PTE]]
 * 17강 Swapping: [[스와핑]] · [[swap space]] · [[page fault]] · [[effective access time]] · [[working set과 thrashing]] · [[swap daemon]] · [[페이지 교체 정책]] · [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] · [[demand paging]]
+* 18강 I/O Devices and HDD: [[I/O 장치]] · [[I/O 시스템 구조]] · [[canonical device]] · [[polling과 interrupt]] · [[PIO와 DMA]] · [[memory-mapped I/O]] · [[HDD 구조]] · [[디스크 접근 시간]] · [[logical block]] · [[디스크 스케줄링]] · [[FCFS]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]] · [[RAID]] · [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]]
 
 === 시험·과제 ===
 * [[시험 정보]] · '''[[2026F 중간고사]]''' · [[퀴즈1 복기]] · [[1단계 오답 노트]] · [[2025F 중간고사 족보]] · [[자주 틀리는 함정 모음]]

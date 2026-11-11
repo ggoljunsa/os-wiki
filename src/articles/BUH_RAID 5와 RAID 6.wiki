@@ -1,0 +1,33 @@
+key: RAID 5와 RAID 6
+title: RAID 5 (분산 parity) 와 RAID 6 (parity 2개)
+category: 18강 I/O Devices and HDD
+---
+Parity 를 여러 디스크에 흩어 놓는 RAID 5 와 parity 를 하나 더 두는 RAID 6 을 다룬다. 슬라이드 18강 p.50~51.
+
+== p.50 RAID 5 ⭐⭐ ==
+{def}p.50: "RAID 5 consists of block-level striping with '''distributed parity'''. Unlike in RAID 4, parity information is distributed among the drives. Shows better '''random performance''': a parity disk is not a bottleneck."{/def}
+
+[[img:L18-50.png|p.50 Ap 는 Disk 3, Bp 는 Disk 2, Cp 는 Disk 1, Dp 는 Disk 0|medium]]
+
+줄마다 parity 가 다른 디스크에 있다. 그래서 쓰기마다 같은 parity 디스크를 기다리지 않는다.
+
+슬라이드의 예: A1 과 B2 를 동시에 쓴다.
+<pre class="txt">
+RAID 5: A1 → Disk 0, Ap → Disk 3 / B2 → Disk 1, Bp → Disk 2   네 디스크가 다름 → 동시에 가능
+RAID 4: Ap 와 Bp 가 둘 다 Disk 3                               parity 디스크에서 줄을 섬
+</pre>
+
+== p.51 RAID 6 ==
+{def}p.51: "RAID 6 extends RAID 5 by adding '''another parity block'''. Block-level striping with two parity blocks distributed across all disks. A lower failure rate than RAID 5, but a performance penalty on write operations due to the overhead associated with parity calculations. Known to be the most popular solution in enterprise systems."{/def}
+
+[[img:L18-51.png|p.51 디스크 5개, 줄마다 p 와 q 두 parity|medium]]
+
+* Parity 가 두 개(p, q)라 디스크 두 개가 동시에 고장 나도 버틴다. 그래서 실패율이 RAID 5 보다 낮다.
+* 쓰기마다 parity 두 개를 계산하고 써야 해서 쓰기가 느리다.
+* 기업 시스템에서 가장 많이 쓴다.
+
+{quiz}RAID 4 에서 작은 random 쓰기가 느린 이유와 RAID 5 가 그것을 어떻게 해결하는지 쓰시오.{/quiz}
+{answer}RAID 4 는 모든 쓰기가 '''같은 parity 디스크'''를 갱신해야 해서 그 디스크가 병목이 된다. RAID 5 는 parity 를 '''줄마다 다른 디스크에 분산'''해 서로 다른 줄의 쓰기를 동시에 할 수 있다.{/answer}
+
+== 관련 문서 ==
+* [[RAID]] · [[RAID 4와 parity]] · [[RAID 0과 RAID 1]]

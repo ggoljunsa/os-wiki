@@ -1,0 +1,48 @@
+key: PIO와 DMA
+title: Programmed I/O (PIO) 와 DMA
+category: 18강 I/O Devices and HDD, 핵심
+---
+메모리와 장치 사이의 데이터를 CPU 가 옮기는 방식(PIO)과 전용 장치가 옮기는 방식(DMA)을 다룬다. 슬라이드 18강 p.13~15.
+
+== p.13 Programmed I/O ⭐⭐⭐ ==
+{def}p.13: "CPU wastes a lot of time to copy a large chunk of data from memory to the device. When CPU is involved with the data movement, we refer to it as '''programmed I/O (PIO)'''."{/def}
+
+[[img:L18-13.png|p.13 task 1 이 디스크에 쓰려고 CPU 가 c 3칸을 복사한다(over-burdened)|medium]]
+
+<pre class="ascii">
+CPU   1 1 1 1 c c c 2 2 2 2 2 1 1 1      c = copy data from memory
+Disk                1 1 1 1 1
+</pre>
+
+Interrupt 를 써도 데이터 복사는 여전히 CPU 몫이다. 데이터가 크면 c 칸이 길어진다. 슬라이드는 이 구간을 "over-burdened" 라고 표시했다.
+
+== p.14 DMA ⭐⭐⭐ ==
+{def}p.14: "Offload some of the work to a special-purpose processor, called a '''direct-memory-access (DMA) controller'''. Copy data in memory by knowing 1) '''where the data lives in memory''' and 2) '''how much data to copy'''. When completed, DMA '''raises an interrupt'''."{/def}
+
+<pre class="ascii">
+CPU   1 1 1 1 2 2 2 2 2 2 2 2 1 1 1
+DMA           C C C
+Disk                1 1 1 1 1
+</pre>
+
+CPU 는 DMA controller 에게 "어디에 있는 데이터를 얼마만큼" 만 알려 주고 바로 task 2 를 돌린다. 복사는 DMA 가 한다. 그래서 task 2 가 5칸에서 8칸으로 늘었다.
+
+[[sim:io_timeline]]
+
+== p.15 DMA 전송 6단계 ==
+[[img:L18-15.png|p.15 CPU, DMA/bus/interrupt controller, IDE disk controller, buffer X|medium]]
+
+# device driver 가 디스크 데이터를 주소 X 의 buffer 로 옮기라는 지시를 받는다.
+# device driver 가 disk controller 에게 C bytes 를 디스크에서 buffer X 로 옮기라고 한다.
+# disk controller 가 DMA 전송을 시작한다.
+# disk controller 가 각 byte 를 DMA controller 로 보낸다.
+# DMA controller 가 byte 를 buffer X 로 옮긴다. 메모리 주소는 증가하고 C 는 감소한다. C = 0 이 될 때까지 한다.
+# C = 0 이 되면 DMA 가 CPU 에 interrupt 를 걸어 전송이 끝났다고 알린다.
+
+[[anim:dma_flow|CPU 가 2단계 뒤에는 손을 떼고, 6단계 interrupt 에서만 다시 등장하는 것을 볼 것]]
+
+{quiz}PIO 와 DMA 에서 CPU 가 하는 일의 차이를 한 문장으로 쓰고, DMA controller 가 전송을 시작하려면 알아야 하는 두 가지를 쓰시오.{/quiz}
+{answer}PIO 는 CPU 가 데이터를 직접 옮기고, DMA 는 CPU 가 위치와 크기만 알려 주고 다른 일을 한다. DMA 가 알아야 하는 것은 '''데이터가 메모리 어디에 있는지'''와 '''얼마나 옮길지'''.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[polling과 interrupt]] · [[memory-mapped I/O]] · [[인터럽트]]

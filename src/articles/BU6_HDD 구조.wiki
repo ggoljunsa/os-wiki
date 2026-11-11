@@ -1,0 +1,47 @@
+key: HDD 구조
+title: HDD 구조 (platter, track, sector, cylinder)
+category: 18강 I/O Devices and HDD, 핵심
+---
+하드디스크의 부품과 데이터가 놓이는 단위, 그리고 sector 하나를 읽는 과정을 다룬다. 슬라이드 18강 p.21~26.
+
+== p.21 부품 ==
+[[img:L18-21.png|p.21 spindle, arm, platters, actuator, electronics, SCSI connector|medium]]
+
+Spindle 이 platter 들을 돌리고, actuator 가 arm 을 움직인다. 디스크 안에는 프로세서와 메모리가 든 전자 회로도 있다([[canonical device]]의 internals).
+
+== p.22~23 Disk Geometry ⭐⭐ ==
+{def}p.22: "Disks consist of '''platters''', each with two '''surfaces'''. Each surface consists of concentric rings called '''tracks'''. Each track consists of '''sectors''' separated by gaps."{/def}
+{def}p.23: "Aligned tracks form a '''cylinder'''. Read/write heads move in unison from cylinder to cylinder."{/def}
+
+[[img:L18-23.png|p.23 platter 3장, surface 6면, 같은 반지름의 track 들이 cylinder k|medium]]
+
+<pre class="ascii">
+platter ⊃ surface (양면 2개) ⊃ track (동심원) ⊃ sector (gap 으로 구분)
+cylinder = 모든 surface 에서 같은 반지름에 있는 track 들
+</pre>
+
+Head 는 surface 마다 하나씩 있고 함께 움직인다. 그래서 head 를 한 번 옮기면 한 cylinder 전체가 head 아래에 놓인다.
+
+== p.24~25 Disk Operation ==
+* Surface 는 일정한 속도로 돈다. p.25 그림은 counter-clockwise 다.
+* Head 는 arm 끝에 붙어 얇은 공기층 위를 난다.
+* Arm 이 반지름 방향으로 움직여 head 를 원하는 track 위에 둔다.
+* Head 가 sector 위를 지나는 동안 controller 가 그 sector 를 읽거나 쓴다.
+
+== p.26 sector 하나를 읽는 과정 ⭐⭐⭐ ==
+[[img:L18-26.png|p.26 After BLUE read → Seek for RED → Rotational latency → After RED read|large]]
+
+# 파란 sector 를 다 읽었다 (data transfer).
+# 빨간 sector 가 있는 track 으로 head 를 옮긴다 (seek).
+# 빨간 sector 가 head 밑으로 돌아올 때까지 기다린다 (rotational latency).
+# 빨간 sector 를 읽는다 (data transfer).
+
+[[anim:disk_seek_rotate|세 구간 시간이 어떻게 나뉘는지 보고 디스크 접근 시간으로 넘어갈 것]]
+
+이 세 구간의 시간을 더한 것이 [[디스크 접근 시간]]이다.
+
+{quiz}모든 surface 에서 같은 반지름 위치에 있는 track 들의 묶음을 무엇이라 하는가?{/quiz}
+{answer}'''Cylinder'''.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[디스크 접근 시간]] · [[logical block]]

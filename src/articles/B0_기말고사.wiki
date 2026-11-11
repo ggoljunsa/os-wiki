@@ -2,7 +2,7 @@ key: 기말고사
 title: 기말고사 (2026 Fall, 13강~)
 category: 기말고사
 ---
-{info}기말고사 범위인 13~17강과 과제 2 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}
+{info}기말고사 범위인 13~18강과 과제 2 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}
 
 중간고사까지는 [[가상화]] 중 CPU 가상화([[스케줄링]] 등)와 [[동시성]]을 배웠다. 기말은 메모리 가상화를 다룬다.
 
@@ -20,6 +20,8 @@ category: 기말고사
 | '''16강''' Advanced Page Table (교수 배포 영상 67분, p.1~50 전부) || `16-AdvPageTable.pdf` 50쪽 || linear page table 이 너무 크다 → hybrid · multi-level · inverted page table · huge page(THP) || [[고급 페이지 테이블]]
 |-
 | '''17강''' Swapping (수업 전 작성, 녹음 없음) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]
+|-
+| '''18강''' I/O Devices and HDD (수업 전 작성, 녹음 없음) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
 |}
 
 == 13강 읽는 순서 ==
@@ -80,6 +82,17 @@ category: 기말고사
 # [[working set과 thrashing]] · [[swap daemon]] (p.27~28, p.54)
 # [[페이지 교체 정책]], [[Optimal 교체]] · [[FIFO 교체]] · [[Random 교체]] · [[LRU]] · [[Clock 알고리즘]] ⭐⭐⭐ (p.30~49)
 # [[demand paging]]: dirty page, prefetching, clustering (p.50~53)
+
+== 18강 읽는 순서 ==
+
+# [[I/O 장치]]: 슬라이드 페이지 ↔ 문서 표 (p.2~51)
+# [[I/O 시스템 구조]] · [[canonical device]] (p.3~8)
+# [[polling과 interrupt]] · [[PIO와 DMA]] · [[memory-mapped I/O]] ⭐⭐⭐ (p.9~19)
+# [[HDD 구조]] · [[디스크 접근 시간]] ⭐⭐⭐ · [[logical block]] (p.21~30)
+# [[디스크 스케줄링]], [[FCFS]] · [[SSTF]] · [[SCAN]] · [[C-SCAN]] ⭐⭐⭐ (p.32~40)
+# [[RAID]], [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]] (p.42~51)
+
+{warn}18강 슬라이드 숫자 주의: p.37 SCAN 의 208 은 그림(0 까지 이동)과 맞지 않고 그림대로면 236 이다. 208 은 LOOK 의 값. p.48 RAID 4 의 중간식 (0.9025 + 0.1 × 0.95) 은 n = 2 의 값이고 n = 4 이면 (0.8145 + 0.1715), 최종 1.4% 는 맞다.{/warn}
 
 == 시험 정보 ==
 

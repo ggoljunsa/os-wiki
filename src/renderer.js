@@ -12,7 +12,7 @@ var navTab = null;
 var navLastActive = null;
 
 function navSectionOf(group) {
-  if (/^(기말고사|1[3-7]강|과제2)/.test(group)) return "기말";
+  if (/^(기말고사|1[3-8]강|과제2)/.test(group)) return "기말";
   if (/^([1-9]강|1[0-2]강|과제1|퀴즈)/.test(group)) return "중간";
   return "공통";
 }

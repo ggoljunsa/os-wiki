@@ -1,0 +1,24 @@
+key: logical block
+title: Logical Block (논리 블록과 sector 매핑)
+category: 18강 I/O Devices and HDD
+---
+디스크가 복잡한 sector 위치를 숨기고 OS 에게 번호 붙은 블록 배열만 보여 주는 방법을 다룬다. 슬라이드 18강 p.29~30.
+
+== p.29 Logical Disk Blocks ==
+{def}p.29: "The set of available sectors is modeled as a sequence of b-sized '''logical blocks''' (0, 1, 2, ...). Mapping between logical blocks and actual (physical) sectors is maintained by hardware/firmware device called '''disk controller'''. Converts requests for logical blocks into '''(surface, track, sector)''' triples."{/def}
+
+OS 는 "블록 n 을 읽어라" 라고만 한다. Disk controller 가 n 을 (surface, track, sector) 로 바꾼다. OS 는 디스크 안쪽 구조를 몰라도 된다.
+
+== p.30 매핑 방법 ==
+[[img:L18-30.png|p.30 연속 블록 0~5 를 이웃 sector 에, bad sector 의 블록 4 를 다른 곳으로|medium]]
+
+# 연속된 logical block 을 이웃한 sector 에 그대로 놓는다. 간단하고, I/O 의 spatial [[locality]] 를 살린다.
+# Bad sector 에 놓일 블록 몇 개는 멀쩡한 sector 로 옮긴다(remap). 이 블록을 읽으면 head 가 멀리 다녀와야 해서 성능이 떨어질 수 있다.
+
+{info}[[디스크 스케줄링]]의 예제(p.34)도 "logical blocks", "LBA" 로 위치를 적는다. 이웃한 번호가 실제로도 가깝다는 가정 덕분에 번호 차이를 head 이동 거리로 쓸 수 있다.{/info}
+
+{quiz}Logical block 번호를 (surface, track, sector) 로 바꾸는 주체는?{/quiz}
+{answer}디스크 안의 hardware/firmware 인 '''disk controller'''. OS 가 아니다.{/answer}
+
+== 관련 문서 ==
+* [[HDD 구조]] · [[디스크 스케줄링]] · [[locality]]

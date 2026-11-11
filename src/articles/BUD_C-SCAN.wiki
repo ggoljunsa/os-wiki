@@ -1,0 +1,32 @@
+key: C-SCAN
+title: C-SCAN 디스크 스케줄링 (Circular SCAN)
+category: 18강 I/O Devices and HDD, 핵심
+---
+한 방향으로만 요청을 처리하고, 끝에 닿으면 처리 없이 처음으로 돌아간다. 슬라이드 18강 p.39.
+
+== p.39 정의 ⭐⭐⭐ ==
+{def}p.39: "The head moves from one end of the disk to the other, servicing requests. When it reaches the other end, however, it '''immediately returns to the beginning''' of the disk, '''without servicing any requests on the return trip'''."{/def}
+
+[[img:L18-39.png|p.39 53 에서 위로 199 까지, 0 으로 복귀, 14, 37|medium]]
+
+<pre class="txt">
+53 → 65 → 67 → 98 → 122 → 124 → 183   130
+183 → 199 (끝)                          16
+199 → 0 (복귀, 처리 없음)               199
+0 → 14 → 37                             37
+합계 (복귀 포함)                        '''382'''
+복귀를 빼면                             183
+</pre>
+
+슬라이드에는 C-SCAN 이동량이 없다. 복귀를 더할지는 문제의 말을 따른다.
+
+[[sim:disk_sched]]
+
+== SCAN 과 비교 ==
+[[SCAN]] 은 양방향으로 처리해서 위치에 따라 대기 시간이 많이 다르다. C-SCAN 은 디스크를 원형 리스트처럼 다룬다. 모든 위치가 한 바퀴에 한 번씩 같은 방향으로 처리되므로 대기 시간이 더 고르다.
+
+{quiz}C-SCAN 이 돌아오는 길(199 → 0)에 요청을 처리하지 않는 이유는?{/quiz}
+{answer}모든 요청을 같은 방향으로만 처리해 대기 시간을 고르게 하려고. 돌아오는 길에도 처리하면 SCAN 과 같아져 위치에 따른 대기 시간 차이가 다시 생긴다.{/answer}
+
+== 관련 문서 ==
+* [[디스크 스케줄링]] · [[SCAN]] · [[FCFS]]

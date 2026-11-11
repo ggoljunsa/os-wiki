@@ -1,0 +1,34 @@
+key: I/O 시스템 구조
+title: I/O 시스템 구조 (bus 계층)
+category: 18강 I/O Devices and HDD
+---
+CPU, 메모리, 장치가 어떤 bus 로 이어지는지와 그 구조가 계층인 이유를 다룬다. 슬라이드 18강 p.3~5.
+
+== p.3 Prototypical System Architecture ==
+[[img:L18-03.png|p.3 memory bus, general I/O bus, peripheral I/O bus|medium]]
+
+* CPU 는 '''memory bus'''(예: AXI)로 메인 메모리와 붙는다.
+* 그래픽처럼 빠른 장치는 '''general I/O bus'''(예: PCIe)에 붙는다.
+* 디스크, USB 같은 느린 장치는 '''peripheral I/O bus'''(예: SCSI, SATA, USB)에 붙는다.
+
+CPU 에서 멀어질수록 bus 가 느려진다.
+
+== p.4 실제 메인보드 ==
+[[img:L18-04.png|p.4 DIMM, PCIe 슬롯, SATA 포트, USB 포트|medium]]
+
+DIMM 슬롯이 CPU 바로 옆에 있고, PCIe 슬롯, SATA 포트, USB 포트가 차례로 더 멀리 있다.
+
+== p.5 왜 계층으로 만드나 ==
+{def}p.5: "Why do we need a hierarchical structure? '''physics and cost'''. The faster a bus is, the shorter it must be."{/def}
+
+이유는 물리와 비용 두 가지다.
+# 빠른 bus 는 짧아야 한다. 그래서 고성능 memory bus 에는 장치를 꽂을 자리가 많지 않다.
+# 빠른 bus 를 만드는 데는 돈이 많이 든다.
+
+그래서 GPU 처럼 높은 성능이 필요한 장치는 CPU 가까이에 두고, HDD 처럼 느린 장치는 멀리 있는 느린 bus 에 많이 붙인다.
+
+{quiz}HDD 를 memory bus 에 직접 붙이지 않는 이유 두 가지를 p.5 의 표현으로 쓰시오.{/quiz}
+{answer}Physics(빠른 bus 는 짧아야 해서 꽂을 자리가 적다)와 cost(고성능 bus 는 만들기 비싸다). 느린 장치는 멀리 있는 느린 bus 에 많이 붙인다.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[canonical device]] · [[메모리 계층]]

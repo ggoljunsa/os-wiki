@@ -1,0 +1,63 @@
+key: 디스크 접근 시간
+title: 디스크 접근 시간 (Seek, Rotational latency, Transfer)
+category: 18강 I/O Devices and HDD, 핵심
+---
+Sector 하나에 접근하는 평균 시간을 세 부분으로 나눠 계산한다. 슬라이드 18강 p.27~28.
+
+== p.27 세 구성 요소 ⭐⭐⭐ ==
+{def}p.27: "Taccess = Tavg seek + Tavg rotation + Tavg transfer."{/def}
+
+{|
+! 구성 요소 || 정의 (p.27) || 식
+|-
+| '''Seek time''' || Time to position heads over cylinder containing target sector || 주어진 값 (보통 3~9 ms)
+|-
+| '''Rotational latency''' || Time waiting for first bit of target sector to pass under r/w head || 1/2 × (60 / RPM) 초
+|-
+| '''Transfer time''' || Time to read the bits in the target sector || (60 / RPM) × 1 / (avg sectors/track) 초
+|}
+
+* 60 / RPM 은 한 바퀴 도는 시간(초)이다.
+* 평균으로는 반 바퀴를 기다리므로 rotation 은 그 1/2 이다.
+* Sector 하나는 한 바퀴의 1/(sectors/track) 만큼이라 transfer 는 한 바퀴 시간을 sector 수로 나눈다.
+
+{warn}p.27 의 "Typical Tavg rotation = 7200 RPMs" 는 표현이 어긋났다. 7200 RPM 은 회전 속도이고, 그때의 Tavg rotation 은 약 4 ms 다.{/warn}
+
+== p.28 계산 예 ⭐⭐⭐ ==
+{def}p.28 Given: rotational rate = 7,200 RPM, average seek time = 9 ms, avg # sectors/track = 400.{/def}
+
+<pre class="txt">
+한 바퀴 = 60 / 7200 초 = 8.33 ms
+Tavg rotation = 1/2 × 8.33 ms = 4.17 ms ≈ 4 ms
+Tavg transfer = 8.33 ms / 400 = 0.0208 ms ≈ 0.02 ms
+Taccess = 9 + 4 + 0.02 = '''13.02 ms'''
+</pre>
+
+슬라이드는 합을 적지 않았다. 반올림 전 값으로 더하면 13.19 ms 다.
+
+{def}p.28 Important points: "Access time dominated by '''seek time and rotational latency'''. '''First bit in a sector is the most expensive, the rest are free.'''"{/def}
+
+13.02 ms 중 transfer 는 0.02 ms 뿐이다. Sector 의 첫 bit 까지 가는 데 거의 모든 시간이 들고, 그다음 bit 들은 거의 공짜다. 그래서 OS 는 seek 와 rotation 을 줄이려고 [[디스크 스케줄링]]을 한다.
+
+== p.28 메모리와 비교 ==
+p.28 은 SRAM 이 doubleword 당 약 4 ns, DRAM 이 약 60 ns 이고 디스크는 SRAM 보다 약 40,000 배, DRAM 보다 약 2,500 배 느리다고 한다.
+
+슬라이드에는 결과만 있다. 아래 유도는 참고 문헌 CSAPP 6.1.2 의 계산으로, 512 byte sector 크기 블록(doubleword 64개)을 읽는 시간으로 비교한다. 디스크 10 ms 와 4,000 ns 는 어림값이다(슬라이드 예제의 13.02 ms 와 다르다).
+<pre class="txt">
+SRAM: 64 × 4 ns = 256 ns
+DRAM: 64 × 60 ns = 3,840 ns ≈ 4,000 ns
+디스크 ≈ 10 ms = 10,000,000 ns
+10,000,000 / 256 ≈ 40,000
+10,000,000 / 4,000 = 2,500
+</pre>
+
+[[anim:disk_seek_rotate|막대 길이가 실제 비율이다. transfer 는 거의 보이지 않는다]]
+
+{quiz}15,000 RPM, 평균 seek 4 ms, track 당 평균 500 sector 인 디스크의 Taccess 는?{/quiz}
+{answer}한 바퀴 60/15000 = 4 ms. rotation = 2 ms. transfer = 4 / 500 = 0.008 ms. Taccess = 4 + 2 + 0.008 = '''6.008 ms'''.{/answer}
+
+{quiz}10,000 RPM, 평균 seek 5 ms, track 당 평균 500 sector 일 때 Tavg rotation 과 Taccess 는?{/quiz}
+{answer}한 바퀴 6 ms, rotation '''3 ms''', transfer 6/500 = 0.012 ms. Taccess = 5 + 3 + 0.012 = '''8.012 ms'''.{/answer}
+
+== 관련 문서 ==
+* [[HDD 구조]] · [[디스크 스케줄링]] · [[effective access time]](17강, page fault 8 ms 의 출처) · [[SRAM과 DRAM]]

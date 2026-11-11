@@ -1,0 +1,42 @@
+key: canonical device
+title: Canonical Device (표준 장치 모델)
+category: 18강 I/O Devices and HDD, 핵심
+---
+OS 가 보는 장치의 모양(레지스터 세 개)과 장치 안쪽 구조, 그리고 장치와 주고받을 때 생기는 세 질문을 다룬다. 슬라이드 18강 p.6~8.
+
+== p.6 Hardware Interface ⭐⭐ ==
+{def}p.6: "Three registers are minimally required. '''Status register''': see the current status of the device. '''Command register''': tell the device to perform a certain task. '''Data register''': pass data to the device or get data from the device."{/def}
+
+OS 는 이 세 레지스터를 읽고 쓰는 것만으로 장치를 다룬다.
+{|
+! 레지스터 || 하는 일
+|-
+| status || 장치가 지금 어떤 상태인지 본다 (예: BUSY)
+|-
+| command || 장치에게 할 일을 시킨다
+|-
+| data || 장치에 데이터를 주거나 받아 온다
+|}
+
+== p.7 Canonical Device ==
+[[img:L18-07.png|p.7 interface(레지스터)와 internals(마이크로컨트롤러·메모리·전용 칩)|medium]]
+
+{def}p.7: "'''Hardware interface''' allows the system software to control its operation. '''Internal structure''' which is implementation specific."{/def}
+
+장치는 두 부분으로 나뉜다.
+* Interface: 위의 레지스터 세 개. OS 는 이것만 본다.
+* Internals: 펌웨어를 돌리는 마이크로컨트롤러, DRAM/SRAM, 전용 칩. 장치마다 다르다.
+
+OS 는 안쪽을 몰라도 된다. 인터페이스만 같으면 같은 방법으로 다룰 수 있다.
+
+== p.8 세 가지 질문 ==
+p.8 은 장치와 주고받을 때 정해야 하는 것을 세 질문으로 묻는다. 답은 p.19 에 있다.
+# I/O 가 끝났는지 누가 확인하나? CPU 가 확인하거나 장치가 알린다. [[polling과 interrupt]]
+# 메모리와 장치 사이의 데이터는 누가 옮기나? CPU 가 복사하거나 장치가 메모리에서 가져간다. [[PIO와 DMA]]
+# 장치를 어떻게 "주소"로 부르나? 메모리와 다르게 부르거나 메모리처럼 부른다. [[memory-mapped I/O]]
+
+{quiz}OS 가 장치에 "이 일을 하라"고 시킬 때 쓰는 레지스터와, 장치가 바쁜지 확인할 때 읽는 레지스터는 각각 무엇인가?{/quiz}
+{answer}시킬 때는 '''command register''', 확인할 때는 '''status register'''. 데이터는 data register 로 주고받는다.{/answer}
+
+== 관련 문서 ==
+* [[I/O 장치]] · [[polling과 interrupt]] · [[I/O 시스템 구조]]

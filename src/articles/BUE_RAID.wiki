@@ -1,0 +1,47 @@
+key: RAID
+title: RAID (Redundant Array of Inexpensive Disks)
+category: 18강 I/O Devices and HDD, 핵심
+---
+디스크 여러 개를 하나의 큰 디스크처럼 묶는 방법과 그 평가 기준을 다룬다. 슬라이드 18강 p.42~43.
+
+{info}p.42 제목 위에 작은 글씨로 "Don't memorize" 가 있다. 제목 바로 위라서 약어 풀이(Redundant Array of Inexpensive Disks)를 외우지 말라는 뜻인지, RAID 절 전체를 외우지 말라는 뜻인지 슬라이드만으로는 알 수 없다. 수업에서 확인할 것. 레벨별 장단점과 실패율 계산은 아래 문서에 정리해 두었다.{/info}
+
+== p.42 개념 ==
+{def}p.42: "Use multiple disks in concert to build a '''faster, bigger, and more reliable''' disk system. RAID just looks like '''a big disk''' to the host system. RAIDs provide these advantages '''transparently''' to systems that use them."{/def}
+
+장점은 두 가지다.
+* Performance, Capacity: 디스크 여러 개를 병렬로 쓴다.
+* Reliability: 디스크 하나를 잃어도 버틸 수 있다.
+
+호스트는 RAID 를 디스크 하나로 본다. 그래서 OS 나 프로그램을 고치지 않고도 이 장점을 얻는다(transparent).
+
+== p.43 추상화와 평가 기준 ==
+[[img:L18-43.png|p.43 OS 는 logical block 배열 하나를 보고, RAID 가 Disk 0~3 으로 나눈다|medium]]
+
+{def}p.43: "An array of disks are abstracted as a linear array of logical blocks. When an I/O request arrives, RAID calculates which disk to access and issues one or more physical I/Os."{/def}
+
+OS 에게는 [[logical block]] 배열 하나로 보인다. 요청이 오면 RAID 가 어느 디스크의 어느 블록인지 계산해 실제 I/O 를 하나 이상 낸다.
+
+평가 기준은 셋이다.
+# Reliability: 디스크가 몇 개 고장 나도 버티나
+# Capacity: 시스템이 실제로 쓸 수 있는 용량이 얼마나
+# Performance
+
+== 레벨 비교 (n = 디스크 수, r = 디스크 하나의 고장률) ==
+{|
+! 레벨 || 방식 || 성능 || 공간 효율 || 배열 실패율 || 슬라이드 평
+|-
+| RAID 0 || striping || n 배 || 1.0 || 1 − (1 − r)^n || Don't use
+|-
+| RAID 1 || mirroring || 읽기 n 배, 쓰기 1 || 1/n || r^n || Use if possible
+|-
+| RAID 4 || striping + parity 디스크 1개 || (n − 1) 배 || 1 − 1/n || 1 − {(1 − r)^n + nr(1 − r)^(n−1)} ||
+|-
+| RAID 5 || parity 분산 || random 쓰기가 RAID 4 보다 좋음 || (1 − 1/n) || (RAID 4 와 같은 꼴) ||
+|-
+| RAID 6 || parity 2개 분산 || 쓰기가 더 느림 || (1 − 2/n) || RAID 5 보다 낮음 || 기업에서 가장 흔함
+|}
+괄호 안 값은 슬라이드에 없고 구조에서 바로 나오는 값이다.
+
+== 관련 문서 ==
+* [[RAID 0과 RAID 1]] · [[RAID 4와 parity]] · [[RAID 5와 RAID 6]] · [[I/O 장치]]

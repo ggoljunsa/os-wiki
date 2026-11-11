@@ -108,6 +108,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 페이징 · VPN과 offset · 페이지 테이블 · PTE 플래그 · copy-on-write · 페이징의 문제 · TLB · TLB hit와 miss · TLB miss 처리 · PTBR · ASID와 TLB flush
 ### 16강 Advanced Page Table — 파일 접두어 `BS0_`(허브)~`BSB_`. 슬라이드 `../../기말고사/강의자료/16-AdvPageTable.pdf` 50쪽 = `_slides/L16-{pp}.png`, 텍스트 `_text/16-AdvPageTable.txt`. 녹음 = 교수 배포 영상 `16-AdvPageTable.mp4` 67분(전사 `기말고사/녹음본/16-AdvPageTable.txt`, 2026-11-02). 슬라이드 p.29 주소 표기 오류(그림·영상의 766307601 = 0x2DACED11 이 맞음)
 고급 페이지 테이블 · hybrid approach · multi-level page table · page directory · PDBR · 다단계 주소 변환 계산 · 3단계 page table · inverted page table · hash collision · huge page · transparent huge page · Sv39 PTE
+### 18강 I/O Devices and HDD — 파일 접두어 `BU0_`(허브)~`BUH_`. 슬라이드 `../../기말고사/강의자료/18-IO_Devices_and_HDD.pdf` 53쪽 = `_slides/L18-{pp}.png`, 텍스트 `_text/18-IO_Devices_and_HDD.txt`. 수업 전 작성(2026-11-11). 슬라이드 오류: p.37 SCAN 208(그림대로면 236, 208 은 LOOK), p.48 RAID 4 중간식은 n=2 값. p.42 "Don't memorize" 범위 미확인
+I/O 장치 · I/O 시스템 구조 · canonical device · polling과 interrupt · PIO와 DMA · memory-mapped I/O · HDD 구조 · 디스크 접근 시간 · logical block · 디스크 스케줄링 · FCFS · SSTF · SCAN · C-SCAN · RAID · RAID 0과 RAID 1 · RAID 4와 parity · RAID 5와 RAID 6
 ### 과제2 퀴즈 문제 세트 (2026-10-28) — 접두어 `BZC_`~`BZE_`. 주간문제집 `과제2_퀴즈대비/units/u1~u3.html` 을 변환(문제 {quiz} + 접힌 {answer}). 원본 문제집을 고치면 여기도 같이 고칠 것
 과제2 문제 ① kalloc · 과제2 문제 ② bcache · 과제2 퀴즈 모의
 ### 과제1
@@ -160,6 +162,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 | multilevel_walk | 16강 p.21~29: TLB miss 가정 multi-level walk(PDBR → PDE → … → PTE → PA, 메모리 접근 수). 옵션 set = two(16KB/64B 4|4|6: VA 5844 → 14740, PT 0 invalid, PD 8 invalid) / three(1GB/512B 7|7|7|9: 0x2DACED11 → 2115190033, 슬라이드 글자 0x2DACECBB → offset 187, L0 index 90 invalid). PDBR·중간 PDE 의 PFN 은 가정값 | 다단계 주소 변환 계산, 3단계 page table, multi-level page table |
 | p7_fetchadd | 2025F P7 / ④-13·14: FetchAdd lock flag(보유자+시도자 표) 줄 단위, 옵션 variant = v7(0→1→2→3→2→1→0→1, T2 획득) / no_c((c) 빠져 flag 누적, 아무도 못 잡음) | 2025F 중간고사 족보 |
 | page_replace | 17강 p.32~39·p.46: 참조열을 정책별로 한 칸씩. 옵션 policy = opt/fifo/random/lru/clock, set = slide(frame 3) / b3 / b4(Belady, FIFO 9 → 10) | 페이지 교체 정책, Optimal 교체, FIFO 교체, LRU, Clock 알고리즘 |
+| disk_sched | 18강 p.34~39: head 53, queue 98 183 37 122 14 124 65 67 을 정책별로 한 칸씩(이동량 누적, 슬라이드식 궤적 SVG). 옵션 policy = fcfs(640)/sstf(236)/scan(아래로, 0 까지 236)/cscan(위로, 복귀 포함 382)/look(208 확인용), set = slide / prac(head 100: 498/248/284/388/248) | 디스크 스케줄링, FCFS, SSTF, SCAN, C-SCAN |
+| io_timeline | 18강 p.10·11·13·14 CPU 사용 그림을 tick 단위로(CPU/DMA/Disk 행, CPU 낭비 tick 수). 옵션 mode = polling(낭비 5)/interrupt/pio(낭비 3)/dma | polling과 interrupt, PIO와 DMA |
 | page_fault_trace | 17강 p.18~23·p.50: VP 3 fault → victim VP 4 → swap in → PTE 갱신 → 재실행. 옵션 victim = clean/dirty | 스와핑, page fault |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
@@ -268,4 +272,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | thp_promotion | 16강 p.41~44: 흩어진 8 frame → compaction(빨간 화살표) → promotion(PDE 가 Huge Page 직접, PT page 불필요, TLB 8→1) → demotion(VPN 7 안 씀 → 7개 재매핑·frame 반납) | transparent huge page, 고급 페이지 테이블 |
 | priority_inversion | H/M/L Gantt: ① L 락 보유 → H 선점·락 대기 → M 이 L 선점 → H 대기 7 단위 ② priority inheritance: L 을 H 급으로 → M 선점 불가 → H 대기 2 단위 | priority inversion |
 | clock_hand | 17강 p.47: B(1) 를 0 으로 지우고 C(0) 를 victim 으로, X 삽입 | Clock 알고리즘 |
+| disk_seek_rotate | 18강 p.26~28: 안쪽 파란 sector 다음 바깥 빨간 sector — seek(arm 이동) → rotational latency(반시계 회전) → transfer, 오른쪽에 9 : 4 : 0.02 ms 실제 비율 막대 | 디스크 접근 시간, HDD 구조, I/O 장치 |
+| dma_flow | 18강 p.15 DMA 6단계: driver 지시 → disk controller → byte 가 DMA 를 거쳐 buffer X, C 4→0 → interrupt | PIO와 DMA |
 | page_fault_flow | 17강 p.19~23: Reference → Trap → victim VP 4 → VP 3 가져오기 → PTE 갱신 → 재실행 | 스와핑, page fault |

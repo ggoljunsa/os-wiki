@@ -1,0 +1,49 @@
+key: RAID 4와 parity
+title: RAID 4 와 Parity
+category: 18강 I/O Devices and HDD, 핵심
+---
+데이터를 나눠 담고 parity 블록 하나를 전용 디스크에 두어 고장 하나를 복구하는 RAID 4 를 다룬다. 슬라이드 18강 p.48~49.
+
+== p.48 RAID 4 ⭐⭐ ==
+{def}p.48: "RAID 4 consists of block-level striping with a '''parity block in a dedicated disk'''. Relatively high performance: (n − 1) times for both reads and writes. Relatively high space efficiency: 1 − 1/n. Relatively low failure rate: 1 − {(1 − r)^n + nr(1 − r)^(n−1)} (*Recover 1 failure)."{/def}
+
+[[img:L18-48.png|p.48 A1~A3 는 Disk 0~2, parity Ap 는 Disk 3|medium]]
+
+* 데이터 디스크 n − 1 개, parity 디스크 1 개다. 그래서 성능 (n − 1) 배, 공간 효율 1 − 1/n.
+* 디스크 하나까지는 고장 나도 복구한다. 배열이 살아 있는 경우는 "모두 정상" 또는 "정확히 하나 고장" 이다.
+
+<pre class="txt">
+r = 0.05, n = 4
+모두 정상 = 0.95^4 = 0.8145
+정확히 하나 고장 = 4 × 0.05 × 0.95^3 = 0.2 × 0.8574 = 0.1715
+배열 실패율 = 1 − (0.8145 + 0.1715) = '''0.0140 = 1.4%'''
+</pre>
+
+{warn}p.48 의 중간식 "1 − (0.9025 + 0.1 × 0.95)" 는 n = 2 일 때의 값(0.95^2, 2 × 0.05 × 0.95)이고 계산하면 0.0025 다. n = 4 이면 위처럼 0.8145 와 0.1715 를 써야 한다. 최종값 0.014 = 1.4% 는 n = 4 기준으로 맞다.{/warn}
+
+{info}슬라이드는 쓰기도 (n − 1) 배라고 했다. 큰 연속 쓰기는 그렇다. 작은 random 쓰기는 매번 parity 디스크 하나를 같이 써야 해서 parity 디스크가 병목이 된다. p.50 의 RAID 5 가 이 문제를 푼다.{/info}
+
+== p.49 Parity 계산과 복구 ⭐⭐⭐ ==
+{def}p.49: "How to calculate a parity block: XOR(101, 010, 011) = 100. How to recover a fault block: recover the data block in the Disk 1, XOR(101, 011, 100) = 010."{/def}
+
+[[img:L18-49.png|p.49 Disk0~2 의 101, 010, 011 과 parity 100|medium]]
+
+Parity 는 같은 줄의 데이터 블록을 bit 마다 XOR 한 값이다. XOR 는 1 의 개수가 홀수면 1 이다.
+
+<pre class="txt">
+parity:
+101 XOR 010 = 111
+111 XOR 011 = '''100'''
+
+Disk 1 복구 (살아 있는 것 모두 XOR):
+101 XOR 011 = 110
+110 XOR 100 = '''010'''
+</pre>
+
+모든 블록(parity 포함)을 XOR 하면 0 이 된다. 그래서 하나가 빠져도 나머지를 XOR 하면 빠진 값이 나온다. 둘이 빠지면 복구할 수 없다.
+
+{quiz}Disk 0~2 가 1100, 1010, 0110 일 때 parity 는? Disk 2 가 고장 나면 어떻게 복구하나?{/quiz}
+{answer}1100 XOR 1010 = 0110, 0110 XOR 0110 = '''0000'''. 복구: 1100 XOR 1010 XOR 0000 = '''0110'''.{/answer}
+
+== 관련 문서 ==
+* [[RAID]] · [[RAID 0과 RAID 1]] · [[RAID 5와 RAID 6]]

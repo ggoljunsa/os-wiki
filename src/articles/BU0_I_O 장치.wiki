@@ -1,0 +1,90 @@
+key: I/O 장치
+title: I/O 장치와 HDD (18강)
+category: 18강 I/O Devices and HDD, 핵심
+---
+{info}18강 슬라이드 `18-IO_Devices_and_HDD.pdf`(53쪽) 기준이다. 수업 전에 쓴 문서라 녹음 내용은 아직 없다. 수업 중에는 아래 표에서 지금 페이지의 문서를 바로 열면 된다.{/info}
+
+17강까지는 메모리 가상화를 다뤘다. 18강부터는 '''영속성'''([[영속성]]) 부분이다. OS 가 장치와 어떻게 이야기하는지(p.2~19), 하드디스크가 어떻게 생겼고 얼마나 느린지(p.20~30), 요청 순서를 어떻게 정하는지(p.31~40), 디스크 여러 개를 어떻게 묶는지(p.41~51)를 배운다.
+
+== 슬라이드 ↔ 문서 (수업 중 따라가기) ==
+{|
+! 슬라이드 || 내용 || 문서
+|-
+| p.2~5 || I/O 의 중요성, bus 계층 구조 || [[I/O 시스템 구조]]
+|-
+| p.6~8 || status · command · data register, canonical device, 세 가지 질문 || [[canonical device]]
+|-
+| p.9~12 || polling, interrupt, 언제 무엇을 쓰나 ⭐⭐⭐ || [[polling과 interrupt]]
+|-
+| p.13~15 || programmed I/O, DMA ⭐⭐⭐ || [[PIO와 DMA]]
+|-
+| p.16~19 || port-mapped I/O, memory-mapped I/O, 세 질문의 답 ⭐⭐ || [[memory-mapped I/O]]
+|-
+| p.21~26 || platter · surface · track · sector · cylinder ⭐⭐ || [[HDD 구조]]
+|-
+| p.27~28 || seek · rotational latency · transfer 계산 ⭐⭐⭐ || [[디스크 접근 시간]]
+|-
+| p.29~30 || logical block, bad sector remap ⭐ || [[logical block]]
+|-
+| p.32~34, p.40 || 디스크 스케줄링이 왜 필요한가, I/O queue, 정책 고르기 ⭐⭐ || [[디스크 스케줄링]]
+|-
+| p.35 || FCFS, 640 ⭐⭐⭐ || [[FCFS]]
+|-
+| p.36 || SSTF, 236, starvation ⭐⭐⭐ || [[SSTF]]
+|-
+| p.37~38 || SCAN (elevator), 슬라이드 208 의 정체 ⭐⭐⭐ || [[SCAN]]
+|-
+| p.39 || C-SCAN ⭐⭐⭐ || [[C-SCAN]]
+|-
+| p.42~43 || RAID 개념, 평가 기준 (p.42 위에 "Don't memorize") || [[RAID]]
+|-
+| p.44~47 || RAID 0 striping, RAID 1 mirroring, 실패율 계산 ⭐⭐ || [[RAID 0과 RAID 1]]
+|-
+| p.48~49 || RAID 4, parity XOR, 복구 ⭐⭐ || [[RAID 4와 parity]]
+|-
+| p.50~51 || RAID 5 분산 parity, RAID 6 || [[RAID 5와 RAID 6]]
+|}
+
+== p.2 질문 세 개 ==
+{def}p.2: "How should I/O be integrated into systems? What are the general mechanisms? How can we make this efficiently?"{/def}
+
+프로그램은 입력과 출력이 없으면 쓸모가 없다. 그래서 OS 는 장치를 시스템에 붙이는 방법, 장치를 다루는 일반적인 방법, 그것을 효율적으로 하는 방법을 정해야 한다. p.8 의 세 질문과 p.19 의 답이 이 강의 앞부분의 뼈대다.
+
+<pre class="ascii">
+질문 (p.8)                              답 (p.19)
+I/O 가 끝났는지 누가 확인하나?         CPU 가 확인 = [[polling과 interrupt|Polling]]     장치가 알림 = [[polling과 interrupt|Interrupt]]
+메모리 ↔ 장치 데이터는 누가 옮기나?     CPU 가 복사 = [[PIO와 DMA|Programmed I/O]]     장치가 복사 = [[PIO와 DMA|DMA]]
+장치를 어떻게 "주소"로 부르나?          메모리와 다르게 = [[memory-mapped I/O|Port-mapped I/O]]   메모리처럼 = [[memory-mapped I/O|Memory-mapped I/O]]
+</pre>
+
+== p.25~28 디스크 접근 한 번 ==
+[[anim:disk_seek_rotate|seek, rotation, transfer 순서를 보고 나서 디스크 접근 시간 계산을 읽을 것]]
+
+== p.34~39 같은 요청, 네 정책 ==
+<pre class="ascii">
+head 53, queue = 98, 183, 37, 122, 14, 124, 65, 67, 디스크 0~199
+정책      방문 순서                                          이동량
+FCFS      53 98 183 37 122 14 124 65 67                       640
+SSTF      53 65 67 37 14 98 122 124 183                       236
+SCAN      53 37 14 0 65 67 98 122 124 183                     236  (슬라이드 글자는 208)
+C-SCAN    53 65 67 98 122 124 183 199 → 0 14 37               382  (복귀 199 포함)
+</pre>
+
+[[sim:disk_sched]]
+
+{warn}p.37 SCAN 의 "Total head movement of 208" 은 그림과 맞지 않는다. 그림은 0 까지 내려가므로 53 + 183 = '''236''' 이다. 208 은 0 까지 가지 않고 14 에서 바로 도는 LOOK 의 값(39 + 169)이다. 자세한 것은 [[SCAN]].{/warn}
+
+== 시험 대비 핵심 요약 ==
+# Device 의 hardware interface 는 status, command, data register 세 개다.
+# Polling 은 CPU 가 status 를 반복해서 읽는다. Interrupt 는 장치가 끝나면 알린다. 빠른 장치는 polling, 느린 장치는 interrupt.
+# PIO 는 CPU 가 데이터를 옮긴다. DMA 는 DMA controller 가 옮기고 끝나면 interrupt 를 건다.
+# Port-mapped I/O 는 in/out 같은 특권 명령, memory-mapped I/O 는 보통 load/store.
+# Taccess = Tavg seek + Tavg rotation + Tavg transfer. Tavg rotation = 1/2 × 60/RPM. Seek 과 rotation 이 거의 전부다.
+# 7200 RPM, seek 9 ms, 400 sectors/track 이면 4 ms, 0.02 ms, 합 약 13.02 ms.
+# 디스크 스케줄링 이동량: FCFS 640, SSTF 236, SCAN 236(그림 기준), C-SCAN 382(복귀 포함).
+# SSTF 는 SJF 와 같은 꼴이라 starvation 이 생길 수 있다. 부하가 크면 SCAN, C-SCAN 이 낫다.
+# RAID 0 은 striping(실패율 1 − (1 − r)^n), RAID 1 은 mirroring(r^n), RAID 4 는 parity 디스크 하나, RAID 5 는 parity 분산, RAID 6 은 parity 둘.
+# Parity 는 XOR 이다. 잃은 블록은 나머지 블록을 모두 XOR 하면 나온다.
+
+== 관련 문서 ==
+* [[기말고사]] · [[스와핑]](17강, 디스크를 swap space 로 쓰는 쪽) · [[I/O와 스케줄링]](5강, I/O 중 CPU 겹치기) · [[인터럽트]] · [[영속성]]
