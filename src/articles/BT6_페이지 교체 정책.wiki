@@ -40,6 +40,28 @@ Miss 가 줄면 [[effective access time]]이 낮아진다. 정책은 다섯 가�
 [[img:L17-41.png|p.41 The 80-20 Workload|large]]
 [[img:L17-42.png|p.42 The Looping-Sequential Workload|large]]
 
+=== p.42 Looping Sequential 자세히 ===
+{def}p.42: "Refer to 50 pages in sequence. Starting at 0, then 1, … up to page 49, and then we Loop, repeating those accesses, for total of 10,000 accesses to 50 unique pages."{/def}
+
+0, 1, …, 49 를 차례로 참조하고 다시 0 부터 반복한다. 50쪽짜리 배열을 for 문으로 계속 처음부터 끝까지 읽는 것과 같다. 50 × 200바퀴 = 10,000번이다.
+
+frame 이 50개보다 하나라도 적으면 LRU 와 FIFO 의 hit rate 는 0% 다.
+# 49칸이 0~48 로 찬다.
+# 49 를 넣으려고 가장 오래된 0 을 내보낸다.
+# 다음 참조가 바로 0 이다. miss 가 나고, 이번에는 1 을 내보낸다.
+# 다음 참조가 1 이다. 이렇게 매번 곧 쓸 page 를 내보낸다.
+
+반복해서 훑는 패턴에서는 가장 오래 안 쓴 page 가 곧 쓸 page 다. 슬라이드의 "these older pages are going to be accessed sooner" 가 이 뜻이다. 아래 그림은 같은 일을 page 5개, frame 4개로 줄여 보여 준다.
+
+[[anim:looping_lru|위 줄은 내보낸 page 가 바로 다음 참조인 것을, 아래 줄은 둘째 바퀴가 전부 hit 인 것을 볼 것]]
+
+그래프 읽는 법은 다음과 같다.
+* x축 Cache Size 는 메모리에 둘 수 있는 page 수(frame 수)다. 한 번에 올리는 개수가 아니다. page 는 miss 가 날 때 하나씩 올라온다.
+* 캐시 50 미만: LRU 와 FIFO 는 0% 라 x축 위에 깔려 있고, 둘의 값이 같아 선 하나만 보인다. Random 은 일부 page 가 운 좋게 살아남아 조금씩 오르고, OPT 는 캐시 크기에 비례해 오른다.
+* 캐시 50 이상: 첫 바퀴의 miss 50번 뒤로는 전부 hit 다. (10,000 − 50) / 10,000 = 99.5% 로 네 정책이 같아서 선이 한 줄로 겹친다. 맨 위에 그린 초록(RAND)만 보인다.
+
+{tip}frame 50개면 디스크에서 50번만 읽고, 49개면 LRU 로 약 10,000번 읽는다. 이 workload 의 working set 이 50 page 이고, 그보다 메모리를 적게 주면 [[working set과 thrashing|thrashing]] 이 된다.{/tip}
+
 {exam}"어떤 workload 에서 어떤 정책이 왜 좋은가/나쁜가" 객관식과, 참조열을 주고 정책별 hit 수를 세는 문제가 가장 유력하다.{/exam}
 
 == 관련 문서 ==

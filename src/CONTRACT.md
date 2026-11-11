@@ -274,4 +274,5 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | clock_hand | 17강 p.47: B(1) 를 0 으로 지우고 C(0) 를 victim 으로, X 삽입 | Clock 알고리즘 |
 | disk_seek_rotate | 18강 p.26~28: 안쪽 파란 sector 다음 바깥 빨간 sector — seek(arm 이동) → rotational latency(반시계 회전) → transfer, 오른쪽에 9 : 4 : 0.02 ms 실제 비율 막대 | 디스크 접근 시간, HDD 구조, I/O 장치 |
 | dma_flow | 18강 p.15 DMA 6단계: driver 지시 → disk controller → byte 가 DMA 를 거쳐 buffer X, C 4→0 → interrupt | PIO와 DMA |
+| looping_lru | 17강 p.42 Looping Sequential 축소판: 0~4 두 바퀴, frame 4개(LRU, 내보낸 page = 다음 참조, hit 0/10) vs 5개(hit 5/10) | 페이지 교체 정책 |
 | page_fault_flow | 17강 p.19~23: Reference → Trap → victim VP 4 → VP 3 가져오기 → PTE 갱신 → 재실행 | 스와핑, page fault |
