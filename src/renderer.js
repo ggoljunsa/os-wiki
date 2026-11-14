@@ -103,6 +103,52 @@ function renderNav(active) {
   }
 }
 
+// ---------- 뒤로 가기 스크롤 복원 (2026-11-14) ----------
+// 문서를 열 때마다 본문을 새로 그리고 맨 위로 올리므로, 브라우저가 기억한 스크롤이 사라진다.
+// 그래서 history 항목마다 스크롤 위치를 state 에 저장해 두고, 같은 항목으로 돌아오면 그 위치로 되돌린다.
+// 링크로 새로 연 문서는 state 가 없으니 맨 위에서 시작한다.
+try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (e) {}
+var __scrollSaveTimer = null, __restoreY = null;
+function __curKey() { try { return decodeURIComponent(location.hash.substring(1)) || "main"; } catch (e) { return "main"; } }
+function saveScroll() {
+  if (__restoreY !== null) return;
+  try {
+    var st = history.state && typeof history.state === "object" ? history.state : {};
+    st.wikiKey = __curKey();
+    st.y = window.scrollY || window.pageYOffset || 0;
+    history.replaceState(st, "");
+  } catch (e) {}
+}
+window.addEventListener("scroll", function () {
+  if (__restoreY !== null) return;
+  clearTimeout(__scrollSaveTimer);
+  __scrollSaveTimer = setTimeout(saveScroll, 120);
+}, { passive: true });
+// 링크를 누르는 순간(해시가 바뀌기 전)에 지금 위치를 한 번 더 저장한다.
+document.addEventListener("click", function (ev) {
+  var a = ev.target && ev.target.closest ? ev.target.closest('a[href^="#"]') : null;
+  if (a) { clearTimeout(__scrollSaveTimer); saveScroll(); }
+}, true);
+window.addEventListener("pagehide", saveScroll);
+// 사용자가 직접 움직이면 복원을 멈춘다.
+["wheel", "touchstart", "keydown", "mousedown"].forEach(function (ev) {
+  window.addEventListener(ev, function () { __restoreY = null; }, { passive: true });
+});
+function restoreScroll(key) {
+  var st = null;
+  try { st = history.state; } catch (e) {}
+  if (!st || st.wikiKey !== key || !st.y) { __restoreY = null; window.scrollTo(0, 0); return; }
+  var y = st.y, tries = 0;
+  __restoreY = y;
+  (function attempt() {
+    if (__restoreY !== y) return;
+    window.scrollTo(0, y);
+    // 그림·수식이 늦게 그려지면 높이가 바뀌므로 2초 동안 위치를 다시 맞춘다.
+    if (++tries >= 40) { __restoreY = null; return; }
+    setTimeout(attempt, 50);
+  })();
+}
+
 function renderArticle(key) {
   var art = ARTICLES[key] || ARTICLES["main"];
   var area = document.getElementById("articleArea");
@@ -135,7 +181,7 @@ function renderArticle(key) {
 
   renderNav(key);
   renderTOC();
-  window.scrollTo(0, 0);
+  restoreScroll(key);
 }
 
 function mountSims(scope) {
