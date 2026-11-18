@@ -1,0 +1,84 @@
+key: rename과 atomic update
+title: rename 과 파일을 atomic 하게 바꾸기
+category: 19강 File and Directory
+---
+19강 p.24 한 장을 다룬다. 이름을 바꾸는 `rename()` 이 atomic 하게 동작한다는 성질 하나로, 파일 내용 전체를 "옛것 아니면 새것" 으로만 보이게 바꾸는 요령이 나온다. 그 요령 안에 `fsync()` 가 왜 들어가는지도 본다.
+
+== rename 은 이름만 바꾼다 ==
+{def}p.24: "rename(char *old, char *new): Rename a file to different name. It is implemented as an atomic call."{/def}
+
+<pre class="sh">
+prompt> mv foo bar        // mv uses the system call rename()
+</pre>
+
+`mv` 명령은 안에서 `rename()` 을 부른다. [[디렉터리]] 에서 본 대로 이름은 디렉터리 엔트리에만 있으니, 이름을 바꾸는 일은 엔트리를 고치는 일이다. 파일 내용(데이터 블록)도, [[inode]] 번호도 그대로다. 파일이 아무리 커도 `mv` 가 순식간에 끝나는 이유다.[* 같은 파일 시스템 안에서만 그렇다. `rename()` 은 다른 파일 시스템으로는 옮기지 못하고 에러를 낸다. inode 번호가 파일 시스템 안에서만 의미가 있기 때문이다. 그래서 `mv` 는 파티션을 넘어갈 때는 내용을 통째로 복사하고 원본을 지우는 식으로 동작한다. 이때는 큰 파일이면 오래 걸린다.]
+
+== atomic 이 무슨 뜻인가 ==
+8강에서 [[atomic]] 을 "중간 상태가 보이지 않는다, 전부 아니면 전무" 라고 배웠다. 그때는 스레드 사이의 이야기였다. 파일 시스템에서 atomic 은 하나가 더 붙는다. '''시스템이 갑자기 꺼져도''' 중간 상태가 남지 않는다는 뜻이다.
+
+`rename("foo.txt.tmp", "foo.txt")` 을 하는 도중 전원이 나가도, 다시 켰을 때 보이는 것은 둘 중 하나다.
+* rename 전 상태: `foo.txt` 는 옛 파일, `foo.txt.tmp` 는 새 파일.
+* rename 후 상태: `foo.txt` 가 새 파일, `foo.txt.tmp` 는 없음.
+
+`foo.txt` 라는 이름이 아무것도 가리키지 않거나, 반쯤 바뀐 상태는 생기지 않는다.[* OSTEP 39장의 표현으로는 "implemented as an atomic call with respect to system crashes" 다. 파일 시스템이 이걸 어떻게 보장하는지(journaling 등)는 OSTEP 42장의 crash consistency 이야기이고 이 강의 범위 밖이다. 2강 [[영속성]] 에서 이름만 나왔던 journaling 이 그것이다.]
+
+== 파일 내용을 안전하게 통째로 바꾸기 ==
+문제 상황을 먼저 보자. 편집기가 `foo.txt` 를 고쳐서 저장한다. 가장 단순한 방법은 이렇다.
+
+<pre class="c">
+int fd = open("foo.txt", O_WRONLY | O_TRUNC);   // 기존 내용을 지우고
+write(fd, buffer, size);                         // 새 내용을 쓴다
+close(fd);
+</pre>
+
+`O_TRUNC` 로 연 순간 옛 내용은 사라진다. 새 내용을 쓰는 도중 전원이 나가면 `foo.txt` 에는 새 내용의 앞부분만 남거나 아예 비어 있다. 옛것도 새것도 아닌 망가진 파일이다.
+
+p.24 의 방법은 순서를 바꾼다.
+
+<pre class="c">
+int fd = open("foo.txt.tmp", O_WRONLY|O_CREAT|O_TRUNC);
+write(fd, buffer, size); // write out new version of file
+fsync(fd);
+close(fd);
+rename("foo.txt.tmp", "foo.txt");
+</pre>
+
+한 줄씩 읽어 보자.
+# 새 내용을 '''다른 이름'''의 임시 파일 `foo.txt.tmp` 에 쓴다. 이 동안 `foo.txt` 는 옛 내용 그대로다.
+# `write` 로 새 내용을 쓴다.
+# `fsync(fd)` 로 이 파일의 내용을 '''디스크에 실제로''' 내려보낸다.
+# 닫는다.
+# `rename` 으로 이름을 바꾼다. atomic 이니 `foo.txt` 는 이 순간 옛것에서 새것으로 한 번에 넘어간다. 옛 파일은 이름을 잃어 지워진다([[hard link]] 의 link count 이야기).
+
+어느 줄에서 전원이 나가도 `foo.txt` 는 옛 내용이거나 새 내용이다. 1~4 사이에서 꺼지면 `foo.txt` 는 옛것이고 `.tmp` 쓰레기 파일이 하나 남을 뿐이다. 5 이후면 새것이다.
+
+{analogy}
+게시판 공지를 바꿀 때 기존 공지를 떼고 그 자리에서 새로 쓰면, 쓰는 동안 지나가는 사람은 반쪽짜리 공지를 본다. 옆 책상에서 새 공지를 다 써 놓고(tmp 에 write), 풀이 마를 때까지 기다렸다가(fsync), 한 번에 바꿔 붙이면(rename) 언제 봐도 온전한 공지 하나만 보인다.
+{/analogy}
+
+== 왜 fsync 가 꼭 있어야 하나 ==
+`write()` 가 돌아왔다고 데이터가 디스크에 있는 것은 아니다. 디스크는 느리기 때문에([[디스크 접근 시간]]) 파일 시스템은 쓴 내용을 일단 메모리 버퍼에 모아 두고 나중에 한꺼번에 내려보낸다. 2강 [[영속성]] 문서의 경고가 이것이다.[* OSTEP 39장은 이 지연을 보통 5 초나 30 초쯤이라고 한다. 그 사이에 전원이 나가면 `write` 가 성공했던 내용이 사라진다.]
+
+`fsync(fd)` 는 그 fd 의 아직 안 내려간 데이터를 지금 디스크에 쓰고, 다 쓰여야 돌아온다. p.24 에서 fsync 를 빼면 이런 일이 생길 수 있다. 파일 시스템이 rename(디렉터리 엔트리 변경)은 디스크에 먼저 반영하고, `.tmp` 의 내용 블록은 아직 메모리에만 있는 상태에서 전원이 나간다. 그러면 `foo.txt` 라는 이름이 '''비어 있는 새 파일'''을 가리키게 된다. 옛 내용은 rename 으로 이미 버렸으니 둘 다 잃는다. fsync 는 "내용이 먼저 디스크에 있고, 그다음에 이름을 바꾼다" 는 순서를 강제한다.[* OSTEP 은 한 걸음 더 나가서, 새로 만든 파일이라면 그 파일이 든 '''디렉터리'''에도 fsync 를 해야 디렉터리 엔트리까지 확실히 디스크에 남는다고 덧붙인다. 슬라이드에는 없다.]
+
+{mini}
+# p.24 의 다섯 줄 중 `fsync(fd)` 와 `rename(…)` 의 순서를 바꾸면 어떤 위험이 생기나?
+# `write` 직후(fsync 전)에 전원이 나갔다. 재부팅 후 `foo.txt` 의 내용은?
+# `rename` 이 끝난 직후 전원이 나갔다. 재부팅 후 `foo.txt` 의 내용은? `foo.txt.tmp` 는?
+# 옳은 것을 모두 고르라. (a) rename 은 파일 데이터 블록을 새 위치로 복사한다. (b) rename 후 파일의 inode 번호는 그대로다. (c) `write` 가 성공하면 데이터는 디스크에 있다.
+{/mini}
+{answer}
+# 이름을 먼저 바꾸면 `foo.txt` 가 아직 디스크에 내용이 안 내려간 새 파일을 가리키는 순간이 생긴다. 그때 전원이 나가면 `foo.txt` 가 비거나 망가진다. 옛 내용은 이미 잃었다.
+# '''옛 내용'''. `foo.txt` 는 아직 건드리지 않았다. `foo.txt.tmp` 는 비었거나 일부만 남는다.
+# `foo.txt` 는 '''새 내용''', `foo.txt.tmp` 는 '''없다'''. fsync 로 내용이 먼저 디스크에 있었기 때문이다.
+# (b) 만. (a) rename 은 디렉터리 엔트리만 고친다. (c) write 는 보통 메모리 버퍼에만 넣는다.
+{/answer}
+
+== 시험 직전 체크 ==
+# `rename(old, new)` 은 atomic. 시스템이 꺼져도 old 이름 상태 아니면 new 이름 상태.
+# rename 은 디렉터리 엔트리만 바꾼다. inode 번호·데이터는 그대로. `mv` 가 rename 을 쓴다.
+# 안전한 갱신: tmp 에 write → fsync → close → rename.
+# write 는 버퍼에만 갈 수 있다. fsync 는 디스크에 쓴 뒤 돌아온다.
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[atomic]] · [[영속성]] · [[디렉터리]] · [[hard link]] · [[file descriptor]]

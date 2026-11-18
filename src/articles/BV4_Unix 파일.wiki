@@ -1,0 +1,82 @@
+key: Unix 파일
+title: Unix 파일: 장치도, 파이프도, 커널도 파일
+category: 19강 File and Directory
+---
+19강 p.7~8 을 다룬다. Unix 는 "파일" 이라는 말을 디스크에 저장된 데이터보다 훨씬 넓게 쓴다. 장치, 프로세스 사이 통신 통로, 커널 내부 정보까지 같은 이름 체계와 같은 시스템 콜로 다루게 한다. 흔히 "everything is a file" 이라고 부르는 생각이다.
+
+== 파일의 범위를 넓힌다 (p.7) ==
+{def}p.7: "UNIX extends the file concept to cover not only normal file (regular files) but also peripheral devices and inter-process communication channels."{/def}
+
+보통 파일, 즉 디스크에 내용이 저장된 파일을 '''regular file''' 이라고 부른다. p.7 은 Unix 가 여기에 두 종류를 더 넣는다고 한다.
+* '''I/O 장치'''. 슬라이드 예는 `/dev/stdin`, `/dev/stdout`, `/dev/rmt0` 이다. `rmt0` 은 테이프 장치다.
+* '''IPC 통로'''. FIFO, PIPE, SOCKET.
+
+이게 왜 좋은지는 p.7 의 예제 한 줄이 보여 준다.
+
+<pre class="sh">
+$ cat file1 > /dev/rmt0
+</pre>
+
+`cat` 은 파일 내용을 출력하는 평범한 프로그램이다. 테이프 장치에 대해 아무것도 모른다. 그런데 셸이 출력을 `/dev/rmt0` 으로 돌리면 `file1` 의 내용이 테이프에 써진다. `cat` 입장에서는 [[file descriptor]] 1 에 `write()` 를 했을 뿐이다. 그 fd 가 터미널이든, 디스크 파일이든, 테이프든 `write()` 하나로 똑같이 쓴다.
+
+18강에서 OS 가 장치마다 다른 레지스터를 어떻게 다루는지 봤다([[canonical device]]). 그 차이를 감추는 것이 device driver 이고, driver 위에 "파일" 이라는 같은 얼굴을 씌우는 것이 이 p.7 의 이야기다. 프로그램은 장치마다 다른 코드를 쓸 필요가 없다.
+
+<pre class="ascii">
+   프로그램:   open / read / write / close        (모두 같은 시스템 콜)
+                   │
+   커널:       파일 종류에 따라 갈라진다
+        ┌──────────┼─────────────┬──────────────┬─────────────┐
+   regular file   디렉터리      장치 파일       pipe·socket    /proc
+   (디스크 블록)  (이름 표)     (device driver)  (커널 버퍼)    (커널 자료구조)
+</pre>
+
+{analogy}
+콘센트를 생각하면 된다. 벽 너머에 무엇이 있든(화력, 수력, 태양광) 콘센트 모양은 같다. 가전제품은 콘센트 모양만 맞추면 된다. Unix 의 파일 인터페이스가 그 콘센트이고, `cat` 같은 프로그램이 가전제품이다.
+{/analogy}
+
+== 파일은 바이트의 나열 (p.8) ==
+p.8 첫 줄은 [[inode]] 에서 본 정의를 다시 한다. Unix 파일은 바이트 m 개의 나열 B0, B1, …, Bm−1 이다. 장치도 파일로 보려면 이 정의가 단순해야 한다. 키보드 입력이나 테이프 내용도 결국 바이트가 줄줄이 오는 것이니 이 정의에 맞는다.
+
+p.8 은 예를 세 무리로 든다.
+* '''사용자 파일''': `/home/user/.vimrc`. 이름이 `.` 으로 시작하는 설정 파일이다.[* `.` 으로 시작하는 파일은 `ls` 가 기본으로 보여 주지 않는다. 숨김 속성 같은 게 따로 있는 게 아니라 `ls` 의 관례일 뿐이다. 그래서 [[디렉터리]] 의 `.` 과 `..` 도 `ls -a` 를 해야 보인다.]
+* '''I/O 장치''': "All of your peripheral devices (e.g., terminal, disks) are virtualized as files". `/dev/sda2` 는 디스크 파티션, `/dev/tty2` 는 터미널이다.
+* '''커널''': "Even the kernel is represented as a file". `/proc` 아래에 커널 자료구조가 파일처럼 보인다.
+
+`/proc` 의 파일은 디스크에 저장된 게 아니다. 읽는 순간 커널이 자기 자료구조를 글자로 바꿔서 돌려준다. 예를 들어 Linux 에서 `/proc/<pid>/` 디렉터리 아래에는 그 프로세스의 정보가 있다. 3강의 [[프로세스 목록]] 을 사람이 보는 창구 중 하나가 이것이다.[* `ps` 명령은 실제로 `/proc` 아래 디렉터리들을 읽어서 프로세스 목록을 만든다. `cat /proc/cpuinfo` 를 해 보면 CPU 정보가 나온다. 이 파일들의 크기는 `ls -l` 로 보면 대개 0 이다. 내용이 미리 있는 게 아니라 읽을 때 만들어지기 때문이다.]
+
+== ls -l 첫 글자가 파일 종류다 ==
+파일 종류는 inode 의 mode 필드에 들어 있고, `ls -l` 은 그걸 맨 앞 한 글자로 보여 준다. 19강 슬라이드에 실제로 나오는 것은 세 가지다.
+
+{|
+! 첫 글자 || 종류 || 슬라이드 예
+|-
+| `-` || regular file || p.13 `-rwxr-x--x … /bin/vi`, p.39 `-rw-r----- … file`
+|-
+| `d` || directory || p.28 `drwxr-x--- … ./`
+|-
+| `l` || symbolic link || p.39 `lrwxrwxrwx … file2 -> file`
+|}
+
+나머지는 슬라이드에는 없지만 p.7~8 의 장치·IPC 가 여기 해당한다. `c` 는 character device(터미널 `/dev/tty2` 같은 것), `b` 는 block device(디스크 파티션 `/dev/sda2`), `p` 는 FIFO(named pipe), `s` 는 socket 이다.[* character device 는 바이트를 순서대로 흘려 보내는 장치이고, block device 는 18강 [[logical block]] 처럼 블록 번호로 아무 데나 읽고 쓸 수 있는 장치다. [[inode]] 의 `st_rdev` 필드가 이런 장치 파일의 장치 번호를 담는다.]
+
+{mini}
+# 다음 중 Unix 에서 파일로 다루는 것을 모두 고르라. (a) 디스크 파티션 (b) 터미널 (c) pipe (d) 커널 자료구조 (e) 테이프 장치
+# `cat file1 > /dev/rmt0` 에서 `cat` 이 테이프에 쓰기 위해 부르는 시스템 콜은? 테이프 전용 시스템 콜이 필요한가?
+# `ls -l` 출력이 `brw-rw----` 로 시작하는 파일은 어떤 종류인가?
+# p.8 의 세 예 `/home/user/.vimrc`, `/dev/tty2`, `/proc` 중 내용이 디스크 블록에 저장된 것은?
+{/mini}
+{answer}
+# '''모두'''. (a) `/dev/sda2`, (b) `/dev/tty2`, (c) PIPE, (d) `/proc`, (e) `/dev/rmt0`.
+# `write()` 다. fd 1 에 쓸 뿐이고, 셸이 fd 1 을 테이프 장치 파일로 연결해 두었다. 전용 시스템 콜은 필요 없다. 그게 장치를 파일로 다루는 이유다.
+# '''block device''' (첫 글자 b).
+# `/home/user/.vimrc` 하나. `/dev/tty2` 는 장치로 가는 통로, `/proc` 은 커널이 읽을 때 만들어 주는 내용이다.
+{/answer}
+
+== 시험 직전 체크 ==
+# Unix 는 regular file 뿐 아니라 I/O 장치, IPC 통로(FIFO, PIPE, SOCKET), 커널 정보(`/proc`)도 파일로 다룬다.
+# 그래서 같은 `open`/`read`/`write`/`close` 로 다룬다. 예: `cat file1 > /dev/rmt0`.
+# `/dev/sda2` 디스크 파티션, `/dev/tty2` 터미널, `/dev/stdin`·`/dev/stdout`.
+# ls -l 첫 글자: `-` regular, `d` directory, `l` symlink (그 밖에 `c`, `b`, `p`, `s`).
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[inode]] · [[file descriptor]] · [[I/O 장치]] · [[canonical device]] · [[프로세스 목록]]

@@ -1,0 +1,66 @@
+key: 경로와 working directory
+title: 경로와 working directory
+category: 19강 File and Directory
+---
+19강 p.6 한 장을 다룬다. 트리 안의 위치를 적는 두 방법(절대 경로, 상대 경로), 상대 경로의 출발점인 working directory, 그리고 로그인했을 때의 출발점인 home directory 다.
+
+== 경로 두 가지 ==
+[[img:L19-06.png|p.6 — 오른쪽 트리에서 "We are here" 화살표가 home 을 가리킨다. 이 위치에서 왼쪽의 두 경로가 같은 file1 을 가리킨다|large]]
+
+{def}p.6 Pathname. '''Absolute pathname''': `/home/dgist/file1`. '''Relative pathname''': `dgist/file1`.{/def}
+
+위 그림 오른쪽 트리는 [[파일과 디렉터리]] p.5 의 트리와 같은 모양이다. `/` 아래 `home`, 그 아래 `dgist` 와 `coruslab`, `dgist` 아래 `file1`, `file2`.[* p.5 그림에서는 `home` 의 두 번째 하위 디렉터리가 `datalab` 이었는데 p.6 에서는 `coruslab` 이다. 과제 저장소 `coruslab-src/xv6-lab` 과 같은 이름이다. 내용상 차이는 없다.]
+
+* '''절대 경로'''는 `/` 로 시작한다. root 에서 출발해 이름을 하나씩 따라간다. 어디서 쓰든 같은 파일을 가리킨다.
+* '''상대 경로'''는 `/` 없이 시작한다. 지금 서 있는 디렉터리에서 출발한다. 그림에서 "We are here" 가 `home` 이니, `dgist/file1` 은 `home` → `dgist` → `file1` 이 되어 절대 경로 `/home/dgist/file1` 과 같은 파일이다.
+
+같은 `dgist/file1` 이라도 서 있는 곳이 `/` 라면 `/dgist/file1` 을 찾게 되고, 그런 파일은 없다. 상대 경로의 뜻은 출발점에 따라 바뀐다.
+
+== working directory 는 프로세스마다 하나 ==
+{def}p.6: "Every process has a working directory (sometimes called the current working directory). This is a directory from which all relative pathnames are interpreted."{/def}
+
+"서 있는 곳" 은 사람이 아니라 '''프로세스'''의 속성이다. 프로세스마다 working directory 를 하나씩 들고 있고, 그 프로세스가 상대 경로를 쓰면 커널이 거기서부터 찾는다. 셸에서 `pwd` 를 치면 셸 프로세스의 working directory 가 나온다.
+
+<pre class="sh">
+$ pwd     # display working directory
+/home
+</pre>
+
+커널 쪽에서 보면 working directory 는 [[PCB]] 에 들어 있는 필드 하나다. xv6 의 [[struct proc]] 에는 `struct inode *cwd;` 가 있다. 경로가 아니라 '''inode 포인터'''로 들고 있다는 점이 재미있다. [[디렉터리]] 에서 본 경로 탐색이 root 대신 이 inode 에서 출발하면 그게 상대 경로 탐색이다.[* xv6 `namex()` 는 경로 첫 글자가 `/` 이면 root inode(`ROOTINO`, 1 번)에서, 아니면 `myproc()->cwd` 에서 출발한다. xv6 의 root inode 번호는 1 이고, ext 계열은 2 다.]
+
+`cd` 가 셸 '''내장 명령'''인 이유도 여기서 나온다. working directory 를 바꾸는 시스템 콜 `chdir()` 은 '''부른 프로세스 자신'''의 working directory 만 바꾼다. `cd` 를 별도 프로그램으로 만들면 셸이 fork 한 자식 프로세스의 working directory 만 바뀌고, 자식이 끝나면 그대로 사라진다. 셸 자신은 그대로 남는다.[* fork 된 자식은 부모의 working directory 를 물려받는다. xv6 `fork()` 에도 `np->cwd = idup(p->cwd);` 줄이 있다. 물려받은 뒤에는 각자 따로다.]
+
+{analogy}
+길 안내를 "서울시청에서 북쪽으로 두 블록" 이라고 하면 누가 읽어도 같은 곳이다(절대 경로). "여기서 북쪽으로 두 블록" 이라고 하면 읽는 사람이 서 있는 곳에 따라 달라진다(상대 경로). 사람마다 서 있는 곳이 다르듯, 프로세스마다 working directory 가 다르다.
+{/analogy}
+
+== home directory ==
+{def}p.6 Home Directory: "When we log in, the working directory is set to our home directory." `$ cd ~`{/def}
+
+로그인하면 셸이 처음 서 있는 곳이 home directory 다. `~` 는 home directory 를 줄여 쓰는 기호다. 이 기호를 실제 경로로 바꾸는 것은 셸이고, 커널은 `~` 를 모른다.[* 그래서 C 프로그램에서 `open("~/file", …)` 을 하면 셸이 끼어들지 않으니 현재 디렉터리 안의 `~` 라는 이름의 디렉터리를 찾게 된다. 대개 실패한다.]
+
+== 경로에 . 과 .. 이 섞이면 ==
+[[디렉터리]] 에서 본 것처럼 모든 디렉터리에는 `.`(자신)과 `..`(부모) 엔트리가 있다. 그래서 상대 경로에 `..` 를 쓰면 위로 올라간다. 커널 입장에서는 특별한 규칙이 아니라 그냥 `..` 이라는 이름의 엔트리를 따라가는 것뿐이다.
+
+{mini}
+p.6 트리(`/home/dgist/file1`, `/home/dgist/file2`, `/home/coruslab`)와 p.10 트리(`/foo/bar.txt`, `/bar/bar`, `/bar/foo/bar.txt`)를 쓴다.
+# working directory 가 `/home/dgist` 일 때 `../coruslab` 의 절대 경로는?
+# working directory 가 `/bar` 일 때 `foo/bar.txt` 와 `../foo/bar.txt` 는 각각 어떤 파일인가?
+# working directory 가 `/home` 인 셸에서 `/home/dgist/file1` 을 가리키는 상대 경로 두 가지를 쓰라.
+# `cd` 를 별도 실행 파일로 만들면 왜 안 되나? 한 문장.
+{/mini}
+{answer}
+# `/home/coruslab`. `..` 로 `/home` 에 올라간 뒤 `coruslab`.
+# `foo/bar.txt` 는 `/bar/foo/bar.txt`, `../foo/bar.txt` 는 `/foo/bar.txt`. 서로 다른 파일이다.
+# `dgist/file1`, `./dgist/file1` (또는 `../home/dgist/file1` 처럼 돌아가는 것도 된다).
+# `chdir()` 은 부른 프로세스의 working directory 만 바꾸므로, 셸이 fork 한 자식이 바꿔 봐야 셸 자신은 그대로다.
+{/answer}
+
+== 시험 직전 체크 ==
+# 절대 경로는 `/` 로 시작, root 에서 출발. 상대 경로는 working directory 에서 출발.
+# working directory 는 프로세스마다 하나(PCB 안, xv6 `p->cwd`). fork 하면 물려받는다.
+# 로그인하면 working directory = home directory. `~` 는 셸이 바꿔 준다.
+# `.` 과 `..` 은 실제 디렉터리 엔트리다.
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[디렉터리]] · [[PCB]] · [[struct proc]] · [[fork]]

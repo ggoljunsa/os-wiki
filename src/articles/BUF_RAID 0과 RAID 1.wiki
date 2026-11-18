@@ -23,7 +23,7 @@ category: 18강 I/O Devices and HDD
 배열 실패율 = 1 − 0.9025 = '''0.0975'''
 </pre>
 
-디스크를 늘릴수록 실패율이 올라간다.
+디스크를 늘릴수록 실패율이 올라간다.[* 11/16 수업에서 교수님은 이 값을 읽고 "맞는지 모르겠다, 더 커야 할 것 같다" 고 했다. 계산은 맞다. 디스크 둘 다 살아남을 확률이 0.95 × 0.95 = 0.9025 이니 하나라도 죽을 확률은 0.0975 다. 디스크 하나일 때(0.05)의 약 두 배다.]
 
 == p.46 RAID 1 ==
 {def}p.46: "RAID 1 consists of an exact copy (or '''mirror''') of a set of data on two or more disks. The array can only be as big as the '''smallest member disk'''."{/def}

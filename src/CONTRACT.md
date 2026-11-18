@@ -113,6 +113,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 고급 페이지 테이블 · hybrid approach · multi-level page table · page directory · PDBR · 다단계 주소 변환 계산 · 3단계 page table · inverted page table · hash collision · huge page · transparent huge page · Sv39 PTE
 ### 18강 I/O Devices and HDD — 파일 접두어 `BU0_`(허브)~`BUH_`. 슬라이드 `../../기말고사/강의자료/18-IO_Devices_and_HDD.pdf` 53쪽 = `_slides/L18-{pp}.png`, 텍스트 `_text/18-IO_Devices_and_HDD.txt`. 수업 전 작성(2026-11-11). 슬라이드 오류: p.37 SCAN 208(그림대로면 236, 208 은 LOOK), p.48 RAID 4 중간식은 n=2 값. p.42 "Don't memorize" 범위 미확인
 I/O 장치 · I/O 시스템 구조 · canonical device · polling과 interrupt · PIO와 DMA · memory-mapped I/O · HDD 구조 · 디스크 접근 시간 · logical block · 디스크 스케줄링 · FCFS · SSTF · SCAN · C-SCAN · RAID · RAID 0과 RAID 1 · RAID 4와 parity · RAID 5와 RAID 6
+### 19강 File and Directory — 파일 접두어 `BV0_`(허브)~`BVB_`. 슬라이드 `../../기말고사/강의자료/19-File_and_Directory.pdf` 42쪽 = `_slides/L19-{pp}.png`, 텍스트 `_text/19-File_and_Directory.txt` (OSTEP 39장). 수업 전 작성(2026-11-18). 슬라이드 오류: p.13 ls -l 줄에 공백·link count 칸 없음, p.15·p.24 O_CREAT 에 mode 없음, p.20 `open(file descriptor, flags)`(첫 인자는 경로), p.21 "exiting", p.26 `Uid: (30686/ root)`, p.29 "outthe"·"next direct", p.38 symlink 블록 `/dirA/name1`
+파일과 디렉터리 · inode · 디렉터리 · 경로와 working directory · Unix 파일 · 권한 비트 · file descriptor · 파일 offset과 lseek · rename과 atomic update · 디렉터리 API · hard link · symbolic link
 ### 과제2 퀴즈 문제 세트 (2026-10-28) — 접두어 `BZC_`~`BZE_`. 주간문제집 `과제2_퀴즈대비/units/u1~u3.html` 을 변환(문제 {quiz} + 접힌 {answer}). 원본 문제집을 고치면 여기도 같이 고칠 것
 과제2 문제 ① kalloc · 과제2 문제 ② bcache · 과제2 퀴즈 모의
 ### 과제3 — 파일 접두어 `BY0_`(허브)~`BY9_`. 원본 `../../기말고사/문제풀이/과제3_xv6_cow/Assignment 3.pdf` (글자뿐 → ascii·sim·anim, 15·16·17강 캡처 재사용). 원본 xv6 소스 `cow` 브랜치 6e2198b (Mac `~/os/xv6-cow`, 읽기 전용). 마감 2026-12-01. '''완성 코드 금지''' (uvmcopy/usertrap/kalloc/copyout/uvmalloc 본문). 원본 코드 인용·한국어 의사코드만. 2025 풀이(`참고_2025/2025풀이_분석.md`)는 버그 설명만, 코드 옮기기 금지. 2026-11-18 작성. 이때 렌더러에 각주 `[* ]`·취소선·`{mini}` 박스를 이식(알고위키 dba4249, `_위키_문체지침.md` §6)
@@ -172,6 +174,8 @@ I/O 장치 · I/O 시스템 구조 · canonical device · polling과 interrupt �
 | page_fault_trace | 17강 p.18~23·p.50: VP 3 fault → victim VP 4 → swap in → PTE 갱신 → 재실행. 옵션 victim = clean/dirty | 스와핑, page fault |
 | cow_fork_trace | 과제3 P1: 부모 page 4장(text A·data B·guard C·stack D) fork → COW 공유 → store fault(scause 15) → kalloc N·복사·PTE 갱신 → kfree, 부모·자식 PTE flag·frame refcount SVG. 커널 패널은 설계 의사코드. 옵션 scenario = basic(자식 쓰기 복사, 자식 exit, 부모 쓰기 rc 1 → W 만) / text_write(COW 없음 → kill) / fork_exec(복사 0) / copyout(read() → 원본 −1, 고친 판 복사) | COW fork, reference count, copyout과 COW |
 | megapage_walk | 과제3 P2: VA 0x4053A8 Sv39 walk. 옵션 set = small(4 KB, L0 PTE 0x21fcf017 → 0x87f3c3a8, 접근 4) / mega(L1 leaf 0x21d80017 → 0x876053a8, 접근 3) / misaligned(PPN 0x87601 → page fault) / xv6_walk(원본 walk() 가 leaf PPN 을 table 로 → 0x87600028 의 데이터를 PTE 로). table 주소는 가정값 | superpage |
+| link_count_trace | 19강 p.32~40: 명령 한 줄마다 디렉터리 엔트리(file/file2/file3 → inode #)와 inode Links·해제, symlink 의 경로 화살표 SVG. 옵션 scenario = hard(p.36, 1→2→2→3→2→1→0 해제) / symlink(p.37~40, Size 4, rm file 후 cat file2 dangling) / revive(hard+soft, rm file 후 file2 hello·file3 dangling → ln file2 file 로 file3 다시 hello) | hard link, symbolic link |
+| fd_offset_trace | 19강 p.20~23: fd 표(0~5)와 offset, 파일 바이트 칸 + 빨간 offset 화살표 SVG. 옵션 scenario = strace_cat(p.20: open 3, read 6, write(1) 6, read 0, close) / lowest_fd(3,4,5 → close(4) → 4 → close(0) → 0) / lseek("0123456789": read 4·4·2·0, SEEK_SET 3, SEEK_CUR 5, read 2, SEEK_END −4 → 6, write AB → 012345AB89, END → 10, write Z → 크기 11) | file descriptor, 파일 offset과 lseek |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
@@ -286,3 +290,5 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | cow_fault_flow | 과제3: 부모·자식이 frame B 공유(R-U COW, rc 2) → 자식 store → scause 15·stval 0x1010 → kalloc N → memmove → 자식 PTE → N RWU, rc[B] 1 → epc 그대로 재실행 | COW fork |
 | refcount_lifecycle | 과제3: frame B 의 rc 가 kalloc 1 → fork 2 → fork 3 → 자식 1 COW 복사 2 → 자식 2 exit 1 → 부모 exit 0 → free list | reference count |
 | megapage_vs_4k | 과제3: 같은 VA 0x4053A8 을 L2→L1→L0(4 KB) 와 L2→L1 leaf(2 MB) 로, VA 칸 9·9·9·12 → 9·9·21, PTE 512 개 vs 1 개 | 과제3 xv6 cow, superpage |
+| path_lookup | 19강 p.9~10: open("/foo/bar.txt") — p.10 트리에서 / → foo → bar.txt 강조, 오른쪽 inode 2 → 데이터(foo 10) → inode 10 → 데이터(bar.txt 20) → inode 20 → "hello\n" (10·11·20 은 가정값) | 디렉터리 |
+| hard_vs_soft_link | 19강 p.33·p.38·p.40: 왼쪽 ln file file2(같은 inode 12345, Links 1→2), 오른쪽 ln -s(새 inode 13579, 데이터 "file", 점선이 이름 file 로) → cat file2 둘 다 hello → rm file(왼쪽 Links 1, 오른쪽 12345 해제) → cat file2: hello vs No such file (dangling) | 파일과 디렉터리, symbolic link |

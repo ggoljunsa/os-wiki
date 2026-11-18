@@ -1,0 +1,116 @@
+key: 파일 offset과 lseek
+title: 파일 offset과 lseek
+category: 19강 File and Directory
+---
+19강 p.22~23 을 다룬다. [[file descriptor]] 에서 본 `read`·`write` 는 위치 인자가 없다. 그런데도 두 번째 `read` 는 첫 번째가 끝난 자리부터 읽는다. 열린 파일마다 "다음은 여기부터" 를 기억하는 '''current offset''' 이 있기 때문이다. 이 값이 언제 저절로 움직이고, 언제 `lseek()` 로 직접 옮기는지가 이 문서의 내용이다.
+
+== 열린 파일에는 현재 위치가 있다 (p.22) ==
+{def}p.22: "An open file has a current offset. Determine where the next read or write will begin reading from or writing to within the file."
+Update the current offset. '''Implicitly''': "A read or write of N bytes takes place, N is added to the current offset." '''Explicitly''': `lseek()`.
+{/def}
+
+[[inode]] 에서 파일은 바이트 배열 B0 … Bm−1 이라고 했다. current offset 은 그 배열 위의 커서다. `open` 직후에는 0 이다. 그다음 규칙은 하나다.
+* N 바이트를 읽거나 쓰면 offset 이 N 늘어난다.
+
+[[file descriptor]] 의 strace 를 다시 보면, 첫 `read(3, …, 4096)` 이 6 을 돌려주고 offset 이 0 에서 6 이 된다. 두 번째 `read` 는 offset 6 에서 읽으려 하는데 파일 크기가 6 이라 남은 게 없고, 그래서 0 이 나온다. "0 이면 파일 끝" 이라는 규칙이 offset 덕분에 성립한다.
+
+여기서 늘어나는 양은 '''요청한''' 바이트 수가 아니라 '''실제로 옮긴''' 바이트 수, 즉 반환값이다. 4096 을 요청했어도 6 만 읽었으면 6 만 늘어난다.
+
+<pre class="ascii">
+파일 foo = "hello\n" (크기 6)
+          h   e   l   l   o   \n
+        ┌───┬───┬───┬───┬───┬───┐
+        │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │
+        └───┴───┴───┴───┴───┴───┘
+open 직후 ▲ offset 0
+read(…, 4096) = 6                  ▲ offset 6 (끝)
+read(…, 4096) = 0                  ▲ 그대로 6
+</pre>
+
+{analogy}
+책갈피다. 책을 펼쳐 열 쪽을 읽으면 책갈피가 열 쪽 뒤로 간다(implicit). 앞 내용을 다시 보고 싶으면 책갈피를 손으로 옮긴다(explicit, lseek). 같은 책이라도 두 사람이 각자 빌리면 책갈피도 각자 있다.
+{/analogy}
+
+== lseek: offset 을 직접 옮긴다 (p.23) ==
+<pre class="c">
+off_t lseek(int fildes, off_t offset, int whence);
+</pre>
+
+* `fildes`: file descriptor.
+* `offset`: 옮길 양.
+* `whence`: 어디를 기준으로 옮길지.
+
+`whence` 는 셋이다. p.23 이 man page 를 그대로 옮겨 놓았다.
+{|
+! whence || 새 offset || man page 원문
+|-
+| `SEEK_SET` || `offset` || "the offset is set to offset bytes"
+|-
+| `SEEK_CUR` || 현재 offset + `offset` || "set to its current location plus offset bytes"
+|-
+| `SEEK_END` || 파일 크기 + `offset` || "set to the size of the file plus offset bytes"
+|}
+
+세 이름은 "어디서부터 세느냐" 로 외우면 된다. SET 은 파일 처음(0)부터, CUR 은 지금 자리부터, END 는 파일 끝부터. `offset` 은 음수여도 된다. `lseek(fd, -4, SEEK_END)` 는 끝에서 4 바이트 앞이다. `lseek` 의 반환값은 '''옮긴 뒤의 offset''' 이다. 그래서 `lseek(fd, 0, SEEK_END)` 의 반환값은 파일 크기가 된다.
+
+`lseek` 는 offset 변수 하나만 바꾼다. 읽지도 쓰지도 않는다. 디스크도 건드리지 않는다.[* 이름의 seek 때문에 18강의 디스크 seek 와 헷갈리기 쉽다. OSTEP 39장에도 "lseek() does not perform a disk seek" 이라는 aside 가 있다. `lseek` 는 커널 메모리에 있는 숫자 하나를 바꾸는 시스템 콜이다. 그 뒤의 `read` 가 디스크의 다른 위치를 읽게 되면 그때 디스크 head 가 움직일 수는 있다. [[디스크 접근 시간]] 참고.]
+
+[[sim:fd_offset_trace]]
+
+위 시뮬레이터에서 시나리오를 "p.22~23 lseek" 로 바꾸면, 10 바이트 파일 `0123456789` 에 대해 read 네 번(4, 4, 2, 0), lseek 세 번(SET, CUR, END), write 두 번을 한 줄씩 따라간다. 빨간 화살표가 offset 이다.
+
+{mini}
+크기 100 바이트인 파일을 `fd = open(…, O_RDONLY)` 로 열었다. 아래를 차례로 한다. 각 줄의 반환값과 그 뒤 offset 을 쓰라.
+# `read(fd, buf, 30)`
+# `lseek(fd, 10, SEEK_CUR)`
+# `lseek(fd, -20, SEEK_END)`
+# `read(fd, buf, 50)`
+# `read(fd, buf, 50)`
+{/mini}
+{answer}
+# 반환 '''30''', offset '''30'''.
+# 반환 '''40''', offset '''40'''. 30 + 10.
+# 반환 '''80''', offset '''80'''. 100 − 20.
+# 반환 '''20''', offset '''100'''. 50 을 요청했지만 80 부터 끝까지 20 바이트밖에 없다.
+# 반환 '''0''', offset '''100'''. 파일 끝이다.
+{/answer}
+
+== write 도 offset 을 따른다 ==
+`write` 도 같은 규칙이다. offset 자리부터 쓰고, 쓴 만큼 offset 이 늘어난다. 기존 내용이 있는 자리면 '''덮어쓴다'''(끼워 넣지 않는다). 파일 끝을 넘어서 쓰면 파일이 그만큼 커진다.
+
+<pre class="txt">
+파일 "0123456789" (크기 10), O_RDWR 로 연 상태
+lseek(fd, -4, SEEK_END)   → offset 6
+write(fd, "AB", 2)        → 6, 7 번 바이트를 덮어씀 → "012345AB89", offset 8, 크기 10 그대로
+lseek(fd, 0, SEEK_END)    → offset 10
+write(fd, "Z", 1)         → 끝에 붙음 → "012345AB89Z", offset 11, 크기 11
+</pre>
+
+파일 끝보다 '''더 멀리''' `lseek` 한 다음 쓰면 어떻게 될까. 중간이 비게 되는데, 이 빈 구간은 읽으면 0 바이트들로 나온다. 이런 구간을 hole 이라고 부른다.[* hole 은 디스크 블록을 할당하지 않을 수 있다. 그래서 크기(`st_size`)는 큰데 실제 할당 블록(`st_blocks`)은 작은 파일이 생긴다. [[inode]] 의 Size 와 Blocks 가 따로 있는 이유 중 하나다. 슬라이드에는 없는 내용이다.]
+
+== offset 은 열 때마다 따로 생긴다 ==
+offset 은 파일(inode)에 붙은 값이 아니라 '''열기(open) 한 번'''에 붙은 값이다. 같은 파일을 두 번 열면 fd 두 개가 생기고 offset 도 각자 0 에서 시작한다. 하나로 읽어도 다른 하나의 offset 은 그대로다.[* OSTEP 39장은 이걸 open file table 로 설명한다. `open` 할 때마다 커널이 "어느 inode, 읽기/쓰기 가능 여부, 현재 offset" 을 담은 항목을 하나 만들고, 프로세스의 fd 는 그 항목을 가리킨다. xv6 의 `struct file` 이 그 항목이고, 안에 `uint off;` 필드가 있다. `fork` 로 생긴 자식은 부모와 같은 항목을 '''공유'''해서 offset 도 같이 움직인다. 이 부분은 슬라이드에 없다.]
+
+{mini}
+# 크기 50 인 파일을 `fd1 = open(…)`, `fd2 = open(…)` 으로 두 번 열었다. `read(fd1, buf, 20)` 을 한 뒤 `read(fd2, buf, 20)` 은 파일의 몇 번 바이트부터 읽나?
+# 크기 10 인 파일에서 `lseek(fd, 0, SEEK_END)` 의 반환값은? `lseek(fd, 0, SEEK_CUR)` 은 무엇을 알려 주나?
+# 내용 `abcdef` 인 파일을 `O_RDWR` 로 열고 `lseek(fd, 2, SEEK_SET)`, `write(fd, "XY", 2)` 를 했다. 파일 내용과 offset 은?
+# "lseek 를 부르면 디스크 head 가 그 위치로 움직인다." 옳은가?
+{/mini}
+{answer}
+# '''0 번'''부터. fd2 의 offset 은 fd1 과 따로라 아직 0 이다.
+# '''10'''(파일 크기). `SEEK_CUR` 에 0 을 더하면 아무것도 안 옮기고 현재 offset 을 돌려준다.
+# 내용 '''abXYef''', offset '''4'''. 2, 3 번 바이트를 덮어썼다. 크기는 6 그대로.
+# 틀렸다. lseek 는 커널 안의 offset 값만 바꾼다. 디스크 seek 와 다르다.
+{/answer}
+
+== 시험 직전 체크 ==
+# 열린 파일마다 current offset. open 직후 0.
+# read/write 가 N 바이트를 옮기면 offset += N (요청 크기가 아니라 반환값).
+# lseek: SET = offset, CUR = 현재 + offset, END = 크기 + offset. 반환값 = 새 offset. offset 은 음수 가능.
+# lseek 는 디스크를 건드리지 않는다.
+# write 는 덮어쓰기. 끝을 넘으면 파일이 커진다.
+# 같은 파일을 두 번 열면 offset 도 둘.
+
+== 관련 문서 ==
+* [[file descriptor]] · [[inode]] · [[파일과 디렉터리]] · [[디스크 접근 시간]]

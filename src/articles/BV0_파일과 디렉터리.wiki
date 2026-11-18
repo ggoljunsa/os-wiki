@@ -1,0 +1,142 @@
+key: 파일과 디렉터리
+title: 파일과 디렉터리 (19강)
+category: 19강 File and Directory, 핵심
+---
+{info}19강 슬라이드 `19-File_and_Directory.pdf`(42쪽) 기준으로 '''수업 전'''(2026-11-18)에 썼다. 녹음이 오면 아래에 "실제 수업 기록" 절을 붙인다. 교재는 [[OSTEP]] 39장 "Interlude: Files and Directories" 다.{/info}
+
+18강에서 디스크를 OS 쪽에서 보면 [[logical block]] 이 0 번부터 N 번까지 늘어선 배열이라는 데까지 왔다. 그런데 우리는 파일을 열 때 "블록 3,214,567 번" 이라고 하지 않는다. `/home/dgist/file1` 이라고 부른다. 19강은 그 사이를 OS 가 어떤 약속으로 메우는지 본다. 약속은 둘이다. 바이트를 담는 '''file''' 과, 이름을 담는 '''directory''' 다.[* 19강은 OSTEP 39장을 거의 그대로 따라간다. stat 출력의 `remzi` 라는 사용자 이름도 OSTEP 저자 Remzi Arpaci-Dusseau 의 것이다. 슬라이드 p.41 Reference 에는 CSAPP 10장(System-Level I/O)과 공룡책 11장(File-System Interface)도 함께 적혀 있다.]
+
+강의는 세 덩어리로 나뉜다.
+* p.2~13: 파일과 디렉터리가 무엇인지. inode 번호, 디렉터리 트리, 경로, 권한.
+* p.14~30: Unix File IO. `open`, `read`, `write`, `lseek`, `rename`, `stat`, `mkdir` 같은 시스템 콜을 하나씩.
+* p.31~40: Links. 한 파일에 이름을 둘 붙이는 hard link 와, 이름을 담은 작은 파일인 symbolic link.
+
+
+== 슬라이드 ↔ 문서 ==
+{|
+! 슬라이드 || 내용 || 문서
+|-
+| p.3~5 || storage virtualization, 왜 파일과 디렉터리인가, 층 세 개 || 이 문서
+|-
+| p.3, p.7, p.25~26 || inode number, inode structure, `stat` || [[inode]]
+|-
+| p.3, p.9~10 || (이름, inode #) 쌍, 디렉터리 트리 || [[디렉터리]]
+|-
+| p.6 || absolute / relative pathname, working directory, home || [[경로와 working directory]]
+|-
+| p.7~8 || 장치·IPC·커널까지 파일로 || [[Unix 파일]]
+|-
+| p.11~13 || ownership, rwx, 751 || [[권한 비트]]
+|-
+| p.15~21 || open 플래그, fd 0·1·2, strace cat || [[file descriptor]]
+|-
+| p.22~23 || current offset, lseek 와 whence || [[파일 offset과 lseek]]
+|-
+| p.24 || rename, fsync, 파일을 atomic 하게 바꾸기 || [[rename과 atomic update]]
+|-
+| p.27~30 || unlink, mkdir, readdir, rmdir || [[디렉터리 API]]
+|-
+| p.32~36 || link, link count, unlink 라는 이름의 이유 || [[hard link]]
+|-
+| p.37~40 || ln -s, 크기 = 경로 길이, dangling || [[symbolic link]]
+|}
+
+== 저장 장치도 가상화한다 (p.3) ==
+{def}p.3 Storage Virtualization: "OS provides a virtualized logical view of information stored on various storage media (e.g., tapes, CD-ROM, HDDs, and SSDs)."
+'''File''': "A linear array of bytes, each of which you can read or write." 내용은 만든 쪽이 정한다. 보통 inode number 로 부른다(pid 와 비슷).
+'''Directory''': "A special file that is a collection of files and other directories." 내용은 (사람이 읽는 이름, inode #) 쌍의 목록이다. 계층 구조를 이루고, 디렉터리도 inode number 로 식별한다.
+{/def}
+
+이번 학기에 가상화를 두 번 봤다. CPU 를 가상화해서 프로세스마다 CPU 를 혼자 쓰는 것처럼 보이게 했고([[프로세스]]), 메모리를 가상화해서 프로세스마다 자기 [[주소 공간]] 이 있는 것처럼 보이게 했다([[가상 메모리]]). p.3 은 저장 장치도 같은 식으로 다룬다고 말한다. 테이프든 HDD 든 SSD 든, 프로그램 눈에는 '''파일'''과 '''디렉터리'''만 보인다.[* 테이프는 처음부터 차례로 감아야 원하는 위치에 가는 순차 접근 장치이고, HDD 와 SSD 는 블록 번호로 아무 데나 바로 가는 장치다. 성질이 이렇게 달라도 프로그램은 같은 `read()` 를 부른다. 그 차이를 감추는 일이 이 강의가 말하는 가상화다.]
+
+차이도 하나 있다. CPU 와 메모리 가상화는 "혼자 쓰는 것처럼" 보이게 하는 착각이었다. 파일은 착각이 아니다. 다른 프로세스와 같은 파일을 실제로 나눠 쓰고, 전원을 껐다 켜도 그대로 있어야 한다. 그래서 파일 시스템의 일은 착각을 만드는 것보다 '''이름을 붙이고 오래 보관하는 것'''에 가깝다.[* 2강 [[영속성]] 문서에 이 차이를 표로 정리해 두었다. 2강 p.34~36 의 `open`/`write`/`close` 데모가 19강에서 본격적으로 다시 나온다.]
+
+== 교수가 던진 질문 여섯 개 (p.4) ==
+p.4 는 답 없이 질문만 있다. 수업에서 교수가 학생들에게 물어보며 채울 페이지로 보인다. 녹음이 오기 전이니, 아래 답은 슬라이드 뒤쪽 내용과 OSTEP 으로 채운 '''예상 답'''이다.
+
+* '''What is a storage?''' 전원이 꺼져도 내용이 남는 장치다. 18강의 HDD, SSD, 그리고 p.3 의 테이프와 CD-ROM.
+* '''저장 장치의 특징은?''' 메모리보다 훨씬 느리다(HDD 한 번 접근에 ms 단위, [[디스크 접근 시간]]). byte 단위가 아니라 block 단위로 읽고 쓴다. 크고, 영속적이다.
+* '''왜 메모리처럼 linear address 를 쓰지 않나?''' 디스크 전체를 큰 주소 하나로 쓰면 어느 바이트부터 어느 바이트까지가 한 덩어리인지, 누구 것인지 알 길이 없다. 데이터는 프로그램이 끝난 뒤에도 남아야 하니 '''다음에 다시 찾을 이름'''이 필요하다. 크기가 자라고 줄어드는 데이터를 한 줄짜리 주소 공간에서 관리하면 14강의 [[external fragmentation]] 문제도 그대로 생긴다.
+* '''왜 inode 가 필요한가?''' 파일 하나의 크기, 블록 위치, 권한, 시간을 담는 고정 크기 구조가 있어야 OS 가 파일을 다룰 수 있다. 그 구조에 번호를 붙인 것이 inode number 다. 이름과 따로 두었기 때문에 한 파일에 이름을 여러 개 붙일 수도 있다([[hard link]]).
+* '''왜 ID 대신 자연어 이름을 쓰나?''' 사람은 `67158084` 를 외우지 못한다. p.26 의 stat 출력에 나오는 실제 inode 번호다.[* 3강에서 프로세스도 같은 구조였다. 사람은 `bash`, `vi` 라고 부르지만 커널은 pid 로 구별한다. p.3 이 inode number 를 "similar to pid" 라고 한 이유다.]
+* '''왜 계층(hierarchical) 이름인가?''' 파일 수백만 개를 목록 하나에 넣으면 이름이 겹친다. 트리로 묶으면 p.10 처럼 `bar.txt` 가 `/foo` 아래와 `/bar/foo` 아래에 동시에 있어도 된다. 관련된 파일을 한곳에 모으기도 쉽다.
+
+{mini}
+# p.3 의 정의에서 file 과 directory 가 공통으로 가진 것은? (한 단어)
+# "디렉터리의 내용은 OS 가 정한 형식을 따르고, 일반 파일의 내용은 만든 쪽이 정한다." 옳은가?
+# CPU 가상화·메모리 가상화와 비교해 저장 장치 가상화가 다른 점을 한 문장으로.
+{/mini}
+{answer}
+# '''inode number'''. 디렉터리도 "is also identified by an inode number".
+# 옳다. p.3 은 파일 내용을 "defined by a creator" 라고 하고, 디렉터리 내용은 "quite specific" 하게 (이름, inode #) 쌍 목록이라고 한다.
+# 파일은 프로세스마다 혼자 쓰는 착각이 아니라 여럿이 실제로 공유하고 전원이 꺼져도 남아야 하는 대상이다.
+{/answer}
+
+== 층 세 개: 디스크 → logical block → 파일 (p.5) ==
+[[img:L19-05.png|p.5 — 아래부터 Physical disks, Logical blocks 0~N, 그 위의 Files & directories 트리. 층 사이의 점선 이름(Abstraction, Virtualization)을 보라|large]]
+
+위 그림을 아래에서부터 읽어 보자.
+* 맨 아래는 '''Physical disks''' 세 개다. 실제 HDD 나 SSD 다.
+* 그 위 '''Logical blocks''' 는 0 번부터 N 번까지 번호 붙은 블록 배열이다. 18강 p.29 의 [[logical block]] 이 이것이다. 디스크 세 개를 한 줄로 이어 보이게 하는 일([[RAID]] 같은 것)도 이 층에서 한다. 두 층 사이 점선의 이름은 '''Abstraction''' 이다.[* 그림의 Disk1~3 을 블록 하나의 줄로 이어 붙이는 가장 단순한 방법이 18강 [[RAID 0과 RAID 1|RAID 0]] 의 striping 이다. 그림만으로는 세 디스크를 어떻게 묶었는지 알 수 없다.]
+* 맨 위가 우리가 보는 '''Files & directories''' 다. `/` 아래 `home`, 그 아래 `dgist` 와 `datalab`, 그 아래 `file1`, `file2`. 이 층과 블록 층 사이 점선의 이름은 '''Virtualization''' 이다. 그림 왼쪽 화살표가 이 트리를 "Virtualized view to storage" 라고 부른다.
+
+p.5 의 첫 문장대로 모든 것은 이름이 `/` 한 글자인 '''root''' 디렉터리에서 시작한다. 파일 시스템이 하는 일은 맨 위의 이름을 가운데 블록 번호로 바꾸는 것이다. 그 다리 역할을 [[inode]] 와 [[디렉터리]] 가 한다.[* 이 강의는 위쪽 층, 즉 프로그램이 파일 시스템을 어떻게 쓰는지(interface)만 다룬다. 파일 시스템이 inode 와 블록을 디스크 어디에 어떻게 배치하는지(implementation)는 OSTEP 40장 "File System Implementation" 의 몫이다.]
+
+{mini}
+# p.5 그림에서 "Abstraction" 과 "Virtualization" 은 각각 어느 두 층 사이인가?
+# 18강의 디스크 스케줄링(SSTF, SCAN)이 다루는 요청은 세 층 중 어느 층의 번호로 들어오나?
+{/mini}
+{answer}
+# Abstraction 은 Physical disks 와 Logical blocks 사이, Virtualization 은 Logical blocks 와 Files & directories 사이.
+# 가운데 층. 디스크 스케줄러는 파일 이름을 모르고 블록(실린더) 번호만 본다.
+{/answer}
+
+== 강의 흐름 따라가기 ==
+=== p.6~13: 이름과 권한 ===
+파일의 진짜 이름은 사람 이름이 아니라 번호다. 그 번호가 [[inode]] number 이고, 디스크에 있는 메타데이터 덩어리(inode structure)와는 구별한다. [[디렉터리]] 는 이름을 그 번호로 바꿔 주는 표이고, 디렉터리들이 모여 트리가 된다. 트리 안의 위치를 적는 법이 [[경로와 working directory|경로]] 다. Unix 는 이 이름 체계를 디스크 파일뿐 아니라 장치와 커널 정보에까지 쓴다([[Unix 파일]]).[* 흔히 "everything is a file" 이라고 부르는 Unix 의 설계 방침이다. 슬라이드에는 이 문구가 직접 나오지 않고, p.7 이 "UNIX extends the file concept" 이라고 표현한다.] 누가 무엇을 할 수 있는지는 9비트짜리 [[권한 비트]] 가 정한다.
+
+=== p.14~30: Unix File IO ===
+파일을 쓰려면 먼저 `open` 해서 작은 정수 하나를 받는다. 이 [[file descriptor]] 가 이후 `read`, `write`, `close` 의 첫 인자다. 열린 파일마다 다음에 읽고 쓸 위치(current offset)가 있고, `lseek` 로 옮긴다([[파일 offset과 lseek]]). 이름을 바꾸는 `rename` 은 atomic 이라서, 파일 내용을 통째로 안전하게 바꾸는 요령에 쓰인다([[rename과 atomic update]]). 디렉터리는 `write` 로 직접 고칠 수 없고 전용 API 를 쓴다([[디렉터리 API]]).
+
+=== p.31~40: Links ===
+p.27 에서 `rm` 이 `unlink()` 를 부른다는 게 나오고, "왜 remove 나 delete 가 아닌가?" 를 나중으로 미룬다. 그 답이 [[hard link]] 다. 파일을 지우는 일은 사실 이름 하나를 떼는 일이고, 이름이 하나도 안 남아야 진짜로 지워진다. 마지막으로 [[symbolic link]] 는 inode 번호 대신 경로를 담는 다른 종류의 파일이다.
+
+[[anim:hard_vs_soft_link|왼쪽 hard link 와 오른쪽 symbolic link 에 같은 명령(cat, rm, cat)을 주고, rm 뒤에 결과가 갈리는 순간을 보라]]
+
+{analogy}
+도서관에 비유하면 inode 는 책 한 권에 붙은 청구기호와 대출 카드다. 디렉터리는 서가 안내판이다. "운영체제 → OSTEP" 이라는 안내판 경로를 따라가면 청구기호가 나오고, 그 번호로 책을 꺼낸다. 같은 책을 "교재" 안내판에도 올려 두면 hard link, "OSTEP 은 운영체제 칸을 보세요" 라는 쪽지를 붙이면 symbolic link 다.
+{/analogy}
+
+== 슬라이드 오류와 오타 ==
+{warn}수업 전에 슬라이드 글자를 그림과 맞춰 본 결과다. 시험 문제가 슬라이드 글자를 그대로 쓸 수 있으니 알아만 둔다.
+* p.13: `ls -l` 출력 `-rwxr-x--xstudent dgist 377404 …` 은 권한과 소유자 사이 공백이 빠졌고, 실제 `ls -l` 이면 그 사이에 link count 칸이 있다. 751 계산 자체는 맞다. [[권한 비트]]
+* p.15, p.24: `O_CREAT` 로 여는데 세 번째 인자(mode)가 없다. OSTEP 원문은 `S_IRUSR | S_IWUSR` 를 준다. [[file descriptor]]
+* p.20: `open(file descriptor, flags)` 는 틀렸다. 첫 인자는 경로 이름이다. [[file descriptor]]
+* p.21: "open an '''exiting''' file" 은 existing 의 오타.
+* p.26: `Uid: (30686/ root)` 는 앞뒤가 안 맞는다. root 의 uid 는 0 이다. OSTEP 원문은 `remzi`. [[inode]]
+* p.29: "print '''outthe'''", dirent 주석 "offset to the next '''direct'''"(dirent 가 잘림). [[디렉터리 API]]
+* p.38: symlink 의 data block 에 `"/dirA/name1"` 이라고 적혀 있다. `ln -s file file2` 라면 들어 있는 것은 `file` 이어야 한다. 다른 예제의 그림을 가져온 것으로 보인다. [[symbolic link]]
+{/warn}
+
+== 시험에 나온다면 ==
+{info}중간고사 형식([[2026F 중간고사]])은 객관식 + full-term 용어 + "규칙을 주고 손으로 돌리기"였다. 이 과목은 시스템 프로그래밍(fork/exec 사용법, 출력 예측)을 내지 않는다(사용자 확인). 19강에서 그 형식에 맞는 것은 API 사용법보다 개념 쪽이다.
+* 손으로 돌리기: [[hard link]] 의 Links 수 추적, [[권한 비트]] 의 8진수 ↔ rwx, [[file descriptor]] 번호(lowest unused), [[파일 offset과 lseek|offset]] 계산, [[symbolic link]] 크기.
+* 용어: inode number, inode structure, directory entry, working directory, file descriptor, current offset, link count(reference count), dangling reference.
+* 객관식: inode number 와 inode 의 차이, hard link 와 symbolic link 의 차이, rename 이 atomic 이라는 것.
+{/info}
+
+== 시험 직전 체크 ==
+# 파일 = 바이트 배열 + inode number(low-level name). 디렉터리 = (이름, inode #) 쌍 목록, 디렉터리도 inode 가 있다.
+# 이름은 inode 안에 없다. 디렉터리 엔트리에 있다. 그래서 이름이 여럿일 수 있다.
+# fd 0·1·2 는 stdin·stdout·stderr. open 은 비어 있는 가장 작은 번호를 준다.
+# read/write 는 offset 을 N 만큼 옮긴다. lseek: SET = offset, CUR = 현재 + offset, END = 크기 + offset.
+# rename 은 atomic. 새 내용을 tmp 에 쓰고 fsync 한 뒤 rename 하면 old 아니면 new 만 보인다.
+# rwx = 4·2·1, user·group·others 순. rwxr-x--x = 751.
+# rm 은 unlink. link count 가 0 이 되어야 inode 와 블록을 해제한다.
+# symlink 는 경로를 담은 별도 파일. 크기 = 경로 길이, 원본을 지우면 dangling, 파티션을 넘을 수 있다.
+
+== 관련 문서 ==
+* [[기말고사]] · [[I/O 장치]](18강, 아래 층) · [[logical block]] · [[영속성]](2강 개요)
+* [[inode]] · [[디렉터리]] · [[경로와 working directory]] · [[Unix 파일]] · [[권한 비트]]
+* [[file descriptor]] · [[파일 offset과 lseek]] · [[rename과 atomic update]] · [[디렉터리 API]]
+* [[hard link]] · [[symbolic link]]

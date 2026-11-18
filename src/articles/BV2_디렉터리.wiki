@@ -1,0 +1,121 @@
+key: 디렉터리
+title: 디렉터리: (이름, inode 번호) 목록
+category: 19강 File and Directory
+---
+19강 p.3, p.9~10, p.28 을 따라간다. 디렉터리가 사실은 조금 특별한 파일이라는 것, 그 안에 무엇이 들어 있는지, 디렉터리들이 어떻게 트리가 되는지, 그리고 경로 하나를 OS 가 실제로 어떻게 풀어 가는지를 본다.
+
+== 디렉터리도 파일이다 ==
+{def}p.3: "Directory: A special file that is a collection of files and other directories. Its contents are quite specific: it contains a list of (user-readable name, inode #) pairs (e.g., ("foo", 10)). It has a hierarchical organization (e.g., tree, acyclic-graph, and graph). It is also identified by an inode number."
+p.9: "Directory is like a file and has a low-level name (inode #). Each entry in a directory refers to either files or other directories."
+{/def}
+
+[[inode]] 에서 파일 이름은 inode 안에 없다고 했다. 그러면 이름은 어디 있나. 답이 디렉터리다. 디렉터리는 파일이긴 한데, 내용이 아무 바이트나가 아니라 '''(이름, inode #)''' 쌍을 줄줄이 적은 표다. 이 쌍 하나를 '''directory entry''' 라고 부른다.
+
+[[img:L19-09.png|p.9 — 디렉터리 내용의 예. 각 줄이 inode 번호 하나와 \0 으로 끝나는 이름 하나|medium]]
+
+위 그림이 디렉터리 하나의 내용이다. 세 줄을 읽어 보면 이렇다.
+* inode 120 의 이름은 `fred`.
+* inode 207 의 이름은 `bookmark`.
+* inode 235 의 이름은 `abc`.
+
+이름 끝마다 `\0` 이 붙어 있는 것은 C 문자열처럼 이름이 어디서 끝나는지 표시한 것이다. 그래서 이름 길이에 따라 줄 길이가 다르다. `bookmark` 줄이 가장 길다.[* 실제 파일 시스템(ext2 계열)의 엔트리는 inode 번호와 이름 말고도 이 엔트리의 길이(record length), 이름 길이, 파일 종류를 함께 적는다. 다음 엔트리가 어디서 시작하는지 알아야 하기 때문이다. p.29 의 `struct dirent` 에 있는 `d_reclen`, `d_type` 이 그 흔적이다.]
+
+각 엔트리가 가리키는 것은 일반 파일일 수도 있고 다른 디렉터리일 수도 있다. 위 그림만 봐서는 `fred` 가 파일인지 디렉터리인지 알 수 없다. 120 번 inode 를 읽어 봐야 안다.
+
+{analogy}
+디렉터리는 아파트 우편함 옆의 호수 안내판이다. "김철수 1203호, 박영희 807호" 처럼 이름과 번호만 적혀 있다. 안내판 자체도 관리실 서랍 몇 번 칸에 보관된 물건이라, 안내판에도 번호가 있다. 디렉터리도 inode 번호가 있다는 말이 그것이다.
+{/analogy}
+
+{mini}
+# p.9 의 디렉터리에서 이름 `abc` 의 inode 번호는?
+# 이 디렉터리에 `ln abc fred2` 를 하면 엔트리가 어떻게 바뀌나? (inode 번호까지)
+# "디렉터리 엔트리 하나는 파일 하나의 내용을 담고 있다." 옳은가?
+{/mini}
+{answer}
+# '''235'''.
+# 엔트리 `(235, "fred2")` 가 하나 더 생긴다. 새 inode 는 만들지 않는다. [[hard link]] 참고.
+# 틀렸다. 엔트리는 이름과 inode 번호만 담는다. 내용은 inode 가 가리키는 data block 에 있다.
+{/answer}
+
+== 디렉터리가 모여 트리가 된다 (p.10) ==
+[[img:L19-10.png|p.10 — 예시 디렉터리 트리와, 이 트리에서 유효한 파일·디렉터리의 절대 경로|large]]
+
+디렉터리 엔트리가 다른 디렉터리를 가리킬 수 있으니, 디렉터리 안에 디렉터리를 넣을 수 있다. 위 그림 왼쪽이 그렇게 만든 트리다. 맨 위 동그라미 `/` 가 '''root directory''' 다.
+* root 아래 디렉터리 `foo` 와 `bar`.
+* `foo` 아래 파일 `bar.txt`.
+* `bar` 아래 디렉터리 `bar` 와 `foo`, 그 `foo` 아래 다시 파일 `bar.txt`.
+
+그림 오른쪽은 이 트리에서 유효한 절대 경로 목록이다. 파일은 `/foo/bar.txt`, `/bar/foo/bar.txt` 두 개이고, 디렉터리는 `/`, `/foo`, `/bar`, `/bar/bar`, `/bar/foo` 다섯 개다.
+
+여기서 이름이 겹치는 것을 보자. `bar.txt` 가 두 개, `foo` 도 두 개, `bar` 도 두 개다. 그래도 문제없다. 같은 '''디렉터리 안'''에서만 이름이 겹치지 않으면 된다. `/bar/bar` 처럼 디렉터리가 자기와 같은 이름의 하위 디렉터리를 가져도 된다. 이게 [[파일과 디렉터리]] p.4 의 "왜 계층 이름을 쓰나" 에 대한 답이다. 이름 하나가 아니라 '''경로'''가 파일을 정한다. 경로를 적는 두 방법(절대·상대)은 [[경로와 working directory]] 에서 다룬다.
+
+{mini}
+# p.10 트리에서 `/bar/foo/bar.txt` 를 찾으려면 디렉터리를 몇 개 읽어야 하나? 어느 것들인가?
+# p.10 트리에 `/foo/bar` 라는 디렉터리를 새로 만들 수 있나?
+# p.10 트리에서 `/bar` 디렉터리의 데이터에 들어 있는 엔트리를 `.`, `..` 까지 포함해 모두 쓰라(번호 없이 이름만).
+{/mini}
+{answer}
+# '''3 개'''. `/`, `/bar`, `/bar/foo`. 각 디렉터리에서 다음 이름을 찾는다.
+# 만들 수 있다. `/foo` 안에는 `bar.txt` 만 있고 `bar` 라는 이름은 없다. `/bar` 와 이름이 같아도 상관없다.
+# `.`, `..`, `bar`, `foo`. 디렉터리마다 자신(`.`)과 부모(`..`) 엔트리가 있다(p.28).
+{/answer}
+
+== . 과 .. ==
+p.28 은 `mkdir` 로 막 만든 디렉터리가 "empty" 라고 하면서, 동시에 엔트리가 두 개 있다고 한다. 자기 자신을 가리키는 `.` 과 부모를 가리키는 `..` 이다.
+
+<pre class="sh">
+prompt> ls -a
+./  ../
+prompt> ls -al
+total 8
+drwxr-x---  2 remzi remzi    6 Apr 30 16:17 ./
+drwxr-x--- 26 remzi remzi 4096 Apr 30 16:17 ../
+</pre>
+
+`cd ..` 가 한 칸 위로 가는 것은 셸의 특별한 기능이 아니다. 디렉터리 안에 실제로 `..` 이라는 이름의 엔트리가 있고, 그 inode 번호가 부모 디렉터리의 번호일 뿐이다. root 의 `..` 은 root 자신을 가리킨다. 더 올라갈 곳이 없기 때문이다.
+
+위 출력의 두 번째 칸(2 와 26)은 각 디렉터리의 '''link count''' 다. 비어 있는 디렉터리가 2 인 이유는 이렇다. 부모 디렉터리 안에 이 디렉터리 이름으로 된 엔트리가 하나 있고, 자기 안의 `.` 이 또 하나다. 하위 디렉터리가 하나 생길 때마다 그 하위 디렉터리의 `..` 이 이 디렉터리를 가리키니 1 씩 늘어난다. 그래서 전통적인 Unix 파일 시스템에서는 '''디렉터리의 link count = 2 + 하위 디렉터리 수''' 다.[* `..` 의 26 은 부모 디렉터리에 하위 디렉터리가 24 개 있다는 뜻이다. 이 공식은 ext4 같은 전통적인 파일 시스템 기준이다. 디렉터리 link 수를 세지 않고 1 로 보고하는 파일 시스템도 있다.] link count 가 무엇인지는 [[hard link]] 에서 자세히 본다.
+
+== 경로를 실제로 풀어 보면 ==
+이제 `open("/foo/bar.txt", O_RDONLY)` 를 부르면 파일 시스템이 무엇을 읽는지 따라갈 수 있다. 디렉터리는 이름을 번호로 바꿔 주는 표이니, 경로의 이름 하나마다 "디렉터리 데이터를 읽고 → 번호를 얻고 → 그 번호의 inode 를 읽는" 일을 한 번씩 한다.
+
+[[anim:path_lookup|root 의 inode 부터 시작해 foo, bar.txt 순서로 번호를 얻는 과정을 보고, 아래 다섯 단계와 맞춰 보라]]
+
+# root 디렉터리의 inode 를 읽는다. root 의 inode 번호는 파일 시스템이 미리 정해 둔다.[* 출발점이 필요하기 때문이다. root 를 찾으려고 또 디렉터리를 뒤질 수는 없다. ext2/3/4 에서는 root 의 inode 번호가 2 다. 그림의 10, 11, 20 은 설명용 가정값이다.]
+# root 의 데이터 블록에서 이름 `foo` 를 찾는다. inode 10 이 나온다.
+# inode 10 을 읽는다. 디렉터리라는 걸 확인하고 데이터 블록 위치를 얻는다.
+# foo 의 데이터 블록에서 `bar.txt` 를 찾는다. inode 20 이 나온다.
+# inode 20 을 읽는다. 권한을 확인하고, 통과하면 [[file descriptor]] 를 돌려준다.
+
+`open` 하나에 디스크를 다섯 번 읽었다. 경로가 깊어질수록 이 횟수가 늘어난다. 그래서 OS 는 자주 쓰는 inode 와 디렉터리 블록을 메모리에 캐시해 둔다.[* 과제 2 의 [[buffer cache]] 가 그런 캐시다. xv6 의 경로 탐색 함수 `namei()` 는 `/` 를 기준으로 경로를 한 칸씩 잘라 가며 `dirlookup()` 을 부르는데, 디렉터리 블록을 읽을 때마다 `bread()` 로 buffer cache 를 거친다.]
+
+상대 경로도 원리는 같다. 출발점이 root 의 inode 가 아니라 프로세스의 working directory inode 로 바뀔 뿐이다.
+
+{mini}
+# `open("/a/b/c/d.txt")` 를 캐시 없이 할 때 읽는 inode 는 몇 개인가? 디렉터리 데이터 블록은? (디렉터리마다 블록 하나라고 가정)
+# 디렉터리 하나에 하위 디렉터리 3 개와 일반 파일 10 개가 있다. 이 디렉터리의 link count 는? (전통적인 Unix 파일 시스템)
+# root 디렉터리의 `..` 엔트리는 무엇을 가리키나?
+{/mini}
+{answer}
+# inode '''5 개'''(`/`, `a`, `b`, `c`, `d.txt`), 디렉터리 데이터 블록 '''4 개'''(`/`, `a`, `b`, `c`). 이름 하나마다 디렉터리 데이터 한 번, inode 한 번이고 맨 앞에 root inode 가 하나 더 있다.
+# '''5'''. 2 + 3. 일반 파일은 이 디렉터리의 link count 를 늘리지 않는다. 파일에는 `..` 이 없다.
+# root 자기 자신.
+{/answer}
+
+== 트리, acyclic graph, graph (p.3) ==
+p.3 은 디렉터리 구조의 예로 tree, acyclic-graph, graph 를 든다. 디렉터리 엔트리가 각자 inode 번호를 적으니, 원리상 두 디렉터리의 엔트리가 같은 inode 를 가리킬 수 있다. 그러면 구조는 더 이상 트리가 아니다.
+* 파일 하나에 이름을 둘 붙이는 [[hard link]] 는 트리를 acyclic graph 로 만든다. 한 파일에 부모 디렉터리가 둘 생긴다.
+* 디렉터리에 hard link 를 걸 수 있다면 고리(cycle)가 생길 수 있다. `/a/b` 안에 `/a` 를 가리키는 엔트리를 만들면 `/a/b/x/b/x/…` 가 끝없이 이어진다. 그래서 Unix 는 사용자가 디렉터리에 hard link 를 거는 것을 막는다.[* OSTEP 39장이 이 이유를 든다. 디렉터리 hard link 를 막는 이유는 "for fear that you'll create a cycle in the directory tree" 다. `.` 과 `..` 은 파일 시스템이 직접 관리하는 예외다.]
+* [[symbolic link]] 는 디렉터리도 가리킬 수 있어서 고리를 만들 수 있다. 대신 symlink 는 경로를 담은 별개의 파일이라, 도구들이 "symlink 는 따라가지 않는다" 는 식으로 고리를 피할 수 있다.
+
+== 시험 직전 체크 ==
+# 디렉터리 = special file. 내용은 (이름, inode #) 쌍 목록. 엔트리는 파일 또는 디렉터리를 가리킨다.
+# 디렉터리도 inode number 가 있다.
+# 같은 디렉터리 안에서만 이름이 유일하면 된다. 경로가 파일을 정한다.
+# 모든 디렉터리에 `.`(자신), `..`(부모). 빈 디렉터리도 엔트리 2 개. root 의 `..` 은 root.
+# 디렉터리 link count = 2 + 하위 디렉터리 수.
+# 경로 탐색 = 이름마다 디렉터리 데이터 읽기 → 번호 → inode 읽기. 출발은 root inode(절대) 또는 working directory(상대).
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[inode]] · [[경로와 working directory]] · [[디렉터리 API]]
+* [[hard link]] · [[symbolic link]] · [[buffer cache]]

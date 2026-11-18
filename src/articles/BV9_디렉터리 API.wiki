@@ -1,0 +1,112 @@
+key: 디렉터리 API
+title: 디렉터리 API: unlink, mkdir, readdir, rmdir
+category: 19강 File and Directory
+---
+19강 p.27~30 을 따라간다. 파일 지우기(`rm` → `unlink`), 디렉터리 만들기(`mkdir`), 디렉터리 읽기(`opendir`/`readdir`), 디렉터리 지우기(`rmdir`)다. 공통점은 모두 [[디렉터리]] 의 (이름, inode #) 표를 다룬다는 것이다. 사용법보다 "각 호출이 디렉터리 엔트리와 [[inode]] 에 무엇을 하는가" 를 중심으로 읽는다.
+
+== 파일 지우기는 unlink (p.27) ==
+<pre class="sh">
+prompt> strace rm foo
+…
+unlink("foo")                  = 0   // return 0 upon success
+…
+</pre>
+
+`rm` 을 strace 로 보면 `unlink()` 를 부른다.[* 요즘 Linux 의 `rm` 을 strace 하면 `unlinkat()` 이 보인다. 디렉터리 fd 를 기준으로 경로를 해석하는 변형이고 하는 일은 같다. 슬라이드와 OSTEP 은 `unlink` 로 설명한다.] p.27 은 일부러 질문을 남긴다. "Why it calls unlink()? not 'remove or delete'. We can get the answer later." 답은 p.35 에 나오고, [[hard link]] 문서에서 자세히 다룬다. 미리 한 줄로 말하면, `unlink` 는 디렉터리에서 '''이름 하나를 떼는''' 일이다. 파일이 실제로 지워지는 것은 그 파일을 가리키는 이름이 하나도 안 남았을 때다.
+
+== 디렉터리 만들기 (p.28) ==
+<pre class="sh">
+prompt> strace mkdir foo
+…
+mkdir("foo", 0777)                    = 0
+prompt>
+</pre>
+
+`mkdir()` 은 경로와 권한(mode)을 받는다. `0777` 은 8진수로 rwxrwxrwx 다([[권한 비트]]).
+
+{def}p.28: "When a directory is created, it is empty. Empty directory have two entries: . (itself), .. (parent)"{/def}
+
+<pre class="sh">
+prompt> ls -a
+./       ../
+prompt> ls -al
+total 8
+drwxr-x---  2 remzi remzi    6 Apr 30 16:17 ./
+drwxr-x--- 26 remzi remzi 4096 Apr 30 16:17 ../
+</pre>
+
+"비어 있다" 는 말과 "엔트리가 두 개" 는 말이 함께 나온다. 비어 있다는 것은 '''사용자가 넣은''' 엔트리가 없다는 뜻이다. `.` 과 `..` 은 파일 시스템이 `mkdir` 할 때 자동으로 넣는다. 그래서 `mkdir` 은 일반 파일 만들기보다 할 일이 많다.
+* 새 inode 하나를 할당하고 종류를 directory 로 적는다.
+* 새 디렉터리의 데이터 블록에 `(새 번호, ".")`, `(부모 번호, "..")` 두 엔트리를 쓴다.
+* 부모 디렉터리에 `(새 번호, "foo")` 엔트리를 추가한다.
+* 새 디렉터리의 `..` 이 부모를 가리키게 됐으니 부모의 link count 를 1 올린다.
+
+위 출력의 link count 2 와 26 이 그 결과다. 계산은 [[디렉터리]] 의 ". 과 .." 절에 있다.[* `0777` 을 요청했는데 결과가 `drwxr-x---`(750)인 것은 umask 때문이다. 프로세스의 umask 가 027 이면 group 의 w 와 others 의 rwx 가 꺼진다. [[권한 비트]] 의 새끼문제 참고.]
+
+== 디렉터리 읽기 (p.29) ==
+<pre class="c">
+int main(int argc, char *argv[]) {
+    DIR *dp = opendir(".");             // open current directory
+    assert(dp != NULL);
+    struct dirent *d;
+    while ((d = readdir(dp)) != NULL)   // read one directory entry
+    {
+        // print out the name and inode number of each file
+        printf("%d %s\n", (int) d->d_ino, d->d_name);
+    }
+    closedir(dp);                       // close current directory
+    return 0;
+}
+</pre>
+
+`ls` 를 아주 작게 만든 프로그램이다. 줄마다 읽으면 이렇다.
+* `opendir(".")`: 현재 working directory 를 연다. 파일의 `open` 과 같은 역할이다.
+* `readdir(dp)`: 엔트리를 '''하나씩''' 돌려준다. 다 읽으면 `NULL`.
+* `printf`: 엔트리마다 inode 번호와 이름을 찍는다. 결과는 [[디렉터리]] p.9 그림 같은 (번호, 이름) 목록이다.
+* `closedir(dp)`: 닫는다.
+
+`readdir` 이 돌려주는 `struct dirent` 는 이렇게 생겼다.
+
+<pre class="c">
+struct dirent {
+    char           d_name[256];  /* filename */
+    ino_t          d_ino;        /* inode number */
+    off_t          d_off;        /* offset to the next dirent */
+    unsigned short d_reclen;     /* length of this record */
+    unsigned char  d_type;       /* type of file */
+};
+</pre>
+
+들어 있는 것은 이름, inode 번호, 그리고 엔트리를 줄줄이 읽기 위한 정보(다음 엔트리 위치, 이 엔트리 길이)와 파일 종류 정도다. 파일 크기, 권한, 소유자, 시간은 '''없다'''. 그건 디렉터리가 아니라 inode 에 있기 때문이다. 그래서 `ls -l` 처럼 자세히 보여 주는 프로그램은 엔트리마다 `stat()` 을 한 번씩 더 불러서 inode 를 읽는다.[* OSTEP 39장도 같은 말을 한다. `ls -l` 은 각 파일에 `stat()` 을 불러 더 많은 정보를 얻는다. 파일이 많은 디렉터리에서 `ls` 보다 `ls -l` 이 눈에 띄게 느린 이유다.]
+
+{warn}p.29 코드의 주석 "print '''outthe''' name" 은 띄어쓰기가 빠졌고, `d_off` 주석 "offset to the next '''direct'''" 는 `dirent` 가 잘린 것이다. 위 코드는 고쳐서 옮겼다.{/warn}
+
+디렉터리를 읽는 전용 함수가 따로 있는 이유가 있다. 디렉터리 내용은 파일 시스템이 정한 형식의 표이고, 사용자가 `write()` 로 직접 고치면 표가 망가질 수 있다. 그래서 디렉터리는 `write` 로 직접 쓸 수 없고, 엔트리는 `mkdir`, `creat`(O_CREAT), `link`, `unlink`, `rename` 같은 호출을 통해서만 바뀐다.[* OSTEP 39장: "you can never write to a directory directly." 형식이 파일 시스템 메타데이터이기 때문에 파일 시스템만 갱신할 수 있다는 설명이다.]
+
+== 디렉터리 지우기 (p.30) ==
+{def}p.30 rmdir(): "Delete a directory. Require that the directory be empty. If you call rmdir() to a non-empty directory, it will fail." (empty = only has "." and ".." entries){/def}
+
+`rmdir` 은 디렉터리가 비어 있을 때만, 즉 `.` 과 `..` 만 있을 때만 성공한다. 안에 뭐가 있는데 디렉터리를 지우면 그 안의 파일들은 이름으로 찾아갈 길이 없는 고아가 된다. 한 번에 많은 데이터를 잃을 수 있는 위험한 연산이라서, 비어 있다는 조건을 거는 것이다.[* 그래서 안이 찬 디렉터리를 지우는 `rm -r` 은 안쪽 파일을 하나씩 `unlink` 하고, 하위 디렉터리를 비운 뒤 `rmdir` 하는 일을 아래에서부터 반복한다. OSTEP 은 `rm -rf *` 를 엉뚱한 디렉터리에서 실행하는 사고를 예로 든다.]
+
+{mini}
+# 막 `mkdir` 한 디렉터리 `foo` 의 엔트리를 모두 쓰라. `foo` 의 link count 는?
+# `/home` 의 link count 가 5 였다. `mkdir /home/x` 후 `/home` 의 link count 는? `touch /home/y`(일반 파일 생성) 후에는?
+# 다음 중 `struct dirent` 만으로 알 수 있는 것을 모두 고르라. (a) 이름 (b) inode 번호 (c) 파일 크기 (d) 권한
+# `.` 과 `..` 만 있는 디렉터리에 `rmdir` 하면? 일반 파일 하나가 더 있으면?
+{/mini}
+{answer}
+# `.` 과 `..` 두 개. link count '''2'''(부모의 `foo` 엔트리 + 자기 `.`).
+# `mkdir` 후 '''6'''. 새 디렉터리의 `..` 이 `/home` 을 가리킨다. `touch` 후에도 '''6'''. 일반 파일에는 `..` 이 없으니 부모 link count 는 그대로다.
+# (a), (b). 크기와 권한은 inode 에 있어서 `stat()` 을 따로 불러야 한다. (`d_type` 으로 종류 정도는 알 수 있다.)
+# 성공한다. 파일이 하나라도 더 있으면 '''실패'''한다.
+{/answer}
+
+== 시험 직전 체크 ==
+# `rm` → `unlink()`. 이름 하나를 떼는 일. 진짜 삭제는 이름이 다 사라졌을 때.
+# `mkdir` 은 빈 디렉터리를 만든다. 빈 디렉터리도 `.`, `..` 두 엔트리가 있다. 부모 link count +1.
+# `readdir` 은 `struct dirent`(이름, inode 번호, 종류 등)를 하나씩. 크기·권한은 `stat` 으로.
+# 디렉터리는 `write` 로 직접 못 쓴다.
+# `rmdir` 은 비어 있을 때(`.`, `..` 만)만 성공.
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[디렉터리]] · [[inode]] · [[hard link]] · [[권한 비트]]

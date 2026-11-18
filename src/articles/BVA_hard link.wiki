@@ -1,0 +1,164 @@
+key: hard link
+title: hard link: 한 파일에 이름 여러 개
+category: 19강 File and Directory, 핵심
+---
+19강 p.31~36 을 따라간다. `link()`(명령으로는 `ln`)는 이미 있는 파일에 이름을 하나 더 붙인다. 이걸 이해하면 p.27 이 미뤄 둔 질문, "`rm` 은 왜 `remove` 가 아니라 `unlink` 를 부르나" 에 답할 수 있다. 파일마다 이름이 몇 개인지 세는 '''link count''' 를 손으로 추적하는 것이 이 문서의 마지막 목표다.
+
+== 이름을 하나 더 붙인다 (p.32) ==
+{def}p.32 `link(old pathname, new one)`: "Link a new file name to an old one. Create another way to refer to the same file. The command-line link program: ln"{/def}
+
+<pre class="sh">
+prompt> echo hello > file
+prompt> cat file
+hello
+prompt> ln file file2      // create a hard link, link file to file2
+prompt> cat file2
+hello
+</pre>
+
+`ln file file2` 뒤에 `cat file2` 를 하면 `hello` 가 나온다. 겉보기에는 복사한 것 같다. 그런데 p.33 은 "The file is not copied in any way" 라고 못 박는다.
+
+== 무엇이 바뀌었나: 그림으로 (p.33) ==
+[[img:L19-33.png|p.33 — 왼쪽은 ln 전(엔트리 file 하나, inode 12345 의 Link Count 1), 오른쪽은 ln 후(엔트리 file2 가 같은 12345 를 가리키고 Link Count 가 2 로 빨간 원)|large]]
+
+{def}p.33 The way link works: "Create another name in the directory. Refer it to the same inode number of the original file. The file is not copied in any way. Then, we now just have two human names (file and file2) that both refer to the same file."{/def}
+
+위 그림 왼쪽이 `ln` 전이다. 디렉터리 엔트리 `(12345, file)` 하나가 inode 12345 를 가리킨다. inode 안에 Link Count 칸이 1 이고, 그 아래 칸 23567 이 데이터 블록 번호다. 데이터 블록에 "This is the text in the file." 이 들어 있다.
+
+오른쪽이 `ln file file2` 후다. 바뀐 것은 두 가지뿐이다.
+* 디렉터리에 엔트리 `(12345, file2)` 가 '''하나 더''' 생겼다. 새 이름이 원래 파일과 '''같은 inode 번호'''를 적는다.
+* inode 12345 의 Link Count 가 2 가 됐다(빨간 원).
+
+새 inode 도, 새 데이터 블록도 없다. 데이터 블록 23567 은 그대로 하나다. 그래서 `file2` 로 내용을 고치면 `file` 로 읽어도 고친 내용이 보인다. 같은 파일이니까.
+
+{analogy}
+한 사람이 본명과 별명을 같이 쓰는 것과 같다. 출석부(디렉터리)에 "장민준 202211163", "민준 202211163" 두 줄이 있어도 학번이 같으니 같은 사람이다. 별명으로 부르든 본명으로 부르든 같은 사람이 대답한다. 학적부(inode)에는 "이 사람을 부르는 이름 2 개" 라고만 적혀 있다.
+{/analogy}
+
+== 두 이름은 완전히 대등하다 (p.34) ==
+<pre class="sh">
+prompt> ls -i file file2
+12345 file     /* inode value is 12345 */
+12345 file2    /* inode value is 12345 */
+</pre>
+
+`ls -i` 는 이름 옆에 inode 번호를 찍는다. 둘 다 12345 다. p.34 는 "There is no difference between file and file2" 라고 한다. 어느 쪽이 원본이고 어느 쪽이 사본인지 '''구별할 방법이 없다'''. 디렉터리 엔트리에는 이름과 번호만 있고 "먼저 생긴 이름" 같은 표시가 없기 때문이다. 둘 다 "just links to the underlying metadata about the file" 이다.[* 사실 처음 만든 이름 `file` 도 똑같은 link 다. `open(…, O_CREAT)` 로 파일을 만드는 일은 두 가지를 한다. inode 를 새로 만들고, 그 inode 에 첫 번째 link(이름)를 붙인다. OSTEP 39장이 이렇게 설명한다.]
+
+{mini}
+# `ln file file2` 직후 새로 할당되는 것을 모두 고르라. (a) inode (b) 데이터 블록 (c) 디렉터리 엔트리
+# `echo world > file2` 후 `cat file` 의 출력은?
+# `ls -i` 로 두 이름의 inode 번호가 같으면 무엇을 알 수 있나?
+{/mini}
+{answer}
+# (c) 만. 엔트리 `(12345, file2)` 하나가 생기고 inode 12345 의 link count 가 1 오를 뿐이다.
+# '''world'''. 같은 inode, 같은 데이터 블록이다(`>` 는 O_TRUNC 로 열어 덮어쓴다).
+# 두 이름이 같은 파일(같은 inode)의 hard link 라는 것. 단 같은 파일 시스템 안이어야 한다.
+{/answer}
+
+== 그래서 지우기는 unlink 다 (p.35) ==
+<pre class="sh">
+prompt> rm file
+removed 'file'
+prompt> cat file2          // Still access the file
+hello
+</pre>
+
+`rm file` 을 했는데 `file2` 로 여전히 읽힌다. `rm` 이 지운 것은 '''이름 `file` 하나'''이기 때문이다. 디렉터리에서 엔트리 `(12345, file)` 을 뗐을 뿐 inode 12345 와 데이터 블록은 그대로다. 그래서 시스템 콜 이름이 remove 나 delete 가 아니라 '''unlink''' 다. 이름과 inode 사이의 연결(link)을 끊는다는 뜻이다.
+
+그러면 파일은 언제 진짜로 사라지나. p.35 의 답이 '''reference count''' 다.
+
+{def}p.35 reference count: "Track how many different file names have been linked to this inode. When unlink() is called, the reference count decrements. If the reference count reaches zero, the filesystem frees the inode and related data blocks. → truly 'delete' the file"{/def}
+
+규칙은 세 줄이다.
+* `link` 할 때마다 inode 의 count 를 1 올린다.
+* `unlink` 할 때마다 1 내린다.
+* 0 이 되면 inode 와 데이터 블록을 해제한다. 이게 진짜 삭제다.
+
+이 count 가 [[inode]] 의 `st_nlink`, `stat` 출력의 `Links:` 다. 이 강의는 reference count 와 link count 를 같은 뜻으로 쓴다.[* 과제 3 의 [[reference count]] 와 똑같은 구조다. 그쪽은 물리 page 를 가리키는 page table 수를 세고, `kfree` 가 1 씩 줄이다가 0 이 될 때 free list 에 넣는다. 여기서는 inode 를 가리키는 이름 수를 세고, `unlink` 가 1 씩 줄이다가 0 이 될 때 블록을 해제한다. "공유되는 자원은 count 가 0 일 때만 놓는다" 는 같은 생각이다.]
+
+한 가지 더 있다. 이름이 다 사라져도, 어떤 프로세스가 그 파일을 '''열어 둔 채'''라면 그 프로세스는 [[file descriptor]] 로 계속 읽고 쓸 수 있다. 파일 시스템은 열린 fd 가 모두 닫힌 뒤에야 블록을 실제로 해제한다.[* 이름 수(link count)와 별도로 커널 메모리에 "열려 있는 횟수" 를 따로 센다. xv6 의 `struct inode` 에도 `nlink`(디스크의 link 수)와 `ref`(메모리에서 참조하는 수)가 따로 있다. 임시 파일을 만들자마자 `unlink` 해 두면 프로그램이 끝날 때 저절로 사라지는 요령이 여기서 나온다.]
+
+== Links 수를 한 줄씩 따라가기 (p.36) ==
+p.36 은 이 규칙을 `stat` 으로 직접 확인한다.
+
+<pre class="sh">
+prompt> echo hello > file          /* create file*/
+prompt> stat file
+... Inode: 67158084 Links: 1 ...   /* Link count is 1 */
+prompt> ln file file2              /* hard link file2 */
+prompt> stat file
+... Inode: 67158084 Links: 2 ...   /* Link count is 2 */
+prompt> stat file2
+... Inode: 67158084 Links: 2 ...   /* Link count is 2 */
+prompt> ln file2 file3             /* hard link file3 */
+prompt> stat file
+... Inode: 67158084 Links: 3 ...   /* Link count is 3 */
+prompt> rm file                    /* remove file */
+prompt> stat file2
+... Inode: 67158084 Links: 2 ...   /* Link count is 2 */
+prompt> rm file2                   /* remove file2 */
+prompt> stat file3
+... Inode: 67158084 Links: 1 ...   /* Link count is 1 */
+prompt> rm file3
+</pre>
+
+읽을 때 볼 점이 셋 있다.
+* `ln file2 file3` 처럼 '''두 번째 이름으로''' link 를 걸어도 결과는 같다. `file2` 가 가리키는 inode 67158084 에 이름이 하나 더 붙는다. 어느 이름에서 출발했는지는 상관없다.
+* `stat file` 과 `stat file2` 가 같은 숫자를 보여 준다. Links 는 이름이 아니라 inode 에 붙은 값이기 때문이다.
+* 마지막 `rm file3` 뒤에는 `stat` 이 없다. 그 순간 Links 가 0 이 되어 inode 67158084 와 데이터 블록이 해제된다.
+
+<pre class="txt">
+명령                 이름들                  Links
+echo hello > file    file                    1
+ln file file2        file, file2             2
+ln file2 file3       file, file2, file3      3
+rm file              file2, file3            2
+rm file2             file3                   1
+rm file3             (없음)                  0 → inode·블록 해제
+</pre>
+
+[[sim:link_count_trace]]
+
+위 시뮬레이터의 첫 시나리오가 p.36 그대로다. 왼쪽 디렉터리 엔트리 칸이 생기고 사라지는 동안 오른쪽 inode 상자는 하나뿐이고 Links 숫자만 바뀌는 것을 보라. 마지막 줄에서 상자가 회색(해제됨)이 된다.
+
+{mini}
+빈 디렉터리에서 아래를 차례로 한다. 각 줄 뒤 inode 의 Links 값을 쓰라.
+# `echo hi > a`, `ln a b`, `ln b c`
+# 이어서 `rm a`, `ln c d`, `rm b`
+# 이어서 `mv d e`. (힌트: rename)
+# 마지막 상태에서 남은 이름은? 파일 내용은 아직 읽을 수 있나?
+{/mini}
+{answer}
+# '''1, 2, 3'''.
+# '''2, 3, 2'''. `ln c d` 는 c 가 가리키는 같은 inode 에 이름을 붙인다.
+# '''2''' 그대로. rename 은 엔트리 이름만 바꾼다. 이름 수는 변하지 않는다.
+# `c`, `e` 두 개. Links 가 2 라 inode 와 데이터가 살아 있으니 읽을 수 있다. `hi`.
+{/answer}
+
+== hard link 의 한계 ==
+hard link 로 못 하는 일이 둘 있다.
+* '''다른 파일 시스템(파티션)의 파일'''에는 걸 수 없다. p.37 이 이유를 든다. "Because inode numbers are only unique within a file system." 디렉터리 엔트리에는 inode 번호만 적는데, 그 번호는 자기 파일 시스템 안에서만 뜻이 있다. 다른 파티션의 12345 번은 전혀 다른 파일이다.
+* '''디렉터리'''에는 걸 수 없다. 디렉터리 트리에 고리가 생기기 때문이다([[디렉터리]] 의 마지막 절).
+
+이 두 한계를 넘는 것이 다음 문서 [[symbolic link]] 다.
+
+{mini}
+# `/dev/sda1` 에 있는 `/home/a.txt` 를 `/dev/sdb1` 에 있는 `/mnt/b.txt` 로 hard link 할 수 없는 이유를 inode 번호로 설명하라.
+# "hard link 를 하나 만들 때마다 디스크 사용량이 파일 크기만큼 늘어난다." 옳은가?
+{/mini}
+{answer}
+# 디렉터리 엔트리는 inode 번호만 적는데 inode 번호는 파일 시스템 안에서만 유일하다. `/dev/sdb1` 의 디렉터리에 `/dev/sda1` 의 번호를 적으면 sdb1 에서 같은 번호의 다른 파일을 가리키게 된다.
+# 틀렸다. 엔트리 하나(이름과 번호)만 늘어난다. 데이터는 복사되지 않는다.
+{/answer}
+
+== 시험 직전 체크 ==
+# `link(old, new)` / `ln` 은 새 디렉터리 엔트리가 '''같은 inode 번호'''를 가리키게 한다. 복사 없음.
+# 두 이름은 대등하다. 원본과 사본의 구별이 없다(`ls -i` 번호 같음).
+# `rm` = `unlink`: 이름 하나를 떼고 link count −1. 0 이 되면 inode·블록 해제(진짜 삭제).
+# link count = `stat` 의 `Links:` = `st_nlink`. p.36: 1 → 2 → 3 → 2 → 1 → 0.
+# 열린 fd 가 있으면 이름이 다 없어져도 닫을 때까지 데이터가 남는다.
+# 파티션을 넘을 수 없다(inode 번호는 파일 시스템 안에서만 유일). 디렉터리에는 못 건다.
+
+== 관련 문서 ==
+* [[파일과 디렉터리]] · [[symbolic link]] · [[inode]] · [[디렉터리]] · [[디렉터리 API]]
+* [[reference count]](과제 3, 같은 생각) · [[rename과 atomic update]]
