@@ -12,7 +12,7 @@ var navTab = null;
 var navLastActive = null;
 
 function navSectionOf(group) {
-  if (/^(기말고사|1[3-8]강|과제2)/.test(group)) return "기말";
+  if (/^(기말고사|1[3-8]강|과제[23])/.test(group)) return "기말";
   if (/^([1-9]강|1[0-2]강|과제1|퀴즈)/.test(group)) return "중간";
   return "공통";
 }
@@ -170,7 +170,14 @@ function renderArticle(key) {
   }
   html += "<h1>" + art.title + "</h1>";
   html += '<div class="meta">분류: ' + cats + "</div>";
+  window.__FN = [];
   html += renderWikiText(art.body);
+  if (window.__FN.length) {
+    html += '<div class="fn-list"><div class="fn-title">각주</div><ol>' + window.__FN.map(function (t, k) {
+      return '<li id="fn-' + (k + 1) + '"><a class="fn-back" href="javascript:void(0)" onclick="var e=document.getElementById(\'fnref-' + (k + 1) + '\');if(e)e.scrollIntoView({block:\'center\'})">[' + (k + 1) + ']</a> ' + t + '</li>';
+    }).join("") + "</ol></div>";
+  }
+
   html += '<div class="categories">분류: ' + cats + "</div>";
 
   area.innerHTML = html;
@@ -284,7 +291,7 @@ function renderWikiText(text) {
     }
 
     // ---- 박스 (한 줄 / 여러 줄 공통) ----
-    var boxStart = line.match(/^\{(info|warn|tip|joke|analogy|def|quiz|exam|answer)\}([\s\S]*)$/);
+    var boxStart = line.match(/^\{(info|warn|tip|joke|analogy|def|quiz|exam|answer|mini)\}([\s\S]*)$/);
     if (boxStart) {
       closeList(); flushTable();
       var cls = boxStart[1];
@@ -402,7 +409,7 @@ function headingId(text) {
 
 // 박스 본문: 블록 문법(표/목록/코드/중첩 박스/헤딩/수평선)이 있으면 renderWikiText 로 재귀,
 // 없으면 기존처럼 인라인 + <br> (한 줄짜리 박스의 모양을 그대로 유지하기 위함).
-var BLOCK_IN_BOX = /^(?:\{\||\*+\s|#+\s|<pre\b|=+\s|----+\s*$|\{(?:info|warn|tip|joke|analogy|def|quiz|exam|answer)\})/;
+var BLOCK_IN_BOX = /^(?:\{\||\*+\s|#+\s|<pre\b|=+\s|----+\s*$|\{(?:info|warn|tip|joke|analogy|def|quiz|exam|answer|mini)\})/;
 
 function renderBoxBody(content) {
   var lines = String(content == null ? "" : content).split("\n");
@@ -445,6 +452,17 @@ function wikiLink(key, label) {
 // ------------------------------------------------------------
 function inlineFormat(text) {
   text = String(text == null ? "" : text);
+
+  // [* 각주] — 나무위키식. 본문엔 [N], 문서 끝 '각주' 목록에 내용. 각주 안에서도 [[링크]]·$수식$ 가능
+  if (typeof window !== "undefined" && window.__FN) {
+    text = text.replace(/\[\*\s*((?:[^\[\]]|\[\[[^\]]*\]\]|\[[^\[\]\*][^\[\]]*\])+)\]/g, function (m, body) {
+      var n = window.__FN.push(inlineFormat(body.trim()));
+      var tip = body.replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, "$1").replace(/'''|''/g, "").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      return '<sup class="fn" id="fnref-' + n + '"><a href="javascript:void(0)" title="' + tip + '" onclick="var e=document.getElementById(\'fn-' + n + '\');if(e)e.scrollIntoView({block:\'center\'})">[' + n + ']</a></sup>';
+    });
+  }
+  // ~~취소선~~ — 나무위키식 드립용
+  text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
 
   // [[sim:name]] — 시뮬레이터 자리
   text = text.replace(/\[\[sim:([^\]\|]+)\]\]/g, function (m, name) {

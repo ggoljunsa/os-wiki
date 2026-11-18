@@ -1,0 +1,49 @@
+key: scause
+title: scause (trap 원인 레지스터)
+category: 과제3, 용어
+---
+'''scause''' 는 RISC-V 가 supervisor 모드로 trap 할 때 "왜 들어왔나" 를 적는 CSR 이다. xv6 의 [[usertrap]] 은 `r_scause()` 로 이 값을 읽어 시스템 콜, 장치 인터럽트, 그 밖의 exception 을 가른다. 과제 3 에서는 여기에 store page fault 를 하나 더 알아보게 만든다.
+
+== 값 읽는 법 ==
+
+맨 위 bit(63번)가 1 이면 인터럽트(비동기), 0 이면 exception(동기)이다. 4강에서 배운 분류가 그대로 하드웨어 비트로 들어가 있다.[* [[usertrap]] 문서에도 같은 설명이 있다. 과제 1 에서는 타이머 인터럽트(맨 위 bit 1)를 다뤘고, 과제 3 에서는 exception 쪽을 다룬다.] 나머지 bit 가 원인 번호다. 과제 3 에 관계있는 exception 은 넷이다.
+
+{| class="table"
+! scause || 원인 || 과제 3 에서
+|-
+| 8 || environment call from U-mode (`ecall`) || 시스템 콜. 원본이 이미 처리. epc + 4
+|-
+| 12 || instruction page fault || 실행 권한·매핑 문제. COW 와 관계없음
+|-
+| 13 || load page fault || 읽기는 공유 page 에서 그냥 된다. COW 와 관계없음
+|-
+| '''15''' || '''store/AMO page fault''' || '''COW 처리 지점'''. epc 그대로
+|}
+
+page fault 에서는 '''stval''' 이 fault 를 낸 가상 주소를 담는다. page 정렬된 주소가 아니라 store 가 노린 바이트 주소 그대로다. PTE 를 찾을 때는 `PGROUNDDOWN` 해서 쓴다.
+
+{| class="table"
+! 레지스터 || 시스템 콜 (8) || store page fault (15)
+|-
+| scause || 8 || 15
+|-
+| stval || 0 || fault 난 VA
+|-
+| sepc || `ecall` 명령 주소 || fault 난 store 명령 주소
+|-
+| 돌아갈 곳 || sepc + 4 (다음 명령) || sepc 그대로 (같은 명령 재실행)
+|}
+
+{warn}COW 를 넣기 전에도 scause 13·15 는 원본 `usertrap` 의 마지막 `else` 로 떨어져 "unexpected scause" 를 찍고 kill 된다. 과제에서 15 를 알아보게 바꾼 뒤에도, COW 가 아닌 15 는 원래처럼 kill 해야 한다. 원본의 출력 두 줄은 디버깅할 때 그대로 두는 편이 좋다.{/warn}
+
+{mini}
+# 자식이 VA 0x2ff8 에 `sw` 를 했고 그 page 는 COW 다. scause, stval 과 돌아갈 주소를 쓰라.
+# COW 로 공유한 page 에서 `lw`(load) 를 하면 scause 13 이 나나?
+{/mini}
+{answer}
+# scause 15, stval 0x2ff8, 돌아갈 곳은 sepc 그대로(그 `sw` 명령).
+# 나지 않는다. COW page 는 R = 1 이므로 읽기는 fault 없이 공유 frame 에서 된다. 막아 둔 건 W 뿐이다.
+{/answer}
+
+== 관련 문서 ==
+* [[usertrap]] · [[epc]] · [[sepc]] · [[트랩]] · [[COW fork]] · [[과제3 xv6 cow]]

@@ -2,7 +2,7 @@ key: 기말고사
 title: 기말고사 (2026 Fall, 13강~)
 category: 기말고사
 ---
-{info}기말고사 범위인 13~18강과 과제 2 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}
+{info}기말고사 범위인 13~18강과 과제 2·3 의 읽는 순서를 모았다. 중간 범위(1~12강)는 위키의 기존 문서를 그대로 쓴다. 슬라이드 원본은 `운영체제/기말고사/강의자료/`.{/info}
 
 중간고사까지는 [[가상화]] 중 CPU 가상화([[스케줄링]] 등)와 [[동시성]]을 배웠다. 기말은 메모리 가상화를 다룬다.
 
@@ -128,7 +128,22 @@ category: 기말고사
 
 9강 [[spin lock]]·[[test-and-set]] 의 성능 문제를 OSTEP 29장 [[sloppy counter]]·[[concurrent hash table]] 방식(lock 쪼개기)으로 푼다. lock 두 개를 잡는 곳은 12강 [[lock ordering]] 으로 deadlock 을 막는다. steal 은 7강 [[work stealing]]과 같고, free list 는 13강 [[free list]]의 페이지판이다.
 
+== 과제 3: xv6 COW fork · Superpage ==
+
+{warn}'''마감 2026-12-01 (화) 23:00'''. TA Sabin Jeon. 보고서 4~8쪽 + `make zipball` → `{학번}_{이름}.zip`. 채점 130점(원본 29점). 직접 구현할 것. 위키에는 완성 코드가 없다.{/warn}
+
+# [[과제3 xv6 cow]]: 사양·채점표·환경·읽는 순서
+# [[COW fork]]: fork 에서 공유, store page fault 에서 복사. 17강 page fault 6단계와 대응. 용어 [[scause]] · [[RSW 비트]]
+# [[reference count]]: kalloc 1, fork +1, kfree −1. 배열 크기·kinit 함정·lock
+# [[copyout과 COW]]: 커널 쓰기는 fault 가 안 난다. usertests copyout 주소 목록
+# [[superpage]]: level-1 leaf, 2 MB 정렬, `walk()` 수정, sbrk 구간 나누기
+# [[COW와 superpage]]: 설계 A·B·C, 예약이 바닥날 때, 2025 풀이의 panic
+# [[과제3 함정과 디버깅]] · [[과제3 퀴즈 대비]]
+
+15강 [[copy-on-write]] 그림을 커널 코드로 옮기고, 16강 [[huge page]]·[[Sv39 PTE]] 를 실제 page table 에 쓴다. COW fault 처리는 17강 [[page fault]] 의 6단계와 거의 한 줄씩 맞는다.
+
 == 관련 문서 ==
 * [[main|대문]] · [[읽는 순서]] · [[시험 정보]]
 * [[가상 메모리]] · [[base and bounds]] · [[주소 변환 시점]] · [[세그멘테이션]] · [[페이징]] · [[고급 페이지 테이블]]
 * [[과제2 xv6 lock]] · [[per-CPU free list]] · [[bcache 해시 버킷]] · [[과제2 퀴즈 대비]]
+* [[과제3 xv6 cow]] · [[COW fork]] · [[superpage]] · [[과제3 퀴즈 대비]]

@@ -705,6 +705,20 @@
   .sim .sim-svgbox svg { max-height: 230px; width: auto; max-width: 100%; }
   @media (max-width: 1000px) { .sim .sim-stage { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 720px) { .sim .sim-head .sim-subtitle { display: block; margin: 2px 0 0; } }
+
+  .mini { background: #eef6ff; border-left: 4px solid #1d65b3; padding: 10px 14px; margin: 14px 0 6px; border-radius: 6px; }
+  .mini::before { content: "✏️ 바로 풀어보기  "; font-weight: 700; color: #1d65b3; }
+  .mini > p:first-child { display: inline; }
+  .mini + details.answer { margin-top: 0; }
+  sup.fn a { color: #1d65b3; text-decoration: none; font-size: 0.78em; margin-left: 1px; }
+  .fn-list { margin-top: 32px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 0.9em; }
+  .fn-list .fn-title { font-weight: 700; margin-bottom: 6px; }
+  .fn-list ol { list-style: none; padding-left: 0; }
+  .fn-list li { margin: 4px 0; }
+  .fn-back { color: #1d65b3; text-decoration: none; margin-right: 4px; }
+  del { color: #888; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mini { background: #1b2a3a; } }
+  :root[data-theme="dark"] .mini { background: #1b2a3a; }
 </style>
 </head>
 <body>

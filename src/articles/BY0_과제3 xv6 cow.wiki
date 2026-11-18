@@ -1,0 +1,163 @@
+key: 과제3 xv6 cow
+title: 과제 3: xv6 Copy-on-Write fork · Superpage
+category: 과제3, 핵심
+---
+'''과제 3 "Advanced Virtual Memory"'''는 [[xv6]] 의 가상 메모리에 두 가지를 넣는 과제다. 하나는 [[COW fork]](Problem 1)이고, 다른 하나는 2 MB [[superpage]](Problem 2)다. 둘 다 15~17강에서 배운 page table 이야기를 실제 커널 코드에서 다시 하게 된다. 15강의 [[copy-on-write]] 그림, 16강의 [[huge page]] 와 [[Sv39 PTE]], 17강의 [[page fault]] 처리 6단계가 전부 나온다.
+
+{info}이 문서 묶음은 '''구현 전에 구조를 이해하려는 용도'''다. 완성된 `uvmcopy`·`usertrap`·`kalloc`·`copyout`·`uvmalloc` 코드는 싣지 않는다. 과제는 직접 구현해야 퀴즈에서 이유를 말할 수 있다.[* 과제 1 때 2026-09-23 퀴즈 100점이 전부 과제에서 나왔다. 한 문장 서술, 코드 빈칸, 값 추적 형식이었다. [[퀴즈1 복기]] 참고.] 여기 나오는 코드는 수정 전 xv6 원본이거나 한국어 의사코드다.{/info}
+
+== 1. 무엇을 하나 ==
+
+=== Problem 1: fork 를 게으르게 ===
+
+원래 xv6 의 `fork()` 는 부모의 user 메모리를 '''전부''' 복사한다. 과제 PDF 는 이게 두 번 아깝다고 말한다.
+* 부모가 크면 복사 자체가 오래 걸린다.
+* `fork()` 직후 자식이 `exec()` 를 부르면 복사한 메모리를 거의 안 쓰고 버린다.
+
+그래서 fork 때는 page table 만 만들고, 자식 PTE 가 부모의 물리 page 를 그대로 가리키게 한다. 둘 다 그 page 를 read-only 로 표시해 둔다. 누군가 쓰려고 하면 CPU 가 page fault 를 내고, 그때 커널이 page 를 복사한다. PDF 표현으로는 "defer allocating and copying physical memory pages until the copies are actually needed, if ever." 이다.
+
+=== Problem 2: 2 MB 를 PTE 하나로 ===
+
+RISC-V Sv39 는 4 KB page 말고 2 MB page 도 지원한다. level-1 PTE 에 R 비트를 켜고 2 MB 정렬된 물리 주소를 넣으면, 그 PTE 하나가 2 MB 를 덮는다. 이걸 '''megapage''' 라 부른다.[* RISC-V 명세는 크기가 큰 page 를 통틀어 superpage 라 하고, Sv39 에서 2 MB 짜리를 megapage, 1 GB 짜리를 gigapage 라 부른다. 과제 PDF 도 이 이름을 그대로 쓴다.] 과제는 `sbrk()` 로 2 MB 이상을 늘릴 때, 늘어난 범위 안에 2 MB 정렬 구간이 있으면 4 KB page 512 장 대신 superpage 한 장을 쓰라고 한다.
+
+[[anim:megapage_vs_4k|같은 VA 를 4 KB 경로와 megapage 경로로 번갈아 따라가 보고, level 1 에서 무엇이 다른지 확인한 뒤 1장 표로 내려가라]]
+
+{mini}
+# 과제 PDF 가 COW fork 의 동기로 든 두 가지를 한 문장씩 쓰라.
+# megapage 의 PTE 는 Sv39 의 몇 번째 level 에 있나? 그 PTE 하나가 덮는 크기는?
+{/mini}
+{answer}
+# ① 부모가 크면 fork 의 복사 시간이 길다. ② fork 직후 exec 하면 복사한 메모리를 거의 쓰지 않고 버린다.
+# level 1. 512 × 4 KB = '''2 MB'''. level 0 table 이 통째로 빠진다.
+{/answer}
+
+== 2. 과제 사양 ==
+
+{| class="table"
+! 항목 || 내용
+|-
+| 마감 || '''2026-12-01 (화) 23:00'''
+|-
+| TA || Sabin Jeon (jsb4058@dgist.ac.kr)
+|-
+| 저장소 || `coruslab-src/xv6-lab` 의 '''`cow` 브랜치''' (`git checkout cow` → `make clean`)
+|-
+| 손댈 곳 || `kernel/vm.c`(uvmcopy·walk·uvmalloc·uvmunmap·copyout), `kernel/trap.c`(usertrap), `kernel/kalloc.c`(refcount, superalloc/superfree), `kernel/riscv.h`(COW 비트 정의)
+|-
+| 정답 기준 || `cowtest` 의 ALL COW TESTS PASSED, `usertests -q` 의 ALL TESTS PASSED
+|-
+| 제출 || 보고서 4~8쪽 + `make zipball` 결과 `lab.zip` → `{학번}_{이름}.zip`. zipball 전에 commit 필요
+|}
+
+PDF 가 Problem 1 에 준 "plan of attack" 은 네 단계다.
+# `uvmcopy()` 가 새 page 대신 부모의 물리 page 를 자식에 매핑한다. W 가 있던 PTE 는 부모·자식 둘 다 W 를 끈다.
+# `usertrap()` 이 page fault 를 알아본다. 원래 쓰기 가능했던 COW page 에 쓰기 fault 가 나면 `kalloc()` 으로 새 page 를 받아 복사하고, PTE 에 W 를 켜서 새 page 를 넣는다. 원래 read-only 였던 page(text)에 쓰면 프로세스를 죽인다.
+# 물리 page 마다 [[reference count]] 를 둔다. 마지막 참조가 사라질 때만 free 한다.
+# `copyout()` 도 COW page 를 만나면 page fault 때와 같은 방법을 쓴다.
+
+Problem 2 의 힌트는 `user/cowtest.c` 의 `superpg_test` 를 읽고, `sys_sbrk` 에서 시작해 메모리를 할당하는 함수까지 따라가라는 것이다. fork 할 때와 exit 할 때 superpage 를 다루려면 `uvmcopy()` 와 `uvmunmap()` 도 바꿔야 한다. PDF 는 마지막에 "Implementing superpage will interfere with the previous COW implementation. You can freely select the design." 이라고 적었다. 이 선택은 [[COW와 superpage]] 에서 다룬다.
+
+== 3. 채점표 (grade-lab-cow, 130점) ==
+
+{| class="table"
+! 항목 || 점수 || 원본 상태 || 무엇을 보나
+|-
+| cowtest `simple` || 20 || FAIL || 물리 메모리의 2/3(약 85 MB)를 sbrk 한 뒤 fork. 두 번 돌려 둘 다 "simple: ok" (첫 번째가 메모리를 다 돌려줬는지도 본다)
+|-
+| cowtest `three` || 20 || FAIL || 32 MB 를 부모·자식·손자가 공유하다 각자 쓴다. 세 번 반복
+|-
+| cowtest `file` || 20 || FAIL || 자식의 `read()` 가 COW page 에 쓴다 → [[copyout과 COW|copyout]] 경로
+|-
+| cowtest `forkfork` || 20 || FAIL || fork 를 수백 번. refcount 가 새거나 일찍 free 되면 부모 메모리가 바뀐다
+|-
+| cowtest `superpg` || 20 || FAIL || sbrk(8 MB) 뒤 2 MB 정렬 구간의 PTE 512 개가 전부 같은지, fork 한 자식에서도 같은지
+|-
+| usertests `copyin` / `copyout` || 5 / 5 || OK || 잘못된 주소로 read/write. 고친 copyout 이 panic 하지 않는지
+|-
+| usertests 전체 || 19 || OK || ALL TESTS PASSED
+|-
+| `time` || 1 || FAIL || 저장소 최상위 `time.txt` 에 걸린 시간(정수)
+|}
+
+원본 그대로 `make grade` 를 돌리면 '''29/130''' 이다(Mac 실측).[* `cowtest` 는 첫 줄부터 "simple: fork() failed" 로 끝난다. 원본 fork 는 85 MB 를 한 번 더 복사하려다 메모리가 모자란다.] 29점은 usertests 를 깨뜨리지 않으면 지켜지는 점수다. COW 를 넣다가 usertests 를 깨기 쉬우니 단계마다 `make grade` 로 확인하는 편이 낫다.
+
+{mini}
+# 원본 xv6 에서 cowtest `simple` 이 실패하는 이유를 숫자로 설명하라. (물리 메모리 128 MB)
+# usertests 가 이미 OK 인데 왜 배점이 29점이나 있나?
+{/mini}
+{answer}
+# simpletest 는 `(128 MB / 3) × 2 ≈ 85 MB` 를 sbrk 하고 fork 한다. 원본 fork 는 자식에게 85 MB 를 새로 할당하려 하는데 남은 물리 메모리는 40 MB 남짓이라 `kalloc` 이 실패하고 fork 가 −1 을 돌려준다.
+# COW 를 넣으면 `fork`·`exit`·`copyout`·`sbrk` 경로가 모두 바뀐다. 그 과정에서 커널의 다른 기능을 망가뜨리지 않았는지 보는 회귀 점수다.
+{/answer}
+
+== 4. 환경 ==
+
+Mac 에서는 과제 2 처럼 Homebrew 툴체인으로 Docker 없이 돌린다. 저장소는 '''`~/os/xv6-cow`''' (`cow` @ `6e2198b`, OneDrive 밖)이고, 터미널마다 `과제3_xv6_cow/xv6env.sh` 를 source 한다. 이 스크립트는 저장소 파일을 고치지 않고 환경변수로 세 가지를 우회한다.[* TOOLPREFIX 자동 탐지 실패, GCC 16 의 C23 기본값 때문에 생기는 `-Werror`, Python 3.14 에서 `pipes` 모듈이 빠져 `gradelib.py` 가 깨지는 문제다. 과제 2 와 같다.] 자세한 절차는 OneDrive 의 `과제3_세팅가이드.md` 에 있다.
+
+<pre class="sh">
+source ".../과제3_xv6_cow/xv6env.sh"
+xv6                 # cd ~/os/xv6-cow
+make qemu           # 안에서 cowtest, usertests -q. 종료: Ctrl-a 누르고 x
+./grade-lab-cow simple   # 한 항목만 채점
+make grade          # 전체 (130점)
+</pre>
+
+{warn}`git worktree` 로 만든 사본에서는 `make zipball` 이 "No .git directory" 로 실패한다. `submit-check` 가 `test -d .git` 을 보는데 worktree 의 `.git` 은 파일이기 때문이다. 독립 clone 을 쓸 것.{/warn}
+
+== 5. 읽는 순서 ==
+
+# [[COW fork]]: fork 에서 공유하고, store page fault 에서 복사하는 흐름. 17강 page fault 6단계와 맞춰 본다.
+# [[scause]]: usertrap 이 page fault 를 알아보는 방법. 시스템 콜(8)과 store page fault(15)의 epc 처리 차이.
+# [[RSW 비트]]: W 를 끈 page 가 "원래 read-only" 인지 "COW 라서 잠깐 막은 것" 인지 구분하는 표시.
+# [[reference count]]: 물리 page 를 몇 개의 page table 이 가리키나. 배열 크기, lock, `kinit` 함정.
+# [[copyout과 COW]]: 커널이 user page 에 쓸 때는 HW fault 가 나지 않는다.
+# [[superpage]]: megapage 의 주소 변환, `walk()` 를 고쳐야 하는 이유, `uvmalloc`·`uvmunmap`·`freewalk`.
+# [[COW와 superpage]]: fork 때 superpage 를 어떻게 할지. 설계 A·B·C 와 2025 풀이의 panic.
+# [[과제3 함정과 디버깅]]: 증상 → 의심할 곳 표.
+# [[과제3 퀴즈 대비]]: 값 추적·빈칸·한 문장 문제.
+
+[[sim:cow_fork_trace]]
+
+== 6. 강의 연결 ==
+
+{| class="table"
+! 과제에서 쓰는 것 || 강의 || 문서
+|-
+| fork 가 page table 만 만들고 frame 을 공유, 쓸 때 복사 || 15강 p.23~25 || [[copy-on-write]] · [[PTE 플래그]]
+|-
+| COW fault 처리 순서 (Reference → Trap → Check storage → Get the page → Reset page table → Reinstruction) || 17강 p.23 || [[page fault]]
+|-
+| 고칠 수 있으면 fault, 아니면 abort || 4강 · 17강 || [[트랩]] · [[스와핑]]
+|-
+| 3단계 page table, PTE 512 개, branch 와 leaf || 16강 p.17~29, p.48 || [[3단계 page table]] · [[Sv39 PTE]]
+|-
+| 2 MB page 가 page table 메모리와 TLB miss 를 줄인다 || 16강 p.37~48 · 15강 TLB || [[huge page]] · [[TLB]]
+|-
+| PTE 를 바꾼 뒤 TLB 의 옛 권한 || 15강 p.47~49 || [[ASID와 TLB flush]]
+|-
+| refcount 를 여러 CPU 가 동시에 고친다 || 8~9강 · 과제 2 || [[race condition]] · [[spin lock]] · [[kalloc]]
+|-
+| trap 이 sepc 를 저장하고 usertrapret 이 돌려준다 || 4강 · 과제 1 || [[usertrap]] · [[epc]] · [[xv6 시스템 콜 경로]]
+|}
+
+{mini}
+# 17강 page fault 6단계에서 "Get the page" 는 디스크에서 page 를 읽어 오는 단계였다. COW fault 에서는 어디서 가져오나?
+# 과제 2 의 무엇이 과제 3 의 refcount 설계에 그대로 쓰이나?
+{/mini}
+{answer}
+# 디스크가 아니라 '''원래 공유하던 물리 page''' 에서 가져온다. 새 frame 을 `kalloc` 하고 옛 frame 내용을 4096 B 복사한다.
+# refcount 는 여러 CPU 가 동시에 고치는 공유 counter 라 lock 이 필요하다. 과제 2 에서 본 것처럼 lock 하나로 전체를 보호하면 단순하고, 쪼개면 contention 이 준다.
+{/answer}
+
+== 시험 직전 체크 ==
+# COW fork 는 fork 때 복사 0, 쓰기 fault 때 page 하나 복사.
+# W 가 있던 page 에만 COW 를 붙인다. text 쓰기는 kill.
+# store page fault 는 scause 15. epc 를 그대로 두어 같은 명령을 다시 실행한다.
+# refcount: kalloc = 1, fork = +1, kfree = −1, 0 일 때만 free list.
+# megapage = level-1 leaf, 2 MB, PA 2 MB 정렬, offset 21 bit.
+# 원본 `walk()` 는 level-1 leaf 에서 멈추지 않는다. 고쳐야 `pgpte` 가 맞는 PTE 를 준다.
+
+== 관련 문서 ==
+* [[기말고사]] · [[과제2 xv6 lock]] · [[과제1 xv6 alarm]]
+* [[COW fork]] · [[reference count]] · [[RSW 비트]] · [[scause]] · [[copyout과 COW]]
+* [[superpage]] · [[COW와 superpage]] · [[과제3 함정과 디버깅]] · [[과제3 퀴즈 대비]]

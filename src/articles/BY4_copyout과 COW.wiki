@@ -1,0 +1,124 @@
+key: copyout과 COW
+title: copyout 과 COW: 커널이 쓰면 fault 가 안 난다
+category: 과제3, 핵심
+---
+COW fork 를 fault 핸들러까지 다 만들어도 cowtest `file` 은 실패한다. 커널이 user 메모리에 쓰는 길 `copyout()` 이 COW page 를 모르기 때문이다. PDF plan of attack 의 4번 "Modify copyout() to use the same scheme as page faults when it encounters a COW page" 가 이 문제다.
+
+== 커널은 user page 에 어떻게 쓰나 ==
+
+`read(fd, buf, n)` 같은 시스템 콜은 커널이 데이터를 user 의 `buf` 로 옮겨야 끝난다. xv6 커널은 자기 page table 로 돌고 있으므로 user VA 를 바로 쓸 수 없다. 대신 `copyout()` 이 user page table 을 소프트웨어로 `walk()` 해서 PA 를 얻고, 커널의 direct mapping 으로 그 PA 에 `memmove` 한다.[* xv6 커널 page table 은 KERNBASE ~ PHYSTOP 을 VA = PA 로 매핑한다. 그래서 PA 를 포인터로 바꿔 바로 쓸 수 있다.]
+
+<pre class="c">
+// kernel/vm.c copyout() (수정 전 원본)
+while(len > 0){
+  va0 = PGROUNDDOWN(dstva);
+  if(va0 >= MAXVA)
+    return -1;
+  pte = walk(pagetable, va0, 0);
+  if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
+     (*pte & PTE_W) == 0)
+    return -1;
+  pa0 = PTE2PA(*pte);
+  n = PGSIZE - (dstva - va0);
+  if(n > len)
+    n = len;
+  memmove((void *)(pa0 + (dstva - va0)), src, n);
+  ...
+}
+</pre>
+
+여기서 MMU 는 user PTE 의 W 를 보지 않는다. 커널은 커널 page table 의 매핑(R·W)으로 PA 에 쓰고 있기 때문이다. 그러니 COW page 라도 '''하드웨어 fault 가 나지 않는다.''' 원본 `copyout` 은 대신 PTE 의 W 를 직접 확인해서, 0 이면 −1 을 돌려준다. COW page 는 W 가 꺼져 있으니 `read()` 가 −1 로 실패한다.
+
+{mini}
+# 커널이 `copyout` 으로 COW page 에 쓸 때 store page fault 가 나지 않는 이유를 한 문장으로.
+# 원본 `copyout` 을 그대로 두면 COW page 에 대한 `read()` 는 어떤 값을 돌려주나?
+{/mini}
+{answer}
+# 커널은 user PTE 가 아니라 커널 page table 의 direct mapping 으로 PA 에 쓰므로, MMU 가 검사하는 PTE 에 W 가 켜져 있다.
+# −1. `(*pte & PTE_W) == 0` 검사에 걸린다.
+{/answer}
+
+== cowtest file 이 보는 것 ==
+
+`filetest` 는 전역 배열 `buf` 를 쓴다. 전역 변수는 data/bss page 에 있으니 fork 뒤에 COW page 가 된다.
+
+<pre class="c">
+// user/cowtest.c filetest() 의 뼈대 (원본에서 줄임)
+buf[0] = 99;
+for(int i = 0; i < 4; i++){
+  pipe(fds);
+  int pid = fork();
+  if(pid == 0){
+    sleep(1);
+    if(read(fds[0], buf, sizeof(i)) != sizeof(i)){   // 커널이 buf 에 씀
+      printf("error: read failed\n");
+      exit(1);
+    }
+    ...
+  }
+  write(fds[1], &i, sizeof(i));
+}
+...
+if(buf[0] != 99){
+  printf("error: child overwrote parent\n");
+</pre>
+
+자식의 `read()` 는 pipe 에서 4 바이트를 꺼내 `buf` 에 `copyout` 한다. 결과는 둘 중 하나다.
+* 원본 `copyout` 이면 W 검사에서 −1 → "error: read failed".
+* W 검사만 지워 버리면 공유 frame 에 바로 써진다 → 부모의 `buf[0]` 이 바뀌어 "error: child overwrote parent".
+
+맞는 방법은 COW page 를 만났을 때 fault 핸들러와 같은 일을 먼저 하는 것이다. 새 page 를 받아 복사하고, 내 PTE 를 새 page 와 W 로 바꾸고, 옛 page 의 [[reference count]] 를 줄인다. 그다음 바뀐 PTE 에서 PA 를 다시 얻어 쓴다. 이 처리를 fault 핸들러와 `copyout` 이 같은 함수로 나눠 쓰면 두 곳이 어긋나지 않는다.[* 2025 풀이도 COW 처리 함수 하나를 `usertrap` 과 `copyout` 이 같이 불렀다. 함수를 부른 뒤 PTE 를 다시 읽는 점이 중요하다. 처리 전에 읽어 둔 `pa0` 는 옛 frame 이다.]
+
+[[sim:cow_fork_trace]]
+
+시뮬레이터에서 시나리오를 copyout 으로 바꾸면, scause 가 8(시스템 콜)인 채로 커널이 frame B 를 N 으로 복사하는 과정을 볼 수 있다. fault 경로와 달리 scause 15 가 한 번도 나오지 않는다.
+
+{mini}
+# W 검사만 지운 `copyout` 으로 cowtest `file` 을 돌리면 어떤 메시지가 나올까?
+# 고친 `copyout` 에서 COW 처리 함수를 부른 뒤 PTE 를 다시 읽어야 하는 이유는?
+{/mini}
+{answer}
+# "error: child overwrote parent". 자식의 read 가 공유 frame 에 바로 써서 부모의 `buf[0]` 가 99 가 아니게 된다.
+# 처리 후 PTE 가 새 frame 을 가리키게 바뀌었기 때문이다. 미리 얻은 PA 로 쓰면 옛 공유 frame 에 쓰게 된다.
+{/answer}
+
+== usertests copyout 은 다른 시험이다 ==
+
+이름이 같아서 헷갈리지만, usertests 의 `copyout` 테스트(5점)는 COW 를 보지 않는다. 잘못된 주소로 `read()` 를 불러서 −1 이나 0 이 나오는지만 본다.
+
+<pre class="c">
+// user/usertests.c copyout() 의 주소 목록 (원본)
+uint64 addrs[] = { 0LL, 0x80000000LL, 0x3fffffe000, 0x3ffffff000, 0x4000000000,
+                   0xffffffffffffffff };
+</pre>
+
+{| class="table"
+! 주소 || 무엇인가 || copyout 이 −1 을 내야 하는 이유
+|-
+| 0 || text 첫 page (R-X) || COW 가 아닌 read-only page
+|-
+| 0x80000000 || 프로세스 크기 밖 || PTE 없음
+|-
+| 0x3fffffe000 || TRAPFRAME || U = 0
+|-
+| 0x3ffffff000 || TRAMPOLINE || U = 0
+|-
+| 0x4000000000 || MAXVA || `walk()` 가 panic 하기 전에 막아야 함
+|-
+| 0xffffffffffffffff || MAXVA 보다 훨씬 큼 || 위와 같음
+|}
+
+이 표가 그대로 "고친 `copyout` 에서 지우면 안 되는 검사" 목록이다.[* 특히 주소 0 이 잘 걸린다. "W 가 0 이면 COW 처리" 로 짜면 text page 를 복사해서 써 버리고, read 가 양수를 돌려준다. COW 처리는 COW 비트가 있을 때만 해야 한다.] COW 처리를 넣다가 MAXVA 검사나 U 검사를 빼면, 커널이 panic 하거나 커널 영역에 user 데이터를 쓰게 된다.
+
+{mini}
+# usertests `copyout` 이 주소 0 으로 `read()` 를 부른다. "W 가 0 이면 복사 후 쓰기" 로 짠 copyout 은 몇을 돌려주나? 테스트 결과는?
+# 0x4000000000 에서 MAXVA 검사를 빠뜨리면 무엇이 일어나나?
+{/mini}
+{answer}
+# text page 를 복사해 W 를 켜고 거기에 쓰므로 읽은 바이트 수(양수)를 돌려준다. 테스트는 "returned N, not -1 or 0" 으로 실패한다.
+# `walk()` 맨 앞의 `if(va >= MAXVA) panic("walk");` 에 걸려 커널 전체가 panic 한다.
+{/answer}
+
+== 관련 문서 ==
+* [[COW fork]] · [[reference count]] · [[RSW 비트]] · [[과제3 xv6 cow]] · [[과제3 함정과 디버깅]]
+* [[xv6 시스템 콜 경로]] · [[유저 모드와 커널 모드]]

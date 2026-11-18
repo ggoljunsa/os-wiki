@@ -1,0 +1,83 @@
+key: RSW 비트
+title: RSW 비트와 COW 표시 (Sv39 PTE 의 software 전용 칸)
+category: 과제3, 용어
+---
+[[COW fork]] 는 공유 page 의 W 를 끄고, 그 page 가 COW 때문에 막혀 있다는 사실을 PTE 안에 적어 둔다. 이 표시를 둘 자리가 Sv39 PTE 의 '''RSW'''(Reserved for SoftWare) 칸이다. 16강 p.48 의 [[Sv39 PTE]] 그림을 과제 쪽에서 다시 읽는다.
+
+== Sv39 PTE 의 낮은 10 bit ==
+
+[[img:L16-48.png|16강 p.48: Sv39 PTE. 9~8 번이 RSW, 7~0 번이 D A G U X W R V. X W R 이 모두 0 이면 다음 level table 포인터|large]]
+
+<pre class="ascii">
+ 63  62-61 60-54   53-28     27-19     18-10    9-8    7 6 5 4 3 2 1 0
+ N   PBMT  rsvd   PPN[2]    PPN[1]    PPN[0]   '''RSW'''    D A G U X W R V
+                  └──────── PPN 44 bit ────────┘       └─ PTE_FLAGS = 낮은 10 bit ─┘
+</pre>
+
+xv6 의 `kernel/riscv.h` 끝에 이 비트들의 매크로가 이미 있다.
+
+<pre class="c">
+// kernel/riscv.h (원본)
+#define PTE_V (1L << 0) // valid
+#define PTE_R (1L << 1)
+#define PTE_W (1L << 2)
+#define PTE_X (1L << 3)
+#define PTE_U (1L << 4) // user can access
+
+#define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
+#define PTE2PA(pte) (((pte) >> 10) << 12)
+#define PTE_FLAGS(pte) ((pte) & 0x3FF)
+</pre>
+
+`PTE_FLAGS` 는 낮은 10 bit, 즉 V 부터 RSW 까지를 다 가져온다. RSW 는 8번과 9번 bit 이고, 하드웨어는 이 두 bit 를 읽지 않는다. 명세가 "reserved for use by supervisor software" 로 비워 둔 자리라 OS 가 마음대로 써도 주소 변환에 영향이 없다.[* 바로 아래 5번 G 는 global mapping, 6번 A 는 accessed, 7번 D 는 dirty 다. A·D 는 17강의 reference bit·dirty bit 에 해당한다.]
+
+{mini}
+# Sv39 PTE 에서 RSW 는 몇 번 bit 인가? `PTE_FLAGS(pte)` 에 포함되나?
+# `1L << 8` 로 COW 비트를 정의했다. 원래 W 가 있던 page 의 PTE 가 `0x21fd0417` 일 때, fork 뒤 PTE 값은?
+{/mini}
+{answer}
+# 8, 9번. `PTE_FLAGS` 는 `& 0x3FF` 라 0~9번을 다 가져오므로 '''포함된다'''. fork 에서 flag 를 그대로 자식에 넘기면 COW 비트도 같이 넘어간다.
+# W(0x4)를 끄고 0x100 을 켠다. `0x21fd0417 − 0x4 + 0x100 = 0x21fd0513`.
+{/answer}
+
+== 왜 W 를 끄는 것만으로는 부족한가 ==
+
+COW 는 W 를 꺼서 쓰기를 하드웨어가 잡게 만든다. 그런데 W 가 0 인 user page 는 원래부터 있다. text 영역이 R-X 로 매핑돼 있다. fault 핸들러 입장에서는 두 경우가 똑같이 보인다.
+
+{| class="table"
+! page || fork 전 || fork 뒤 || 쓰기 fault 가 나면
+|-
+| data/heap/stack || R W U || R U '''COW''' || 복사하고 W 를 켠다
+|-
+| text || R X U || R X U || '''kill''' (원래 쓰면 안 되는 page)
+|}
+
+COW 비트가 없으면 핸들러는 둘을 구분할 수 없다. 전부 복사하면 text 쓰기가 허용되고, 전부 kill 하면 COW 가 동작하지 않는다. PDF hint 가 "It may be useful to have a way to record, for each PTE, whether it is a COW mapping. You can use the RSW bits" 라고 한 이유다.[* PTE 대신 프로세스 구조체나 별도 배열에 "이 VA 는 COW" 라고 적을 수도 있다. 하지만 fork 할 때마다 VA 목록을 복사해야 하고, PTE 를 바꿀 때마다 두 곳을 맞춰야 한다. PTE 안에 두면 PTE 를 복사할 때 같이 따라간다.]
+
+{mini}
+# fork 뒤 W = 0 인 PTE 두 개가 있다. 하나는 COW 비트가 1, 하나는 0 이다. 각각에 user 가 쓰면 핸들러는 무엇을 해야 하나?
+# "W = 0 인 page 에 쓰기 fault 가 나면 무조건 복사" 로 구현했다. usertests 가운데 어떤 종류의 검사가 깨질까?
+{/mini}
+{answer}
+# COW 1: 새 page 할당·복사·W 켜기. COW 0: 원래 read-only 이므로 kill.
+# 원래 read-only 인 page(text 등)에 쓰면 프로세스가 죽어야 한다는 검사. 무조건 복사하면 그 쓰기가 성공해 버린다.
+{/answer}
+
+== 바꾼 PTE 와 TLB ==
+
+fork 는 '''부모''' PTE 의 W 도 끈다. 그런데 부모가 fork 직전에 그 page 에 썼다면 TLB 에 "W 있음" 이 남아 있을 수 있다. 일반론으로는 PTE 의 권한을 줄인 뒤 TLB 를 비워야 한다. 그러지 않으면 MMU 가 TLB 의 옛 권한을 믿고 fault 없이 써 버린다(15강 [[ASID와 TLB flush]]).
+
+xv6 에서는 따로 할 일이 거의 없다. `trampoline.S` 의 `userret` 이 user page table 로 `satp` 를 바꾼 뒤 매번 `sfence.vma` 를 한다. fork 를 부른 부모도, COW fault 를 처리한 프로세스도 user 로 돌아갈 때 이 길을 지나므로 옛 entry 가 지워진다.[* xv6 프로세스는 스레드가 하나라서, 같은 user page table 을 다른 CPU 가 동시에 쓰고 있는 경우도 없다. 멀티스레드 OS 라면 다른 CPU 에 TLB shootdown 을 보내야 한다.] 2025 풀이는 `uvmcopy` 끝에 `sfence_vma()` 를 한 번 더 넣었는데, 의도는 맞지만 xv6 에서는 필수가 아니다.
+
+{mini}
+# fork 에서 부모 PTE 의 W 를 끈 뒤 TLB 를 비우지 않는 OS 가 있다. 부모가 그 page 에 쓰면 어떻게 되나?
+# xv6 에서는 왜 그 문제가 생기지 않나? 한 문장.
+{/mini}
+{answer}
+# TLB 에 남은 "W 있음" entry 로 변환돼 fault 없이 공유 page 에 써진다. 자식이 부모의 새 값을 본다.
+# user 로 돌아갈 때마다 `userret` 이 `sfence.vma` 로 TLB 를 비우므로, fork 에서 돌아온 부모는 바뀐 PTE 를 다시 읽는다.
+{/answer}
+
+== 관련 문서 ==
+* [[Sv39 PTE]] · [[PTE 플래그]] · [[COW fork]] · [[과제3 xv6 cow]]
+* [[TLB]] · [[ASID와 TLB flush]]

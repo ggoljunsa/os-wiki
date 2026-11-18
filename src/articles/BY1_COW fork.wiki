@@ -1,0 +1,193 @@
+key: COW fork
+title: COW fork: 공유해 두고 쓸 때 복사하기
+category: 과제3, 핵심
+---
+과제 3 Problem 1 의 메커니즘을 처음부터 끝까지 따라간다. fork 에서 page 를 공유하는 단계, 쓰기를 막아 두는 단계, store page fault 에서 복사하는 단계, 마지막으로 exit 에서 page 를 놓는 단계다. 15강 [[copy-on-write]] 슬라이드가 그림으로 보여 준 일을 xv6 커널 안에서 실제로 해야 한다.
+
+== 원래 fork 는 무엇을 하나 ==
+
+xv6 의 `fork()` 는 `allocproc()` 으로 새 프로세스를 만들고, `uvmcopy()` 로 부모의 user 메모리를 자식에게 복사한다. 수정 전 `uvmcopy()` 는 이렇게 생겼다.
+
+<pre class="c">
+// kernel/vm.c (수정 전 원본)
+for(i = 0; i < sz; i += PGSIZE){
+  if((pte = walk(old, i, 0)) == 0)
+    panic("uvmcopy: pte should exist");
+  if((*pte & PTE_V) == 0)
+    panic("uvmcopy: page not present");
+  pa = PTE2PA(*pte);
+  flags = PTE_FLAGS(*pte);
+  if((mem = kalloc()) == 0)            // ① 자식용 새 page
+    goto err;
+  memmove(mem, (char*)pa, PGSIZE);     // ② 4096 B 통째 복사
+  if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){   // ③ 자식 PTE
+    kfree(mem);
+    goto err;
+  }
+}
+</pre>
+
+VA 0 부터 `sz` 까지 page 마다 세 가지를 한다. ① 새 물리 page 를 받고, ② 부모 page 를 그대로 복사하고, ③ 자식 page table 에 같은 flag 로 매핑한다. 부모가 85 MB 를 쓰고 있으면 85 MB 를 새로 받아 85 MB 를 복사한다. 메모리가 그만큼 없으면 `kalloc()` 이 0 을 돌려주고 fork 는 실패한다. cowtest 의 `simple` 이 정확히 이 상황이다.[* simpletest 는 물리 메모리 128 MB 의 2/3 를 sbrk 한다. 정수 나눗셈이라 `(134217728 / 3) * 2 = 89478484` 바이트, 약 85.3 MB 다.]
+
+{mini}
+# 원본 `uvmcopy()` 가 page 하나마다 하는 일 세 가지를 순서대로 쓰라.
+# 부모가 user page 1000 장을 쓰고 있다. 원본 fork 직후 그 프로세스가 `exec()` 하면 복사한 page 중 몇 장을 버리게 되나?
+{/mini}
+{answer}
+# `kalloc()` 으로 새 page → `memmove()` 로 4096 B 복사 → `mappages()` 로 자식 PTE 를 같은 flag 로 만든다.
+# 1000 장 전부. exec 는 새 page table 을 만들고 옛 것을 통째로 놓는다. PDF 가 COW 의 동기로 든 경우다.
+{/answer}
+
+== 아이디어: fork 때는 가리키기만 ==
+
+[[img:L15-24.png|15강 p.24: B 가 page 7 에 쓰는 순간 frame 8 에 복사본이 생기고 B 의 PTE 만 8 로 바뀐다. 나머지 frame 5·2 는 계속 공유|large]]
+
+15강 p.24 그림에서 Process B 는 fork 로 생겼다. 처음에는 A 와 B 의 page table 이 똑같이 frame 5·2·7 을 가리킨다. B 가 page 7 에 쓰자 그때 frame 8 이 생기고, B 의 PTE 7 만 8 로 바뀐다. A 의 PTE 7 은 여전히 7 이다.
+
+과제 3 은 이 그림을 그대로 구현하는 일이다. 그런데 그림에는 한 가지가 빠져 있다. B 가 "쓰려고 한다" 는 걸 OS 가 어떻게 아느냐다. user 프로그램의 store 명령은 OS 를 거치지 않고 MMU 를 지나 바로 메모리에 써진다. 그래서 공유하는 동안에는 '''PTE 의 W 비트를 꺼 둔다.''' 그러면 store 가 들어오는 순간 MMU 가 권한 검사에 걸려 page fault 를 내고, 제어가 커널로 넘어온다.[* 이 방식은 15강 p.25 "Page Protection" 의 연장이다. 슬라이드는 code page 를 RE 로 두면 MMU 가 수정을 막는다고 했다. COW 는 그 보호 장치를 일부러 걸어 두고, 걸리면 OS 가 끼어드는 데 쓴다.]
+
+fork 때 `uvmcopy()` 가 바꿔야 할 것을 의사코드로 쓰면 이렇다.
+
+<pre class="txt">
+VA 마다:
+  부모 PTE 를 읽는다
+  원래 W 가 있던 page 면 → 부모 PTE 의 W 를 끄고 '''COW 표시'''를 켠다
+  자식 PTE 를 '''같은 PA''', 같은 flag 로 만든다       (새 page 할당 없음)
+  그 PA 의 [[reference count]] 를 1 올린다
+</pre>
+
+여기서 COW 표시는 [[RSW 비트]] 하나다. W 가 꺼진 page 는 원래부터 read-only 인 text 와 구분이 안 되기 때문에 따로 적어 둔다. 원래 W 가 없던 page(text)는 COW 표시를 붙이지 않고 그대로 공유한다. PDF 가 "Pages that were originally read-only … should remain read-only and shared between parent and child" 라고 못 박았다.
+
+부모 PTE 도 바꾼다는 점을 놓치기 쉽다. 자식 PTE 만 W 를 끄면, 부모가 쓸 때는 fault 가 안 나고 공유 page 를 그대로 덮어쓴다. 그러면 자식이 부모의 새 값을 보게 된다.[* cowtest `forkfork` 가 이걸 본다. 부모가 1 MB 를 27 로 채우고 fork 를 수백 번 한 뒤, 부모 메모리가 여전히 27 인지 확인한다.]
+
+{analogy}
+도서관 책 한 권을 두 사람이 같이 본다. 둘 다 밑줄을 긋지 않는 동안에는 한 권으로 충분하다. 누가 밑줄을 그으려고 하면 사서가 그 자리에서 복사본을 만들어 주고, 밑줄은 복사본에 긋게 한다. 책에 붙여 둔 "COW" 스티커는 "원래는 써도 되는 책인데 지금 공유 중이라 막아 둔 것" 이라는 뜻이다.
+{/analogy}
+
+{mini}
+# fork 직후 부모 PTE 와 자식 PTE 를 비교하라. PA 는? W 는? COW 표시는? (원래 W 가 있던 page 기준)
+# 자식 PTE 의 W 만 끄고 부모 PTE 는 그대로 두면 어떤 일이 생기나? 한 문장.
+# text page(R-X)에 COW 표시를 붙이면 왜 안 되나?
+{/mini}
+{answer}
+# PA 는 같다. 둘 다 W = 0, COW = 1. 다른 비트(R, U)도 같다.
+# 부모의 store 는 fault 없이 공유 page 에 바로 써지므로 자식이 부모가 쓴 값을 보게 된다.
+# COW 표시가 있으면 fault 핸들러가 "고칠 수 있는 fault" 로 보고 복사본에 W 를 켜 준다. text 에 쓰기가 허용돼 버린다. 원래 read-only 였던 page 쓰기는 kill 해야 한다.
+{/answer}
+
+== 쓰는 순간: store page fault ==
+
+[[anim:cow_fault_flow|자식의 store 한 번이 fault → kalloc → 복사 → PTE 갱신 → 재실행으로 이어지는 순서를 보고, 아래 6단계 표와 하나씩 맞춰 보라]]
+
+자식이 공유 page 에 store 를 하면 MMU 는 PTE 의 W 가 0 인 걸 보고 '''store/AMO page fault''' 를 낸다. RISC-V 는 이 원인을 [[scause]] 레지스터에 15 로 적고, fault 가 난 가상 주소를 `stval` 에, fault 를 낸 명령의 주소를 [[sepc]] 에 적는다. user 모드에서 난 trap 이니 `uservec` 을 거쳐 [[usertrap]] 으로 들어온다.
+
+원본 `usertrap()` 은 scause 8(시스템 콜)과 장치 인터럽트만 알아보고, 나머지는 "unexpected scause" 를 찍고 프로세스를 죽인다. 원본 xv6 에서 page fault 를 내는 user 프로그램이 그냥 죽는 이유다. 과제에서는 이 사이에 "scause 가 15 이면 COW 처리" 를 넣는다.
+
+<pre class="c">
+// kernel/trap.c usertrap() (수정 전 원본)
+if(r_scause() == 8){
+  // system call
+  ...
+  p->trapframe->epc += 4;
+  ...
+} else if((which_dev = devintr()) != 0){
+  // ok
+} else {
+  printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
+  printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
+  setkilled(p);
+}
+</pre>
+
+COW fault 를 받았을 때 할 일은 17강 p.23 의 page fault 6단계와 거의 한 줄씩 맞는다.
+
+[[img:L17-23.png|17강 p.23 Page Fault Control Flow: 1 Reference, 2 Trap, 3 Check storage, 4 Get the page, 5 Reset Page Table, 6 reinstruction|large]]
+
+{| class="table"
+! 17강 p.23 || swap 에서 || COW fault 에서
+|-
+| 1. Reference || load/store 가 present 0 인 page 를 참조 || store 가 W = 0 인 page 를 참조
+|-
+| 2. Trap || page fault exception || store page fault, scause 15 → `usertrap`
+|-
+| 3. Check storage || swap 에 page 가 있나 || PTE 가 V·U·COW 인가. 아니면 kill
+|-
+| 4. Get the page || 디스크에서 빈 frame 으로 읽어 옴 || `kalloc()` 한 새 frame 에 옛 frame 을 4096 B 복사
+|-
+| 5. Reset page table || present 1, PFN 기록 || 내 PTE 를 새 PA 로, W 켜고 COW 지움. 옛 frame 의 refcount −1
+|-
+| 6. Reinstruction || 같은 명령 재실행 || epc 를 그대로 두고 복귀 → 같은 store 재실행
+|}
+
+3단계에서 걸러 낼 것이 생각보다 많다. stval 이 `MAXVA` 이상이면 `walk()` 가 panic 하므로 먼저 막아야 한다. PTE 가 없거나 V 가 0 이면 그냥 잘못된 주소다. U 가 0 인 page 는 user 가 만지면 안 되는 page 다.[* xv6 의 user stack 아래 guard page 가 그렇다. `exec()` 는 stack 두 장을 `PTE_W` 로 할당한 뒤 아래 장의 U 만 지운다(`uvmclear`). 그래서 guard page 는 R·W 가 켜진 채 U 만 0 이고, fork 때 W 가 있었다는 이유로 COW 표시가 붙는다. fault 핸들러가 U 를 확인하지 않으면 guard page 에 쓰기를 허용해 버린다.] COW 표시가 없으면 원래 read-only page 다. 넷 중 하나라도 걸리면 kill 이다. 새 frame 을 `kalloc()` 이 못 주는 경우도 PDF 가 "the process should be killed" 라고 정해 두었다.
+
+{mini}
+# 자식이 VA 0x1010 에 store 해서 COW fault 가 났다. scause, stval 값은?
+# 3단계 검사에서 kill 해야 하는 경우를 네 가지 쓰라.
+# 6단계 표에서 swap 과 COW 가 가장 다른 단계는 어디인가? 한 문장.
+{/mini}
+{answer}
+# scause = '''15''' (store/AMO page fault), stval = '''0x1010''' (fault 난 VA 그대로. page 정렬된 주소가 아니다).
+# ① stval ≥ MAXVA ② PTE 없음 또는 V = 0 ③ U = 0 ④ COW 표시 없음(원래 read-only). 덧붙여 `kalloc()` 실패도 kill.
+# 4단계. swap 은 디스크에서 읽어 오고, COW 는 메모리 안의 다른 frame 에서 복사한다.
+{/answer}
+
+== 같은 명령을 다시: epc 를 건드리지 않는다 ==
+
+시스템 콜 경로는 `p->trapframe->epc += 4` 를 한다. `ecall` 명령 다음으로 돌아가야 하니까다. page fault 는 반대다. store 가 '''실행되지 못했으니''' 같은 store 를 다시 해야 한다. 그래서 COW 처리 뒤에는 [[epc]] 를 건드리지 않고 `usertrapret()` 로 돌아간다. 돌아가면 같은 store 가 다시 실행되고, 이번에는 PTE 에 W 가 있으니 성공한다.
+
+여기서 +4 를 해 버리면 store 하나가 조용히 사라진다. 프로그램은 죽지 않고 계속 도는데 값이 안 써져 있어서, 디버깅하기 가장 고약한 버그가 된다.[* 4강에서 fault 를 "복구 가능성이 있고, 현재 명령어를 재실행" 하는 exception 으로 분류했다. 17강도 page fault 를 "recoverable 이라 fault" 라고 불렀다. COW fault 는 그 정의에 정확히 맞는다. 반대로 text page 쓰기는 복구할 방법이 없으니 abort 쪽이고, xv6 에서는 kill 이다.]
+
+[[sim:cow_fork_trace]]
+
+위 시뮬레이터의 basic 시나리오에서 자식의 store 가 fault 를 내고, 커널이 frame N 을 받아 복사하고, 자식 PTE 가 N 으로 바뀌는 과정을 한 줄씩 볼 수 있다. trap 그룹의 epc 값이 처리 내내 "store 주소" 로 남아 있는 것도 확인하라.
+
+{mini}
+# COW fault 처리 끝에 `p->trapframe->epc += 4` 를 넣으면 무슨 일이 생기나?
+# 시스템 콜 trap 과 COW fault 의 epc 처리 차이를 한 문장으로.
+{/mini}
+{answer}
+# fault 를 낸 store 가 다시 실행되지 않고 건너뛰어진다. 프로그램은 계속 돌지만 그 store 의 값은 메모리에 없다.
+# 시스템 콜은 `ecall` 이 이미 끝났으니 epc + 4 로 다음 명령에 가고, page fault 는 store 가 실행되지 않았으니 epc 그대로 같은 명령을 다시 한다.
+{/answer}
+
+== 복사 뒤의 정리: 옛 page 는 언제 놓나 ==
+
+자식이 새 frame N 을 받으면 옛 frame B 를 가리키는 page table 이 하나 줄었다. B 는 아직 부모가 쓰고 있으니 free 하면 안 된다. 그래서 물리 page 마다 "지금 몇 개의 page table 이 나를 가리키나" 를 세는 [[reference count]] 가 필요하다. 복사 뒤에는 `kfree(B)` 를 부르되, `kfree` 는 count 를 1 줄이기만 하고 0 이 될 때만 free list 에 넣는다.
+
+count 가 이미 1 인 page 에서 fault 가 날 수도 있다. 상대가 먼저 복사해 나갔거나 exit 했다는 뜻이다. 이때는 복사할 이유가 없다. W 를 다시 켜고 COW 표시만 지우면 된다.[* PDF 는 이 최적화를 요구하지 않는다. 하지만 superpage 까지 COW 로 공유하면 차이가 커진다. 2025 풀이는 count 가 1 이어도 항상 새로 할당했고, superpage 풀이 비면 혼자 쓰는 page 인데도 kill 되는 구조였다. [[COW와 superpage]] 참고.]
+
+exit 은 원래대로 `uvmunmap(…, do_free=1)` 이 page 마다 `kfree` 를 부른다. 바뀌는 건 `kfree` 의 의미뿐이다. 공유 중인 page 는 count 만 줄고, 마지막으로 놓는 프로세스가 free 한다.
+
+{mini}
+# 부모·자식이 frame B 를 공유(rc 2)한다. 자식이 B 에 써서 복사본 N 을 받았다. 이어서 부모가 B 에 쓴다. 부모의 fault 에서 새 page 를 할당해야 하나?
+# 위 상황에서 자식이 exit 한다. rc[B], rc[N] 은 각각 얼마가 되나? N 은 어떻게 되나?
+{/mini}
+{answer}
+# 할당하지 않아도 된다. 자식이 복사해 나가며 rc[B] 를 1 로 줄였으니 B 는 부모 혼자 쓴다. W 를 켜고 COW 를 지우면 끝이다. (매번 복사해도 결과는 맞지만 page 하나와 4096 B 복사를 낭비한다.)
+# 자식은 B 를 더 이상 가리키지 않으니 rc[B] 는 그대로 1(부모의 것)이다. rc[N] 은 1 → 0 이 되어 N 은 free list 로 돌아간다.
+{/answer}
+
+== fork 뒤 바로 exec 하면 ==
+
+PDF 가 처음에 든 동기를 다시 보자. 셸은 명령을 받을 때마다 fork 하고, 자식은 곧바로 exec 한다. COW fork 에서는 자식이 exec 하기 전까지 아무 page 에도 쓰지 않는다면 복사가 '''한 번도''' 일어나지 않는다. exec 는 새 page table 을 따로 만들고 옛 page table 을 `uvmfree` 로 놓는다. 이때 공유하던 page 들의 count 가 하나씩 줄어 다시 1 이 된다.[* 엄밀히는 자식이 fork 에서 돌아와 exec 를 부르기까지 stack 에 몇 번 쓴다(함수 호출, 지역 변수). 그래서 stack page 한 장 정도는 복사될 수 있다. 수백 장을 복사하던 원본과 비교하면 무시할 만하다.]
+
+시뮬레이터의 fork_exec 시나리오가 이 경우다. 자식이 exec 한 뒤 frame A~D 의 rc 가 전부 1 로 돌아오고, 부모 PTE 에는 COW 표시가 남는다. 부모가 다음에 쓸 때는 rc 1 이라 복사 없이 W 만 켠다.
+
+{mini}
+# fork 후 자식이 아무 쓰기 없이 exec 했다. COW fork 에서 복사된 page 는 몇 장인가? 부모 PTE 의 상태는?
+{/mini}
+{answer}
+# 0 장. 부모 PTE 는 여전히 W = 0, COW = 1 이고 rc 는 1 이다. 부모가 처음 쓸 때 fault 가 한 번 나지만 rc 1 이라 복사 없이 W 만 켠다.
+{/answer}
+
+== 시험 직전 체크 ==
+# fork: 새 page 할당 0. 원래 W 인 PTE 는 부모·자식 모두 W 끄고 COW 켬. rc + 1.
+# 쓰기: scause 15, stval = VA. V·U·COW 확인 → kalloc → 복사 → 새 PA | W → kfree(옛 PA).
+# epc 는 그대로 (시스템 콜만 + 4).
+# kalloc 실패, COW 아님, U = 0, MAXVA 이상 → kill.
+# rc 가 1 이면 복사 생략 가능.
+
+== 관련 문서 ==
+* [[과제3 xv6 cow]] · [[reference count]] · [[RSW 비트]] · [[scause]] · [[copyout과 COW]]
+* [[copy-on-write]] · [[page fault]] · [[usertrap]] · [[epc]] · [[fork]] · [[exec]]

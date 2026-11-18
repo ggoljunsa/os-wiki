@@ -50,6 +50,9 @@ category: 4강 LDE, 용어
 | `{def}…{/def}` | 📖 정의 박스 (정의→용어 문제 대비, 슬라이드 원문 영어 정의 + 한국어) |
 | `{quiz}…{/quiz}` | ❓ 예상문제 박스 |
 | `{answer}…{/answer}` | 접힌 정답 (클릭해서 펼침) — quiz 바로 뒤에 |
+| `{mini}…{/mini}` | ✏️ 바로 풀어보기 (절 끝 새끼문제, 바로 뒤에 `{answer}`). 2026-11-18 알고위키에서 이식 |
+| `[* 각주]` | 나무위키식 각주. 본문엔 [N], 문서 끝 '각주' 목록. 안에 `[[링크]]` 가능, `[` 하나짜리 괄호는 중첩 불가 |
+| `~~취소선~~` | 드립용 취소선 (문서당 0~5개) |
 | `{exam}…{/exam}` | 🎯 출제 포인트 박스 (2025F 족보/퀴즈1에 실제로 나온 것) |
 | 박스는 여러 줄 가능 (`{info}` 로 시작해 `{/info}` 로 끝나는 줄까지) | |
 | `<pre class="c">` … `</pre>` | 코드 블록 (class: c / asm / ascii / sh / txt). ascii 는 밝은 배경 (ASCII 그림용) |
@@ -112,6 +115,8 @@ main(대문) · 읽는 순서 · 자주 틀리는 함정 모음 · 퀴즈1 복�
 I/O 장치 · I/O 시스템 구조 · canonical device · polling과 interrupt · PIO와 DMA · memory-mapped I/O · HDD 구조 · 디스크 접근 시간 · logical block · 디스크 스케줄링 · FCFS · SSTF · SCAN · C-SCAN · RAID · RAID 0과 RAID 1 · RAID 4와 parity · RAID 5와 RAID 6
 ### 과제2 퀴즈 문제 세트 (2026-10-28) — 접두어 `BZC_`~`BZE_`. 주간문제집 `과제2_퀴즈대비/units/u1~u3.html` 을 변환(문제 {quiz} + 접힌 {answer}). 원본 문제집을 고치면 여기도 같이 고칠 것
 과제2 문제 ① kalloc · 과제2 문제 ② bcache · 과제2 퀴즈 모의
+### 과제3 — 파일 접두어 `BY0_`(허브)~`BY9_`. 원본 `../../기말고사/문제풀이/과제3_xv6_cow/Assignment 3.pdf` (글자뿐 → ascii·sim·anim, 15·16·17강 캡처 재사용). 원본 xv6 소스 `cow` 브랜치 6e2198b (Mac `~/os/xv6-cow`, 읽기 전용). 마감 2026-12-01. '''완성 코드 금지''' (uvmcopy/usertrap/kalloc/copyout/uvmalloc 본문). 원본 코드 인용·한국어 의사코드만. 2025 풀이(`참고_2025/2025풀이_분석.md`)는 버그 설명만, 코드 옮기기 금지. 2026-11-18 작성. 이때 렌더러에 각주 `[* ]`·취소선·`{mini}` 박스를 이식(알고위키 dba4249, `_위키_문체지침.md` §6)
+과제3 xv6 cow · COW fork · reference count · RSW 비트 · copyout과 COW · superpage · COW와 superpage · scause · 과제3 함정과 디버깅 · 과제3 퀴즈 대비
 ### 과제1
 과제1 xv6 alarm · sigalarm · sigreturn · alarm_interval · alarm_handler · alarm_elapsed · alarm_saved · alarm_active · 재진입 금지 · a0 복원 · alarmtest · xv6 시스템 콜 경로 · which_dev · yield · usys.pl · myproc
 ### 기타 용어
@@ -165,6 +170,8 @@ I/O 장치 · I/O 시스템 구조 · canonical device · polling과 interrupt �
 | disk_sched | 18강 p.34~39: head 53, queue 98 183 37 122 14 124 65 67 을 정책별로 한 칸씩(이동량 누적, 슬라이드식 궤적 SVG). 옵션 policy = fcfs(640)/sstf(236)/scan(아래로, 0 까지 236)/cscan(위로, 복귀 포함 382)/look(208 확인용), set = slide / prac(head 100: 498/248/284/388/248) | 디스크 스케줄링, FCFS, SSTF, SCAN, C-SCAN |
 | io_timeline | 18강 p.10·11·13·14 CPU 사용 그림을 tick 단위로(CPU/DMA/Disk 행, CPU 낭비 tick 수). 옵션 mode = polling(낭비 5)/interrupt/pio(낭비 3)/dma | polling과 interrupt, PIO와 DMA |
 | page_fault_trace | 17강 p.18~23·p.50: VP 3 fault → victim VP 4 → swap in → PTE 갱신 → 재실행. 옵션 victim = clean/dirty | 스와핑, page fault |
+| cow_fork_trace | 과제3 P1: 부모 page 4장(text A·data B·guard C·stack D) fork → COW 공유 → store fault(scause 15) → kalloc N·복사·PTE 갱신 → kfree, 부모·자식 PTE flag·frame refcount SVG. 커널 패널은 설계 의사코드. 옵션 scenario = basic(자식 쓰기 복사, 자식 exit, 부모 쓰기 rc 1 → W 만) / text_write(COW 없음 → kill) / fork_exec(복사 0) / copyout(read() → 원본 −1, 고친 판 복사) | COW fork, reference count, copyout과 COW |
+| megapage_walk | 과제3 P2: VA 0x4053A8 Sv39 walk. 옵션 set = small(4 KB, L0 PTE 0x21fcf017 → 0x87f3c3a8, 접근 4) / mega(L1 leaf 0x21d80017 → 0x876053a8, 접근 3) / misaligned(PPN 0x87601 → page fault) / xv6_walk(원본 walk() 가 leaf PPN 을 table 로 → 0x87600028 의 데이터를 PTE 로). table 주소는 가정값 | superpage |
 
 ### 엔진 API (`src/sims/_engine.js`, 모든 sim 파일이 따를 것)
 ```js
@@ -276,3 +283,6 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | dma_flow | 18강 p.15 DMA 6단계: driver 지시 → disk controller → byte 가 DMA 를 거쳐 buffer X, C 4→0 → interrupt | PIO와 DMA |
 | looping_lru | 17강 p.42 Looping Sequential 축소판: 0~4 두 바퀴, frame 4개(LRU, 내보낸 page = 다음 참조, hit 0/10) vs 5개(hit 5/10) | 페이지 교체 정책 |
 | page_fault_flow | 17강 p.19~23: Reference → Trap → victim VP 4 → VP 3 가져오기 → PTE 갱신 → 재실행 | 스와핑, page fault |
+| cow_fault_flow | 과제3: 부모·자식이 frame B 공유(R-U COW, rc 2) → 자식 store → scause 15·stval 0x1010 → kalloc N → memmove → 자식 PTE → N RWU, rc[B] 1 → epc 그대로 재실행 | COW fork |
+| refcount_lifecycle | 과제3: frame B 의 rc 가 kalloc 1 → fork 2 → fork 3 → 자식 1 COW 복사 2 → 자식 2 exit 1 → 부모 exit 0 → free list | reference count |
+| megapage_vs_4k | 과제3: 같은 VA 0x4053A8 을 L2→L1→L0(4 KB) 와 L2→L1 leaf(2 MB) 로, VA 칸 9·9·9·12 → 9·9·21, PTE 512 개 vs 1 개 | 과제3 xv6 cow, superpage |
