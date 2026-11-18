@@ -25,7 +25,7 @@ category: 과제3, 시험
 |-
 | 부팅 직후 첫 프로세스도 못 만듦 || `freerange` 에서 count 를 1 로 맞추지 않아 `kfree` 가 아무것도 free list 에 안 넣음 || [[reference count]]
 |-
-| `panic: kfree` || count 를 두 번 내렸거나, superpage 영역 주소가 4 KB `kfree` 로 들어옴 || [[reference count]]
+| `panic: kfree` || 원본 `kfree` 는 정렬·범위만 검사한다 → refcount 인덱스가 범위를 벗어났거나, superpage 영역 주소가 4 KB `kfree` 로 들어옴. count 를 두 번 내린 경우는 직접 넣은 `panic` 이 없으면 panic 대신 음수 count·free list 이중 삽입으로 조용히 깨진다 || [[reference count]]
 |-
 | `panic: mappages: remap` || fork 에서 자식 PTE 를 만들 자리가 이미 V. `walk(…, 1)` 이 superpage leaf 를 돌려준 경우도 있음 || [[superpage]]
 |-

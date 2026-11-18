@@ -112,7 +112,7 @@ xv6 는 CPU 3개로 돈다. 부모가 CPU0 에서 fork 하면서 frame B 의 cou
 * lock 하나를 배열 전체에 둔다. 가장 단순하다.
 * 과제 2 처럼 쪼갤 수도 있다. 이 과제는 contention 을 채점하지 않으니 필수는 아니다.
 
-COW fault 의 "count 가 1 이면 복사 생략" 판단도 같은 lock 아래에서 count 를 읽는 편이 안전하다.[* 하나의 프로세스는 스레드가 없으니, fault 를 처리하는 동안 같은 page 를 새로 공유하는 fork 가 끼어들 수는 없다. fork 는 그 프로세스 자신만 부르기 때문이다. 하지만 다른 프로세스의 exit 은 언제든 count 를 내릴 수 있다.]
+COW fault 의 "count 가 1 이면 복사 생략" 판단도 같은 lock 아래에서 count 를 읽는 편이 안전하다.[* count 가 1 이면 다른 holder 가 없으니 count 가 올라갈 수 없다(xv6 프로세스는 스레드가 없어 자기 fork 와 fault 가 겹치지 않는다). 2 이상이면 그 page 를 같이 쓰는 형제 프로세스가 다른 CPU 에서 fork 해 count 를 올릴 수 있고, 다른 holder 의 exit 은 언제든 count 를 내릴 수 있다.]
 
 {mini}
 # `kfree` 의 "count − 1 → 0 이면 free" 를 lock 없이 하면 생길 수 있는 나쁜 결과 두 가지를 쓰라.

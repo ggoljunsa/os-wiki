@@ -86,7 +86,7 @@ Problem 2 의 힌트는 `user/cowtest.c` 의 `superpg_test` 를 읽고, `sys_sbr
 # usertests 가 이미 OK 인데 왜 배점이 29점이나 있나?
 {/mini}
 {answer}
-# simpletest 는 `(128 MB / 3) × 2 ≈ 85 MB` 를 sbrk 하고 fork 한다. 원본 fork 는 자식에게 85 MB 를 새로 할당하려 하는데 남은 물리 메모리는 40 MB 남짓이라 `kalloc` 이 실패하고 fork 가 −1 을 돌려준다.
+# simpletest 는 `(128 MB / 3) × 2 ≈ 85 MB` 를 sbrk 하고 fork 한다. 원본 fork 는 자식에게 85 MB 를 새로 할당하려 하는데 남은 물리 메모리는 커널 이미지·page table 을 빼면 42 MB 안팎이라 `kalloc` 이 실패하고 fork 가 −1 을 돌려준다.
 # COW 를 넣으면 `fork`·`exit`·`copyout`·`sbrk` 경로가 모두 바뀐다. 그 과정에서 커널의 다른 기능을 망가뜨리지 않았는지 보는 회귀 점수다.
 {/answer}
 
