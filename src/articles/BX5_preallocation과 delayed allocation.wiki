@@ -1,0 +1,49 @@
+key: preallocation과 delayed allocation
+title: preallocation과 delayed allocation: 블록을 언제 잡나
+category: 21강 Fast File System
+---
+{warn}21강 '''수업 전'''(2026-11-23) 슬라이드 기준.{/warn}
+
+21강 p.22~23 을 다룬다. 둘 다 "블록을 '''언제''' 할당하나" 의 문제다. 하나는 미리 당겨서, 하나는 최대한 늦춰서 할당한다. 방향은 반대지만 목표는 같다. 파일 블록이 디스크에 이어져 놓이게 해서 [[extent]] 가 잘 동작하게 하는 것이다.
+
+== preallocation: 미리 잡는다 (p.22) ==
+{def}p.22: Preallocate the blocks for a file up-front. fallocate() system call, used by DB and Streaming Media Server. Ensure contiguous allocation as far as possible. Why do we need contiguous allocation? Extent tree is efficient when there is few fragmentation.{/def}
+
+파일이 얼마나 커질지 미리 아는 프로그램이 있다. 데이터베이스는 큰 데이터 파일을, 스트리밍 서버는 영상 파일을 만든다. 이런 프로그램은 `fallocate()` 로 "이 파일에 1 GB 를 미리 잡아 달라" 고 요청한다. 파일 시스템은 아직 내용이 없어도 연속된 블록을 한꺼번에 잡아 둔다.
+
+왜 연속이 중요한가에 대한 슬라이드 답은 "extent tree is efficient when there is few fragmentation" 이다. 연속으로 잡혀 있으면 extent 몇 개로 끝나고, 18강의 seek 도 줄어든다. 20강 p.7 의 "Pre-allocation policy is commonly used for allocate contiguous blocks, e.g., extents in EXT4" 가 이 이야기였다.
+
+== delayed allocation: 최대한 늦게 잡는다 (p.23) ==
+{def}p.23: Block allocations are postponed to page flush time rather than during the write(). Combine many block allocation requests into a single request. Reduce fragmentation and save CPU cycles. Avoids unnecessary block allocation for short-lived files. There is a trade-off between performance and reliability. 30% improved throughput, 50% reduction in CPU.{/def}
+
+20강 [[파일 접근 경로]] 에서 `write()` 는 부를 때마다 data bitmap 을 읽고 블록 하나를 잡았다. delayed allocation 은 이 할당을 `write()` 때 하지 않는다. 데이터는 일단 메모리([[caching과 buffering|page cache]])에만 쓰고, 나중에 그 page 를 디스크로 내보낼(flush) 때 블록을 잡는다. 그러면 좋은 점이 셋이다.
+* 그사이 쌓인 여러 `write()` 의 할당 요청을 '''한 번에''' 모아서 한다. 전체 크기를 알고 잡으니 연속 블록을 고르기 쉽다. 조각이 줄고 CPU 도 아낀다.
+* 금방 만들었다 지우는 임시 파일은 flush 전에 사라지니 '''블록을 아예 안 잡는다'''.
+* 슬라이드 수치로 throughput 30% 증가, CPU 사용 50% 감소다.
+
+대가는 '''신뢰성'''이다. flush 전에 전원이 나가면 메모리에만 있던 데이터는 사라진다. 20강 p.25 의 "write 는 저장을 보장하지 않는다, fsync 를 써라" 와 같은 문제가 더 길어진다. 슬라이드가 "trade-off between performance and reliability" 라고 쓴 것이 이것이다.
+
+{analogy}
+preallocation 은 단체 여행에서 버스 좌석을 출발 전에 한 줄로 통째 예약하는 것이다. delayed allocation 은 손님이 다 모일 때까지 좌석 배정을 미뤘다가, 인원이 확정되면 한 번에 붙어 앉게 배정하는 것이다. 다만 배정 전에 손님 명단(메모리)을 잃어버리면 처음부터 다시 받아야 한다.
+{/analogy}
+
+{mini}
+# `fallocate()` 를 주로 쓰는 프로그램 두 종류는?
+# delayed allocation 에서 블록을 실제로 잡는 시점은?
+# 금방 만들었다 지우는 임시 파일에 delayed allocation 이 유리한 이유는?
+# delayed allocation 의 대가를 슬라이드 단어로.
+{/mini}
+{answer}
+# '''DB''' 와 '''streaming media server'''.
+# page 를 디스크로 '''flush''' 할 때(write() 때가 아니라).
+# flush 전에 지워지면 블록 할당 자체가 필요 없다.
+# '''reliability''' (performance 와의 trade-off).
+{/answer}
+
+== 시험 직전 체크 ==
+# preallocation: 미리 연속 블록을 잡는다. fallocate(), DB·스트리밍 서버. extent tree 를 효율적으로.
+# delayed allocation: write() 대신 page flush 때 할당. 요청 합치기, 조각 감소, 짧은 파일은 할당 생략.
+# 30% throughput 증가, 50% CPU 감소. 대가는 reliability.
+
+== 관련 문서 ==
+* [[Fast File System]] · [[extent]] · [[caching과 buffering]] (20강, write buffering) · [[bitmap과 free space]] (20강)

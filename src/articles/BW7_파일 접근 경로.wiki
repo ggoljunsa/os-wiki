@@ -1,0 +1,121 @@
+key: 파일 접근 경로
+title: 파일 접근 경로: open·read·write 가 디스크를 몇 번 건드리나
+category: 20강 File System Implementation
+---
+20강 p.19~23 을 따라간다. [[vsfs 디스크 배치]] 가 "무엇을 어디에 적어 두나" 였다면 여기는 p.2 의 두 번째 질문, access method 다. `open("/foo/bar")` 한 줄이 디스크의 어느 블록을 어떤 순서로 읽는지, `write()` 한 번이 몇 번의 I/O 를 낳는지 표로 센다. 교수님 시험 형식("규칙을 주고 손으로 돌리기")에 가장 잘 맞는 부분이다.
+
+== 경로를 따라 inode 찾기: open (p.19) ==
+{def}p.19: Issue an open("/foo/bar", O_RDONLY). Traverse the pathname and thus locate the desired inode.
+1. Begin at the root of the file system (/). This example uses inode number 2 for the root directory. Reads in the block that contains inode number 2. Look inside of it to find pointer to data blocks (contents of root). By reading in one or more directory data blocks, it will find "foo" directory.
+2. Traverse recursively the path name until the desired inode ("bar").
+3. If "bar" is found, check permissions, allocate a file descriptor for this process, and return file descriptor to user.
+{/def}
+
+파일 시스템은 `/foo/bar` 라는 문자열을 모른다. 아는 것은 inode 번호뿐이다. 그래서 경로를 한 칸씩 따라가며 이름을 번호로 바꾼다.
+# root 의 inode 번호는 정해져 있다. 보통 '''2''' 번이다.[* 0 번은 "없음" 표시로 쓰고, ext2 에서 1 번은 bad block 목록용으로 예약돼 있어서 root 가 2 번이다. 슬라이드는 "This example uses inode number 2" 라고만 쓴다.] [[inode 주소 계산]] 으로 위치를 구해 root inode 를 읽는다.
+# root inode 에서 데이터 블록 번호를 얻어 root 의 data block 을 읽는다. 그 안 [[디렉터리 구성|엔트리 목록]] 에서 `foo` 를 찾으면 foo 의 inode 번호가 나온다.
+# foo inode 를 읽고, foo 의 data block 을 읽고, 그 안에서 `bar` 의 inode 번호를 얻는다.
+# bar inode 를 읽는다. 권한을 확인하고, fd 를 하나 할당해서 돌려준다.
+
+디렉터리 하나를 지날 때마다 '''inode 하나 + data block 하나'''를 읽는다. `/foo/bar` 는 root, foo 두 디렉터리를 지나고 마지막에 bar inode 를 읽으니 open 에만 '''5 번'''이다.
+
+11/23 수업(49:48~50:30)에서 교수님은 3 단계의 권한 확인을 조금 더 풀었다. 프로세스는 어떤 사용자로 돌고 있으니, 그 사용자가 파일의 owner 인지, 같은 group 인지 보고 [[권한 비트]] 를 확인한다. 이 open 은 `O_RDONLY` 라서 read 권한만 보면 된다. 통과하면 fd 를 할당하고, 파일 정보를 커널 내부 자료구조에 적어 둔 뒤 fd 를 돌려준다.
+
+[[anim:path_lookup|경로를 한 칸씩 따라 inode → data → inode 를 번갈아 읽는 순서를 보라 (19강 그림)]]
+
+== read() 와 close() (p.20) ==
+{def}p.20: Issue read() to read from the file. Read in the first block of the file, consulting the inode to find the location of such a block. May update the inode's last-access time. Update in-memory open file table for file descriptor, the file offset. When file is closed: In this simplified read-only example, close releases the descriptor and needs no additional disk I/O.{/def}
+
+`read()` 한 번은 세 단계다.
+* bar inode 를 읽어 지금 offset 이 가리키는 블록의 번호를 얻는다.
+* 그 data block 을 읽는다.
+* inode 의 '''last-access time(atime)''' 을 고쳐 다시 쓴다. 그래서 '''읽기만 했는데 쓰기 I/O 가 생긴다.''' 교수님도 수업에서 "you can find that there is some write on the read system call" 이라고 짚었다.
+메모리 안의 open file table 에서 offset 도 옮기지만 이건 디스크 I/O 가 아니다. `close()` 는 fd 와 커널 자료구조만 지우니 이 예에서는 디스크 I/O 가 없다.
+
+== 읽기 타임라인 (p.21) ==
+[[img:L20-21.png|p.21 — File Read Timeline. 열은 디스크의 구조 10 개, 행은 호출. open 에서 root inode → root data → foo inode → foo data → bar inode 가 지그재그로 내려가는 것을 보라|large]]
+
+위 표에서 칸에 적힌 read/write 하나가 디스크 I/O 하나다. 개수를 세면 이렇다.
+{|
+! 호출 || 읽는 것 || 쓰는 것 || I/O
+|-
+| open("/foo/bar") || root inode, root data, foo inode, foo data, bar inode || - || 5
+|-
+| read() × 3 || 매번 bar inode, bar data[k] || 매번 bar inode (atime) || 3 × 3 = 9
+|-
+| 합계 || || || '''14'''
+|}
+
+bitmap 두 열이 비어 있다는 점도 보라. 읽기만 하면 할당이 없으니 bitmap 은 건드리지 않는다.
+
+== 쓰기는 더 무겁다 (p.22) ==
+{def}p.22: Issue write() to update the file with new contents. File may allocate a block (unless the block is being overwritten). Need to update data block and data bitmap. It generates five I/Os: 1. One to read the inode 2. One to read the data bitmap 3. One to write the data bitmap (to reflect its new state to disk) 4. One to write the inode (update the inode) 5. One to write the actual block itself. To create file, it also allocates space for directory, causing high I/O traffic.{/def}
+
+`write()` 가 파일 끝 너머에 쓰면 새 블록을 할당해야 한다. 그래서 읽기에 없던 일이 생긴다.
+* data bitmap 을 읽어 빈 블록을 찾고, 1 로 바꿔 다시 쓴다. (2 번)
+* inode 를 읽고, 새 블록 번호와 크기를 적어 다시 쓴다. (2 번)
+* 실제 데이터를 쓴다. (1 번)
+합해서 '''5 번'''이다. 이미 있는 블록을 덮어쓰는 경우에는 할당이 없으니 bitmap I/O 가 빠진다.
+
+파일을 '''새로 만들 때'''는 더 많다. 경로를 따라가는 읽기에 더해, inode bitmap 에서 빈 inode 를 잡고, 부모 디렉터리 블록에 새 엔트리를 쓰고, 새 inode 를 초기화하고, 부모 디렉터리 inode 도 고쳐야 한다.
+
+== 만들기 타임라인 (p.23) ==
+[[img:L20-23.png|p.23 — File Creation Timeline. create 에서 inode bitmap read·write, foo data write, bar inode read·write, foo inode write 가 생긴다. write() 마다 data bitmap read·write 가 붙는다|large]]
+
+{|
+! 호출 || I/O 순서 || 개수
+|-
+| create("/foo/bar") || root inode R → root data R → foo inode R → foo data R → inode bitmap R → inode bitmap W → foo data W → bar inode R → bar inode W → foo inode W || 10
+|-
+| write() × 3 || 매번 bar inode R → data bitmap R → data bitmap W → bar data[k] W → bar inode W || 5 × 3 = 15
+|-
+| 합계 || || '''25'''
+|}
+
+[[sim:fs_access_path]]
+
+시뮬레이터에서 "open + read() 3번" 과 "create + write() 3번" 을 번갈아 돌려 보라. 각 단계에서 이 I/O 가 왜 필요한지 한 줄씩 나오고, 오른쪽 아래 합계가 14 와 25 로 끝난다.
+
+== 수업에서: 왜 inode 를 마지막에 쓰나 ==
+p.22 의 목록은 4 번이 inode 쓰기, 5 번이 데이터 쓰기다. 그런데 p.23 표에서 write() 한 번을 보면 순서가 data bitmap → '''data block''' → '''inode''' 로 inode 가 맨 뒤다. 교수님이 11/23 수업(56:25~59:24)에서 바로 이 점을 물었다. "although we allocate the data block, we does not update the inode immediately. Do you think there is special reason?"
+
+답은 '''crash consistency''' 다. 디스크 쓰기 도중 전원이 나가도 파일 시스템이 앞뒤가 맞아야 한다.
+* inode 를 먼저 쓰고 데이터를 나중에 쓰다가 꺼지면, inode 는 아직 내용이 안 들어간 블록을 가리킨다. 파일에 쓰레기가 보인다.
+* inode 를 bitmap 보다 먼저 쓰다가 꺼지면, inode 는 새 블록을 가리키는데 bitmap 에는 그 블록이 빈 칸(0)이다. 나중에 다른 파일이 같은 블록을 받아 간다.
+* inode 를 맨 마지막에 쓰면, 꺼져도 inode 는 옛 상태 그대로다. 그리고 inode 들을 훑어보면 실제로 어느 블록이 쓰이는지 알 수 있으니 bitmap 을 다시 맞출 수 있다.
+
+교수님은 "the reason we update the inode in the last time is to preserve the consistency" 라고 정리하고, 이 문제는 다음 주 월요일이나 수요일에 다룬다고 했다.[* OSTEP 42장 "Crash Consistency: FSCK and Journaling" 의 내용이다. 21강 슬라이드 p.19 에도 ext4 의 Journaling 이 "Will be covered" 로 적혀 있다.] 그리고 이렇게 덧붙였다. 프로그램의 버그는 죽이고 다시 실행하면 넘어갈 수 있지만, 영구 저장소의 데이터는 "forever" 남아야 하니 재시작으로 고칠 수 없다. 그래서 "consistency should be the main design" 이다.
+
+{analogy}
+은행 송금 장부를 생각하면 된다. 돈을 실제로 옮기고(data), 금고 사용 기록을 고친 뒤(bitmap), 마지막에 고객 통장(inode)에 찍는다. 통장에 먼저 찍었다가 정전이 나면 돈은 안 왔는데 통장에는 왔다고 나온다.
+{/analogy}
+
+{mini}
+# 캐시가 비어 있다. `open("/a/b/c.txt")` 에 디스크 읽기가 몇 번 필요한가? (`/`, `a`, `b` 는 디렉터리, 각 디렉터리 내용은 블록 하나)
+# 위 파일에서 `read()` 를 2 번 하면 I/O 가 몇 번 더 생기나? read 는 몇 번, write 는 몇 번인가?
+# 이미 있는 파일의 0 번째 블록을 '''덮어쓰는''' `write()` 한 번은 I/O 가 몇 번인가? 어떤 I/O 가 빠지나?
+# p.23 의 create 에서 foo 의 data block 에 write 가 생기는 이유를 한 문장으로.
+# write() 에서 inode 를 data block 보다 먼저 쓰다가 그 사이에 전원이 나가면 무엇이 잘못되나?
+{/mini}
+{answer}
+# 디렉터리 3 개(/, a, b) × (inode + data) = 6, 마지막 c.txt inode 1 → '''7 번'''.
+# read() 하나에 inode R, data R, inode W(atime) 로 3 번 → '''6 번''' (read 4, write 2).
+# inode R, data W, inode W 로 '''3 번'''(크기·시간 갱신). 새 블록을 할당하지 않으니 data bitmap 의 read·write 두 번이 빠진다. 슬라이드는 이 경우를 "unless the block is being overwritten" 으로만 적는다.
+# 새 파일 bar 의 (이름, inode #) 엔트리를 부모 디렉터리 foo 의 데이터에 추가하기 때문이다.
+# inode 는 새 블록을 가리키는데 그 블록에는 아직 데이터가 없다. 재부팅 뒤 파일을 읽으면 쓰레기가 나온다(일관성이 깨진다).
+{/answer}
+
+{exam}11/23 수업에서 교수님이 직접 질문한 것: "write() 에서 data block 을 할당하고도 inode 를 바로 갱신하지 않는 이유는?" → crash 때 '''consistency''' 를 지키려고 inode 를 마지막에 쓴다. 읽기 표(14 I/O)와 만들기 표(10 + 5 × 3 = 25 I/O)는 슬라이드 그대로 셀 수 있어야 한다.{/exam}
+
+== 시험 직전 체크 ==
+# open: 디렉터리마다 inode + data, 마지막 파일 inode. `/foo/bar` → 5.
+# read(): inode R, data R, inode W(atime) = 3. 읽기만 해도 쓰기가 생긴다.
+# 할당하는 write(): inode R, d-bmap R, d-bmap W, data W, inode W = 5.
+# create("/foo/bar") = 10. 읽기 표 합 14, 만들기 표 합 25.
+# close() 는 이 예에서 디스크 I/O 없음.
+# inode 를 마지막에 쓴다: crash consistency.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[vsfs 디스크 배치]] · [[inode 주소 계산]] · [[디렉터리 구성]] · [[bitmap과 free space]]
+* [[caching과 buffering]] (이 I/O 를 줄이는 법) · [[multi-level index]] (큰 파일이면 indirect block 읽기가 더 붙는다)
+* [[file descriptor]] · [[파일 offset과 lseek]] · [[rename과 atomic update]] (19강)

@@ -24,6 +24,10 @@ category: 기말고사
 | '''18강''' I/O Devices and HDD (11/11 p.2~19, 11/16 p.20~51, 녹음 有) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
 |-
 | '''19강''' File and Directory (11/18 수, 녹음 有, p.5~39 구간이 남음) || `19-File_and_Directory.pdf` 42쪽 || 파일은 inode 번호가 붙은 바이트 배열, 디렉터리는 (이름, inode #) 표 · fd·offset·rename·stat 같은 File IO · hard link 와 symbolic link || [[파일과 디렉터리]]
+|-
+| '''20강''' File System Implementation (11/23 월, 녹음 有, p.1~25 전부) || `20-File_System_Implementation.pdf` 27쪽 || 디스크 블록 위에 superblock·bitmap·inode table·data 를 어떻게 놓나 · inode 번호 → sector, offset → 블록(multi-level index) · open/read/write 가 디스크를 몇 번 건드리나(14, 25 I/O) · cache 와 buffer || [[파일 시스템 구현]]
+|-
+| '''21강''' Fast File System (수업 전, 슬라이드 기준 작성) || `21-Fast_File_System.pdf` 25쪽 || 옛 Unix FS 가 왜 느렸나 → cylinder group, 관련된 것끼리 같은 그룹에, 큰 파일은 chunk 로 · ext4 의 extent·preallocation·delayed allocation || [[Fast File System]]
 |}
 
 == 13강 읽는 순서 ==
@@ -111,9 +115,32 @@ category: 기말고사
 
 {info}🎙 19강은 11/18 수업 녹음을 반영했다([[파일과 디렉터리]] 의 "실제 수업 기록"). 교수님이 수업 중 던진 질문은 셋이다: 권한은 파일과 디렉터리 중 어디에 적나(파일), file descriptor 가 무엇인가, stat 의 Modify 와 Change 차이. "one important thing" 은 fd 0·1·2 와 rename 의 atomic. ⭐ 는 출제 형식에 맞는 정도로 붙인 것이다. 슬라이드 오류 목록은 [[파일과 디렉터리]] 의 "슬라이드 오류와 오타" 절.{/info}
 
+== 20강 읽는 순서 ==
+
+# [[파일 시스템 구현]]: 슬라이드 ↔ 문서 표, 11/23 수업 기록 (p.1~27)
+# [[vsfs 디스크 배치]]: 4 KB 블록, S · i-bmap · d-bmap · inode table(3~7, 80 개) · data (p.2~8) ⭐⭐
+# [[bitmap과 free space]]: 0/1, bitmap 을 둘로 나누는 이유, pre-allocation (p.6~7) ⭐
+# [[inode 주소 계산]]: inode 32 → 8192 → 20 KB → sector 40, 24 + 16 셈법 (p.9) ⭐⭐⭐ · sim `inode_addr`
+# [[ext2 inode]]: inode 에 들어가는 것, 포인터 15 개, blocks 는 512 B 단위 (p.10~11) ⭐⭐
+# [[multi-level index]]: 52 KB, 4144 KB, 4 GB, direct 를 섞는 이유, offset → 블록 (p.12~17) ⭐⭐⭐
+# [[디렉터리 구성]]: (inode #, 이름 길이, 이름), 크기 최적화·순차 검색 (p.18) ⭐
+# [[파일 접근 경로]]: open/read 14 I/O, create/write 25 I/O, inode 를 마지막에 쓰는 이유 (p.19~23) ⭐⭐⭐ · sim `fs_access_path`
+# [[caching과 buffering]]: 203 번 읽기, unified page cache, write buffering, close 는 flush 보장 안 함 (p.24~25) ⭐⭐
+
+{info}🎙 20강은 11/23 수업 녹음을 반영했다([[파일 시스템 구현]] 의 "실제 수업 기록"). 교수님 질문 여섯 개(inode 를 따로 두는 이유, bitmap 합치기, file type, 포인터 15 개, direct 와 indirect 를 섞는 이유, inode 를 마지막에 쓰는 이유)의 답이 각 문서에 있다. 공지는 없었고, consistency(journaling)는 다음 주에 다룬다고 했다.{/info}
+
+== 21강 읽는 순서 (수업 전) ==
+
+# [[Fast File System]]: 옛 Unix FS 의 문제 두 가지, disk aware, SSD 질문 (p.2~5, p.18)
+# [[cylinder group]]: cylinder, block group, 그룹마다 superblock 사본 (p.6~8) ⭐
+# [[FFS 배치 정책]]: 디렉터리는 흩고 파일은 모은다, p.10 vs p.12 그림, SEER 7%·40%·65% (p.9~14) ⭐⭐
+# [[large-file exception]]: chunk = 40 MB/s × 10 ms = 409.6 KB, 90% 는 약 4 MB, inode 구조를 따라 4 MB 씩 (p.15~17) ⭐⭐⭐
+# [[extent]]: 연속 구간 하나, 2^15 블록 = 128 MB (p.19~21) ⭐⭐
+# [[preallocation과 delayed allocation]]: fallocate, flush 때 할당, performance vs reliability (p.22~23) ⭐
+
 == 시험 정보 ==
 
-기말고사 날짜·범위·형식은 '''아직 공지 전'''(2026-11-23 기준, 11/18 녹음까지 공지 없음). 11/11 공지: 학기 전체 lab 3개·퀴즈 3개, 과제 3 은 2주, '''기말 전 주가 퀴즈 주간'''. 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.
+기말고사 날짜·범위·형식은 '''아직 공지 전'''(2026-11-23 기준, 11/23 녹음까지 공지 없음). 11/11 공지: 학기 전체 lab 3개·퀴즈 3개, 과제 3 은 2주, '''기말 전 주가 퀴즈 주간'''. 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.
 
 == 중간 범위와 이어지는 곳 ==
 

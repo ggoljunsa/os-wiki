@@ -1,0 +1,54 @@
+key: cylinder group
+title: cylinder group: 디스크를 작은 파일 시스템 여러 개로
+category: 21강 Fast File System
+---
+{warn}21강 '''수업 전'''(2026-11-23) 슬라이드 기준.{/warn}
+
+21강 p.6~8 을 다룬다. [[Fast File System|FFS]] 가 가장 먼저 한 일은 디스크를 여러 구역으로 나누는 것이다. 그 구역이 '''cylinder group''' 이다.
+
+== cylinder 를 묶는다 (p.6) ==
+{def}p.6: "FFS divides the disk into a bunch of groups (Cylinder Group). A single cylinder is a set of tracks on different surfaces of HDD. FFS aggregates N consecutive cylinders into a cylinder group. Modern file system call cylinder group as a block group."{/def}
+
+[[img:L21-06.png|p.6 — 원판 세 장, 표면 여섯 개. 같은 반지름의 track 들을 세로로 꿴 것이 cylinder k, 이웃한 N 개를 묶은 것이 cylinder group|large]]
+
+18강 [[HDD 구조]] 에서 원판 위의 동심원이 track 이었다. 원판이 여러 장이면 같은 반지름의 track 이 표면마다 하나씩 있다. 위 그림처럼 이것들을 세로로 꿰면 원통 모양이 되는데, 이것이 '''cylinder''' 다. 같은 cylinder 안의 track 끼리는 head 를 옮기지 않고(seek 없이) 오갈 수 있다. FFS 는 이웃한 cylinder N 개를 묶어 한 그룹으로 쓴다.
+
+요즘 디스크는 안쪽 기하 구조를 OS 에 알려 주지 않는다. 그래서 ext2·ext3·ext4 같은 요즘 파일 시스템은 cylinder 대신 이어진 블록 번호 구간으로 나누고 '''block group''' 이라고 부른다. 생각은 같다. 블록 번호가 가까우면 디스크에서도 가깝다고 보는 것이다.
+
+== 그룹 안에 무엇이 있나 (p.7~8) ==
+{def}p.7: "These groups are used to improve seek performance by placing two files within the same group. Accessing one after the other will not result in long seeks across the disk. FFS needs to allocate files and directories within each of these groups."
+p.8: "Data structure for each cylinder group: A copy of the superblock for reliability reason. Inode bitmap and data bitmap to track free inodes and data blocks. Inodes and data blocks are the same as the previous very-simple file system."{/def}
+
+[[img:L21-08.png|p.8 — 그룹 G0~G9 가운데 하나를 펼치면 Super Block · Inode Bmap · Data Bmap · inodes · Data. 20강 vsfs 한 벌이 그룹마다 있다|large]]
+
+위 그림이 보여 주듯 그룹 하나는 20강 [[vsfs 디스크 배치|vsfs]] 를 작게 줄인 것과 똑같다. 차이는 세 가지다.
+* 디스크 전체에 vsfs 가 하나가 아니라 그룹 수만큼 있다. 그래서 inode 와 그 데이터를 '''같은 그룹 안'''에 둘 수 있다. 문제 1(inode 와 데이터가 멀다)이 여기서 풀린다.
+* 그룹마다 '''superblock 사본'''이 있다. superblock 이 깨지면 디스크 전체를 해석할 수 없으니 여러 벌 둔다. 이건 성능이 아니라 신뢰성(reliability) 때문이다.
+* bitmap 도 그룹마다 있다. 그룹 안에서 빈 inode 와 빈 블록을 찾으면 되니 bitmap 이 작고, 이어진 빈 블록을 찾기도 쉽다.
+
+{analogy}
+큰 도서관 하나에 대출 데스크가 입구에 하나만 있으면 책 찾는 데 한참 걷는다. 층마다 작은 대출 데스크와 그 층 장부를 두면 같은 층 안에서 끝난다. 본관 안내판(superblock)도 층마다 한 장씩 붙여 둔다.
+{/analogy}
+
+{mini}
+# cylinder 의 정의를 슬라이드 표현대로 쓰라.
+# 요즘 파일 시스템이 cylinder group 대신 쓰는 이름은?
+# 그룹마다 superblock 사본을 두는 이유는 성능인가 신뢰성인가?
+# 20강 vsfs 와 비교해 FFS 그룹 하나에 '''없는''' 구조가 있나?
+{/mini}
+{answer}
+# "A set of tracks on different surfaces of HDD" (같은 반지름의 track 들을 모은 것).
+# '''block group'''.
+# '''신뢰성'''("for reliability reason").
+# 없다. superblock, inode bitmap, data bitmap, inodes, data 가 다 있다("the same as the previous very-simple file system").
+{/answer}
+
+== 시험 직전 체크 ==
+# cylinder = 표면마다 같은 반지름의 track 묶음. N 개 이웃 cylinder = cylinder group.
+# 요즘 이름 block group.
+# 그룹 = 작은 vsfs: superblock 사본 + i-bmap + d-bmap + inodes + data.
+# 같은 그룹 안 접근은 긴 seek 가 없다.
+
+== 관련 문서 ==
+* [[Fast File System]] · [[FFS 배치 정책]] · [[large-file exception]]
+* [[vsfs 디스크 배치]] (20강) · [[HDD 구조]] · [[디스크 접근 시간]] (18강)

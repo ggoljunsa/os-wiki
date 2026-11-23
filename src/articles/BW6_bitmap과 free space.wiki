@@ -1,0 +1,54 @@
+key: bitmap과 free space
+title: bitmap과 free space: 빈 inode·빈 블록 찾기
+category: 20강 File System Implementation
+---
+20강 p.6~7 을 다룬다. 14강 [[free-space management]] 에서는 크기가 제각각인 조각을 free list 로 관리했다. 파일 시스템은 칸 크기가 정해져 있어서(inode 256 B, 블록 4 KB) 훨씬 단순한 도구로 충분하다. 비트 하나에 칸 하나를 대응시키는 '''bitmap''' 이다.
+
+== 비트 하나 = 칸 하나 (p.6) ==
+{def}p.6: "It is necessary to track whether inodes or data blocks are free. Use a bitmap, each bit indicates free ('0') or in-use ('1'). Data bitmap: for the data region. Inode bitmap: for inode table."{/def}
+
+[[img:L20-06.png|p.6 — 블록 1(i)이 inode bitmap, 블록 2(d)가 data bitmap. 나머지 자리는 아직 비어 있다|large]]
+
+inode bitmap 의 k 번째 비트는 k 번 inode 가, data bitmap 의 k 번째 비트는 data region 의 k 번째 블록이 쓰이는지를 나타낸다. 0 이면 빈 칸, 1 이면 사용 중이다.
+
+vsfs 에서는 bitmap 하나에 블록 하나를 통째로 준다. 4 KB = 32,768 비트라 inode 80 개, data block 56 개를 적기에는 한참 넉넉하다. OSTEP 도 "a bit of overkill" 이라고 인정하고, 단순하게 하려고 그렇게 했다고 쓴다.
+
+== 파일을 만들 때 (p.7) ==
+{def}p.7: "Two simple bitmaps are used for free-space management. Creating a file allocates an inode using the inode bitmap. Allocating a data block also updates the data bitmap. Pre-allocation policy is commonly used for allocate contiguous blocks, e.g., extents in EXT4."{/def}
+
+파일 하나를 만들고 내용을 쓰면 bitmap 두 개가 다 바뀐다.
+# inode bitmap 에서 0 인 비트를 찾아 1 로 바꾼다. 그 번호가 새 파일의 inode 번호다.
+# 내용을 쓰려면 data bitmap 에서 0 인 비트를 찾아 1 로 바꾼다. 그 번호의 블록에 데이터를 쓴다.
+이 과정에서 bitmap 을 디스크에서 읽고 다시 쓰는 I/O 가 생긴다. 몇 번인지는 [[파일 접근 경로]] 의 create·write 표에서 센다.
+
+p.7 마지막 줄의 '''pre-allocation''' 은 블록을 하나씩 따로 잡지 않고, 처음부터 연속된 여러 블록을 미리 잡아 두는 정책이다. 그래야 파일 내용이 디스크에 이어져 놓이고 18강의 seek 를 줄인다. ext4 의 extent 가 그 예인데, 21강 [[extent]] 와 [[preallocation과 delayed allocation]] 에서 자세히 다룬다.
+
+== 수업에서 나온 질문 ==
+11/23 수업에서 교수님이 bitmap 을 두고 물은 것은 둘이다.
+* '''블록을 여러 파일이 나눠 쓰면?''' 블록 하나를 쪼개 앞 256 B 는 파일 A, 나머지는 파일 B 에 주는 설계도 가능하다. 그러면 블록 안의 빈 바이트까지 관리해야 해서 free space 관리가 복잡해진다. 블록 하나를 파일 하나에만 주면 비트 하나로 끝난다. 대신 아무리 작은 파일도 블록 하나(4 KB)를 차지한다.
+* '''bitmap 을 하나로 합치면?''' 36 번째 비트가 0 일 때 그게 빈 inode 인지 빈 블록인지 따로 따져야 한다. inode 와 블록은 크기도 다르다. bitmap 은 몇 블록이면 되니 나눠 두는 쪽이 부담이 거의 없고 설계가 단순하다.[* 교수님은 "it does not have a big overhead, and also it simplifies the design" 이라고 정리했다.]
+
+{analogy}
+주차장 입구의 전광판에 칸마다 불이 하나씩 있다. 불이 꺼진 칸(0)이 빈자리다. 승용차 칸과 버스 칸은 크기가 다르니 전광판도 따로 둔다.
+{/analogy}
+
+{mini}
+# inode bitmap 이 `1110 1000 …` 이다(0 번 비트부터). 새 파일에 줄 inode 번호는? (가장 앞의 빈 칸을 준다고 하자)
+# 4 KB 블록 하나짜리 bitmap 으로 관리할 수 있는 칸은 최대 몇 개인가?
+# 1 바이트짜리 파일 하나가 vsfs 에서 data region 을 얼마나 차지하나? 왜 그런가?
+{/mini}
+{answer}
+# 앞에서부터 0, 1, 2 번이 1, 3 번이 0 → '''3''' 번.
+# 4096 × 8 = '''32,768''' 개.
+# '''4 KB'''(블록 하나). 블록을 여러 파일에 나눠 주지 않기 때문이다.
+{/answer}
+
+== 시험 직전 체크 ==
+# bitmap: 비트 하나 = inode 하나 또는 블록 하나, 0 = free, 1 = in-use.
+# inode bitmap, data bitmap 두 개를 따로 둔다(크기가 달라서, 해석이 단순해서).
+# 파일 생성 = inode bitmap 갱신, 블록 할당 = data bitmap 갱신.
+# pre-allocation: 연속 블록을 미리 잡는다. 예: ext4 extent.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[vsfs 디스크 배치]] · [[파일 접근 경로]]
+* [[free-space management]] (14강, free list) · [[extent]] · [[preallocation과 delayed allocation]] (21강)

@@ -1,0 +1,105 @@
+key: multi-level index
+title: multi-level index: direct, indirect, double indirect pointer
+category: 20강 File System Implementation
+---
+20강 p.12~17 을 따라간다. inode 는 256 B 로 크기가 정해져 있다. 그 안에 데이터 블록 번호를 몇 개나 적을 수 있을까. 몇 개를 적든 파일이 그보다 커지면 모자란다. 이 문제를 16강 [[multi-level page table]] 과 같은 방법, 표를 가리키는 표로 푼다.
+
+== 순진하게: 블록 번호를 inode 에 다 적는다 (p.12~13) ==
+{def}p.12 The Single-Level Index: "Each inode for a file contains a fixed number of direct pointers that point to 4 KB data blocks. Just by reading the inode, we easily know the locations of data for the file."{/def}
+
+[[img:L20-12.png|p.12 — inode 의 Block numbers 칸에 27, 53, 100 이 적혀 있고 각각 data region 의 그 블록을 가리킨다|large]]
+
+가장 먼저 떠오르는 방법은 inode 안에 데이터 블록 번호를 줄줄이 적는 것이다. 이런 포인터를 '''direct pointer''' 라고 한다. 위 그림에서 이 파일의 0 번째 블록은 디스크 블록 27, 1 번째는 53, 2 번째는 100 이다. inode 하나만 읽으면 데이터가 어디 있는지 다 안다.
+
+문제는 크기다. p.13 은 포인터가 13 개면 파일은 '''13 × 4 KB = 52 KB''' 까지라고 계산한다. 사진 한 장도 못 담는다. 포인터를 늘리면 inode 가 커지는데, 대부분의 파일은 작아서 그 칸은 거의 비어 있게 된다.[* OSTEP 40장은 여러 연구에서 나온 파일 크기 분포를 표로 보여 준다. "Most files are small"(대략 2 KB 가 가장 흔하다)과 "Average file size is growing"(평균 약 200 KB)이 함께 나온다. 작은 파일은 direct pointer 로 빨리, 큰 파일은 간접 포인터로 처리하는 지금의 설계가 이 분포에 맞춘 것이다.]
+
+{info}11/23 수업(25:35~30:42)에서 교수님은 "왜 포인터가 15 개(60 바이트)나 필요한가" 를 물은 뒤 page table 에 빗대 답했다. 가상 메모리가 연속이어도 물리 frame 은 아무 데나 있어서 page table 에 칸이 여러 개 필요했다. 파일도 블록 단위로 관리되고 블록이 디스크 여기저기 흩어져 있으니 매핑 표가 필요하다. 교수님 표현으로 이 칸들은 "the small page table for each file" 이다.
+다른 점은 문제의 방향이다. page table 은 표가 '''너무 커서''' 어떻게 줄일지가 문제였다. 파일은 inode 안의 표가 '''너무 작아서''' 어떻게 큰 파일을 담을지가 문제다. 그래서 답도 같은 모양, multi-level 로 간다.{/info}
+
+== 아이디어: 포인터만 담은 블록 (p.14) ==
+{def}p.14 Indirect Pointers: "Indirect pointer points to a block that contains more pointers. inode have a fixed number of direct pointers (12) and a single indirect pointer indicating another 4 KB block just for indexing. If a file grows large enough, an indirect block is allocated, inode's slot for an indirect pointer is set to point to it."{/def}
+
+[[img:L20-14.png|p.14 — inode 의 마지막 칸 72 는 데이터가 아니라 블록 72 를 가리키고, 블록 72 안에 100, 101, 102 … 가 4 B 씩 1024 개 들어 있다|large]]
+
+데이터 대신 '''블록 번호만 잔뜩''' 담은 블록을 하나 둔다. 이것이 '''indirect block''' 이고, inode 에서 그 블록을 가리키는 칸이 '''indirect pointer''' 다. 위 그림의 블록 72 가 그것이다. 블록 번호 하나가 4 B 이니 4 KB 블록에 4096 / 4 = '''1024 개'''가 들어간다.
+
+<pre class="ascii">
+ 최대 크기 = (direct 12 + indirect 1024) × 4 KB
+          = 1036 × 4 KB = '''4144 KB'''  (약 4 MB)
+</pre>
+
+indirect block 은 파일이 12 블록(48 KB)을 넘을 때 처음 할당된다. 작은 파일은 이 칸을 쓰지 않는다.
+
+== 한 번 더: double indirect (p.15~16) ==
+{def}p.15: "Double indirect pointer points to a block of indirect-block pointers. Adds 1024 × 1024 = 1,048,576 data blocks. Double-indirect capacity: 1024² × 4 KB = 4 GB. Uncached index blocks require extra disk reads."{/def}
+
+[[img:L20-15.png|p.15 — inode 칸 72 → 블록 72(85, 1038, 4027 …) → 블록 85(100, 101, 102 …) → 데이터. 같은 번호 72 가 p.14 와 다른 역할이니 주의|large]]
+
+4 MB 로도 모자라면 같은 일을 한 단계 더 한다. '''double indirect pointer''' 는 indirect block 들의 번호를 담은 블록을 가리킨다. 1024 개의 indirect block 이 각각 1024 개의 데이터 블록을 가리키니 1024 × 1024 = 1,048,576 블록, 4 KB 를 곱하면 '''4 GB''' 다.[* p.14 그림에서 72 는 indirect block 이었는데 p.15 그림에서는 72 가 double indirect block(안에 85, 1038, 4027 이 든 블록)이다. 두 그림은 서로 다른 예제다.]
+
+p.16 이 합계를 쓴다.
+<pre class="ascii">
+ (12 + 1024 + 1024²) × 4 KB
+ = (12 + 1024 + 1,048,576) × 4 KB
+ = 1,049,612 × 4 KB = 4,198,448 KB  > 4 GB
+</pre>
+
+ext2 의 [[ext2 inode|block 칸]] 은 포인터 15 개다. 12 개는 direct, 13 번째는 indirect, 14 번째는 double indirect, 15 번째는 '''triple indirect''' 다. triple 은 1024³ 블록 = 4 TB 를 더한다. 이렇게 단계가 늘어나는 구조를 '''multi-level index''' 라고 부른다. "Many file system use a multi-level index"(p.16).
+
+[[img:L20-17.png|p.17 — 한 inode 안에 direct(27), indirect(72 → 100 …), double indirect(3942 → 104 → 1034 …) 가 함께 있다|large]]
+
+위 그림이 세 종류를 한 장에 모은 것이다. 초록 화살표는 inode 에서 바로 데이터로, 빨간 화살표는 블록 72 를 한 번 거쳐서, 파란 화살표는 블록 3942 와 104 를 두 번 거쳐서 데이터 1034 에 닿는다.
+
+=== 수업에서: 왜 전부 indirect 로 하지 않나 ===
+11/23 수업(33:43~37:17)에서 교수님이 물었다. "indirect pointer 가 있는데 왜 굳이 direct 12 개를 따로 두나? 13 개를 다 indirect 로 하면 더 단순하지 않나?" 교수님이 든 이유는 둘이고 둘 다 '''작은 파일을 위한 최적화'''다.
+* 파일 대부분은 작다. 전부 indirect 면 몇 바이트짜리 파일도 indirect block 을 하나 더 할당해야 한다. direct 12 개가 있으면 48 KB 보다 작은 파일은 indirect block 이 필요 없다.
+* direct 로 가면 디스크 읽기가 하나 줄어든다. indirect 는 inode → indirect block → data 로 한 번 더 읽어야 한다.
+
+교수님은 용량 이야기에 여담도 붙였다. double indirect 까지면 4 GB 인데, 옛날 FAT 파일 시스템이 파일 하나를 4 GB 까지만 허용했다. triple indirect 를 더하면 4 TB 다. 또 큰 파일은 단계가 늘어 느려지니, 로그나 큰 데이터베이스를 일부러 여러 파일로 쪼개 두는 프로그램이 많다고 했다.[* FAT32 의 파일 크기 제한(4 GB − 1 바이트)은 FAT 의 디렉터리 엔트리에 파일 크기를 32 비트로 적기 때문이다. inode 의 double indirect 와는 구조가 다르고 숫자만 같다.]
+
+=== 수업에서: offset 에서 블록 찾기 ===
+교수님은 파일 offset 을 블록으로 바꾸는 계산이 "quite complex" 하다고 했다(40:12~42:30). offset 3000 은 4 KB 보다 작으니 첫 direct 블록이다. offset 3,000,000 이면 direct, indirect, double indirect 중 어디에 속하는지부터 따져야 한다. 포인터 종류마다 맡는 범위의 시작점을 먼저 구해야 한다. 아래 표가 그 범위다.
+
+== 대가: 단계마다 디스크 읽기 하나 ==
+p.15 아래 한 줄이 비용이다. "'''Uncached index blocks require extra disk reads.'''" 캐시가 비어 있으면 파일의 n 번째 블록을 읽는 데 필요한 디스크 읽기는 이렇다.
+{|
+! 블록 번호 n || 가리키는 곳 || 디스크 읽기 (inode 포함)
+|-
+| 0 ~ 11 || direct pointer n || inode → data = '''2'''
+|-
+| 12 ~ 1035 || indirect block 의 (n − 12) 번째 || inode → indirect → data = '''3'''
+|-
+| 1036 ~ 1036 + 1024² − 1 || double 의 ((n − 1036) / 1024) 번째 indirect, 그 안 (n − 1036) % 1024 번째 || inode → double → indirect → data = '''4'''
+|}
+
+16강 multi-level page table 과 판박이다. 단계가 늘수록 공간은 아끼고 접근은 느려진다. page table 에서 TLB 가 그 손해를 메웠듯이, 여기서는 [[caching과 buffering|메모리 캐시]] 가 메운다.
+
+{analogy}
+책 한 권의 목차가 한 쪽에 다 안 들어가면 "3부 목차는 부록 A 참고" 라고 쓴다. 부록 A 에도 다 안 들어가면 "부록 A 의 각 장 목차는 부록 B-1, B-2 … 참고" 라고 쓴다. 찾아갈 쪽수가 늘어나는 대신 목차 한 쪽의 크기는 그대로다.
+{/analogy}
+
+{mini}
+# 블록 4 KB, 포인터 4 B, direct 12 개 + indirect 1 개. 최대 파일 크기는?
+# 같은 조건에서 파일의 바이트 offset 100,000 은 몇 번째 블록이고, 어느 포인터로 찾나?
+# 블록 1500 번째(0 부터)를 읽는다. double indirect 블록 안의 몇 번째 칸, 그 indirect block 안의 몇 번째 칸인가? 캐시가 비었다면 디스크 읽기는 몇 번인가?
+# 블록 크기를 8 KB 로 바꾸면(포인터 4 B) indirect block 하나가 가리키는 데이터는 몇 바이트인가?
+# 교수님 예: offset 3,000,000 은 몇 번째 블록이고 어느 포인터로 찾나?
+{/mini}
+{answer}
+# (12 + 1024) × 4 KB = '''4144 KB'''.
+# 100000 / 4096 = 24.4 → 블록 '''24'''. 12 이상이므로 indirect block 의 24 − 12 = '''12''' 번째 칸.
+# 1500 − 1036 = 464. 464 / 1024 = '''0''' 번째 칸, 464 % 1024 = '''464''' 번째 칸. 읽기는 inode, double, indirect, data 로 '''4 번'''.
+# 8192 / 4 = 2048 개 × 8 KB = '''16 MB'''.
+# 3000000 / 4096 = 732.4 → 블록 '''732'''. 12 ≤ 732 < 1036 이므로 '''indirect''' block 의 732 − 12 = '''720''' 번째 칸.
+{/answer}
+
+== 시험 직전 체크 ==
+# direct pointer 13 개면 52 KB 까지.
+# 4 KB 블록 / 4 B 포인터 = 1024.
+# direct 12 + indirect: (12 + 1024) × 4 KB = 4144 KB.
+# double indirect: 1024² × 4 KB = 4 GB, 합계 (12 + 1024 + 1024²) × 4 KB.
+# 단계 하나마다 캐시 안 된 디스크 읽기 하나 추가.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[ext2 inode]] · [[inode 주소 계산]] · [[파일 접근 경로]]
+* [[multi-level page table]] (16강, 같은 아이디어) · [[extent]] (21강, 블록 대신 연속 구간)

@@ -1,0 +1,70 @@
+key: large-file exception
+title: large-file exception: 큰 파일은 덩어리로 나눠 흩는다
+category: 21강 Fast File System
+---
+{warn}21강 '''수업 전'''(2026-11-23) 슬라이드 기준.{/warn}
+
+21강 p.15~17 을 다룬다. [[FFS 배치 정책]] 대로 "파일은 inode 와 같은 그룹에" 를 지키면 큰 파일 하나가 문제가 된다. 이 문서는 그 예외 규칙과, 덩어리 크기를 정하는 계산(40 MB/s × 10 ms = 409.6 KB)을 다룬다. 이번 강의에서 숫자로 손 계산할 거리가 가장 분명한 곳이다.
+
+== 큰 파일 하나가 그룹을 독차지한다 (p.15) ==
+{def}p.15: General policy of file placement: A large file entirely fills the block group where it is first written. It hurts file-access locality from "related" files being placed together; other small files in the same directory should be placed in other groups. For a large file, chunks are spread across the disk. Hurt performance, but can be addressed by choosing large enough chunk size. '''Amortization''': reducing overhead by doing more work.{/def}
+
+[[img:L21-15.png|p.15 — 위: 큰 파일의 블록 0~9 가 그룹 G2 를 꽉 채운다. 아래: 두 블록씩 덩어리(chunk)로 나눠 G2~G6 에 흩는다|large]]
+
+규칙을 그대로 따르면 큰 파일은 처음 쓰인 그룹을 통째로 채운다. 위 그림 위쪽이 그 모습이다. 그러면 같은 디렉터리의 다른 작은 파일들이 들어갈 자리가 없어 다른 그룹으로 밀려난다. 정책 2 가 지키려던 locality 가 큰 파일 하나 때문에 깨진다.
+
+그래서 큰 파일에는 예외를 둔다. 일정 크기의 '''chunk''' 로 잘라 여러 그룹에 나눠 둔다(그림 아래쪽). 그러면 그룹마다 다른 파일이 들어갈 자리가 남는다. 대신 큰 파일을 처음부터 끝까지 읽을 때 chunk 사이마다 seek 가 생긴다. 이 손해를 줄이는 방법이 '''amortization''' 이다. chunk 를 충분히 크게 잡으면 seek 한 번 하고 오래 읽으니 seek 비용이 상대적으로 작아진다.
+
+== chunk 를 얼마나 크게? (p.16) ==
+[[img:L21-16.png|p.16 — 원하는 대역폭 비율(x)에 필요한 chunk 크기(y, 로그 눈금). 50% 에 409.6K, 90% 에 3.69M|large]]
+
+조건은 디스크 대역폭(peak) 40 MB/s, positioning(seek + rotation) 시간 10 ms 다. 목표는 peak 의 '''50%'''. 즉 시간의 절반은 seek, 절반은 전송에 쓰는 것이다. seek 한 번(10 ms)마다 전송도 10 ms 해야 하니, 10 ms 동안 읽는 양이 chunk 크기다.
+
+<pre class="ascii">
+ chunk = 40 MB/s × 10 ms
+       = 40 × 1024 KB/s × 0.010 s
+       = '''409.6 KB'''
+</pre>
+
+슬라이드는 단위를 지워 가며 같은 식을 쓴다. 40 MB/sec × 1024 KB/1 MB × 1 sec/1000 ms × 10 ms = 409.6 KB.
+
+목표를 '''90%''' 로 올리면 전송 시간이 seek 의 9 배여야 한다. 90 ms × 40 MB/s = 3686.4 KB ≈ '''3.6 MB''' 다. 그래프의 "90%, 3.69M" 이고 슬라이드의 "about 4 MB" 다.[* 일반식은 원하는 비율 p 에 대해 전송 시간 = 10 ms × p / (1 − p) 다. p = 0.5 면 10 ms, 0.9 면 90 ms, 0.99 면 990 ms(약 39.6 MB)다. 그래프 오른쪽 끝이 솟구치는 이유다.]
+
+== FFS 의 실제 방법: inode 구조를 따라 (p.17) ==
+{def}p.17: A simple approach based on the structure of inode. The first twelve direct blocks were placed in the same group as the inode. Each subsequent indirect block, and all the blocks it pointed to, was placed in a different block group. Every 1024 blocks (4 MB) of the file in a separate group.{/def}
+
+[[img:L21-17.png|p.17 — G1: inode 와 direct block 12 개. G2: indirect block 과 그것이 가리키는 블록들. 4 KB = 1024 × 4 B|large]]
+
+FFS 는 chunk 를 따로 계산하지 않고 20강 [[multi-level index]] 구조에 맞췄다.
+* direct block 12 개(48 KB)는 inode 와 같은 그룹. 작은 파일은 여기서 끝난다.
+* indirect block 하나와 그것이 가리키는 1024 블록(4 MB)은 다른 그룹 하나에.
+* 다음 1024 블록은 또 다른 그룹에.
+그러니 chunk 크기는 '''4 MB''' 이고, 위 계산대로라면 peak 의 90% 남짓을 낸다.[* OSTEP 은 여기에 단서를 붙인다. 디스크 대역폭은 해마다 빨리 늘지만 seek 시간은 거의 줄지 않으니, 같은 비율을 유지하려면 chunk 가 점점 커져야 한다.]
+
+{analogy}
+마트에서 장을 볼 때 매장마다 주차(seek)하고 물건 하나씩 사면 주차에 시간을 다 쓴다. 한 매장에서 많이 사면(큰 chunk) 주차 시간이 차지하는 비율이 줄어든다(amortization).
+{/analogy}
+
+{mini}
+# 대역폭 100 MB/s, positioning 10 ms 인 디스크에서 50% 를 내려면 chunk 는?
+# 대역폭 40 MB/s, positioning 10 ms 에서 75% 를 내려면 전송 시간과 chunk 는?
+# FFS 의 p.17 방식에서 1 MB 파일의 블록은 그룹 몇 개에 걸쳐 놓이나?
+# amortization 을 한 문장으로.
+{/mini}
+{answer}
+# 100 × 1024 KB/s × 0.010 s = '''1024 KB''' (1 MB).
+# 전송 = 10 × 0.75 / 0.25 = '''30 ms''', chunk = 40 × 1024 × 0.030 = '''1228.8 KB'''.
+# 1 MB = 256 블록. direct 12 블록은 inode 그룹, 나머지 244 블록은 indirect 하나가 가리키므로 다른 그룹 하나 → '''2 개'''.
+# 고정 비용(seek)이 드는 일을 할 때 한 번에 일을 많이 해서 그 비용의 비율을 줄이는 것("reducing overhead by doing more work").
+{/answer}
+
+== 시험 직전 체크 ==
+# 큰 파일이 그룹을 채우면 같은 디렉터리의 작은 파일이 밀려난다 → chunk 로 나눠 흩는다.
+# amortization: chunk 를 크게 해서 seek 비율을 줄인다.
+# 50% 목표: chunk = 대역폭 × positioning = 40 MB/s × 10 ms = 409.6 KB.
+# 90%: 전송 90 ms → 약 3.6 MB(≈ 4 MB).
+# FFS: direct 12 개는 inode 그룹, indirect 마다(1024 블록 = 4 MB) 다른 그룹.
+
+== 관련 문서 ==
+* [[Fast File System]] · [[FFS 배치 정책]] · [[cylinder group]]
+* [[multi-level index]] (20강) · [[디스크 접근 시간]] (18강, positioning time)

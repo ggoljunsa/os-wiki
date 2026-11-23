@@ -1,0 +1,70 @@
+key: inode 주소 계산
+title: inode 주소 계산: 번호 하나로 sector 찾기
+category: 20강 File System Implementation
+---
+20강 p.9 하나를 다룬다. [[vsfs 디스크 배치]] 에서 inode 를 고정 크기 배열로 늘어놓은 덕분에, inode 번호만 있으면 곱셈과 덧셈으로 디스크 위치가 나온다. 시험에서 "규칙을 주고 손으로 돌리기" 로 내기 딱 좋은 계산이다.
+
+== 계산 세 줄 (p.9) ==
+{def}p.9: "Each inode is referred to by an inode number. By an inode number, the file system calculates where an inode is on the disk."{/def}
+
+슬라이드 예제는 inode 32 번이다. 조건은 [[vsfs 디스크 배치|p.5]] 그대로다. inode 256 B, 블록 4 KB, sector 512 B, inode table 은 블록 3 에서 시작하니 시작 주소는 3 × 4096 = 12288 이다.
+
+<pre class="ascii">
+ ① inodeRegion = 32 × 256          = '''8192'''      inode table 안에서 몇 바이트째인가
+ ② addr        = 12288 + 8192      = '''20480'''     = 20 KB, 디스크 맨 앞에서 몇 바이트째인가
+ ③ sector      = 20480 / 512       = '''40'''        디스크는 sector 단위로 읽는다
+</pre>
+
+③ 이 필요한 이유는 디스크가 바이트 주소로 읽기를 받지 않기 때문이다. 18강에서 본 대로 디스크는 sector(512 B) 단위로 읽고 쓴다. 그래서 OS 는 sector 40 을 통째로 읽은 뒤 그 안에서 앞쪽 256 B 를 꺼낸다.[* sector 하나에는 inode 가 512 / 256 = 2 개 들어 있다. sector 40 에는 inode 32 와 33 이 같이 있다. 실제 파일 시스템은 sector 하나가 아니라 4 KB 블록 단위로 읽는 경우가 많아서, 블록 5(= 20480 / 4096) 를 읽으면 inode 32~47 이 한꺼번에 메모리로 올라온다.]
+
+[[img:L20-09.png|p.9 — inode 32 는 iblock 2 의 첫 칸(20KB 지점). 아래 화살표의 Sector(512B) 는 inode 두 개 크기|large]]
+
+위 그림에서 inode table 의 블록 다섯 개를 iblock 0~4 라고 부른다. 각 iblock 은 4 × 4 칸, 즉 inode 16 개다. 32 번은 32 / 16 = 2 이므로 iblock 2 의 0 번째 칸이고, iblock 2 는 12 KB + 2 × 4 KB = 20 KB 에서 시작한다. ② 의 답과 같다.
+
+[[sim:inode_addr]]
+
+시뮬레이터에서 inode 번호를 바꿔 가며 같은 세 줄을 따라가 보라. 0 번은 12 KB, 79 번은 31.75 KB 로 inode table 의 끝이다.
+
+{mini}
+# 같은 vsfs 에서 inode 17 의 inodeRegion, addr, sector 를 구하라.
+# inode 17 은 iblock 몇 번, 그 안의 몇 번째 칸인가?
+# inode 크기만 128 B 로 바꾸면 inode 32 의 sector 는?
+{/mini}
+{answer}
+# 17 × 256 = '''4352''', 12288 + 4352 = '''16640''', 16640 / 512 = '''32.5''' → sector '''32''' (sector 32 의 뒤쪽 절반). sector 번호는 나눗셈의 몫이다.
+# 17 / 16 = 1, 17 % 16 = 1 → iblock '''1''', '''1''' 번째 칸(0 부터 셀 때).
+# 32 × 128 = 4096, 12288 + 4096 = 16384, 16384 / 512 = '''32'''.
+{/answer}
+
+== 일반 공식 ==
+p.9 의 세 줄을 OSTEP 은 블록 번호와 sector 번호로 나눠 쓴다.
+<pre class="ascii">
+ blk    = (inumber × sizeof(inode_t)) / blockSize
+ sector = ((blk × blockSize) + inodeStartAddr) / sectorSize
+</pre>
+첫 줄은 inode table 안에서 몇 번째 블록인지, 둘째 줄은 그 블록이 시작하는 sector 다. p.9 처럼 바이트 주소를 먼저 구해서 512 로 나누는 방법과 답이 같다. 시험에서는 p.9 순서(inodeRegion → addr → sector)로 쓰는 것이 슬라이드와 맞는다.
+
+{analogy}
+학번이 순서대로 붙은 사물함과 같다. 사물함 하나의 폭(256 B)과 첫 사물함의 위치(12 KB)만 알면, 32 번 사물함이 복도 어디쯤인지 걸어가 보지 않고도 계산할 수 있다.
+{/analogy}
+
+== 교수님이 보여 준 다른 셈법: sector 를 바로 센다 ==
+11/23 수업(18:43~22:18)에서 교수님은 p.9 의 세 줄을 풀어 준 뒤 "더 간단한 방법" 을 하나 보여 줬다. 바이트 주소를 거치지 않고 sector 수를 바로 더하는 것이다.
+<pre class="ascii">
+ inode table 앞의 sector 수 = 블록 3 개 × 8 sector = '''24'''
+ inode 32 앞의 sector 수     = 32 / 2 (sector 하나에 inode 2 개) = '''16'''
+ sector = 24 + 16 = '''40'''
+</pre>
+교수님 말로는 "it is much straightforward than computing bytes offset". 다만 이 방법은 inode 크기가 sector 를 딱 나눠떨어지게 할 때만 깔끔하다. 처음에 교수님도 "until the 12 kilobytes, there is the 96 … I'm not sure the computation is right" 라며 한 번 헷갈렸다가 "eight sectors in a single block, and there is three blocks" 로 24 를 다시 셌다. 시험에서는 두 방법으로 한 번씩 풀어 답이 같은지 맞춰 보면 좋다.
+
+{exam}11/23 수업에서 교수님이 p.9 를 숫자 하나씩(8192 → 12288 → 20 KB → 40) 따라 읽고, sector 를 바로 세는 방법까지 따로 설명했다. "규칙을 주고 손으로 돌리기" 형식에 그대로 맞는 계산이다.{/exam}
+
+== 시험 직전 체크 ==
+# inodeRegion = inum × sizeof(inode).
+# addr = inodeStartAddr + inodeRegion. vsfs: inodeStartAddr = 12288 (블록 3).
+# sector = addr / 512. inode 32 → 8192 → 20480(20 KB) → '''40'''.
+# 블록당 inode 16 개, sector 당 2 개.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[vsfs 디스크 배치]] · [[ext2 inode]] · [[multi-level index]]
+* [[inode]] (19강) · [[디스크 접근 시간]] (18강, sector)

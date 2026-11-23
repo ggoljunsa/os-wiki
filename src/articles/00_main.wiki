@@ -14,6 +14,8 @@ category: 안내
 # [[스와핑]] (17강, 11/9·11/11): page fault, 교체 정책
 # [[I/O 장치]] (18강, 11/11·11/16): polling·DMA, 디스크 접근 시간, 디스크 스케줄링, RAID
 # [[파일과 디렉터리]] (19강, 11/18): inode, 디렉터리, file descriptor·offset, rename, hard link·symbolic link
+# [[파일 시스템 구현]] (20강, 11/23): vsfs 배치, inode 주소 계산, multi-level index, open·read·write 의 I/O 수, cache·buffer
+# [[Fast File System]] (21강, 수업 전): cylinder group, 배치 정책, large-file exception, ext4 extent
 
 === 강의별 메인 문서 ===
 {|
@@ -33,6 +35,10 @@ category: 안내
 |-
 | 19강 File and Directory || [[파일과 디렉터리]] || [[inode]], [[디렉터리]], [[권한 비트]], [[file descriptor]], [[파일 offset과 lseek]], [[hard link]], [[symbolic link]] || `link_count_trace` · `fd_offset_trace`
 |-
+| 20강 File System Implementation || [[파일 시스템 구현]] || [[vsfs 디스크 배치]], [[inode 주소 계산]], [[multi-level index]], [[디렉터리 구성]], [[파일 접근 경로]], [[caching과 buffering]] || `inode_addr` · `fs_access_path`
+|-
+| 21강 Fast File System (수업 전) || [[Fast File System]] || [[cylinder group]], [[FFS 배치 정책]], [[large-file exception]], [[extent]], [[preallocation과 delayed allocation]] || -
+|-
 | 과제2 || [[과제2 xv6 lock]] || kalloc per-CPU free list, bcache 해시 버킷 || `kalloc_steal` · `bget_trace`
 |-
 | 과제3 || [[과제3 xv6 cow]] || COW fork, reference count, superpage (마감 12/1) || `cow_fork_trace` · `megapage_walk`
@@ -41,7 +47,7 @@ category: 안내
 === 기말 시험 대비 ===
 * 기말 날짜·범위·형식은 아직 공지되지 않았다(2026-11-23 기준). 11/11 수업 공지로는 학기 전체 lab 3개·퀴즈 3개이고 '''기말 전 주가 퀴즈 주간'''이다. 자세한 것은 [[시험 정보]].
 * 중간고사 실제 형식([[2026F 중간고사]])은 객관식 + full-term 용어 + "규칙을 주고 손으로 돌리기"였다. 시스템 프로그래밍 내용(fork/exec 사용법)은 나오지 않았다.
-* 손 계산 후보: [[base and bounds]]·[[세그먼트 주소 변환]]·[[VPN과 offset|페이지 주소 변환]], [[다단계 주소 변환 계산]], [[effective access time]], [[페이지 교체 정책]] trace, [[디스크 접근 시간]], [[디스크 스케줄링]] 이동 거리, [[RAID]] 용량·신뢰도, [[hard link]] link count, [[권한 비트]] 8진수.
+* 손 계산 후보: [[base and bounds]]·[[세그먼트 주소 변환]]·[[VPN과 offset|페이지 주소 변환]], [[다단계 주소 변환 계산]], [[effective access time]], [[페이지 교체 정책]] trace, [[디스크 접근 시간]], [[디스크 스케줄링]] 이동 거리, [[RAID]] 용량·신뢰도, [[hard link]] link count, [[권한 비트]] 8진수, [[inode 주소 계산]], [[multi-level index]] 최대 크기·offset → 블록, [[파일 접근 경로]] I/O 수, [[large-file exception]] chunk 크기.
 * 과제 퀴즈 대비: [[과제2 퀴즈 대비]] · [[과제2 퀴즈 모의]] · [[과제3 퀴즈 대비]] · [[과제3 함정과 디버깅]]
 
 == 중간고사 범위 (1~12강) ==
@@ -155,6 +161,8 @@ category: 안내
 | 디스크 스케줄링 · I/O 타임라인 (기말 18강) || [[디스크 스케줄링]], [[SCAN]], [[polling과 interrupt]], [[PIO와 DMA]] || FCFS·SSTF·SCAN·C-SCAN 헤드 이동 거리, polling/interrupt/DMA 때 CPU 가 노는 구간
 |-
 | link count · fd offset (기말 19강) || [[hard link]], [[symbolic link]], [[file descriptor]], [[파일 offset과 lseek]] || ln·rm 마다 Links 수, open·read·lseek 마다 fd 번호와 current offset
+|-
+| inode 주소 · 파일 접근 I/O (기말 20강) || [[inode 주소 계산]], [[파일 접근 경로]] || inode 번호 → inodeRegion → addr → sector, open/read 14 번·create/write 25 번 디스크 I/O 를 한 칸씩
 |-
 | 과제2·과제3 || [[per-CPU free list]], [[bcache 해시 버킷]], [[COW fork]], [[superpage]] || kalloc steal, bget, COW fork 와 page fault, megapage walk
 |}

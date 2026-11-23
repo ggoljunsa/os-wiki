@@ -1,0 +1,88 @@
+key: Fast File System
+title: Fast File System (21강)
+category: 21강 Fast File System, 핵심
+---
+{warn}21강 슬라이드 `21-Fast_File_System.pdf`(25쪽)만 보고 '''수업 전'''(2026-11-23)에 썼다. 11/23 수업은 20강 끝(p.25)에서 멈췄으니 21강은 다음 수업이다. 녹음이 오면 아래에 "실제 수업 기록" 절을 붙인다. 교재는 [[OSTEP]] 41장 "Locality and The Fast File System" 이다.{/warn}
+
+[[파일 시스템 구현|20강]] 의 vsfs 는 옛 Unix 파일 시스템과 같은 모양이다. 단순하고 잘 돌아가지만 '''느렸다'''. 21강은 왜 느렸는지, 그리고 UC Berkeley 의 '''FFS(Fast File System)''' 가 같은 API 를 그대로 두고 디스크 안 배치만 바꿔서 어떻게 빠르게 만들었는지 본다. 뒤쪽 p.18~23 은 SSD 에서도 이게 의미가 있는지, 그리고 요즘 리눅스의 ext4 가 더한 기능(extent, preallocation, delayed allocation)이다.
+
+== 슬라이드 ↔ 문서 ==
+{|
+! 슬라이드 || 내용 || 문서
+|-
+| p.2~5 || 옛 Unix FS 의 문제 두 가지, "disk aware" || 이 문서
+|-
+| p.6~8 || cylinder group(block group), 그룹마다 superblock 사본 || [[cylinder group]]
+|-
+| p.9~14 || 디렉터리·파일 배치 정책, SEER trace || [[FFS 배치 정책]]
+|-
+| p.15~17 || large-file exception, chunk 크기 409.6 KB 계산 || [[large-file exception]]
+|-
+| p.18~21 || SSD 에서는?, ext4, extent || [[extent]]
+|-
+| p.22~23 || preallocation(fallocate), delayed block allocation || [[preallocation과 delayed allocation]]
+|}
+
+== 옛 Unix 파일 시스템: 단순하지만 느리다 (p.2) ==
+{def}p.2 Old Unix File System. The good thing: Simple and supports the basic file/directory abstraction. Easy to implement file systems. The problem: '''Terrible performance'''.{/def}
+
+[[img:L21-02.png|p.2 — Super Block · Inode Bmap · Data Bmap · inodes · Data. 20강 vsfs 와 같은 모양이다|large]]
+
+위 그림은 20강 p.8 의 vsfs 와 같다. 메타데이터를 디스크 앞쪽에 몰고 나머지를 데이터로 쓴다. OSTEP 에 따르면 이 파일 시스템은 디스크 대역폭의 '''2%''' 밖에 쓰지 못했다.[* OSTEP 41장 첫머리의 표현이다. "performance was so bad that ... delivered only 2% of overall disk bandwidth". 슬라이드는 "Terrible performance" 라고만 쓴다.]
+
+== 문제 1: 디스크를 메모리처럼 다뤘다 (p.3) ==
+{def}p.3: "Unix file system treated the disk as a random-access memory." Problem 1: high positioning costs. Data was spread all over the place without regard to the fact that the medium holding the data was a disk. A disk had real and expensive positioning costs. Example: the data blocks of a file were often very far away from its inode, inducing an expensive seek whenever one first reads the inode and then the data blocks of a file.{/def}
+
+메모리는 어느 주소든 접근 시간이 같다. 디스크는 아니다. 18강 [[디스크 접근 시간]] 에서 본 대로 head 를 옮기는 seek 와 원판이 도는 rotation 에 ms 가 든다. 옛 파일 시스템은 이 차이를 무시했다. inode 는 디스크 앞쪽 inode table 에, 그 파일의 데이터는 어딘가 먼 data region 에 있다. 20강 [[파일 접근 경로]] 에서 read() 는 inode 를 읽고 바로 데이터를 읽었다. 둘이 멀리 떨어져 있으니 read() 마다 긴 seek 가 끼어든다.
+
+== 문제 2: 조각난 빈 공간 (p.4) ==
+[[img:L21-04.png|p.4 — A1 A2 B1 B2 C1 C2 D1 D2 에서 B, D 를 지운 뒤 E(4 블록)를 만들면 E1 E2 와 E3 E4 가 떨어져 놓인다|large]]
+
+위 그림의 첫 줄은 파일 A~D 가 두 블록씩 나란히 있는 상태다. B 와 D 를 지우면 빈칸이 두 군데 생긴다. 여기에 네 블록짜리 E 를 만들면 빈 블록을 앞에서부터 쓰니 E1 E2 는 B 자리에, E3 E4 는 D 자리에 들어간다. E 를 처음부터 끝까지 읽으려면 디스크를 왔다 갔다 해야 한다.[* p.4 의 마지막 문장 "because they are contiguous" 는 반대다. E 의 블록들이 '''연속이 아니기(not contiguous)''' 때문에 왔다 갔다 한다. OSTEP 원문도 "E's blocks are not contiguous" 다.] 이것이 디스크 위의 [[external fragmentation]] 이다. 14강에서 메모리 segment 를 두고 본 문제가 파일 시스템에서도 나온다.
+
+== FFS: disk aware 하게 (p.5) ==
+{def}p.5: "FFS is Fast File System designed by a group at UC Berkeley. The design of FFS is that file system structures and allocation policies should be '''disk aware''' to improve performance. Keep same API with file system (open(), read(), write(), etc). Changing the internal implementation."{/def}
+
+FFS 의 생각은 "자료구조와 할당 정책이 디스크를 알아야 한다" 는 것이다. 프로그램이 보는 `open`, `read`, `write` 는 그대로 두고 안쪽 배치만 바꾼다. 바꾼 내용은 셋이다.
+* 디스크를 여러 '''그룹'''으로 나누고 그룹마다 작은 vsfs 를 하나씩 둔다 → [[cylinder group]]
+* 서로 관련 있는 것(inode 와 그 데이터, 같은 디렉터리의 파일)을 같은 그룹에 둔다 → [[FFS 배치 정책]]
+* 큰 파일 하나가 그룹을 독차지하지 않게 덩어리로 나눠 흩뜨린다 → [[large-file exception]]
+
+{analogy}
+창고 한 곳에 재고 장부(inode)는 입구에, 물건(데이터)은 창고 끝 아무 선반에 두면 물건 하나 꺼낼 때마다 창고를 가로지른다. FFS 는 창고를 구역으로 나누고, 구역마다 장부와 선반을 같이 둔다. 같은 주문에 들어갈 물건은 같은 구역에 둔다.
+{/analogy}
+
+{mini}
+# 옛 Unix 파일 시스템의 두 문제를 각각 한 단어로(슬라이드 표현).
+# FFS 는 프로그램이 쓰는 API 를 바꿨나?
+# p.4 에서 B 와 D 를 지운 뒤 2 블록짜리 F 를 만들면 E 와 달리 연속으로 놓일 수 있나?
+{/mini}
+{answer}
+# ① high '''positioning''' costs(데이터가 inode 와 멀리) ② '''fragmentation'''(빈 공간이 조각남).
+# '''아니다.''' "Keep same API", 내부 구현만 바꿨다.
+# '''있다.''' B 자리(두 칸) 하나에 다 들어간다.
+{/answer}
+
+== SSD 에서도 의미가 있나 (p.18) ==
+{def}p.18 Is this useful for SSDs? No seek time in SSD. FTL changes the physical block mapping. Question: Does locality helps serving the requests on SSDs? Readahead cache. Additional chance for sequential writes.{/def}
+
+FFS 의 모든 아이디어는 seek 를 줄이는 것이었다. SSD 에는 seek 가 없고, 안쪽의 FTL(flash translation layer)이 논리 블록을 실제 위치에 마음대로 다시 매핑한다. 그러면 locality 가 소용없을까? 슬라이드는 질문을 던지고 실마리 두 개만 적는다. '''readahead cache'''(이어진 블록을 미리 읽어 두기)와 '''sequential write''' 의 기회다. 수업에서 교수님 답이 나오면 여기 채운다.[* 18강 수업(11/16)에서 교수님은 SSD 를 "학기 말에 시간이 나면" 다룬다고 했다.]
+
+== 시험에 나온다면 ==
+{info}수업 전이라 교수 강조는 아직 없다. 중간고사 형식(객관식 + full-term 용어 + 손 계산)에 맞춰 보면 이렇다.
+* 손 계산: [[large-file exception]] 의 chunk 크기(40 MB/s × 10 ms = 409.6 KB), [[FFS 배치 정책]] 의 그룹 배치 그리기, [[extent]] 의 최대 크기(2^15 × 4 KB = 128 MB).
+* 용어: cylinder group(block group), disk aware, large-file exception, amortization, extent, preallocation, delayed allocation.
+* 객관식: 디렉터리는 디렉터리 수가 적고 free inode 가 많은 그룹에, 파일은 자기 디렉터리 그룹에. SEER 관찰 수치(7%, 40%, 65%).
+{/info}
+
+== 시험 직전 체크 ==
+# 옛 Unix FS: 단순하지만 대역폭의 2%. 원인은 positioning cost 와 fragmentation.
+# FFS = disk aware. API 그대로, 내부 배치만 바꿈.
+# cylinder group 마다 superblock 사본 + bitmap 두 개 + inode + data.
+# "keep related stuff together": 디렉터리는 고르게 흩고, 파일은 디렉터리 옆에.
+# 큰 파일은 4 MB 덩어리로 그룹을 옮겨 가며(amortization).
+# ext4: journaling, extent, preallocation, delayed allocation.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] (20강, 출발점) · [[cylinder group]] · [[FFS 배치 정책]] · [[large-file exception]] · [[extent]] · [[preallocation과 delayed allocation]]
+* [[디스크 접근 시간]] · [[HDD 구조]] (18강) · [[external fragmentation]] (14강) · [[기말고사]]

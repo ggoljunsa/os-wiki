@@ -1,0 +1,66 @@
+key: caching과 buffering
+title: caching과 buffering: 메모리로 디스크 I/O 줄이기
+category: 20강 File System Implementation
+---
+20강 p.24~25 를 다룬다. [[파일 접근 경로]] 에서 `open` 하나에 5 번, 파일 만들고 세 블록 쓰는 데 25 번의 디스크 I/O 를 셌다. 18강에서 본 대로 디스크 접근은 ms 단위라 이대로는 너무 느리다. 해결책은 17강 [[스와핑]] 과 반대 방향의 일, '''디스크 내용을 메모리(DRAM)에 붙잡아 두는 것'''이다.
+
+== 읽기: caching (p.24) ==
+{def}p.24: "Reading and writing files are expensive, incurring many I/Os. For example, long pathname (/1/2/3/…/100/file.txt): One to read the inode of the directory and at least one read its data. May perform hundreds of reads just to open the file. In order to reduce I/O traffic, file systems aggressively use system memory (DRAM) to cache. Early file system use fixed-size cache to hold popular blocks; static partitioning of memory can be wasteful. Modern systems use dynamic partitioning approach, unified page cache. Read I/O can be avoided by large cache."{/def}
+
+슬라이드의 극단적인 예부터 세어 보자. `/1/2/3/…/100/file.txt` 는 root 와 디렉터리 100 개를 지난다. 디렉터리마다 inode 와 data 를 하나씩 읽으니 101 × 2 = 202 번, 마지막에 file.txt 의 inode 1 번. '''203 번'''을 읽어야 겨우 open 이 끝난다.
+
+교수님은 11/23 수업(61:25~62:55)에서 이게 극단적인 예만은 아니라고 했다. 실제 프로그램 중에는 파일을 이름 앞글자로 나눠 a~z 하위 디렉터리를 만들고, 그 아래 다시 a~z 를 만드는 식으로 깊게 쌓는 경우가 흔하다. 그래서 이 경로 탐색을 최적화해야 한다.[* git 의 `.git/objects/` 가 해시 앞 두 글자로 하위 디렉터리를 나누는 것이 이런 구조의 예다. 교수님은 특정 프로그램 이름을 들지 않았다.]
+
+방법은 한 번 읽은 inode 와 블록을 메모리에 두고 다시 쓰는 것이다. 두 번째로 같은 경로를 열면 디스크에 갈 필요가 없다. 메모리를 얼마나 캐시에 줄지는 두 가지 방식이 있다.
+* '''static partitioning''': 옛 파일 시스템은 메모리의 고정 비율(예: 10%)을 파일 캐시로 떼어 두었다. 파일을 별로 안 쓰는 때에도 그 메모리는 놀고 있다.
+* '''dynamic partitioning''': 요즘 시스템은 필요에 따라 캐시 크기를 늘렸다 줄였다 한다. 그 대표가 '''unified page cache''' 다. 가상 메모리의 page 와 파일 블록을 한 캐시에서 같이 관리한다.
+
+교수님 설명으로는 unified page cache 가 "unifies the disk cache and the swapping" 이다. 디스크 데이터를 메모리로 올리는 일(파일 캐시)과 메모리 내용을 디스크로 내리는 일(17강 swap)을 한 곳에서 한다. 그리고 여담을 붙였다. Mac 의 메모리 사용량을 보면 빈 공간이 거의 없는데, OS 가 남는 메모리를 page cache 로 써서 자주 쓰는 디스크 블록을 미리 올려 두기 때문이다.[* 리눅스에서는 `free` 명령의 buff/cache 열이 이 몫이다. 프로그램이 메모리를 더 달라고 하면 OS 는 이 캐시를 먼저 내준다. 그래서 "빈 메모리가 적다" 가 곧 "메모리가 모자라다" 는 뜻은 아니다.]
+
+== 쓰기: buffering (p.25) ==
+{def}p.25: "Persistent updates must reach storage, but buffering can merge writes and reduce I/O. File system use write buffering for write performance benefits: Delaying writes (file system batch some updates into a smaller set of I/Os). By buffering a number of writes in memory, the file system can then schedule the subsequent I/Os. Use fsync() for durability. Direct I/O alone does not guarantee it. close() does not guarantee the flush!"{/def}
+
+쓰기는 읽기와 사정이 다르다. 결국 디스크에 닿아야 영구적이다. 그래도 바로 쓰지 않고 메모리에 잠깐 모아 두면(write buffering) 이득이 셋 있다.
+* '''여러 번 쓴 것을 한 번으로 합친다.''' 교수님 예는 보고서 작성이다. 문장을 쓰고 저장하고, 또 쓰고 저장하고, 사진을 넣고 또 저장한다. 같은 블록을 짧은 시간에 몇 번이고 고친다. 모아 두면 마지막 사본만 쓰면 된다.
+* '''순서를 정리해서 한꺼번에 보낸다.''' 이어진 블록 여러 개를 명령 하나로 쓸 수 있다. 디스크는 random 접근이 sequential 보다 훨씬 느리니 이 효과가 크다.
+* '''아예 안 써도 되는 쓰기를 건너뛴다.''' 금방 만들었다 지운 임시 파일은 디스크에 갈 필요가 없다.[* 세 번째는 슬라이드에는 없고 OSTEP 40장에 있는 이점이다. 21강 [[preallocation과 delayed allocation|delayed allocation]] 의 "avoids unnecessary block allocation for short-lived files" 와 같은 이야기다.]
+
+대가는 '''내구성(durability)'''이다. 메모리에 모아 두는 동안 전원이 나가면 그 내용은 사라진다. 교수님 말로는 "write itself does not guarantee to be written in the persistent storage". 그래서 확실히 디스크에 남겨야 하는 데이터는 `fsync()` 를 부른다.
+
+슬라이드 마지막 줄 둘은 시험에 나오기 좋은 함정이다.
+* "Direct I/O alone does not guarantee it." 캐시를 우회하는 direct I/O 를 써도 그것만으로 영구 저장이 보장되지는 않는다.
+* "'''close() does not guarantee the flush!'''" 파일을 닫아도 버퍼 내용이 디스크에 갔다는 보장은 없다. 교수님도 수업 마지막에 "close does not guarantee the flush, … fsync the file to guarantee" 라고 강조하고 수업을 끝냈다.
+
+19강 [[rename과 atomic update]] 의 "tmp 에 쓰고 → '''fsync''' → close → rename" 순서에서 fsync 가 빠지면 안 되는 이유가 여기 있다.
+
+{analogy}
+택배 기사가 물건을 하나 받을 때마다 출발하지 않고, 트럭에 모아 동네별로 묶어서 한 번에 돈다(buffering). 빨리 받아야 하는 물건은 "지금 바로 보내 주세요" 라고 따로 말해야 한다(fsync). 창구에서 영수증을 받았다고(close) 물건이 이미 출발한 것은 아니다.
+{/analogy}
+
+{mini}
+# 캐시가 비어 있을 때 `/1/2/…/100/file.txt` 를 open 하면 디스크 읽기가 몇 번인가? (디렉터리 내용은 각각 블록 하나)
+# 같은 파일을 바로 다시 open 하면, 캐시가 충분히 크다고 할 때 디스크 읽기는?
+# "write() 가 성공을 돌려줬으면 데이터는 디스크에 있다." 옳은가?
+# "close() 를 하면 버퍼가 디스크로 flush 된다." 옳은가? 확실히 디스크에 쓰려면?
+# static partitioning 의 단점을 한 문장으로.
+{/mini}
+{answer}
+# (root + 100) × 2 + 1 = '''203 번'''.
+# '''0 번'''. 필요한 inode 와 디렉터리 블록이 모두 메모리에 있다.
+# '''틀렸다.''' 메모리 버퍼에만 있을 수 있다.
+# '''틀렸다.''' close 는 flush 를 보장하지 않는다. '''fsync()''' 를 불러야 한다.
+# 고정 크기로 떼어 둔 캐시 메모리는 파일을 덜 쓸 때도 다른 용도로 못 써서 낭비된다.
+{/answer}
+
+{exam}11/23 수업 마지막 문장이 "close does not guarantee the flush … fsync the file to guarantee" 였다. 슬라이드에도 느낌표까지 붙어 있다. 객관식 함정으로 나오기 좋다.{/exam}
+
+== 시험 직전 체크 ==
+# 긴 경로 open = 디렉터리마다 inode + data. `/1/…/100/file.txt` → 203 번.
+# caching: 읽기 I/O 를 줄인다. static partitioning(고정) → dynamic partitioning, unified page cache.
+# buffering: 쓰기를 모아 합치고(같은 블록 여러 번 → 한 번), 순서를 정리하고, 불필요한 쓰기를 건너뛴다.
+# 대가: 전원이 나가면 사라진다. durability 는 '''fsync()'''.
+# close() 와 direct I/O 만으로는 flush 보장 없음.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[파일 접근 경로]] · [[rename과 atomic update]] (19강, fsync)
+* [[스와핑]] (17강, unified page cache 의 다른 절반) · [[buffer cache]] (과제2, xv6 의 블록 캐시)

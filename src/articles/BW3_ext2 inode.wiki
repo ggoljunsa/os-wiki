@@ -1,0 +1,65 @@
+key: ext2 inode
+title: ext2 inode: 256 바이트 안에 무엇이 들어 있나
+category: 20강 File System Implementation
+---
+20강 p.10~11 을 다룬다. [[inode 주소 계산]] 으로 inode 를 찾았으면, 그 안에 무엇이 있는지 볼 차례다. 19강 [[inode]] 문서에서 `stat` 으로 본 값들이 실제로 디스크 위 어느 칸에 있는지가 이 표다.
+
+== inode 가 담는 것 (p.10) ==
+{def}p.10: "inode stores file information (metadata)": File type (regular file, directory, and so on) · File size · Index of data blocks allocated to it (location of data blocks belonging to a file) · Protection information (who owns the file, who can access) · Time information (access time, modification time, and status-change time).{/def}
+
+19강 11/18 수업에서 교수님이 "파일 쪽 자료구조에 무엇이 들어가야 하나" 를 따지며 꼽은 세 가지(블록 위치, 크기, 관리 정보)가 그대로 나온다. 여기에 종류와 시간이 더해졌다. '''이름은 없다.''' 이름은 디렉터리 엔트리에 있다([[디렉터리 구성]]).
+
+{info}11/23 수업에서 교수님이 "file type 을 하나라도 말해 보라" 고 물었다. 학생이 link 라고 하자 이렇게 정리했다. hard link 는 그냥 일반 파일이라 따로 된 종류가 아니다. '''soft link(symbolic link)''' 는 종류가 맞다. 그 밖에 pipe, socket 도 파일 종류다. mode 에 대해서도 종류마다 할 수 있는 일이 다르다고 했다. 예를 들어 socket 은 읽고 쓸 수는 있지만 실행할 수는 없다.{/info}
+
+== ext2 의 실제 칸 (p.11) ==
+[[img:L20-11.png|p.11 — The EXT2 Inode. 왼쪽 숫자가 바이트 크기. 60 바이트짜리 block 칸이 데이터 블록 포인터 15 개다|large]]
+
+위 표에서 시험에 쓸 만한 칸만 골라 읽으면 이렇다.
+{|
+! 크기 || 이름 || 뜻 || 19강에서 본 곳
+|-
+| 2 || mode || 읽기·쓰기·실행 권한과 파일 종류 || [[권한 비트]], `st_mode`
+|-
+| 2 || uid / gid || 소유자, 그룹 || `stat` 의 Uid, Gid
+|-
+| 4 || size || 파일 크기(바이트) || `stat` 의 Size
+|-
+| 4 || atime / mtime / ctime || 마지막 접근 / 내용 수정 / inode 변경 시각 || Access, Modify, Change
+|-
+| 4 || dtime || inode 가 삭제된 시각 || 없음
+|-
+| 2 || links_count || hard link 수 || [[hard link]] 의 Links
+|-
+| 4 || blocks || 할당된 '''512 바이트 단위''' 개수 || `stat` 의 Blocks: 8
+|-
+| 60 || block || 디스크 포인터 '''15 개''' (4 B × 15) || [[multi-level index]]
+|}
+
+`blocks` 가 512 바이트 단위라는 것이 19강 p.26 의 수수께끼를 푼다. 6 바이트짜리 파일인데 `Blocks: 8` 이었다. 4 KB 블록 하나를 받았고 4096 / 512 = 8 이다.[* 크기 칸이 4 바이트(32 비트)라 이것만으로는 파일이 4 GB 를 넘지 못한다. 그래서 표 아래쪽 `dir_acl` 칸 설명이 "high file-size bits for regular files" 다. 큰 파일이면 이 칸이 크기의 위쪽 32 비트 노릇을 한다.]
+
+교수님은 이 표에서 "some information we should focus on is that there is very limited number of block pointers" 라고 짚었다. 데이터가 어디 있는지는 `block` 칸 60 바이트에만 적혀 있다. 포인터 15 개 중 12 개는 데이터 블록을 바로 가리키고, 나머지 3 개는 포인터가 든 블록을 가리킨다. 이 구조가 다음 문서 [[multi-level index]] 다.
+
+{analogy}
+도서관 대출 카드에 책 제목은 없고, 분류 번호(mode), 대출자(uid), 쪽수(size), 마지막 대출일(atime), 그리고 "1권은 3층 A 서가, 2권은 5층 C 서가" 같은 위치 목록(block)만 적혀 있는 셈이다. 제목은 서가 안내판(디렉터리)에 있다.
+{/analogy}
+
+{mini}
+# 4 KB 블록 3 개를 받은 파일의 ext2 `blocks` 값은?
+# inode 에 '''없는''' 것을 고르라: ① 파일 크기 ② 파일 이름 ③ link 수 ④ 데이터 블록 위치 ⑤ 소유자
+# `chmod` 로 권한만 바꾸면 atime, mtime, ctime 중 무엇이 바뀌나?
+{/mini}
+{answer}
+# 3 × 4096 / 512 = '''24'''.
+# '''② 파일 이름'''. 이름은 디렉터리 엔트리에 있다.
+# '''ctime'''. mode 칸(메타데이터)이 바뀌었기 때문이다. 내용은 그대로라 mtime 은 안 바뀐다.
+{/answer}
+
+== 시험 직전 체크 ==
+# inode = 종류, 크기, 데이터 블록 위치, 권한·소유자, 시간 셋. 이름은 없다.
+# ext2 inode 의 block 칸 = 포인터 15 개 × 4 B = 60 B.
+# blocks 는 512 B 단위 (4 KB 블록 1 개 = 8).
+# links_count = hard link 수, 0 이 되면 해제.
+
+== 관련 문서 ==
+* [[파일 시스템 구현]] · [[inode 주소 계산]] · [[multi-level index]]
+* [[inode]] · [[hard link]] · [[권한 비트]] (19강)

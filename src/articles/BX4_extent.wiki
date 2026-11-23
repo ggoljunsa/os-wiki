@@ -1,0 +1,53 @@
+key: extent
+title: extent: 블록 하나하나 대신 연속 구간 하나
+category: 21강 Fast File System
+---
+{warn}21강 '''수업 전'''(2026-11-23) 슬라이드 기준. 11/23 수업(20강)에서 교수님이 "가변 크기 블록을 추적하는 것을 실제 파일 시스템에서는 extents 라고 부르고, 아마 다음 강의에서" 라고 예고했다.{/warn}
+
+21강 p.19~21 을 다룬다. FFS 이후 리눅스의 ext 계열은 계속 발전했고, ext4 가 더한 기능 중 하나가 '''extent''' 다. 20강 [[multi-level index]] 가 블록 번호를 하나씩 적었다면, extent 는 "몇 번부터 몇 개" 로 연속 구간을 통째로 적는다.
+
+== ext4 가 더한 것 (p.19) ==
+{def}p.19 Modern File Systems: Ext4. Journaling (Will be covered) · Extent (Scalable than simple indirect blocks) · Preallocation · Delayed block allocation.{/def}
+
+넷 가운데 journaling 은 "Will be covered" 라 따로 다룬다. 11/23 수업에서 교수님이 "파일 시스템 consistency 는 다음 주 월요일이나 수요일에" 라고 한 것이 이것으로 보인다([[파일 접근 경로]] 의 "왜 inode 를 마지막에 쓰나"). 나머지 셋 중 extent 를 이 문서에서, preallocation 과 delayed allocation 을 [[preallocation과 delayed allocation]] 에서 본다.
+
+== extent 란 (p.20) ==
+{def}p.20: Instead of representing each block, represent contiguous chunks of blocks with an extent. More efficient for large files. Ex: Disk blocks 50–300 represent blocks 0–250 of file. vs: Allocate and initialize 250 slots in an indirect block. Deletion requires marking 250 slots as free. Worse for highly fragmented or sparse files. If no contiguous blocks, need one extent for each block. Basically a more expensive indirect block scheme.{/def}
+
+extent 하나는 (파일 안 시작 블록, 디스크 시작 블록, 길이) 같은 짝이다. 슬라이드 예는 "파일의 블록 0~250 이 디스크 블록 50~300 에 있다" 를 extent '''하나'''로 적는다.
+
+같은 내용을 indirect block 방식으로 적으면 어떨까.
+* 포인터 칸 250 여 개를 할당하고 하나하나 채워야 한다.
+* 파일을 지울 때도 그 칸들을 하나씩 빈 칸으로 표시해야 한다.
+extent 는 칸 하나로 끝난다. 그래서 "more efficient for large files", "scalable than simple indirect blocks" 다.
+
+단점도 분명하다. 디스크에 연속된 빈 공간이 없어서 블록이 다 흩어지면 블록마다 extent 가 하나씩 필요하다. 그러면 extent 는 "길이 1" 짜리 포인터를 더 크게 적는 셈이라, 슬라이드 표현으로 "basically a more expensive indirect block scheme" 이 된다. 조각난 파일(fragmented)이나 중간이 비어 있는 파일(sparse)이 그 경우다. 그래서 연속 공간을 확보하는 [[preallocation과 delayed allocation|preallocation]] 이 함께 간다.
+
+== 얼마나 길게, 어떻게 모으나 (p.21) ==
+{def}p.21: 2^15 contiguous blocks at most, 128 MB at most. Extent tree works like B-tree (and also directory entries).{/def}
+
+extent 하나는 최대 2^15 = 32,768 블록, 4 KB 블록이면 32768 × 4 KB = '''128 MB''' 까지 가리킨다.[* ext4 의 extent 에서 길이 칸이 16 비트인데 맨 위 비트를 "아직 초기화 안 된 extent" 표시로 쓰기 때문에 실제 길이로 쓰는 것은 15 비트다. 슬라이드는 2^15 라는 숫자만 쓴다.] 파일이 크거나 조각나서 extent 가 많아지면 inode 안에 다 못 넣으니 B-tree 모양의 '''extent tree''' 로 관리한다. 슬라이드는 디렉터리 엔트리도 같은 방식으로 관리한다고 덧붙인다.
+
+{analogy}
+아파트 동 호수를 "101호, 102호, 103호, … 120호" 로 하나씩 적는 대신 "101~120호" 한 줄로 적는 것이다. 호수가 띄엄띄엄이면(101, 105, 112 …) 결국 하나씩 적어야 하고, "~" 표시를 붙인 만큼 오히려 길어진다.
+{/analogy}
+
+{mini}
+# 파일 블록 0~99 가 디스크 블록 1000~1099 에 있다. extent 몇 개로 적나? indirect 방식이면 포인터 칸이 몇 개 필요한가?
+# 블록 크기 4 KB 에서 extent 하나가 가리킬 수 있는 최대 크기는?
+# extent 가 indirect block 보다 '''나쁜''' 경우를 슬라이드 표현대로 둘.
+{/mini}
+{answer}
+# extent '''1''' 개. indirect 방식이면 블록 100 개의 포인터 '''100''' 칸(direct 12 + indirect block 안 88 칸).
+# 2^15 × 4 KB = '''128 MB'''.
+# '''highly fragmented''' 파일, '''sparse''' 파일. 연속 블록이 없으면 블록마다 extent 가 필요하다.
+{/answer}
+
+== 시험 직전 체크 ==
+# ext4: journaling, extent, preallocation, delayed allocation.
+# extent = 연속 블록 구간 하나(시작 + 길이). 큰 파일에 효율적, 할당·삭제가 한 칸.
+# 조각난·sparse 파일에는 오히려 비싸다.
+# 최대 2^15 블록 = 128 MB. extent tree 는 B-tree 처럼.
+
+== 관련 문서 ==
+* [[Fast File System]] · [[preallocation과 delayed allocation]] · [[multi-level index]] (20강) · [[bitmap과 free space]] (20강, p.7 의 extents 언급)
