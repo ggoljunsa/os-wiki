@@ -1,0 +1,15 @@
+{
+  "name": "운영체제 기말 · 한입 학습",
+  "short_name": "운영체제 기말",
+  "description": "CSE304 · Prof. Yongwoo Lee",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7f4",
+  "theme_color": "#1fa463",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
