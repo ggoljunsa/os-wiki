@@ -306,6 +306,24 @@ body.bed .warn { background: #241a0f; color: var(--fg); }
 @keyframes dusk { from { opacity: 0; } to { opacity: 1; } }
 body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
 
+/* ---------- 탭만으로 풀기 + mouse friendliness ---------- */
+.modechip { margin-left: auto; border: 1px solid var(--chip-b); background: var(--chip); color: var(--fg); border-radius: 99px; min-height: 36px; padding: 0 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.selfans { background: var(--card); border: 2px solid var(--acc); border-radius: 14px; padding: 10px 12px; margin-bottom: 6px; font-size: 18px; }
+.selfans b { color: var(--acc-d); }
+.selfrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.selfrow .btn { min-height: 64px; font-size: 18px; }
+.lfoot .row2.slim { margin-bottom: 4px; }
+.lfoot .row2.slim .btn { min-height: 44px; margin-top: 0; font-size: 14px; }
+.seg.two { grid-template-columns: 1fr 1fr; }
+body.bed .selfans b { color: var(--acc); }
+@media (hover: hover) and (pointer: fine) {
+  .choice:hover:not(:disabled), .tf:hover:not(:disabled), .mitem:hover:not(:disabled), .chip:hover:not(:disabled), .slot:hover,
+  .seg button:hover, .cchips button:hover, .crow:hover, .modechip:hover, .cfb:hover { border-color: var(--blue); }
+  .btn:hover:not(:disabled), .node:hover, .duecard:hover, .tagrow:hover, .sp:hover { filter: brightness(1.06); }
+  body.bed .btn:hover:not(:disabled), body.bed .cfb:hover { filter: brightness(1.25); }
+  .x:hover, .link:hover, .back:hover, .wlink:hover, .wback:hover { text-decoration: underline; }
+}
+
 </style>
 </head>
 <body>
@@ -1539,7 +1557,8 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     function onChange() { check.disabled = !Q.ready(); }
     Q = RENDER[it.type](it, body, onChange);
     check.addEventListener('click', function () { if (!check.disabled) submit(Q.getGiven()); });
-    var foot = h('div', { class: 'lfoot' }, Q.skip ? h('button', { class: 'btn ghost skip', onclick: function () { submit(Q.skipGiven()); } }, '모르겠어요') : null, Q.auto ? h('div', { class: 'muted small center' }, '왼쪽과 오른쪽을 차례로 눌러 짝을 맞추세요') : check);
+    var extra = Q.selfGrade ? h('div', { class: 'row2 slim' }, Q.skip ? h('button', { class: 'btn ghost skip', onclick: function () { submit(Q.skipGiven()); } }, '모르겠어요') : null, h('button', { class: 'btn ghost skip', onclick: selfReveal }, '답 보기 → 스스로 채점')) : null;
+    var foot = h('div', { class: 'lfoot' }, extra, Q.auto ? h('div', { class: 'muted small center' }, '왼쪽과 오른쪽을 차례로 눌러 짝을 맞추세요') : check);
     var root = h('div', { class: 'lesson' }, bar, body, foot);
     setView(root);
     if (Q.focus) setTimeout(Q.focus, 60);
@@ -1655,7 +1674,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
       body.appendChild(M('div', 'q', it.q));
       var inp = h('input', { class: 'inp', type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: '답을 입력', enterkeyhint: 'done' });
       inp.addEventListener('input', onChange);
-      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && inp.value.trim()) { e.preventDefault(); submit(inp.value); } });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && inp.value.trim()) { e.preventDefault(); e.stopPropagation(); submit(inp.value); } });
       body.appendChild(inp);
       body.appendChild(h('div', { class: 'muted small' }, '띄어쓰기·대소문자·하이픈은 무시합니다'));
       return { skip: true, skipGiven: function () { return ''; }, focus: function () { if (!P.has('screen')) inp.focus(); }, getGiven: function () { return inp.value; }, ready: function () { return inp.value.trim() !== ''; } };
@@ -1664,7 +1683,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
       body.appendChild(M('div', 'q', it.q));
       var inp = h('input', { class: 'inp num', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '숫자', enterkeyhint: 'done' });
       inp.addEventListener('input', onChange);
-      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && inp.value.trim()) { e.preventDefault(); submit(inp.value); } });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && inp.value.trim()) { e.preventDefault(); e.stopPropagation(); submit(inp.value); } });
       var neg = h('button', { class: 'chip mini', onclick: function () { inp.value = inp.value.charAt(0) === '-' ? inp.value.slice(1) : '-' + inp.value; onChange(); } }, '±');
       body.appendChild(h('div', { class: 'numrow' }, inp, it.unit ? h('span', { class: 'unit' }, it.unit) : null, neg));
       var tol = it.tol == null ? 0.01 : it.tol;
@@ -1673,16 +1692,58 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     }
   };
 
+  /* ---------- 탭만으로 풀기: sa/num as choices, toggle chip, self-grading ---------- */
+  var KEYRENDER = { sa: RENDER.sa, num: RENDER.num };
+  function inputMode() { return BED ? (G.inputBed || 'tap') : (G.input || 'key'); }
+  function setInputMode(m) { if (BED) G.inputBed = m; else G.input = m; saveG(); }
+  function attemptNo(it) { var cd = cdOf(it), n = 0; for (var i = 0; i < cd.log.length; i++) if (cd.log[i].id === it.id) n++; return n; }
+  function tapRender(it, body, onChange) {
+    var sel = null, cd = cdOf(it);
+    body.appendChild(M('div', 'q', it.q));
+    var list = h('div', { class: 'choices' });
+    D.tapChoices(it, cd.items, attemptNo(it)).forEach(function (c, i) {
+      list.appendChild(h('button', { class: 'choice', onclick: function (e) { sel = c; list.querySelectorAll('.choice').forEach(function (x) { x.classList.remove('sel'); }); e.currentTarget.classList.add('sel'); onChange(); } },
+        h('span', { class: 'cnum' }, String(i + 1)), h('span', { html: md(c) })));
+    });
+    body.appendChild(list);
+    body.appendChild(h('div', { class: 'muted small' }, '👆 보기에서 고르기 — 직접 쓰기보다 쉬워서 리포트에서 따로 셉니다'));
+    return { getGiven: function () { return sel; }, ready: function () { return sel !== null; } };
+  }
+  ['sa', 'num'].forEach(function (kind) {
+    RENDER[kind] = function (it, body, onChange) {
+      var mode = inputMode();
+      var line = body.querySelector('.qtype');
+      if (line) line.appendChild(h('button', { class: 'modechip', onclick: function () { setInputMode(mode === 'tap' ? 'key' : 'tap'); S.itemT0 = Date.now(); renderQuestion(); } }, mode === 'tap' ? '👆 → ⌨ 직접 쓰기' : '⌨ → 👆 고르기'));
+      var q = mode === 'tap' ? tapRender(it, body, onChange) : KEYRENDER[kind](it, body, onChange);
+      q.mode = mode; q.selfGrade = true;
+      return q;
+    };
+  });
+  function selfReveal() {
+    if (!S || !S.cur || S.locked) return;
+    var it = S.cur, foot = document.querySelector('.lfoot');
+    document.querySelectorAll('.qbody button, .qbody input').forEach(function (b) { b.disabled = true; });
+    foot.innerHTML = '';
+    add(foot, [h('div', { class: 'selfans' }, h('b', null, '정답 '), h('span', { html: md(D.answerText(it)) })),
+      h('div', { class: 'muted small center' }, '머릿속 답과 비교해서 스스로 채점하세요 (1 = 틀렸다, 2 = 맞았다)'),
+      h('div', { class: 'selfrow' },
+        h('button', { class: 'btn danger', onclick: function () { submit(null, { self: false }); } }, '❌ 틀렸다'),
+        h('button', { class: 'btn primary', onclick: function () { submit(null, { self: true }); } }, '✅ 맞았다'))]);
+    tex(foot);
+  }
 
   /* ---------- answer / feedback ---------- */
-  function submit(given) {
+  function submit(given, opt) {
     if (!S || !S.cur || S.locked) return;
     S.locked = true;
-    var it = S.cur, cd = cdOf(it), ok = D.grade(it, given), gs = D.serializeGiven(it, given), now = Date.now();
+    opt = opt || {};
+    var it = S.cur, cd = cdOf(it), now = Date.now(), self = opt.self != null;
+    var ok = self ? !!opt.self : D.grade(it, given), gs = self ? '(self:' + (ok ? 'ok' : 'bad') + ')' : D.serializeGiven(it, given);
     var retry = Object.prototype.hasOwnProperty.call(S.first, it.id + '\u0001' + it._c);
     var e = { t: now, id: it.id, unit: it._u, lesson: it._l, ok: ok, given: gs, ms: now - S.itemT0, m: S.mode };
     if (retry) e.r = 1;
     if (BED) e.bed = 1;
+    if (self) e.mode = 'self'; else if ((it.type === 'sa' || it.type === 'num') && Q && Q.mode) e.mode = Q.mode;
     cd.log.push(e);
     if (!retry) { S.first[it.id + '\u0001' + it._c] = ok; cd.st[it.id] = D.schedule(cd.st[it.id], ok, now, it, ok ? null : gs); if (BED) { BED.qn++; if (ok) BED.qok++; } }
     if (ok) { S.solved++; S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo); beep(true); }
@@ -1703,7 +1764,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     add($sheet, [
       h('div', { class: 'shead' }, ok ? (S && S.combo >= 3 ? '🎉 ' + S.combo + '연속 정답!' : '✓ 정답!') : '✗ 아쉬워요'),
       !ok ? h('div', { class: 'sans' }, h('b', null, '정답 '), h('span', { html: md(D.answerText(it)) })) : null,
-      !ok && gs ? h('div', { class: 'sgiven' }, h('b', null, '내 답 '), h('span', { html: md(gs) })) : null,
+      !ok && gs ? h('div', { class: 'sgiven' }, h('b', null, '내 답 '), h('span', { html: md(gs.indexOf('(self:') === 0 ? '스스로 채점 — 틀렸다' : gs) })) : null,
       h('div', { class: 'sexp', html: md(it.explain || '') }),
       h('div', { class: 'smeta' }, it.src ? h('span', null, '📖 ' + it.src) : null, it.prof ? h('span', { class: 'prof' }, '🎙 교수 강조') : null,
         hasWiki ? h('button', { class: 'wlink', onclick: function () { openWiki(it._c, it.wiki); } }, '위키에서 보기 ›') : null),
@@ -1992,6 +2053,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     function segPick(vals, cur, fmt, set) {
       return h('div', { class: 'seg' }, vals.map(function (v) { return h('button', { class: cur === v ? 'on' : '', onclick: function () { set(v); renderSettings(); renderTop(); } }, fmt(v)); }));
     }
+    function seg2() { var x = segPick.apply(null, arguments); x.classList.add('two'); return x; }
     var w = weights();
     var root = h('div', { class: 'page' },
       h('h2', null, '설정'),
@@ -2015,6 +2077,12 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
           cf.addEventListener('change', function () { HC.exams[cid] = Object.assign({}, HC.exams[cid], { confirmed: cf.checked }); saveHC(); });
           return h('div', { class: 'erow' }, h('span', null, DATA[cid].name), di, h('label', { class: 'chk small' }, cf, ' 확정'));
         })) : null,
+      h('div', { class: 'card' }, h('b', null, '👆 입력 방식 (단답·계산 문항)'),
+        h('p', { class: 'muted small' }, '「탭만」이면 단답·계산 문제를 4지선다로 바꿔 타자 없이 풉니다. 문제 화면의 「⌨ → 👆」 칩으로도 바로 바꿀 수 있고, 바꾼 값은 기억합니다.'),
+        h('div', { class: 'muted small' }, '평소'),
+        seg2(['key', 'tap'], G.input || 'key', function (v) { return v === 'key' ? '⌨ 키보드' : '👆 탭만'; }, function (v) { G.input = v; saveG(); }),
+        h('div', { class: 'muted small' }, '🌙 누워서 모드'),
+        seg2(['tap', 'key'], G.inputBed || 'tap', function (v) { return v === 'key' ? '⌨ 키보드' : '👆 탭만'; }, function (v) { G.inputBed = v; saveG(); })),
       h('div', { class: 'card' }, h('b', null, '🌙 누워서 모드'),
         h('div', { class: 'muted small' }, '카드: 질문 보여 주는 시간'),
         segPick([4, 6, 10, 15], HC.qSec, function (v) { return v + '초'; }, function (v) { HC.qSec = v; saveHC(); }),
@@ -2231,7 +2299,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     var it = CF.deck[CF.i], cd = cdOf(it), now = Date.now();
     CF.marked = true;
     var g = known ? '(카드) 알았다' : '(카드) 몰랐다';
-    cd.log.push({ t: now, id: it.id, unit: it._u, lesson: it._l, ok: known, given: g, ms: now - CF.itemT0, m: 'card', bed: 1 });
+    cd.log.push({ t: now, id: it.id, unit: it._u, lesson: it._l, ok: known, given: g, ms: now - CF.itemT0, m: 'card', mode: 'self', bed: 1 });
     cd.st[it.id] = D.schedule(cd.st[it.id], known, now, it, known ? null : g);
     saveCourse(cd); saveLog(cd);
     if (known) BED.known++; else { BED.unknown++; buzz(); }
@@ -2327,6 +2395,7 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
       if (!L) return go('path');
       startLesson(L, it0);
       if (scr === 'feedback') submit(makeGiven(it0, ok));
+      else if (P.get('self')) selfReveal();
     } else if (scr === 'result') {
       renderResult({ xp: 22, base: 10, done: 5, combo: 2, perfect: 0, acc: 10 / 12, ms: 254000, maxCombo: 6, crownUp: 2, refill: false, lesson: true, leaves: 1, title: cd.lessons[0].l.title, goalHit: true });
     } else if (scr === 'hearts0') {
@@ -2354,6 +2423,30 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
       }
       out.lessonDone = !S; out.steps = n; out.xpGain = G.xp - xp0; out.logAdded = cd.log.length - logN; out.heartsLost = hearts0 - G.hearts;
       out.crown = (cd.ls[L0.l.id] || {}).c || 0; out.resultShown = !!document.querySelector('.result');
+      // tap mode: sa as choices → click the right one → Enter → Enter
+      G.input = 'tap';
+      var saIt = cd.items.filter(function (x) { return x.type === 'sa'; })[0];
+      startLesson(cd.lessons.filter(function (x) { return x.l.id === saIt._l; })[0], saIt);
+      var chs = document.querySelectorAll('.qbody .choice'); out.tapChoices = chs.length;
+      for (var ci = 0; ci < chs.length; ci++) if (D.normSA(chs[ci].lastChild.textContent) === D.normSA(saIt.answer)) chs[ci].click();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var lastE = cd.log[cd.log.length - 1]; out.tapLogged = lastE.id === saIt.id && lastE.mode === 'tap' && lastE.ok === true;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      out.sheetClosedByEnter = !$sheet.classList.contains('show');
+      S = null;
+      // self-grade on a num item, answered with key "2"
+      var numIt = cd.items.filter(function (x) { return x.type === 'num'; })[0];
+      startLesson(cd.lessons.filter(function (x) { return x.l.id === numIt._l; })[0], numIt);
+      selfReveal();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true }));
+      lastE = cd.log[cd.log.length - 1]; out.selfLogged = lastE.id === numIt.id && lastE.mode === 'self' && lastE.ok === true && lastE.given === '(self:ok)';
+      S = null; G.input = 'key';
+      // keyboard 1–4 on an mc item
+      var mcIt = cd.items.filter(function (x) { return x.type === 'mc'; })[0];
+      startLesson(cd.lessons.filter(function (x) { return x.l.id === mcIt._l; })[0], mcIt);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+      out.keySelect = document.querySelectorAll('.qbody .choice')[2].classList.contains('sel');
+      S = null;
       if (HUB) { var m = 0; startMixed(); var cs = {}; while (S && m < 100) { cs[S.cur._c] = 1; submit(makeGiven(S.cur, true)); afterFeedback(); m++; } out.mixedDone = !S && m > 0; out.mixedCourses = Object.keys(cs).length; out.byC = Object.keys((G.days[today()] || {}).byC || {}).length; }
       enterBed(); bedFlow(false); var cl = cd.log.length; cfMark(true); cfMark(false);
       out.bedKnown = BED.known; out.bedUnknown = BED.unknown; out.cardLogs = ORDER.reduce(function (a, c) { return a + DATA[c].log.filter(function (e) { return e.m === 'card'; }).length; }, 0);
@@ -2368,8 +2461,37 @@ body.sleeping { --fg: #8a6a40; --muted: #5a4630; }
     else go(scr);
   }
 
+  /* ---------- keyboard shortcuts (mouse/keyboard users) ---------- */
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag = (e.target && e.target.tagName) || '', typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if ($modal.classList.contains('show') || $wiki.classList.contains('show')) return;
+    if ($sheet.classList.contains('show')) {
+      if (e.key === 'Enter' || e.key === ' ') { var cb = $sheet.querySelector('.btn'); if (cb) { e.preventDefault(); cb.click(); } }
+      return;
+    }
+    if (typing) return;
+    if (CF) {
+      if (e.key === '1' || e.key === 'ArrowLeft') cfMark(false);
+      else if (e.key === '2' || e.key === 'ArrowRight') cfMark(true);
+      else if (e.key === ' ') { e.preventDefault(); cfPause(); }
+      else if (e.key === 'Enter') { if (CF.phase === 'q') { CF.gen++; cfReveal(); } else cfNext(); }
+      return;
+    }
+    if (!S) return;
+    if (/^[1-9]$/.test(e.key)) {
+      var selfBtns = document.querySelectorAll('.selfrow button');
+      var btns = selfBtns.length ? selfBtns : document.querySelectorAll('.qbody .choice, .qbody .tf');
+      var b = btns[Number(e.key) - 1];
+      if (b && !b.disabled) { e.preventDefault(); b.click(); }
+    } else if (e.key === 'Enter') {
+      var c = document.querySelector('.lfoot .check');
+      if (c && !c.disabled) { e.preventDefault(); c.click(); }
+    }
+  });
+
   /* ---------- boot ---------- */
-  if (DEMO) seedDemo();
+  if (DEMO) { seedDemo(); if (P.get('input')) G.input = P.get('input'); if (P.get('bed')) enterBed(); }
   ORDER.forEach(function (c) { touchCourse(DATA[c]); });
   heartsNow(); saveG();
   var scr = P.get('screen');
