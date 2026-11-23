@@ -10,10 +10,13 @@ var NAV_TAB_NAMES = ["기말", "중간", "공통"];
 var navOpenGroups = {};   // group → true/false (사용자가 직접 접거나 편 것)
 var navTab = null;
 var navLastActive = null;
+var navForceClosed = null;  // 지금 문서의 그룹을 사용자가 직접 접었을 때 그 그룹 이름
 
 function navSectionOf(group) {
-  if (/^(기말고사|1[3-8]강|과제[23])/.test(group)) return "기말";
-  if (/^([1-9]강|1[0-2]강|과제1|퀴즈)/.test(group)) return "중간";
+  var m = /^(\d+)강/.exec(group);
+  if (m) return Number(m[1]) >= 13 ? "기말" : "중간";
+  if (/^(기말고사|과제[23])/.test(group)) return "기말";
+  if (/^(과제1|퀴즈|시험)/.test(group)) return "중간";
   return "공통";
 }
 
@@ -42,6 +45,7 @@ function renderNav(active) {
   if (active !== navLastActive) {
     if (!isHome && activeGroup) navTab = navSectionOf(activeGroup);
     navLastActive = active;
+    navForceClosed = null;
   }
   if (!navTab) navTab = navStoredTab() || "기말";
   if (NAV_TAB_NAMES.indexOf(navTab) < 0) navTab = "기말";
@@ -65,21 +69,24 @@ function renderNav(active) {
 
   nav.innerHTML = "";
   var shown = groups.filter(function (g) { return navSectionOf(g.group) === navTab; });
-  // 문서를 보고 있지 않을 때 기본으로 펼칠 강의: 그 탭의 마지막 '강의' 그룹
-  var lectures = shown.filter(function (g) { return /^\d+강/.test(g.group); });
-  var defaultOpen = activeGroup && navSectionOf(activeGroup) === navTab ? activeGroup
-    : (lectures.length ? lectures[lectures.length - 1].group : null);
 
+  // 그룹은 기본으로 접는다. 지금 보고 있는 문서의 그룹만 펼치고, 사용자가 직접 연 그룹은 기억한다.
   shown.forEach(function (group) {
-    var open = navOpenGroups[group.group];
-    if (open === undefined) open = group.group === defaultOpen || group.items.length <= 2;
+    var isActiveGroup = group.group === activeGroup;
+    var open = (isActiveGroup && navForceClosed !== group.group) || navOpenGroups[group.group] === true;
+    if (group.items.length === 1 && navOpenGroups[group.group] !== false) open = true;
     var head = document.createElement("li");
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "nav-group" + (open ? " open" : "");
-    btn.textContent = group.group;
+    btn.textContent = group.group + " ";
+    var cnt = document.createElement("span");
+    cnt.className = "cnt";
+    cnt.textContent = group.items.length;
+    btn.appendChild(cnt);
     btn.addEventListener("click", function () {
       navOpenGroups[group.group] = !open;
+      if (isActiveGroup && open) navForceClosed = group.group;
       renderNav(currentArticle());
     });
     head.appendChild(btn);
@@ -91,6 +98,8 @@ function renderNav(active) {
       a.href = "#" + encodeURIComponent(key);
       a.textContent = ARTICLES[key] ? ARTICLES[key].title : key;
       if (key === active) a.classList.add("active");
+      // 강의·과제 그룹의 첫 문서(허브)는 굵게: 그 그룹을 어디서 읽기 시작하는지 바로 보이게
+      if (key === group.items[0] && /^(\d+강|과제)/.test(group.group)) a.classList.add("lecture-main");
       li.appendChild(a);
       nav.appendChild(li);
     });

@@ -36,6 +36,22 @@ VPN 은 [[page directory]] 를 고르는 PD index 와 page table 을 고르는 P
    linear      : '''1024B'''
 </pre>
 
+반대로 주소 공간을 '''꽉 채워''' 쓰면 multi-level 이 더 크다. 256개 page 가 전부 valid 면 PT page 16장이 다 필요하고 directory 1장이 더 붙는다.
+<pre class="ascii">
+   multi-level (꽉 참) : 1 + 16 = 17장, 17 × 64B = '''1088B'''
+   linear              : '''1024B'''
+</pre>
+영상 22:21~22:28 의 표현으로는 "Widely scattered mappings can require more table pages than tightly grouped mappings. A fully populated address space also needs the directory overhead." 다. multi-level 이 아끼는 것은 '''비어 있는''' 영역이고, 빈 곳이 없으면 directory 만큼 손해다.
+
+{mini}
+# p.21~23 조건(page 64B, PTE 4B, VA 14비트)에서 256개 page 가 전부 valid 다. multi-level 과 linear 의 page table 크기는?
+# 위 결과로 보아 multi-level 이 linear 보다 항상 작다고 할 수 있나?
+{/mini}
+{answer}
+# multi-level '''1088B'''(directory 1 + PT page 16 = 17장 × 64B), linear '''1024B'''.
+# 없다. 주소 공간이 꽉 차 있으면 directory 1장 만큼 더 크다. multi-level 은 sparse 한 주소 공간에서 이득이다.
+{/answer}
+
 == p.24 VA 5844 번역 ⭐⭐⭐ ==
 영상 29:00 "each index selects an entry while the offset selects the final bytes. We multiply an index by the entry size when calculating where to read an entry."
 

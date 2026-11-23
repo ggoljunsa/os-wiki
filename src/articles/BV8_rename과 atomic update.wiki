@@ -22,6 +22,12 @@ prompt> mv foo bar        // mv uses the system call rename()
 
 `foo.txt` 라는 이름이 아무것도 가리키지 않거나, 반쯤 바뀐 상태는 생기지 않는다.[* OSTEP 39장의 표현으로는 "implemented as an atomic call with respect to system crashes" 다. 파일 시스템이 이걸 어떻게 보장하는지(journaling 등)는 OSTEP 42장의 crash consistency 이야기이고 이 강의 범위 밖이다. 2강 [[영속성]] 에서 이름만 나왔던 journaling 이 그것이다.]
 
+=== 수업에서: atomic 이 아니면 무엇이 남나 ===
+11/18 수업(44:10~46:23)에서 교수님은 이름 바꾸기를 두 단계로 나눠 하면 무엇이 잘못되는지를 예로 들었다.
+* '''지우고 나서 새로 만들면''': 그 사이에 crash 가 나면 파일이 아예 없다. 다시 찾을 수 없다.
+* '''새로 만들고 나서 지우면''': 그 사이에 crash 가 나면 같은 파일이 두 곳에 남는다.
+`rename` 은 이 이동을 '''한 단계'''로 끝내서 둘 다 생기지 않게 한다. 교수님은 `rename` 이 파일 내용이 아니라 '''디렉터리 정보'''를 바꾸는 시스템 콜이라는 점, 그래서 디렉터리를 바꾸는 이동(`mv`)도 `rename` 이라는 점을 같이 짚었다.[* 녹음 48:18~48:36 "another functionality of the rename function is that this function is a move function".]
+
 == 파일 내용을 안전하게 통째로 바꾸기 ==
 문제 상황을 먼저 보자. 편집기가 `foo.txt` 를 고쳐서 저장한다. 가장 단순한 방법은 이렇다.
 

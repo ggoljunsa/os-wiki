@@ -37,6 +37,11 @@ Miss 가 줄면 [[effective access time]]이 낮아진다. 정책은 다섯 가�
 | Looping Sequential (p.42) || 0~49 page 반복, 총 10,000회 || LRU·FIFO 는 곧 쓸 오래된 page 를 내보낸다. frame 이 50개를 넘으면 100%
 |}
 
+11/11 수업에서 교수님이 그래프를 읽으며 붙인 숫자와 설명이다.
+* No-Locality: cache 50 이면 100 page 중 절반을 담으니 hit 50% 근처다. 그런데도 OPT 가 위에 있는 이유를 교수님은 "OPT 입장에선 random 이 아니다. 전체 트레이스를 안다" 고 설명했다.
+* 80-20: cache 가 page 의 20% 이면 OPT 는 약 80%, 똑똑한 정책도 60% 이상이다.
+* Looping Sequential: cache 40 에서 Random 이 약 60% 로 LRU·FIFO(0%) 보다 낫다. 스캔 한 바퀴가 지나도 운 좋게 안 쫓겨난 block 이 남기 때문이다.
+
 [[img:L17-41.png|p.41 The 80-20 Workload|large]]
 [[img:L17-42.png|p.42 The Looping-Sequential Workload|large]]
 

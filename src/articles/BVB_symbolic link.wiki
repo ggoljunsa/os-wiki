@@ -18,6 +18,8 @@ hello
 
 `ln` 에 `-s` 를 붙이면 symbolic link 를 만든다. `cat file2` 는 hard link 때처럼 `hello` 를 보여 준다. 겉보기는 같다. 속은 다르다.
 
+11/18 수업(63:35~66:39)에서 교수님이 말한 symbolic link 의 쓰임은 둘이다. 하나는 위의 파티션 문제를 피하는 것이고, 다른 하나는 '''긴 경로를 짧게 부르는 것'''이다. 여러 단계 아래에 있는 파일에 짧은 이름을 붙여 두면 매번 긴 경로를 칠 필요가 없다. 원본을 지우면 symbolic link 자체는 남지만 원본에는 더 이상 닿지 못한다는 것도 이때 같이 말했다(p.40 dangling reference).[* 녹음에서 교수님은 `ln -s` 를 두고 "this is not the system call, this is the command" 라고 했다. `ln -s` 는 명령어이고, 안에서 부르는 시스템 콜 이름은 `symlink()` 다(OSTEP 39장). 녹음은 66:20 부터 같은 구절이 반복되는 전사 오류로 끝나서, 그 뒤 p.40~42 와 마무리 공지는 남아 있지 않다.]
+
 == 세 번째 종류의 파일 (p.38) ==
 <pre class="sh">
 prompt> stat file

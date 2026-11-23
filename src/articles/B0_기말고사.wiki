@@ -21,9 +21,9 @@ category: 기말고사
 |-
 | '''17강''' Swapping (11/9 p.11~37, 11/11 p.38~54, 녹음 有) || `17-Swapping.pdf` 56쪽 || 없는 page 를 건드리면 어떻게 되나(page fault) · 메모리가 차면 누구를 내보내나(Optimal·FIFO·Random·LRU·Clock) || [[스와핑]]
 |-
-| '''18강''' I/O Devices and HDD (11/11 p.2~19, 녹음 有, HDD 는 다음 시간) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
+| '''18강''' I/O Devices and HDD (11/11 p.2~19, 11/16 p.20~51, 녹음 有) || `18-IO_Devices_and_HDD.pdf` 53쪽 || OS 는 장치와 어떻게 주고받나(polling·interrupt·PIO·DMA) · 디스크 접근은 왜 느리고 요청 순서를 어떻게 정하나(FCFS·SSTF·SCAN·C-SCAN) · RAID || [[I/O 장치]]
 |-
-| '''19강''' File and Directory (수업 전, 슬라이드 기준 작성) || `19-File_and_Directory.pdf` 42쪽 || 파일은 inode 번호가 붙은 바이트 배열, 디렉터리는 (이름, inode #) 표 · fd·offset·rename·stat 같은 File IO · hard link 와 symbolic link || [[파일과 디렉터리]]
+| '''19강''' File and Directory (11/18 수, 녹음 有, p.5~39 구간이 남음) || `19-File_and_Directory.pdf` 42쪽 || 파일은 inode 번호가 붙은 바이트 배열, 디렉터리는 (이름, inode #) 표 · fd·offset·rename·stat 같은 File IO · hard link 와 symbolic link || [[파일과 디렉터리]]
 |}
 
 == 13강 읽는 순서 ==
@@ -109,11 +109,11 @@ category: 기말고사
 # [[디렉터리 API]]: unlink, mkdir, readdir·dirent, rmdir (p.27~30)
 # [[hard link]]: link count 추적 (p.32~36) ⭐⭐⭐ · [[symbolic link]]: 크기 = 경로 길이, dangling (p.37~40) ⭐⭐⭐
 
-{warn}19강은 '''수업 전'''에 슬라이드만 보고 썼다. ⭐ 는 출제 형식(손 계산·용어·객관식)에 맞는 정도로 붙인 것이고 교수 강조가 아니다. 슬라이드 오류 목록은 [[파일과 디렉터리]] 의 "슬라이드 오류와 오타" 절.{/warn}
+{info}🎙 19강은 11/18 수업 녹음을 반영했다([[파일과 디렉터리]] 의 "실제 수업 기록"). 교수님이 수업 중 던진 질문은 셋이다: 권한은 파일과 디렉터리 중 어디에 적나(파일), file descriptor 가 무엇인가, stat 의 Modify 와 Change 차이. "one important thing" 은 fd 0·1·2 와 rename 의 atomic. ⭐ 는 출제 형식에 맞는 정도로 붙인 것이다. 슬라이드 오류 목록은 [[파일과 디렉터리]] 의 "슬라이드 오류와 오타" 절.{/info}
 
 == 시험 정보 ==
 
-기말고사 날짜·범위·형식은 '''아직 공지 전''' (2026-10-20). 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.
+기말고사 날짜·범위·형식은 '''아직 공지 전'''(2026-11-23 기준, 11/18 녹음까지 공지 없음). 11/11 공지: 학기 전체 lab 3개·퀴즈 3개, 과제 3 은 2주, '''기말 전 주가 퀴즈 주간'''. 공지가 나오면 `운영체제/_시험정보.md`와 [[시험 정보]]를 먼저 고친다. 중간고사(2025F·2026F)의 형식은 5지선다 + '''정의→용어''' + 계산 + 코드 빈칸이다. 이 형식이 이어진다고 보면 13강에서는 '''정의→용어'''([[VM 설계 목표]] 넷, [[MMU]], [[free list]], base/bounds 레지스터 정의)와 '''주소 계산'''([[base and bounds]]의 VA→PA, exception 판정)이 가장 유력하다.
 
 == 중간 범위와 이어지는 곳 ==
 

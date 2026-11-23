@@ -675,6 +675,10 @@
   .nav-group { display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; font-weight: 700; font-size: 12px; color: #34466b; padding: 6px 4px 3px; }
   .nav-group::before { content: "▸ "; color: #8a97ad; }
   .nav-group.open::before { content: "▾ "; }
+  .nav-group .cnt { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 2px; font-size: 10.5px; font-weight: 600; line-height: 16px; text-align: center; color: #5a6a86; background: #e6ebf3; border-radius: 8px; }
+  aside ul li a.lecture-main { font-weight: 700; }
+  header.top .pocket-btn { background: #ffd75e; color: #2a3b5a; font-weight: 700; font-size: 13px; padding: 5px 10px; border-radius: 6px; text-decoration: none; white-space: nowrap; }
+  header.top .pocket-btn:hover { background: #ffe58f; }
 
   /* ===== 넓은 본문 ===== */
   .layout { grid-template-columns: 210px minmax(0, 1fr) 190px; max-width: 1560px; }
@@ -729,6 +733,7 @@
   <div class="search">
     <input id="searchBox" type="text" placeholder="문서 검색... (예: trapframe, MLFQ, ticket lock)">
   </div>
+  <a class="pocket-btn" href="duo/index.html" title="짧게 한입씩 푸는 기말 범위 학습 앱">📱 한입 학습</a>
   <div class="tagline">DGIST CSE304 운영체제 — 중간·기말</div>
 </header>
 

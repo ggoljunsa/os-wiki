@@ -2,7 +2,7 @@ key: 파일과 디렉터리
 title: 파일과 디렉터리 (19강)
 category: 19강 File and Directory, 핵심
 ---
-{info}19강 슬라이드 `19-File_and_Directory.pdf`(42쪽) 기준으로 '''수업 전'''(2026-11-18)에 썼다. 녹음이 오면 아래에 "실제 수업 기록" 절을 붙인다. 교재는 [[OSTEP]] 39장 "Interlude: Files and Directories" 다.{/info}
+{info}19강 슬라이드 `19-File_and_Directory.pdf`(42쪽) 기준이다. 11/18(수) 수업에서 19강을 나갔고, 녹음은 p.5 부터 p.39 근처까지 남아 있다. 녹음 내용은 아래 "실제 수업 기록" 절에 있다. 교재는 [[OSTEP]] 39장 "Interlude: Files and Directories" 다.{/info}
 
 18강에서 디스크를 OS 쪽에서 보면 [[logical block]] 이 0 번부터 N 번까지 늘어선 배열이라는 데까지 왔다. 그런데 우리는 파일을 열 때 "블록 3,214,567 번" 이라고 하지 않는다. `/home/dgist/file1` 이라고 부른다. 19강은 그 사이를 OS 가 어떤 약속으로 메우는지 본다. 약속은 둘이다. 바이트를 담는 '''file''' 과, 이름을 담는 '''directory''' 다.[* 19강은 OSTEP 39장을 거의 그대로 따라간다. stat 출력의 `remzi` 라는 사용자 이름도 OSTEP 저자 Remzi Arpaci-Dusseau 의 것이다. 슬라이드 p.41 Reference 에는 CSAPP 10장(System-Level I/O)과 공룡책 11장(File-System Interface)도 함께 적혀 있다.]
 
@@ -52,7 +52,7 @@ category: 19강 File and Directory, 핵심
 차이도 하나 있다. CPU 와 메모리 가상화는 "혼자 쓰는 것처럼" 보이게 하는 착각이었다. 파일은 착각이 아니다. 다른 프로세스와 같은 파일을 실제로 나눠 쓰고, 전원을 껐다 켜도 그대로 있어야 한다. 그래서 파일 시스템의 일은 착각을 만드는 것보다 '''이름을 붙이고 오래 보관하는 것'''에 가깝다.[* 2강 [[영속성]] 문서에 이 차이를 표로 정리해 두었다. 2강 p.34~36 의 `open`/`write`/`close` 데모가 19강에서 본격적으로 다시 나온다.]
 
 == 교수가 던진 질문 여섯 개 (p.4) ==
-p.4 는 답 없이 질문만 있다. 수업에서 교수가 학생들에게 물어보며 채울 페이지로 보인다. 녹음이 오기 전이니, 아래 답은 슬라이드 뒤쪽 내용과 OSTEP 으로 채운 '''예상 답'''이다.
+p.4 는 답 없이 질문만 있다. 11/18 녹음은 p.5 설명 중간부터 시작해서 이 페이지에서 교수님이 한 말은 남아 있지 않다. 그래서 아래 답은 슬라이드 뒤쪽 내용과 OSTEP 으로 채운 '''예상 답'''이다. 다만 "왜 inode 가 필요한가" 는 교수님이 p.8 근처에서 직접 따져 봤다(07:35~09:20, [[inode]] 문서의 수업 기록 상자).
 
 * '''What is a storage?''' 전원이 꺼져도 내용이 남는 장치다. 18강의 HDD, SSD, 그리고 p.3 의 테이프와 CD-ROM.
 * '''저장 장치의 특징은?''' 메모리보다 훨씬 느리다(HDD 한 번 접근에 ms 단위, [[디스크 접근 시간]]). byte 단위가 아니라 block 단위로 읽고 쓴다. 크고, 영속적이다.
@@ -107,8 +107,51 @@ p.27 에서 `rm` 이 `unlink()` 를 부른다는 게 나오고, "왜 remove 나 
 도서관에 비유하면 inode 는 책 한 권에 붙은 청구기호와 대출 카드다. 디렉터리는 서가 안내판이다. "운영체제 → OSTEP" 이라는 안내판 경로를 따라가면 청구기호가 나오고, 그 번호로 책을 꺼낸다. 같은 책을 "교재" 안내판에도 올려 두면 hard link, "OSTEP 은 운영체제 칸을 보세요" 라는 쪽지를 붙이면 symbolic link 다.
 {/analogy}
 
+== 실제 수업 기록 (11/18 수, 녹음 기준) ==
+{info}녹음 `운체 261118_164157.m4a`(67분)를 faster-whisper 로 전사한 것을 읽고 정리했다. 녹음은 p.5 의 층 그림 설명 중간("managed by the device driver and abstracts the physical data")부터 시작한다. 19:00~32:30 구간은 전사가 단어 하나씩 끊겨 있어 큰 흐름만 알 수 있고, 66:20 부터는 같은 구절이 되풀이되는 전사 오류로 끝난다. 그래서 p.40 이후와 수업 끝 공지는 남아 있지 않다.{/info}
+
+{|
+! 시각 || 슬라이드 || 교수님이 한 것
+|-
+| 00:00~03:50 || p.5~6 || 디스크를 device driver 가 추상화한다는 층 그림. 절대 경로와 상대 경로를 나누는 이유는 프로세스마다 보는 범위가 달라서다. 프로세스는 실행된 셸 위치를 working directory 로 받고, 사용자의 working directory 는 home 이다
+|-
+| 03:55~07:30 || p.7~8 || 장치 인터페이스를 깔끔하게 하나로 맞추려고 마우스·키보드·모니터·그래픽 카드까지 파일로 다룬다. 메모리·CPU 정보도 파일로 보인다. IPC 채널은 "여러 프로세스가 나눠 쓰는 파일" 이라는 persistence 의 쓰임이다
+|-
+| 07:35~10:20 || p.8 || 파일 쪽 자료구조에 들어갈 것: block 번호(indirection), 크기, 관리 정보. 이름 짝은 디렉터리 몫 → [[inode]]
+|-
+| 10:27~11:50 || p.9~10 || 디렉터리 엔트리는 번호(index)를 먼저, 이름을 뒤에 둔다. 다른 디렉터리 아래면 같은 이름도 되지만 절대 경로는 서로 달라야 한다 → [[디렉터리]]
+|-
+| 12:00~21:20 || p.11~13 || 파일은 프로세스끼리 공유되니 보호가 어렵다 → ownership·permission. '''질문: 권한은 파일과 디렉터리 중 어디에 적나?''' 답은 파일. group 은 공유용, 사용자는 group 여럿, 기본 group = 사용자 이름. 7 = 111 = rwx, 실행 파일이 아니면 x 를 뺀다 → [[권한 비트]]
+|-
+| 21:25~31:30 || p.15~17 || open 플래그(O_CREAT·O_TRUNC), 만들 때는 권한도 준다. '''질문: file descriptor 가 뭔가?''' 파일 하나를 여러 번 열 수 있어 열 때마다 descriptor 가 따로 필요하다. 음수 반환은 에러. 왜 close 하나 → [[file descriptor]]
+|-
+| 31:33~37:10 || p.19~20 || echo·cat, `strace cat foo` 한 줄씩: open 이 3 을 돌려줌, read 는 최대 4 KB 를 시도해 6 바이트("hello\n")를 읽음, fd 1 로 write 6, 다시 read 0 이면 끝, close
+|-
+| 37:14~40:05 || p.21 || "one important thing": 모든 프로세스는 0·1·2 가 열린 채 시작한다. 음수가 아닌 이유, stdout 과 stderr 를 나눈 이유, fd 0 을 다른 파일로 바꾸면 scanf 가 그 파일을 읽는다
+|-
+| 40:12~44:00 || p.22~23 || current offset = 커서(카카오톡, Word, Vim). read 16 바이트면 offset 16 이동. lseek 의 세 인자와 SEEK_SET·SEEK_CUR·SEEK_END → [[파일 offset과 lseek]]
+|-
+| 44:10~48:36 || p.24 || rename 은 파일 내용이 아니라 디렉터리 정보를 바꾼다. "one important thing is that this system call is atomic". 지우고 만들기·만들고 지우기 사이 crash 예. tmp → fsync → close → rename 은 "quite common pattern". rename 은 move 이기도 하다 → [[rename과 atomic update]]
+|-
+| 48:43~51:00 || p.25~26 || stat 이 보여 주는 메타데이터. '''질문: Modify 와 Change 의 차이?''' 내용 vs 메타데이터
+|-
+| 51:02~56:13 || p.27~30 || remove 시스템 콜은 없고 unlink 다(이유는 뒤에서). mkdir 이 따로 있는 이유는 `.`·`..` 을 넣어야 해서. readdir 은 fd 대신 directory entry 를 준다, `d_reclen` 이 필요한 이유. rmdir 은 빈 디렉터리만: "this is important" → [[디렉터리 API]]
+|-
+| 56:20~62:27 || p.31~36 || hard link: 이름은 디렉터리 엔트리일 뿐이고 내용은 inode 가 가리킨다. 한 이름으로 고치면 다른 이름에도 보인다. 그래서 remove 가 아니라 unlink 이고, unlink 가 reference count 를 보고 0 이면 내용까지 지운다. p.36 Links 1→2→3→2→1→0 을 읽어 줌 → [[hard link]]
+|-
+| 62:35~67:31 || p.37~39 || hard link 는 같은 파일 시스템 안에서만(mount 예). symbolic link 는 더 일반적인 방법, 특별한 종류의 파일, 내용은 원래 파일의 경로. 원본을 지우면 link 는 남지만 닿지 못한다. 크기가 작고, 긴 경로를 줄여 부를 때 쓴다 → [[symbolic link]]
+|}
+
+=== 교수님이 짚은 것 ===
+* 수업 중 질문이 세 번 나왔다. ① 권한은 파일과 디렉터리 중 어디에 적나(파일, 이유 둘) ② file descriptor 가 무엇인가 ③ stat 의 Modify 와 Change 차이. 중간고사처럼 용어·객관식으로 나오기 좋은 모양이다.[* 학생들의 답은 녹음에 거의 잡히지 않았다. 교수님이 답을 받아 정리한 말만 남아 있다.]
+* "one important thing" 이라고 말한 곳: 프로세스는 fd 0·1·2 를 연 채 시작한다(p.21), rename 은 atomic 이다(p.24). rmdir 이 빈 디렉터리만 지우는 것은 "this is important"(p.30).
+* 수업 중에 "system programming 수업을 들었다면 file IO 경험이 있을 것" 이라고 두 번 말했다(24:06, 37:23). API 사용법보다는 왜 그렇게 설계했는지(권한 위치, close, unlink 라는 이름, rmdir 제약, rename atomic)를 더 오래 설명했다.
+
+=== 공지 ===
+녹음에 남은 구간(p.5~39)에는 시험·과제 공지가 없다. 수업 끝부분이 전사 오류로 사라져서, 끝에 공지가 있었는지는 알 수 없다.[* 바로 앞 수업(11/16) 끝에서 교수님은 19강 슬라이드를 올렸고 수요일에 한다고 했다. 과제 3 은 "오늘이나 내일 올린다" 고 했고, 실제로 `Assignment 3.pdf`(마감 12/1)가 올라왔다. [[과제3 xv6 cow]] 참고.]
+
 == 슬라이드 오류와 오타 ==
-{warn}수업 전에 슬라이드 글자를 그림과 맞춰 본 결과다. 시험 문제가 슬라이드 글자를 그대로 쓸 수 있으니 알아만 둔다.
+{warn}슬라이드 글자를 그림과 맞춰 본 결과다. 11/18 녹음에 남은 구간에서 교수님은 이 오류들을 따로 언급하지 않았다. 시험 문제가 슬라이드 글자를 그대로 쓸 수 있으니 알아만 둔다.
 * p.13: `ls -l` 출력 `-rwxr-x--xstudent dgist 377404 …` 은 권한과 소유자 사이 공백이 빠졌고, 실제 `ls -l` 이면 그 사이에 link count 칸이 있다. 751 계산 자체는 맞다. [[권한 비트]]
 * p.15, p.24: `O_CREAT` 로 여는데 세 번째 인자(mode)가 없다. OSTEP 원문은 `S_IRUSR | S_IWUSR` 를 준다. [[file descriptor]]
 * p.20: `open(file descriptor, flags)` 는 틀렸다. 첫 인자는 경로 이름이다. [[file descriptor]]

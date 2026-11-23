@@ -23,6 +23,7 @@ category: 16강 Advanced Page Table, 핵심
 * 가상으로는 연속이어도 물리 frame 이 흩어져 있으면 promotion 할 수 없다. frame 을 옮겨(복사) 물리적으로도 연속으로 만든다. 프로세스는 같은 VA 를 계속 쓰고 커널이 mapping 을 고친다.
 * 14강 [[compaction]] 과 이름은 같지만 대상이 다르다. 14강은 segment 를 모아 external fragmentation 을 해결했다. 여기서는 page frame 을 모아 huge page 자리를 만든다.
 * 영상 58:36 "compaction is not guaranteed to succeed. It also takes time." 지금 못 옮기는 page 도 있고, 애플리케이션이 기다리는 경로에서 일어나면 비용이 보인다.
+* 영상 57:47 교수님이 강조한 문장: "'''This is why total free memory is only part of the allocation problem.''' A huge page also needs a sufficiently large, suitably aligned physical region." 남은 메모리 총량이 2 MB 를 넘어도, 2 MB 로 정렬된 연속 자리가 없으면 huge page 를 못 만든다. 그 자리를 만드는 일이 compaction 이다.
 
 [[img:L16-42.png|p.42 Compaction: Page Table 이 가리키는 frame 이 흩어져 있고, 빨간 화살표로 연속 자리로 옮긴다|large]]
 
@@ -35,6 +36,8 @@ huge page 의 일부만 쓰이면 나머지는 낭비인데 huge page 단위로�
 
 [[anim:thp_promotion|흩어진 frame, compaction, promotion(PDE 가 huge page 를 직접), demotion 순서]]
 
+영상 60:05~60:14 는 demotion 에 조건을 하나 붙인다. "changing the page table mapping alone does not necessarily free the physical memory immediately." page table 의 mapping 만 작은 page 로 바꿔서는 물리 메모리가 바로 풀리지 않는다. 물리 쪽 할당도 쪼개야 하고, 쪼개는 걸 막는 참조가 있으면 그것도 처리해야 한다.[* p.40 의 "automatically promote" 에 대해서는 영상 53:48~53:56 에서 커널이 huge page 를 처음부터 바로 할당하거나, 나중에 작은 page 들을 하나로 합친다(collapse)고 설명한다.]
+
 == p.45 THP 의 한계 ⭐⭐⭐ ==
 {|
 ! 한계 || 원문 || 풀이
@@ -46,6 +49,7 @@ huge page 의 일부만 쓰이면 나머지는 낭비인데 huge page 단위로�
 | External Fragmentation || Explicit huge page pre-allocates the huge pages in a specific region; THP allows multiple page sizes in the physical memory || 크기 섞인 물리 메모리에서 큰 연속 공간이 부족해짐
 |}
 "Database application usually recommends to turn-off THP". 영상 62:00 "DB 는 deterministic latency 를 원하는데 THP 의 demotion·compaction 이 latency spike 를 낸다."
+영상 61:31~61:48 은 이 권고를 그대로 외우지 말라는 단서를 붙인다. 제품과 workload 마다 따져 봐야 하고, 응답 시간을 예측할 수 있어야 하면 끄고, TLB coverage 덕에 throughput 이 크게 오르면 켤 수도 있다는 것이다.
 
 {exam}용어·객관식 후보: promotion 의 조건 → '''virtually- and physically-contiguous''' / 물리적으로 연속이 아닐 때 하는 일 → '''compaction''' / huge page 안 안 쓰는 page 때문에 쪼개는 것 → '''demotion''' / THP 한계 셋 → memory usage, '''tail latency''', external fragmentation / DB 권장 → THP '''off'''.{/exam}
 

@@ -40,6 +40,8 @@ category: 16강 Advanced Page Table, 핵심
 | 단점 3 || Inefficient to support swapping || 디스크로 나간 page 는 frame 이 없어 표에 줄이 없음. 별도 메타데이터 필요
 |}
 
+단점 3 에 대해 영상 45:20~45:35 는 이렇게 정리한다. "An inverted table therefore does not eliminate all per-process virtual memory metadata." inverted page table 은 '''지금 메모리에 올라와 있는''' mapping 을 표현하고 찾는 방식만 바꾼다. swap 으로 나간 page 나 공유 mapping 은 여전히 프로세스별 다른 자료구조가 맡는다. 그래서 "프로세스별 page table 이 필요 없다" 는 장점 1 을 "프로세스별 메타데이터가 하나도 없다" 로 읽으면 틀린다.
+
 == p.36 cache 구조와의 대응 ==
 영상 48:58 교수 비유: inverted page table 은 fully associative cache 와 같다. (VPN, PID) 를 tag 처럼 맞춰 보고 찾는다. 원래의 multi-level page table 은 direct mapped cache 에 더 가깝다. index 로 그 칸을 찾아간다.
 

@@ -31,6 +31,8 @@ read(…, 4096) = 0                  ▲ 그대로 6
 책갈피다. 책을 펼쳐 열 쪽을 읽으면 책갈피가 열 쪽 뒤로 간다(implicit). 앞 내용을 다시 보고 싶으면 책갈피를 손으로 옮긴다(explicit, lseek). 같은 책이라도 두 사람이 각자 빌리면 책갈피도 각자 있다.
 {/analogy}
 
+{analogy}11/18 수업에서 교수님은 current offset 을 '''커서'''에 빗댔다(40:12~42:08). 카카오톡 입력창, Word, Vim 모두 커서가 있어서 매번 "몇 번째 글자에 써라" 고 말하지 않는다. 파일도 같다. `read` 와 `write` 에 위치를 넘기지 않는 것은 OS 가 커서를 들고 있기 때문이다. Word 에서 마우스로 다른 곳을 찍고 타이핑하는 것이 `lseek` 다. 커서를 지금 자리에서 10 만큼 옮기고 싶으면 whence 를 `SEEK_CUR` 로 준다.{/analogy}
+
 == lseek: offset 을 직접 옮긴다 (p.23) ==
 <pre class="c">
 off_t lseek(int fildes, off_t offset, int whence);

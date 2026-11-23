@@ -140,6 +140,8 @@ hard link 로 못 하는 일이 둘 있다.
 * '''다른 파일 시스템(파티션)의 파일'''에는 걸 수 없다. p.37 이 이유를 든다. "Because inode numbers are only unique within a file system." 디렉터리 엔트리에는 inode 번호만 적는데, 그 번호는 자기 파일 시스템 안에서만 뜻이 있다. 다른 파티션의 12345 번은 전혀 다른 파일이다.
 * '''디렉터리'''에는 걸 수 없다. 디렉터리 트리에 고리가 생기기 때문이다([[디렉터리]] 의 마지막 절).
 
+11/18 수업(62:35~63:24)에서 교수님도 이 한계를 짚었다. 다른 장치나 다른 파일 시스템을 어떤 디렉터리 아래에 mount 해서 한 트리처럼 보이게 할 수는 있지만, 그 둘 사이에는 hard link 를 만들 수 없다. 교수님 말로는 "you can only apply hard link in some limited situation" 이다.
+
 이 두 한계를 넘는 것이 다음 문서 [[symbolic link]] 다.
 
 {mini}
