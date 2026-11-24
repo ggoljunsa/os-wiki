@@ -350,6 +350,30 @@ body.bed .qimg.broken { background: var(--card); }
 body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2b4; }
 .sheet { -webkit-overflow-scrolling: touch; }
 
+/* ---------- 📖 intro cards ---------- */
+#intro { position: fixed; inset: 0; z-index: 50; max-width: 560px; margin: 0 auto; background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: calc(8px + var(--sa-t)) 14px calc(10px + var(--sa-b)); }
+#intro .ibar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#intro .ititle { font-size: 14px; font-weight: 800; color: var(--acc-d); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#intro .iskip { flex: none; border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; min-height: 44px; padding: 0 6px; cursor: pointer; text-decoration: underline; }
+#intro .idots { display: flex; align-items: center; gap: 6px; }
+#intro .idots i { width: 8px; height: 8px; border-radius: 99px; background: var(--line); transition: width .2s; }
+#intro .idots i.past { background: var(--acc-soft); border: 1px solid var(--acc); }
+#intro .idots i.on { width: 22px; background: var(--acc); }
+#intro .idots span { margin-left: auto; }
+#intro .icard { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
+#intro .icard h3 { margin: 4px 0 8px; font-size: 22px; }
+#intro .ibody { font-size: 17px; line-height: 1.7; }
+#intro .inav { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; background: var(--bg); padding-top: 4px; }
+#intro .inav .btn { margin-top: 0; min-height: 56px; }
+.qimg.intro img { max-height: 38vh; }
+body.bed #intro .ititle { color: var(--acc); }
+body.bed #intro .ibody { font-size: 19px; }
+@media (prefers-color-scheme: dark) { #intro .ititle { color: var(--acc); } }
+.nintro { position: absolute; left: -20px; top: 16px; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.cfrow.two { grid-template-columns: 76px 1fr; }
+.cfexp.intro { color: var(--fg); font-size: 18px; line-height: 1.65; }
+@media (hover: hover) and (pointer: fine) { .nintro:hover, #intro .iskip:hover { border-color: var(--blue); color: var(--fg); } }
+
 </style>
 </head>
 <body>
@@ -672,7 +696,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   }
   function makeOutline(content) {
     return (content.units || []).map(function (u) {
-      return { id: u.id, title: u.title, lessons: (u.lessons || []).map(function (l) { return { id: l.id, title: l.title, n: (l.items || []).length }; }) };
+      return { id: u.id, title: u.title, lessons: (u.lessons || []).map(function (l) { return { id: l.id, title: l.title, n: (l.items || []).length, intro: Array.isArray(l.intro) ? l.intro.length : 0 }; }) };
     });
   }
   function makeMeta(content, onlyIds) {
@@ -714,6 +738,11 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     L.push('- 풀어 본 문항: ' + Object.keys(itemIds).length + (totalItems ? ' / ' + totalItems : '') + '개');
     if (g.streak != null || g.xp != null) L.push('- 연속 학습: ' + (calcStreak(days, today)) + '일 · 총 XP ' + (g.xp || 0) + ' · 이 과목 XP ' + ((g.courses && g.courses[course.id] && g.courses[course.id].xp) || 0) + ' · 하루 목표 ' + (g.goal || 30) + ' XP (오늘 ' + ((days[today] && days[today].xp) || 0) + ')');
     var last7 = log.filter(function (e) { return e.t >= now - 7 * DAY; });
+    var introL = 0; outline.forEach(function (u) { u.lessons.forEach(function (l) { if (l.intro) introL++; }); });
+    if (introL || (ctx.intros || []).length) {
+      var seenL = {}; (ctx.intros || []).forEach(function (e) { if (e.lesson) seenL[e.lesson] = 1; });
+      L.push('- 개념 카드(📖) 본 레슨: ' + Object.keys(seenL).length + (introL ? ' / ' + introL : '') + '개 · 카드 열람 ' + (ctx.intros || []).length + '회');
+    }
     L.push('- 최근 7일: ' + last7.length + '문항, 정답률 ' + pct(last7.filter(function (e) { return e.ok; }).length, last7.length));
     if (!tot) { L.push(''); L.push('_아직 기록이 없습니다._'); return L.join('\n'); }
 
@@ -875,13 +904,14 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
       L.push('');
       L.push('---');
       L.push('');
-      L.push(buildReport({ course: c.course, outline: c.outline, meta: c.meta, log: c.log, global: g, now: now, top: ctx.top || 8, noFocus: true }).replace(/^(#+) /gm, '#$1 '));
+      L.push(buildReport({ course: c.course, outline: c.outline, meta: c.meta, log: c.log, intros: c.intros, global: g, now: now, top: ctx.top || 8, noFocus: true }).replace(/^(#+) /gm, '#$1 '));
     });
     return L.join('\n');
   }
 
   /* ---------- validation ---------- */
   function isStr(x) { return typeof x === 'string' && x.trim() !== ''; }
+  var CONTEXT_RE = /\bL\d{1,2}\b|\d+강|p\.\s?\d+|슬라이드가|교수가|교수님이|위 예제|위의|이 그래프|다음 그래프/;
   function validateContent(c, opts) {
     opts = opts || {};
     var E = [], W = [], byType = {};
@@ -894,7 +924,18 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     if (!isStr(co.title)) err('course.title', '필수');
     if (!isStr(co.wiki)) warn('course.wiki', '없음 — 위키 링크가 비활성');
     if (!Array.isArray(c.units) || !c.units.length) { err('units', '비어 있음'); return { errors: E, warnings: W, stats: {} }; }
-    var uids = {}, lids = {}, iids = {}, nL = 0, nI = 0, unknownWiki = {};
+    var uids = {}, lids = {}, iids = {}, nL = 0, nI = 0, unknownWiki = {}, noIntro = [], ctxIds = [];
+    function checkImg(p, f, v) {
+      if (v == null) return;
+      if (!isStr(v)) return err(p, f + ' 는 문자열 경로');
+      if (/(^|\/)\.\.(\/|$)/.test(v) || /^[a-z]+:|^\//i.test(v)) return err(p, f + ' 는 repo 루트 기준 상대경로여야 함: ' + v);
+      if (!/^duo\/img\//.test(v)) warn(p, f + ' 가 duo/img/ 아래가 아님: ' + v);
+      if (opts.fileInfo) {
+        var fi = opts.fileInfo(v);
+        if (!fi) err(p, f + ' 그림 파일 없음: ' + v);
+        else if (fi.size > 200 * 1024) warn(p, f + ' 가 ' + Math.round(fi.size / 1024) + 'KB (200KB 넘음): ' + v);
+      }
+    }
     var keys = opts.wikiKeys || null;
     c.units.forEach(function (u, ui) {
       var up = 'units[' + ui + ']' + (u && u.id ? '(' + u.id + ')' : '');
@@ -908,6 +949,18 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
         if (lids[l.id]) err(lp, 'lesson id 중복 "' + l.id + '"'); lids[l.id] = 1; nL++;
         if (!isStr(l.title)) err(lp, 'title 필수');
         if (!Array.isArray(l.items) || !l.items.length) return err(lp, 'items 비어 있음');
+        if (l.intro == null) noIntro.push(l.id);
+        else if (!Array.isArray(l.intro) || !l.intro.length) err(lp, 'intro 는 카드 객체 배열 (1장 이상)');
+        else l.intro.forEach(function (cd, ci) {
+          var ip = lp + '.intro[' + ci + ']';
+          if (!cd || typeof cd !== 'object' || Array.isArray(cd)) return err(ip, '카드 객체가 아님');
+          if (!isStr(cd.title)) err(ip, 'title 필수');
+          if (!isStr(cd.body)) err(ip, 'body 필수');
+          checkImg(ip, 'img', cd.img);
+          if (cd.img && !isStr(cd.imgAlt)) warn(ip, 'img 에 imgAlt(그림 설명)가 없음');
+          if (cd.src != null && typeof cd.src !== 'string') err(ip, 'src 는 문자열');
+        });
+        var nIntro = Array.isArray(l.intro) ? l.intro.length : 0;
         if (l.items.length < 5 || l.items.length > 24) warn(lp, '문항 ' + l.items.length + '개 (권장 10~16)');
         l.items.forEach(function (it, ii) {
           var p = l.id + '#' + ii + (it && it.id ? '(' + it.id + ')' : '');
@@ -923,18 +976,9 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
           if (it.diff != null && [1, 2, 3].indexOf(it.diff) < 0) err(p, 'diff 는 1/2/3');
           if (it.prof != null && typeof it.prof !== 'boolean') err(p, 'prof 는 boolean');
           if (it.tags != null && !(Array.isArray(it.tags) && it.tags.every(isStr))) err(p, 'tags 는 문자열 배열');
-          ['img', 'explainImg'].forEach(function (f) {
-            var v = it[f];
-            if (v == null) return;
-            if (!isStr(v)) return err(p, f + ' 는 문자열 경로');
-            if (/(^|\/)\.\.(\/|$)/.test(v) || /^[a-z]+:|^\//i.test(v)) return err(p, f + ' 는 repo 루트 기준 상대경로여야 함: ' + v);
-            if (!/^duo\/img\//.test(v)) warn(p, f + ' 가 duo/img/ 아래가 아님: ' + v);
-            if (opts.fileInfo) {
-              var fi = opts.fileInfo(v);
-              if (!fi) err(p, f + ' 그림 파일 없음: ' + v);
-              else if (fi.size > 200 * 1024) warn(p, f + ' 가 ' + Math.round(fi.size / 1024) + 'KB (200KB 넘음): ' + v);
-            }
-          });
+          checkImg(p, 'img', it.img); checkImg(p, 'explainImg', it.explainImg);
+          if (it.introCard != null && !(Number.isInteger(it.introCard) && it.introCard >= 0 && it.introCard < nIntro)) err(p, 'introCard ' + it.introCard + ' 가 intro 카드 범위 밖 (카드 ' + nIntro + '장)');
+          if (!it.img && isStr(it.q) && CONTEXT_RE.test(it.q)) ctxIds.push(it.id);
           if (it.img && !isStr(it.imgAlt)) warn(p, 'img 에 imgAlt(그림 설명)가 없음');
           if (it.imgAlt != null && typeof it.imgAlt !== 'string') err(p, 'imgAlt 는 문자열');
           if (it.wiki != null) {
@@ -986,9 +1030,11 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
         });
       });
     });
+    if (noIntro.length) W.push('intro(📖 개념 카드) 없는 레슨 ' + noIntro.length + '개: ' + noIntro.slice(0, 10).join(', ') + (noIntro.length > 10 ? ' …' : ''));
+    if (ctxIds.length) W.push('[lint] 문맥 의존 문항 ' + ctxIds.length + '개 (img 없이 L·강·p.·슬라이드가·교수가·위 예제 등을 가리킴 — q 만으로 읽히게 고칠 것): ' + ctxIds.slice(0, 10).join(', ') + (ctxIds.length > 10 ? ' …' : ''));
     var uk = Object.keys(unknownWiki);
     if (uk.length) W.push('위키에 없는 wiki key ' + uk.length + '개: ' + uk.map(function (k) { return '"' + k + '"(' + unknownWiki[k].slice(0, 3).join(',') + (unknownWiki[k].length > 3 ? ',…' : '') + ')'; }).join(', '));
-    return { errors: E, warnings: W, unknownWiki: uk, stats: { units: c.units.length, lessons: nL, items: nI, byType: byType } };
+    return { errors: E, warnings: W, unknownWiki: uk, noIntro: noIntro, contextIds: ctxIds, stats: { units: c.units.length, lessons: nL, items: nI, byType: byType } };
   }
 
   var DuoCore = {
@@ -1068,11 +1114,12 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   var DATA = {}, ORDER = [];
   CONTENTS.forEach(function (c) {
     var cid = c.course.id;
-    var cd = { id: cid, C: c, K: { st: 'duo:' + cid + ':stats', log: 'duo:' + cid + ':log', ls: 'duo:' + cid + ':lessons', ss: 'duo:' + cid + ':syncstat' } };
+    var cd = { id: cid, C: c, K: { st: 'duo:' + cid + ':stats', log: 'duo:' + cid + ':log', ls: 'duo:' + cid + ':lessons', ss: 'duo:' + cid + ':syncstat', intro: 'duo:' + cid + ':intro' } };
     cd.items = D.flatItems(c).map(function (it) { it._c = cid; return it; });
     cd.byId = {}; cd.items.forEach(function (it) { cd.byId[it.id] = it; });
     cd.lessons = [];
     c.units.forEach(function (u, ui) { u.lessons.forEach(function (l) { cd.lessons.push({ cd: cd, u: u, l: l, ui: ui, items: cd.items.filter(function (it) { return it._l === l.id; }) }); }); });
+    cd.intro = Object.assign({ seen: {}, log: [] }, store.get(cd.K.intro, {}));
     cd.st = store.get(cd.K.st, {}); cd.log = store.get(cd.K.log, []); cd.ls = store.get(cd.K.ls, {}); cd.ss = store.get(cd.K.ss, {});
     var meta = COURSES.filter(function (x) { return x.id === cid; })[0] || {};
     cd.name = meta.name || c.course.title; cd.short = meta.short || cd.name;
@@ -1216,6 +1263,64 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     document.body.appendChild($zoom);
   }
   function closeZoom() { if ($zoom) { $zoom.remove(); $zoom = null; } }
+
+  /* ---------- 📖 lesson intro cards (teach before testing) ---------- */
+  var INTRO = null, $intro = null;
+  function hasIntro(L) { return !!(L && Array.isArray(L.l.intro) && L.l.intro.length); }
+  function lessonOf(it) { var cd = cdOf(it); return cd.lessons.filter(function (L) { return L.l.id === it._l; })[0]; }
+  function openIntro(L, idx, onDone) {
+    closeIntro();
+    if (!hasIntro(L)) { if (onDone) onDone(); return; }
+    var n = L.l.intro.length;
+    INTRO = { L: L, i: Math.max(0, Math.min(idx || 0, n - 1)), t0: Date.now(), onDone: onDone || null, maxI: 0 };
+    $intro = h('div', { id: 'intro', role: 'dialog', 'aria-label': '개념 카드' });
+    var x0 = null;
+    $intro.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    $intro.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 60) introGo(dx < 0 ? 1 : -1); });
+    document.body.appendChild($intro);
+    renderIntro();
+  }
+  function renderIntro() {
+    var L = INTRO.L, cards = L.l.intro, c = cards[INTRO.i], last = INTRO.i === cards.length - 1;
+    INTRO.maxI = Math.max(INTRO.maxI, INTRO.i);
+    $intro.innerHTML = '';
+    add($intro, [
+      h('div', { class: 'ibar' }, h('span', { class: 'ititle' }, '📖 먼저 배우기 · ' + L.l.title),
+        h('button', { class: 'iskip', onclick: function () { finishIntro(true); } }, INTRO.onDone ? '건너뛰기' : '닫기 ✕')),
+      h('div', { class: 'idots' }, cards.map(function (_, k) { return h('i', { class: k === INTRO.i ? 'on' : k < INTRO.i ? 'past' : '' }); }), h('span', { class: 'muted small' }, (INTRO.i + 1) + ' / ' + cards.length)),
+      h('div', { class: 'icard' }, figure(c.img, c.imgAlt, 'intro'), h('h3', null, c.title),
+        h('div', { class: 'ibody', html: md(c.body).replace(/\n/g, '<br>') }), c.src ? h('div', { class: 'muted small' }, '📖 ' + c.src) : null),
+      h('div', { class: 'inav' },
+        h('button', { class: 'btn', disabled: INTRO.i === 0, onclick: function () { introGo(-1); } }, '◀ 이전'),
+        last ? h('button', { class: 'btn primary', onclick: function () { finishIntro(false); } }, INTRO.onDone ? '문제 풀기 시작 ▶' : '다 읽었어요 ✓')
+          : h('button', { class: 'btn primary', onclick: function () { introGo(1); } }, '다음 ▶'))
+    ]);
+    $intro.scrollTop = 0;
+    tex($intro);
+  }
+  function introGo(d) {
+    if (!INTRO) return;
+    var j = INTRO.i + d;
+    if (j < 0) return;
+    if (j >= INTRO.L.l.intro.length) return finishIntro(false);
+    INTRO.i = j; renderIntro();
+  }
+  function logIntro(L, rec) {
+    var cd = L.cd, now = Date.now();
+    cd.intro.seen[L.l.id] = cd.intro.seen[L.l.id] || now;
+    cd.intro.log.push(Object.assign({ t: now, lesson: L.l.id, intro: true, ms: 0 }, rec || {}));
+    if (cd.intro.log.length > 2000) cd.intro.log = cd.intro.log.slice(-2000);
+    store.set(cd.K.intro, cd.intro);
+  }
+  function finishIntro(skipped) {
+    if (!INTRO) return;
+    var I = INTRO, rec = { ms: Date.now() - I.t0, cards: I.maxI + 1, of: I.L.l.intro.length };
+    if (skipped) rec.skip = 1;
+    logIntro(I.L, rec);
+    closeIntro();
+    if (I.onDone) I.onDone();
+  }
+  function closeIntro() { if ($intro) { $intro.remove(); $intro = null; } INTRO = null; }
   function imageUrls(cds) {
     var out = [];
     cds.forEach(function (cd) { cd.items.forEach(function (it) { if (it.img) out.push(it.img); if (it.explainImg) out.push(it.explainImg); }); });
@@ -1385,7 +1490,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     }));
   }
   function go(s) {
-    current = s; closeModal(); hideSheet(); closeWiki(); closeZoom();
+    current = s; closeModal(); hideSheet(); closeWiki(); closeZoom(); closeIntro();
     document.body.classList.remove('insession');
     if (BED && s !== 'bed') { /* leaving bed via tabs is not possible (tabs hidden) */ }
     ({ today: renderToday, path: renderPath, review: renderReview, stats: renderStats, settings: renderSettings, mistakes: renderMistakes, wiki: renderWikiTab, focus: renderFocusStart })[s]();
@@ -1535,6 +1640,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
             h('button', { class: 'node' + (s.crown ? ' done' : '') + (s.crown >= 5 ? ' gold' : '') + (isRec ? ' rec' : '') + (!s.seen && !isRec ? ' fresh' : ''),
               style: '--p:' + pctSeen + '%', 'aria-label': L.l.title, onclick: function () { openLesson(L); } }, h('span', null, icon)),
             s.crown ? h('div', { class: 'crown' }, '👑' + s.crown) : null,
+            hasIntro(L) ? h('button', { class: 'nintro', title: '개념 카드', 'aria-label': L.l.title + ' 개념 카드', onclick: function (e) { e.stopPropagation(); openIntro(L, 0); } }, '📖') : null,
             h('div', { class: 'nlabel' }, L.l.title));
         }))));
     });
@@ -1552,13 +1658,15 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
         h('span', null, '📝 ' + s.total + '문항'), h('span', null, '👀 ' + s.seen + '/' + s.total),
         h('span', null, '🎯 ' + (s.acc == null ? '—' : Math.round(100 * s.acc) + '%')), h('span', null, '👑 ' + s.crown + '/5')),
       h('p', { class: 'muted small' }, s.crown >= 5 ? '최고 레벨! 그래도 복습은 계속됩니다.' : '정답률 80% 이상으로 끝내면 왕관 +1'),
+      hasIntro(L) ? h('button', { class: 'btn', onclick: function () { closeModal(); openIntro(L, 0); } }, '📖 개념 카드 (' + L.l.intro.length + '장)' + (L.cd.intro.seen[L.l.id] ? '' : ' · 처음엔 자동으로 나와요')) : null,
       h('button', { class: 'btn primary', onclick: function () { closeModal(); startLesson(L); } }, s.seen ? '연습하기' : '시작하기'),
       h('button', { class: 'btn ghost', onclick: closeModal }, '닫기')
     ]);
   }
 
   /* ---------- sessions ---------- */
-  function startLesson(L, firstItem) {
+  function startLesson(L, firstItem, noIntro) {
+    if (!noIntro && hasIntro(L) && !L.cd.intro.seen[L.l.id]) return openIntro(L, 0, function () { startLesson(L, firstItem, true); });
     var items = D.pickLesson(L.items, L.cd.st, Date.now(), 12);
     if (firstItem) items = [firstItem].concat(items.filter(function (x) { return x !== firstItem; })).slice(0, 12);
     startSession('lesson', items, { lessonId: L.l.id, cid: L.cd.id, title: L.l.title });
@@ -1862,7 +1970,8 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
       h('div', { class: 'sexp', html: md(it.explain || '') }),
       figure(it.explainImg, (it.imgAlt ? it.imgAlt + ' — ' : '') + '해설 그림', 'exp'),
       h('div', { class: 'smeta' }, it.src ? h('span', null, '📖 ' + it.src) : null, it.prof ? h('span', { class: 'prof' }, '🎙 교수 강조') : null,
-        hasWiki ? h('button', { class: 'wlink', onclick: function () { openWiki(it._c, it.wiki); } }, '위키에서 보기 ›') : null),
+        hasWiki ? h('button', { class: 'wlink', onclick: function () { openWiki(it._c, it.wiki); } }, '위키에서 보기 ›') : null,
+        !ok && hasIntro(lessonOf(it)) ? h('button', { class: 'wlink', onclick: function () { openIntro(lessonOf(it), it.introCard || 0); } }, '📖 개념 카드 다시 보기') : null),
       h('button', { class: 'btn ' + (ok ? 'primary' : 'danger'), onclick: afterFeedback }, '계속')
     ]);
     tex($sheet);
@@ -2024,17 +2133,17 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   /* ---------- AI / export / sync ---------- */
   function globalLite() { return { xp: G.xp, goal: G.goal, streak: D.calcStreak(G.days, today()), best: G.best, days: G.days, courses: G.courses }; }
   function reportMd(cd) {
-    return D.buildReport({ course: cd.C.course, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C), log: cd.log, global: G, nights: NIGHTS, now: Date.now(), top: 12 });
+    return D.buildReport({ course: cd.C.course, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C), log: cd.log, intros: cd.intro.log, global: G, nights: NIGHTS, now: Date.now(), top: 12 });
   }
   function hubReportMd() {
-    return D.buildHubReport({ courses: ORDER.map(function (c) { var cd = DATA[c]; return { course: cd.C.course, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C), log: cd.log }; }), global: G, nights: NIGHTS, now: Date.now(), top: 8 });
+    return D.buildHubReport({ courses: ORDER.map(function (c) { var cd = DATA[c]; return { course: cd.C.course, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C), log: cd.log, intros: cd.intro.log }; }), global: G, nights: NIGHTS, now: Date.now(), top: 8 });
   }
   function payload(cd) {
     var ids = {}; cd.log.forEach(function (e) { ids[e.id] = 1; });
     return {
       schema: 'duo-log/1', course: { id: cd.id, title: cd.C.course.title, subtitle: cd.C.course.subtitle || '' },
       generatedAt: new Date().toISOString(), global: globalLite(), focus: FOCUSLOG.slice(-100), nights: NIGHTS.slice(-30),
-      lessons: cd.ls, items: cd.st, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C, ids), log: cd.log, report: reportMd(cd)
+      lessons: cd.ls, intro: cd.intro.log, introSeen: cd.intro.seen, items: cd.st, outline: D.makeOutline(cd.C), meta: D.makeMeta(cd.C, ids), log: cd.log, report: reportMd(cd)
     };
   }
   function hubPayload() {
@@ -2297,6 +2406,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
         h('div', { class: 'row2' },
           h('button', { class: 'btn primary tall', onclick: function () { bedFlow(false); } }, '🃏 카드 흘려보기'),
           h('button', { class: 'btn primary tall', onclick: function () { bedFlow(true); } }, '🎧 듣기')),
+        h('button', { class: 'btn', onclick: function () { bedFlow(false, true); } }, '📖 개념 카드부터 흘려보기'),
         h('button', { class: 'btn', onclick: function () { if (BED.scope !== 'all') setCur(BED.scope); if (HUB && BED.scope === 'all') continueStudy(); else { var L = recommendedLesson(CUR); var cd = CUR; if (D.dueCount(cd.items, cd.st, Date.now()) >= 5 || !L) startReview(cd); else startLesson(L); } } }, '📝 퀴즈 레슨'),
         h('div', { class: 'row2' },
           h('button', { class: 'btn', onclick: function () { try { document.documentElement.requestFullscreen().catch(function () { }); } catch (e) { toast('전체 화면을 지원하지 않아요'); } } }, '⛶ 전체 화면'),
@@ -2343,12 +2453,39 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     CF = null;
   }
   function bedPauseAudio() { if (CF && !CF.paused) cfPause(); }
-  function bedFlow(listen) {
+  function bedFlow(listen, introFirst) {
     bedStopFlow();
     if (listen && !window.speechSynthesis) toast('이 브라우저는 음성 읽기를 지원하지 않아 카드로 보여 줍니다');
-    CF = { deck: bedDeck(), i: 0, listen: listen, phase: 'q', gen: 0, paused: false, marked: false };
+    CF = { deck: (introFirst ? introDeck() : []).concat(bedDeck()), i: 0, listen: listen, introLogged: {}, phase: 'q', gen: 0, paused: false, marked: false };
     if (!CF.deck.length) { CF = null; return toast('카드로 만들 문항이 없어요'); }
     cfShow();
+  }
+  function introDeck() {
+    var cds = BED.scope === 'all' ? ORDER.map(function (c) { return DATA[c]; }) : [DATA[BED.scope]], out = [];
+    cds.forEach(function (cd) {
+      var withI = cd.lessons.filter(hasIntro);
+      if (!withI.length) return;
+      var rec = recommendedLesson(cd);
+      var L = hasIntro(rec) ? rec : (withI.filter(function (x) { return !cd.intro.seen[x.l.id]; })[0] || withI[0]);
+      L.l.intro.forEach(function (card, k) { out.push({ _intro: card, _k: k, _L: L, _c: cd.id, id: L.l.id + '#intro' + k }); });
+    });
+    return out;
+  }
+  function introSpeech(it) { return cleanSpeak(it._intro.title + '. ' + it._intro.body); }
+  function renderIntroCard(it, cd) {
+    var c = it._intro, n = it._L.l.intro.length;
+    var root = h('div', { class: 'bedwrap card-flow' },
+      h('div', { class: 'cftop' }, h('span', { class: 'cbadge' }, cd.short), h('span', { class: 'muted small' }, '📖 개념 카드 ' + (it._k + 1) + '/' + n + ' · ' + it._L.l.title), h('span', { id: 'bedtimer', class: 'muted small' }, '')),
+      h('div', { class: 'cfbody' }, h('div', { class: 'cffront' }, figure(c.img, c.imgAlt, CF.listen ? 'thumb' : null), h('div', { class: 'cfq' }, c.title),
+        h('div', { class: 'cfexp intro', html: md(c.body).replace(/\n/g, '<br>') }), c.src ? h('div', { class: 'muted small' }, '📖 ' + c.src) : null)),
+      h('div', { class: 'bedctl' },
+        h('div', { class: 'cfbar' }, h('i', { style: CF.paused ? 'width:50%' : '' })),
+        h('div', { class: 'cfrow two' },
+          h('button', { class: 'cfb pp', onclick: cfPause, 'aria-label': CF.paused ? '재생' : '일시정지' }, CF.paused ? '▶' : '⏸'),
+          h('button', { class: 'cfb yes', onclick: cfNext }, '다음 ▶')),
+        h('div', { class: 'row2' }, h('button', { class: 'btn', onclick: bedMenu }, '☰ 메뉴'))));
+    setView(root);
+    bedSecond();
   }
   function cfLater(ms, fn) {
     var gen = CF.gen;
@@ -2371,6 +2508,14 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     var it = CF.deck[CF.i];
     CF.phase = 'q'; CF.marked = false; CF.gen++; CF.itemT0 = Date.now();
     BED.seen++;
+    if (it._intro) {
+      CF.phase = 'i';
+      if (!CF.introLogged[it._L.l.id]) { CF.introLogged[it._L.l.id] = 1; logIntro(it._L, { bed: 1 }); }
+      renderCard();
+      if (CF.listen && window.speechSynthesis) speak(introSpeech(it), function () { cfLater(2500, cfNext); });
+      else cfLater((HC.qSec + HC.aSec) * 1000, cfNext);
+      return;
+    }
     renderCard();
     if (CF.listen && window.speechSynthesis) speak(frontSpeech(it), function () { cfLater(HC.qSec * 1000, cfReveal); });
     else cfLater(HC.qSec * 1000, cfReveal);
@@ -2378,6 +2523,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   function cfReveal() {
     if (!CF) return;
     var it = CF.deck[CF.i];
+    if (it._intro) return cfNext();
     CF.phase = 'a'; CF.gen++;
     renderCard();
     if (CF.listen && window.speechSynthesis) speak(backSpeech(it), function () { cfLater(2500, cfNext); });
@@ -2394,6 +2540,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
       CF.paused = false; CF.gen++;
       renderCard();
       var it = CF.deck[CF.i];
+      if (it._intro) { if (CF.listen && window.speechSynthesis) speak(introSpeech(it), function () { cfLater(2500, cfNext); }); else cfLater(CF.remain, cfNext); return; }
       if (CF.phase === 'q') { if (CF.listen && window.speechSynthesis) speak(frontSpeech(it), function () { cfLater(HC.qSec * 1000, cfReveal); }); else cfLater(CF.remain, cfReveal); }
       else { if (CF.listen && window.speechSynthesis) speak(backSpeech(it), function () { cfLater(2500, cfNext); }); else cfLater(CF.remain, cfNext); }
     }
@@ -2401,6 +2548,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   function cfMark(known) {
     if (!CF || CF.marked) return;
     var it = CF.deck[CF.i], cd = cdOf(it), now = Date.now();
+    if (it._intro) return cfNext();
     CF.marked = true;
     var g = known ? '(카드) 알았다' : '(카드) 몰랐다';
     cd.log.push({ t: now, id: it.id, unit: it._u, lesson: it._l, ok: known, given: g, ms: now - CF.itemT0, m: 'card', mode: 'self', bed: 1 });
@@ -2412,6 +2560,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
   }
   function renderCard() {
     var it = CF.deck[CF.i], cd = cdOf(it);
+    if (it._intro) return renderIntroCard(it, cd);
     var back = CF.phase === 'a' ? h('div', { class: 'cfback' },
       h('div', { class: 'cfans', html: '<b>정답</b> ' + md(D.answerText(it)) }),
       h('div', { class: 'cfexp', html: md(it.explain || '') }),
@@ -2497,7 +2646,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     var L = it0 && cd.lessons.filter(function (x) { return x.l.id === it0._l; })[0];
     if (scr === 'lesson' || scr === 'feedback') {
       if (!L) return go('path');
-      startLesson(L, it0);
+      startLesson(L, it0, !P.get('showintro'));
       if (scr === 'feedback') submit(makeGiven(it0, ok));
       else if (P.get('self')) selfReveal();
       if (P.get('zoom') && it0.img) openZoom(it0.img, it0.imgAlt);
@@ -2515,11 +2664,31 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
       cfPause();
     } else if (scr === 'sleep') {
       enterBed(); BED.t0 = Date.now() - 32 * MIN; BED.activeMs = 31 * MIN; BED.seen = 37; BED.known = 26; BED.unknown = 9; BED.qn = 6; BED.qok = 5; BED.leaves = 1; BED.timerMin = 30; sleepEnd();
-    } else if (scr === 'wikiview') { go('path'); openWiki(cd.id, (cd.items.filter(function (x) { return x.wiki; })[0] || {}).wiki || ''); }
+    } else if (scr === 'intro') {
+      var IL = cd.lessons.filter(function (x) { return P.get('lesson') ? x.l.id === P.get('lesson') : hasIntro(x); })[0];
+      go('path');
+      if (IL) openIntro(IL, P.get('card') === 'last' ? IL.l.intro.length - 1 : Number(P.get('card') || 0), P.get('reread') ? null : function () { startLesson(IL, null, true); });
+    } else if (scr === 'bedintro') { enterBed(); setTimer(30); bedFlow(false, true); cfPause(); }
+    else if (scr === 'wikiview') { go('path'); openWiki(cd.id, (cd.items.filter(function (x) { return x.wiki; })[0] || {}).wiki || ''); }
     else if (scr === 'focusbar') { FOCUS = { t0: Date.now(), target: 25 * MIN, activeMs: 7 * MIN, leaves: 2 }; renderFocusBar(); go(HUB ? 'today' : 'path'); }
     else if (scr === 'autoplay') {
       // end-to-end through the real flow (used by test.mjs)
-      var out = {}, L0 = cd.lessons[0], xp0 = G.xp, logN = cd.log.length, hearts0 = G.hearts, n = 0, wrongDone = false, seenIds = {};
+      // intro: first start of a lesson with intro shows the deck; →… then Enter starts the questions
+      var out0 = {}, IL0 = cd.lessons.filter(hasIntro)[0];
+      if (IL0) {
+        delete cd.intro.seen[IL0.l.id];
+        startLesson(IL0);
+        out0.introShown = !!$intro && !S;
+        for (var ii = 0; ii < IL0.l.intro.length - 1; ii++) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        out0.introLast = !!$intro && /문제 풀기 시작/.test($intro.textContent);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        var ilog = cd.intro.log[cd.intro.log.length - 1];
+        out0.introThenLesson = !$intro && !!S && !!cd.intro.seen[IL0.l.id] && ilog.lesson === IL0.l.id && ilog.intro === true && ilog.cards === IL0.l.intro.length;
+        S = null; go('path');
+        startLesson(IL0); out0.introNotAgain = !$intro && !!S; S = null;
+      }
+      ORDER.forEach(function (c) { DATA[c].lessons.forEach(function (x) { DATA[c].intro.seen[x.l.id] = DATA[c].intro.seen[x.l.id] || 1; }); });
+      var out = out0, L0 = cd.lessons[0], xp0 = G.xp, logN = cd.log.length, hearts0 = G.hearts, n = 0, wrongDone = false, seenIds = {};
       startLesson(L0);
       while (S && n < 200) {
         var cur = S.cur, ok1 = wrongDone || seenIds[cur.id] ? true : false;
@@ -2558,6 +2727,7 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
       out.bedKnown = BED.known; out.bedUnknown = BED.unknown; out.cardLogs = ORDER.reduce(function (a, c) { return a + DATA[c].log.filter(function (e) { return e.m === 'card'; }).length; }, 0);
       sleepEnd(); out.slept = !!(BED && BED.slept && document.querySelector('.sleep')); out.nights = NIGHTS.length;
       var rep = HUB ? hubReportMd() : reportMd(cd);
+      out.reportHasIntro = /개념 카드\(📖\) 본 레슨: [1-9]/.test(rep);
       out.reportLen = rep.length; out.reportHasNight = /누워서 모드 기록/.test(rep); out.reportHasMissed = /가장 많이 틀린 문항/.test(rep);
       exitBed(); out.bedExited = !BED && !document.body.classList.contains('bed');
       out.payloadOk = !!payload(cd).report && payload(cd).log.length === cd.log.length;
@@ -2572,6 +2742,12 @@ body.bed #zoom .zwrap img { filter: brightness(.8) sepia(.25); background: #c9c2
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     var tag = (e.target && e.target.tagName) || '', typing = tag === 'INPUT' || tag === 'TEXTAREA';
     if ($zoom) { if (e.key === 'Escape') closeZoom(); return; }
+    if ($intro) {
+      if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); introGo(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); introGo(-1); }
+      else if (e.key === 'Escape') finishIntro(true);
+      return;
+    }
     if ($modal.classList.contains('show') || $wiki.classList.contains('show')) return;
     if ($sheet.classList.contains('show')) {
       if (e.key === 'Enter' || e.key === ' ') { var cb = $sheet.querySelector('.btn'); if (cb) { e.preventDefault(); cb.click(); } }
