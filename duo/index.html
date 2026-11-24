@@ -1391,6 +1391,7 @@ body.bed #intro .ibody { font-size: 19px; }
         saveG();
       }
       if (BED) bedPauseAudio();
+      autoSync(60000);
     } else {
       lastTick = Date.now();
       var n = S ? S.leaves : FOCUS ? FOCUS.leaves : BED && !BED.slept ? BED.leaves : 0;
@@ -1724,9 +1725,9 @@ body.bed #intro .ibody { font-size: 19px; }
     renderQuestion();
   }
   function quitSession() {
-    modal([h('h3', null, '그만할까요?'), h('p', { class: 'muted' }, '지금까지 푼 문항은 기록에 남지만 XP·왕관은 받지 못합니다.'),
+    modal([h('h3', null, '그만할까요?'), h('p', { class: 'muted' }, '지금까지 푼 문항은 바로 기록·동기화됩니다 (XP·왕관만 못 받아요).'),
       h('button', { class: 'btn primary', onclick: closeModal }, '계속 풀기'),
-      h('button', { class: 'btn ghost danger', onclick: function () { endSessionTrack(); S = null; home(); } }, '그만하기')]);
+      h('button', { class: 'btn ghost danger', onclick: function () { endSessionTrack(); S = null; home(); autoSync(); } }, '그만하기')]);
   }
   function endSessionTrack() {
     if (!S) return;
@@ -2211,6 +2212,14 @@ body.bed #intro .ibody { font-size: 19px; }
       });
     }
     return attempt(0);
+  }
+  var lastAuto = 0;
+  // 레슨을 끝까지 안 풀어도: 그만하기·앱 나가기 때 자동 업로드 (minGap ms 안에 다시 하지 않음)
+  function autoSync(minGap) {
+    if (!(SYNC.auto && SYNC.token)) return;
+    var now = Date.now();
+    if (minGap && now - lastAuto < minGap) return;
+    lastAuto = now; syncNow(true);
   }
   function syncNow(quiet) {
     if (syncing) return Promise.resolve();
