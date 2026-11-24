@@ -212,6 +212,10 @@ def main():
         parts.append(read(os.path.join(ANIMS_DIR, f)))
     parts.append("\n// ===== renderer =====\n")
     parts.append(renderer)
+    search_js = os.path.join(SRC, "search.js")
+    if os.path.isfile(search_js):
+        parts.append("\n// ===== search (src/search.js) =====\n")
+        parts.append(read(search_js))
     parts.append("\n</script>\n</body>\n</html>\n")
 
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:

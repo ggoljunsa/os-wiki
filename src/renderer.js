@@ -540,32 +540,8 @@ function renderTOC() {
   });
 }
 
-document.getElementById("searchBox").addEventListener("input", function (e) {
-  var q = e.target.value.trim().toLowerCase();
-  var nav = document.getElementById("navList");
-  if (q === "") { renderNav(currentArticle()); return; }
-  nav.innerHTML = "";
-  var hits = 0;
-  Object.keys(ARTICLES).forEach(function (key) {
-    var art = ARTICLES[key];
-    var haystack = (key + " " + art.title + " " + art.body).toLowerCase();
-    if (haystack.indexOf(q) !== -1) {
-      hits++;
-      var li = document.createElement("li");
-      var a = document.createElement("a");
-      a.href = "#" + encodeURIComponent(key);
-      a.textContent = art.title;
-      li.appendChild(a);
-      nav.appendChild(li);
-    }
-  });
-  if (!hits) {
-    var li0 = document.createElement("li");
-    li0.style.cssText = "color:#999; font-size:12px; padding:6px 4px;";
-    li0.textContent = "검색 결과 없음";
-    nav.appendChild(li0);
-  }
-});
+// 검색창·검색 결과·문서 안 찾기는 src/search.js (build.py 가 이 파일 뒤에 붙인다, 2026-11-24).
+// 사이드바(#navList)는 검색 때 덮어쓰지 않는다.
 
 function currentArticle() {
   var hash = decodeURIComponent(location.hash.substring(1));
