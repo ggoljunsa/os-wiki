@@ -1,6 +1,6 @@
 /* 한입 학습 service worker — scope is this duo/ folder only. */
 var PREFIX = 'duo-os-';
-var CACHE = PREFIX + '1b7d52846e';
+var CACHE = PREFIX + '0c5b584d77';
 var CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 var CDN = 'https://cdn.jsdelivr.net/';
 var KATEX = [
