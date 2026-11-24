@@ -1,8 +1,9 @@
 /* 한입 학습 service worker — scope is this duo/ folder only. */
 var PREFIX = 'duo-os-';
-var CACHE = PREFIX + '0c5b584d77';
+var CACHE = PREFIX + '6052227ee7';
 var CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 var CDN = 'https://cdn.jsdelivr.net/';
+var IMG = 'duo-img'; // question images, shared by all courses + hub; never purged by activate
 var KATEX = [
   CDN + 'npm/katex@0.16.11/dist/katex.min.css',
   CDN + 'npm/katex@0.16.11/dist/katex.min.js',
@@ -26,6 +27,15 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   var scope = self.registration.scope;
+  if (url.origin === self.location.origin && url.pathname.indexOf('/duo/img/') >= 0) {
+    // cache-first: an image seen once works offline afterwards
+    e.respondWith(caches.open(IMG).then(function (c) {
+      return c.match(req, { ignoreSearch: true }).then(function (hit) {
+        return hit || fetch(req).then(function (r) { if (r && r.ok) c.put(req, r.clone()); return r; });
+      });
+    }));
+    return;
+  }
   if (req.mode === 'navigate' && req.url.indexOf(scope) === 0) {
     // network first so new builds show up; cached copy offline
     e.respondWith(fetch(req).then(function (r) {

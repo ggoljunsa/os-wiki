@@ -220,8 +220,8 @@
       {
        "id": "u13a-12",
        "type": "sa",
-       "q": "프로그램이 쓰는 모든 주소는 물리 주소가 아니다. mem.c 의 두 프로세스가 같은 주소를 출력하는 까닭은 그 값이 ___ address 이기 때문이다. 빈칸의 영어 한 단어는?",
-       "explain": "p.23~24 \"Every address in a running program is virtual.\" 두 프로세스가 같은 물리 주소를 쓸 수는 없다.",
+       "q": "p.23 \"Every address in a running program is ___.\" mem.c 를 두 번 실행하면 두 프로세스가 같은 heap 주소를 출력한다. 빈칸의 영어 한 단어는?",
+       "explain": "p.23~24. 두 프로세스가 같은 물리 주소를 동시에 쓸 수는 없으니, 출력된 값은 각자의 virtual address 이고 OS(와 MMU)가 서로 다른 물리 주소로 옮겨 준다.",
        "src": "13강 p.23~24",
        "wiki": "가상 주소 공간",
        "tags": [
@@ -229,8 +229,7 @@
        ],
        "answer": "virtual",
        "alts": [
-        "virtual address",
-        "가상"
+        "virtual address"
        ]
       },
       {
@@ -252,6 +251,59 @@
         "Locality",
         "Flexibility"
        ]
+      },
+      {
+       "id": "u13a-14",
+       "type": "mc",
+       "q": "p.10 캐싱 표에서 가려진 칸 — Virtual Memory 행이 캐시하는 단위(What is Cached?)와 관리 주체(Managed By)는?",
+       "explain": "Virtual memory 는 main memory 를 disk 의 캐시처럼 쓰고, 단위는 4-KB page 다. 변환은 하드웨어(MMU·TLB)가, 어느 page 를 둘지·쫓아낼지는 OS 가 정해서 Hardware + OS. 64-bytes block / Hardware 는 L1·L2 캐시, Parts of files / OS 는 buffer cache 행이다.",
+       "src": "13강 p.10",
+       "wiki": "메모리 계층",
+       "tags": [
+        "메모리 계층"
+       ],
+       "img": "duo/img/os13-p10-cache-table.png",
+       "imgAlt": "p.10 Example of Caching in the Hierarchy 표 — Virtual Memory 행 두 칸이 가려져 있다",
+       "choices": [
+        "4-KB page / Hardware + OS",
+        "64-bytes block / Hardware",
+        "Parts of files / OS",
+        "Disk sectors / Disk firmware"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13a-15",
+       "type": "mc",
+       "q": "p.14 multiprogramming 그림에서 Process C 에서 Process A 로 가는 굽은 화살표(라벨 ?)가 보여 주는 문제는?",
+       "explain": "여러 프로세스가 물리 메모리에 같이 있으면 한 프로세스가 남의 영역을 잘못 건드릴 수 있다(errant memory access). 그래서 protection 이 필요하다. Poor CPU utilization·memory space waste 는 프로세스 하나만 올리던 p.13 의 문제다.",
+       "src": "13강 p.13~14",
+       "wiki": "메모리 가상화",
+       "tags": [
+        "protection"
+       ],
+       "img": "duo/img/os13-p14-errant.png",
+       "imgAlt": "p.14 물리 메모리에 Process A·B·C 가 함께 있고 C 에서 A 로 화살표 하나(라벨 가림)",
+       "choices": [
+        "Errant access — protection issue",
+        "Poor CPU utilization",
+        "Memory space waste",
+        "context switch 비용"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13a-16",
+       "type": "sa",
+       "q": "[용어] Programs tend to use data and instructions with addresses near or equal to those they have used recently. (3 words, p… o… l…)",
+       "explain": "p.8 정의 문장 그대로. 시험의 vocabulary 문제는 full term 만 인정한다 — \"locality\" 한 단어로 쓰면 틀린다. 둘로 나누면 temporal locality(같은 것 재사용)와 spatial locality(근처 것 사용).",
+       "src": "13강 p.8",
+       "wiki": "locality",
+       "diff": 2,
+       "tags": [
+        "locality"
+       ],
+       "answer": "principle of locality"
       }
      ]
     },
@@ -291,12 +343,13 @@
       {
        "id": "u13b-02",
        "type": "num",
-       "q": "virtual address space 의 주소 비트 n = 32 일 때 가상 주소의 개수 N 은 $2^?$ 인가? 지수만 쓰시오.",
-       "explain": "p.20: N = $2^n$ 개의 가상 주소. n = 32 면 $2^{32}$.",
-       "src": "13강 p.20",
+       "q": "p.20 virtual address space 는 $N = 2^n$ 개의 주소다. p.21 예처럼 주소 공간이 16KB 라면 주소 비트 수 n 은?",
+       "explain": "16KB = $2^4 \times 2^{10} = 2^{14}$ 바이트이고, 바이트마다 주소가 하나이니 $N = 2^{14}$, 즉 n = 14. (주소 비트 n 으로 만들 수 있는 주소 수가 $2^n$ 이라는 관계를 거꾸로 쓴 것)",
+       "src": "13강 p.20~21",
        "wiki": "가상 주소 공간",
        "diff": 1,
-       "answer": 32,
+       "answer": 14,
+       "unit": "bit",
        "tol": 0
       },
       {
@@ -400,6 +453,9 @@
        "tags": [
         "변환 시점"
        ],
+       "img": "duo/img/os13-p33-loadtime.png",
+       "imgAlt": "p.33 load time 변환 그림 — 물리 메모리 안 call 명령이 가려져 있다 (②가 P2)",
+       "explainImg": "duo/img/os13-p33-loadtime-ans.png",
        "choices": [
         "call 300320",
         "call 100320",
@@ -418,6 +474,8 @@
        "tags": [
         "MMU"
        ],
+       "img": "duo/img/os13-p38-mmu.png",
+       "imgAlt": "p.38 CPU Chip 안에서 VA 4100 을 PA 4 로 바꾸는 상자(?)",
        "answer": "Memory Management Unit",
        "alts": [
         "MMU"
@@ -480,6 +538,104 @@
         "변환 시점"
        ],
        "answer": false
+      },
+      {
+       "id": "u13b-14",
+       "type": "cloze",
+       "q": "p.21 주소 공간 그림에서 ①은 ___, ②는 ___, ③은 ___ 이다.",
+       "explain": "위(0KB)부터 명령어가 사는 Program Code, malloc 으로 아래로 자라는 Heap, 맨 아래(16KB)에서 위로 자라는 Stack. 둘 사이 빗금 친 곳이 (free) 다.",
+       "src": "13강 p.21~22",
+       "wiki": "가상 주소 공간",
+       "tags": [
+        "주소 공간"
+       ],
+       "img": "duo/img/os13-p21-addrspace.png",
+       "imgAlt": "p.21 16KB 주소 공간 — 세 영역 이름이 ①②③ 으로 가려져 있다",
+       "explainImg": "duo/img/os13-p21-addrspace-ans.png",
+       "answer": [
+        "Program Code",
+        "Heap",
+        "Stack"
+       ],
+       "bank": [
+        "Program Code",
+        "Heap",
+        "Stack",
+        "Data",
+        "free",
+        "PCB"
+       ]
+      },
+      {
+       "id": "u13b-15",
+       "type": "mc",
+       "q": "p.24 mem.c 를 동시에 두 번 실행했다. 두 프로세스(2413, 2414)의 heap 주소가 똑같이 0xcf2010 으로 찍힌 이유는?",
+       "explain": "p.23 \"Every address in a running program is virtual.\" 같은 가상 주소라도 address translation 이 프로세스마다 다른 물리 주소로 보낸다. 물리 메모리를 공유한다면 서로의 heap 을 덮어쓸 것이다.",
+       "src": "13강 p.23~24",
+       "wiki": "가상 주소 공간",
+       "tags": [
+        "가상 주소 공간"
+       ],
+       "img": "duo/img/os13-p24-mem-output.png",
+       "imgAlt": "p.24 64-bit Linux 에서 mem.c 를 두 번 실행한 출력과 주소 공간",
+       "choices": [
+        "찍힌 값이 virtual address 이고, 각 프로세스는 자기만의 address space 를 가진다",
+        "두 프로세스가 같은 물리 메모리를 공유한다",
+        "malloc 이 같은 물리 블록을 두 번 돌려줬다",
+        "OS 가 두 번째 프로세스를 첫 번째가 끝난 뒤 실행했다"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13b-16",
+       "type": "sa",
+       "q": "p.33 load time 변환 그림. P1 실행 파일은 0x100000 부터, 물리 메모리에는 +0x100000 해서 0x200000 부터 올라갔다. ①의 명령은 call 뒤에 무엇인가? (16진수, 0x 없이)",
+       "explain": "load time 변환은 로딩할 때 실행 파일 안의 주소를 고쳐 쓴다. swap 은 0x10052d → 0x10052d + 0x100000 = 0x20052d. 그래서 call 10052d 가 call 20052d 로 바뀐다. 같은 원리로 P2(+0x200000)의 call 100320 은 call 300320.",
+       "src": "13강 p.33",
+       "wiki": "주소 변환 시점",
+       "tags": [
+        "변환 시점"
+       ],
+       "img": "duo/img/os13-p33-loadtime.png",
+       "imgAlt": "p.33 load time 변환 — 물리 메모리 안 두 call 명령이 ①②로 가려져 있다",
+       "explainImg": "duo/img/os13-p33-loadtime-ans.png",
+       "answer": "20052d",
+       "alts": [
+        "0x20052d"
+       ]
+      },
+      {
+       "id": "u13b-17",
+       "type": "mc",
+       "q": "p.36 execution time 변환. P2 가 실행 중 VA 0x100320 의 test 를 call 하면, MMU 가 더하는 값과 PA(둘 다 ?)는?",
+       "explain": "execution time 방식은 실행 파일을 고치지 않고(call 100320 그대로), CPU 의 MMU 가 매 참조마다 그 프로세스의 값(P2 는 +0x200000)을 더한다. 0x100320 + 0x200000 = 0x300320.",
+       "src": "13강 p.35~36",
+       "wiki": "주소 변환 시점",
+       "tags": [
+        "변환 시점"
+       ],
+       "img": "duo/img/os13-p36-exectime.png",
+       "imgAlt": "p.36 execution time 변환 — P2 의 더하는 값과 물리 주소가 가려져 있다",
+       "explainImg": "duo/img/os13-p36-exectime-ans.png",
+       "choices": [
+        "+0x200000, PA 0x300320",
+        "+0x100000, PA 0x200320",
+        "+0, PA 0x100320",
+        "+0x300000, PA 0x400320"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13b-18",
+       "type": "sa",
+       "q": "[용어] A process of mapping virtual addresses to physical addresses. (2 words, a… t…)",
+       "explain": "p.26 정의 그대로. 13강 p.16 \"Virtual Memory = ① Virtual Address Space + ② Address Translation\" 의 두 번째 축이다.",
+       "src": "13강 p.26",
+       "wiki": "주소 변환",
+       "tags": [
+        "주소 변환"
+       ],
+       "answer": "address translation"
       }
      ]
     },
@@ -547,6 +703,9 @@
        "tags": [
         "base and bounds"
        ],
+       "img": "duo/img/os13-p48-fetch128.png",
+       "imgAlt": "p.48 MMU 그림 — fetch 128 의 물리 주소가 가려져 있다",
+       "explainImg": "duo/img/os13-p48-fetch128-ans.png",
        "answer": 32896,
        "unit": "B",
        "tol": 0
@@ -562,6 +721,9 @@
        "tags": [
         "base and bounds"
        ],
+       "img": "duo/img/os13-p49-load15k.png",
+       "imgAlt": "p.49 MMU 그림 — load 15KB 의 물리 주소가 가려져 있다",
+       "explainImg": "duo/img/os13-p49-load15k-ans.png",
        "answer": 47,
        "unit": "KB",
        "tol": 0
@@ -570,13 +732,15 @@
        "id": "u13c-06",
        "type": "num",
        "q": "`x = x + 3` (명령 3개, x 는 메모리에 있음) 을 실행할 때 MMU 를 지나는 메모리 참조는 몇 번인가?",
-       "explain": "fetch 3번(128, 132, 135) + load x 1번 + store x 1번 = 5번. addl 실행은 메모리 참조가 없다.",
+       "explain": "fetch 3번(128, 132, 135) + load x 1번 + store x 1번 = 5번. addl 실행은 레지스터끼리 더하므로 메모리 참조가 없다.",
        "src": "13강 p.46",
        "wiki": "base and bounds",
        "diff": 2,
        "tags": [
         "base and bounds"
        ],
+       "img": "duo/img/os13-p46-exec-va.png",
+       "imgAlt": "p.46 x = x + 3 의 세 명령과 주소 공간",
        "answer": 5,
        "unit": "번",
        "tol": 0
@@ -703,6 +867,72 @@
         "page fault",
         "PFN"
        ]
+      },
+      {
+       "id": "u13c-15",
+       "type": "num",
+       "q": "p.42 그림: 프로세스의 16KB 주소 공간이 물리 메모리 32KB~48KB 에 올라가 있다. 가려진 base register 값은 몇 KB 인가?",
+       "explain": "base register = 프로그램이 로드된 물리 메모리의 시작 주소 = 32KB. bounds register 는 길이 = 48 − 32 = 16KB (그림 왼쪽 아래의 다른 ?).",
+       "src": "13강 p.40, p.42",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
+       "img": "duo/img/os13-p42-bb-reg.png",
+       "imgAlt": "p.42 base register·bounds register 값이 가려진 그림",
+       "explainImg": "duo/img/os13-p42-bb-reg-ans.png",
+       "answer": 32,
+       "unit": "KB",
+       "tol": 0
+      },
+      {
+       "id": "u13c-16",
+       "type": "order",
+       "q": "p.46 `x = x + 3` (명령 주소 128, 132, 135, x 의 VA 15KB). MMU 를 지나는 메모리 참조를 일어나는 순서대로 놓으시오.",
+       "explain": "명령 하나를 fetch 한 뒤 그 명령을 execute 한다. movl(load) → addl(메모리 참조 없음) → movl(store). 그래서 fetch 128 → load 15KB → fetch 132 → (addl 실행) → fetch 135 → store 15KB.",
+       "src": "13강 p.45~46",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
+       "img": "duo/img/os13-p46-exec-va.png",
+       "imgAlt": "p.46 세 명령과 주소 공간",
+       "answer": [
+        "fetch 128",
+        "load 15KB",
+        "fetch 132",
+        "fetch 135",
+        "store 15KB"
+       ]
+      },
+      {
+       "id": "u13c-17",
+       "type": "num",
+       "q": "[규칙 적용] base = 32KB, bounds = 16KB. VA 100, 4200, 16383, 16384, 20000 을 차례로 접근한다. exception 이 나는 접근은 몇 개인가?",
+       "explain": "조건은 0 ≤ VA < 16384. 100·4200·16383 은 통과, 16384(같음)·20000 은 실패 → 2개. \"같으면 통과\"로 착각하면 1개로 틀린다.",
+       "src": "13강 p.43 규칙 적용",
+       "wiki": "base and bounds",
+       "diff": 2,
+       "tags": [
+        "base and bounds"
+       ],
+       "answer": 2,
+       "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u13c-18",
+       "type": "num",
+       "q": "[규칙 적용] base = 16KB, bounds = 8KB. VA 8000 의 PA 는? (바이트)",
+       "explain": "8000 < 8192 이므로 통과. PA = 16×1024 + 8000 = 16384 + 8000 = 24384.",
+       "src": "13강 p.43 규칙 적용",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
+       "answer": 24384,
+       "unit": "B",
+       "tol": 0
       }
      ]
     },
@@ -780,6 +1010,8 @@
        "tags": [
         "base and bounds"
        ],
+       "img": "duo/img/os13-p55-hugeva.png",
+       "imgAlt": "p.55 64-bit Linux 주소 공간 — heap 과 stack 사이 128 TB",
        "choices": [
         "heap 과 stack 사이 큰 free 공간까지 물리 메모리를 차지한다",
         "변환이 너무 느리다",
@@ -815,11 +1047,14 @@
       {
        "id": "u13d-07",
        "type": "tf",
-       "q": "13강 슬라이드에서 계산 문제가 나올 곳은 base and bounds 변환이다.",
-       "explain": "위키 정리: 13강에서 손으로 돌리는 계산은 PA = VA + base, VA < bounds 검사 뿐이다.",
-       "src": "위키 base and bounds",
+       "q": "p.48 MMU 그림에서 비교기(<)에는 VA 와 bounds register 가, 덧셈기(+)에는 VA 와 base register 가 들어간다.",
+       "explain": "비교는 VA 를 길이(bounds)와 견주는 것이라 base 를 더하기 전의 VA 를 쓴다. 비교가 yes 일 때만 base 를 더해 PA 를 만들고, no 면 Raise exception.",
+       "src": "13강 p.48",
        "wiki": "base and bounds",
-       "diff": 1,
+       "diff": 2,
+       "tags": [
+        "base and bounds"
+       ],
        "answer": true
       },
       {
@@ -837,16 +1072,18 @@
       {
        "id": "u13d-09",
        "type": "mc",
-       "q": "교수님이 p.3~10(메모리 계층·SRAM/DRAM)에 대해 한 말이 아닌 것은?",
-       "explain": "10/19 녹음. 교수님은 이 부분 비중을 낮췄다. 단 SRAM 전력 퀴즈와 temporal/spatial 분할 관점은 챙긴다.",
-       "src": "10/19 녹음",
-       "wiki": "가상 메모리",
-       "prof": true,
+       "q": "base and bounds 를 dynamic relocation 이라 부르는 이유는?",
+       "explain": "p.39~40: 프로그램은 0번지에 있다고 가정하고 컴파일되고, OS 가 시작할 때 base/bounds 를 정하며, MMU 가 매 참조를 run time 에 바꾼다. 실행 파일을 고쳐 쓰는 것은 load time(static) 재배치다.",
+       "src": "13강 p.39~40",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
        "choices": [
-        "\"이 부분이 기말 핵심이다\"",
-        "\"architecture 주제다\"",
-        "\"system programming 에서 배웠을 것\"",
-        "\"Optane 은 몰라도 된다\""
+        "변환이 실행 중(run time)에 일어나서, base 만 바꾸면 주소 공간을 물리 메모리의 다른 곳에 둘 수 있다",
+        "컴파일러가 주소를 재배치한다",
+        "loader 가 실행 파일의 주소를 고쳐 쓴다",
+        "프로세스마다 page table 을 동적으로 만든다"
        ],
        "answer": 0
       },
@@ -888,6 +1125,75 @@
         "copy",
         "PCB"
        ]
+      },
+      {
+       "id": "u13d-13",
+       "type": "mc",
+       "q": "p.51 그림처럼 free list 가 32KB → 16KB → 48KB 이고 OS 가 맨 앞 칸에 새 주소 공간을 놓는다. 그다음(p.52) free list 는?",
+       "explain": "\"The OS must find a room for a new address space\" — free list 에서 32KB 칸을 꺼내 프로세스를 그 자리에 올리므로 리스트에는 16KB, 48KB 만 남는다.",
+       "src": "13강 p.51~52",
+       "wiki": "free list",
+       "tags": [
+        "free list"
+       ],
+       "img": "duo/img/os13-p51-freelist.png",
+       "imgAlt": "p.51 free list 32KB → 16KB → 48KB 와 비어 있는 물리 메모리",
+       "choices": [
+        "16KB → 48KB",
+        "32KB → 16KB → 48KB",
+        "32KB → 48KB",
+        "16KB → 32KB → 48KB"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13d-14",
+       "type": "mc",
+       "q": "p.53 그림 상태(free list 16KB → 48KB, Process A 가 32KB 칸)에서 Process A 가 종료되면 free list 는?",
+       "explain": "\"The OS must put the memory back on the free list.\" A 가 쓰던 32KB 칸이 free list 에 돌아온다(슬라이드에서는 맨 앞).",
+       "src": "13강 p.53",
+       "wiki": "free list",
+       "tags": [
+        "free list"
+       ],
+       "img": "duo/img/os13-p53-terminate.png",
+       "imgAlt": "p.53 Process A 종료 전 — free list 16KB → 48KB",
+       "choices": [
+        "32KB → 16KB → 48KB",
+        "16KB → 48KB",
+        "16KB → 48KB → 64KB",
+        "변화 없음"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u13d-15",
+       "type": "num",
+       "q": "p.54 context switch 로 Process A(32KB~48KB) 에서 Process B(48KB~64KB) 로 넘어간다. 가려진 base register 값은 몇 KB 인가?",
+       "explain": "OS 는 A 의 base 32KB·bounds 16KB 를 Process A PCB 에 저장하고, B 의 PCB 에서 base 48KB·bounds 16KB 를 꺼내 레지스터에 넣는다.",
+       "src": "13강 p.54",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
+       "img": "duo/img/os13-p54-ctxsw.png",
+       "imgAlt": "p.54 context switch 뒤 base·bounds 가 가려진 그림",
+       "explainImg": "duo/img/os13-p54-ctxsw-ans.png",
+       "answer": 48,
+       "unit": "KB",
+       "tol": 0
+      },
+      {
+       "id": "u13d-16",
+       "type": "sa",
+       "q": "[용어] context switch 때 OS 가 base-and-bounds pair 를 저장·복원하는 프로세스별 자료구조. (3 words, p… c… b…)",
+       "explain": "p.54 \"In process control block (PCB)\". 시험은 약어(PCB)가 아니라 full term 을 쓰게 한다.",
+       "src": "13강 p.54",
+       "wiki": "base and bounds",
+       "tags": [
+        "base and bounds"
+       ],
+       "answer": "process control block"
       }
      ]
     }
@@ -979,12 +1285,15 @@
        "id": "u14a-06",
        "type": "num",
        "q": "세그먼트 테이블: Code base 32K·size 2K, Heap base 34K·size 2K, Stack base 28K·size 2K. VA 14비트 = 세그먼트 2비트(00 Code, 01 Heap, 11 Stack) + offset 12비트. VA 4200(10진수)의 offset 은?",
-       "explain": "4200 = 01 | 000001101000. heap 은 VA 4096 에서 시작하므로 offset = 4200 − 4096 = 104.",
-       "src": "14강 p.11",
+       "explain": "4200 = 01 | 000001101000. 위 2비트 01 = Heap, 아래 12비트 = 0x068 = 104. heap 은 VA 4096 에서 시작하므로 4200 − 4096 = 104 와 같다.",
+       "src": "14강 p.8, p.11",
        "wiki": "세그먼트 주소 변환",
        "tags": [
         "세그먼트 변환"
        ],
+       "img": "duo/img/os14-p08-va4200.png",
+       "imgAlt": "p.8 VA 4200 의 비트 그림 — offset 값이 가려져 있다",
+       "explainImg": "duo/img/os14-p08-va4200-ans.png",
        "answer": 104,
        "tol": 0
       },
@@ -999,6 +1308,9 @@
        "tags": [
         "세그먼트 변환"
        ],
+       "img": "duo/img/os14-p11-heap.png",
+       "imgAlt": "p.11 heap 세그먼트 변환 그림 — 결과 상자가 가려져 있다",
+       "explainImg": "duo/img/os14-p11-heap-ans.png",
        "answer": 34920,
        "tol": 0
       },
@@ -1086,6 +1398,77 @@
        "answer": 4096,
        "unit": "B",
        "tol": 0
+      },
+      {
+       "id": "u14a-14",
+       "type": "num",
+       "q": "p.6 그림: Code 32K·size 2K 바로 뒤에 Heap 이 붙어 있다. 표에서 가려진 Heap 의 Base 는 몇 K 인가?",
+       "explain": "Code 가 32K~34K 를 차지하고 Heap 이 그 바로 다음에 놓이므로 Heap base = 32K + 2K = 34K. Stack 은 28K 에서 아래로 자라 26K 까지(p.12). Base 칸은 \"Location in physical memory\" 다.",
+       "src": "14강 p.6",
+       "wiki": "세그멘테이션",
+       "tags": [
+        "segmentation"
+       ],
+       "img": "duo/img/os14-p06-placement.png",
+       "imgAlt": "p.6 물리 메모리 배치와 세그먼트 표 — Heap 의 Base 가 가려져 있다",
+       "explainImg": "duo/img/os14-p06-placement-ans.png",
+       "answer": 34,
+       "unit": "K",
+       "tol": 0
+      },
+      {
+       "id": "u14a-15",
+       "type": "mc",
+       "q": "p.9 세그먼트 변환 그림에서 offset 과 Size 를 비교한 결과가 No 일 때 가는 곳(?)은?",
+       "explain": "비교기(<)는 offset < Size 인지 본다. 범위를 벗어나면 Segmentation Fault — 이름 그대로 \"세그먼트 밖\" 접근이다. Protection Fault 는 p.15 에서 RW 검사가 추가될 때 생기는 두 번째 실패다.",
+       "src": "14강 p.9",
+       "wiki": "segmentation fault",
+       "tags": [
+        "세그먼트 변환"
+       ],
+       "img": "duo/img/os14-p09-segflow.png",
+       "imgAlt": "p.9 세그먼트 변환 하드웨어 흐름 — No 쪽 결과가 가려져 있다",
+       "choices": [
+        "Segmentation Fault",
+        "Protection Fault",
+        "Page Fault",
+        "TLB miss"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u14a-16",
+       "type": "num",
+       "q": "[규칙 적용] 세그먼트 테이블: Code base 32K·size 2K, Heap base 34K·size 2K, Stack base 28K·size 2K. VA 14비트 = 세그먼트 2비트(00 Code, 01 Heap, 11 Stack) + offset 12비트. VA 0x1100 의 PA 는? (10진수 바이트)",
+       "explain": "0x1100 = 01 | 0001 0000 0000 → 세그먼트 01 = Heap, offset 0x100 = 256 < 2048. PA = 34K + 256 = 34816 + 256 = 35072.",
+       "src": "14강 p.8~11 규칙 적용",
+       "wiki": "세그먼트 주소 변환",
+       "diff": 2,
+       "tags": [
+        "세그먼트 변환"
+       ],
+       "answer": 35072,
+       "unit": "B",
+       "tol": 0
+      },
+      {
+       "id": "u14a-17",
+       "type": "mc",
+       "q": "[규칙 적용] 세그먼트 테이블: Code base 32K·size 2K, Heap base 34K·size 2K, Stack base 28K·size 2K. VA 14비트 = 세그먼트 2비트(00 Code, 01 Heap, 11 Stack) + offset 12비트. VA 0x2100 에 접근하면?",
+       "explain": "0x2100 = 10 | 0001 0000 0000. 세그먼트 표의 10 은 \"−\"(미사용)이라 유효한 base·size 가 없다. 위 2비트를 먼저 보고 세그먼트를 정하는 것이 첫 단계다.",
+       "src": "14강 p.7~8 규칙 적용",
+       "wiki": "segmentation fault",
+       "diff": 2,
+       "tags": [
+        "세그먼트 변환"
+       ],
+       "choices": [
+        "세그먼트 10 은 쓰지 않는 번호라 fault (Segmentation Fault)",
+        "Heap 의 offset 0x1100 → PA 39168",
+        "Stack 의 음수 offset 으로 변환",
+        "Code 의 offset 0x100 → PA 33024"
+       ],
+       "answer": 0
       }
      ]
     },
@@ -1188,8 +1571,8 @@
        "id": "u14b-07",
        "type": "match",
        "q": "세그먼트와 protection 을 연결하시오 (p.14 표)",
-       "explain": "code 는 RE 라 공유해도 안전하다. 쓰려 하면 Protection Fault.",
-       "src": "14강 p.14",
+       "explain": "p.13 Segment Register Values (with Protection) 표. code 는 Read-Execute 라 공유해도 안전하다. 쓰려 하면 Protection Fault.",
+       "src": "14강 p.13",
        "wiki": "코드 공유와 protection bit",
        "tags": [
         "protection"
@@ -1271,8 +1654,8 @@
        "id": "u14b-11",
        "type": "sa",
        "q": "세그먼트 레지스터의 네 칸 중 \"세그먼트가 자라는 방향\"을 나타내는 칸 이름은?",
-       "explain": "네 칸 = Base, Size, Grows Positive?, Protection.",
-       "src": "14강 p.14",
+       "explain": "네 칸 = Base, Size, Grows Positive?, Protection (p.12 표에 Grows Positive?, p.13 표에 Protection 이 더해진다).",
+       "src": "14강 p.12~13",
        "wiki": "스택 세그먼트",
        "diff": 1,
        "answer": "Grows Positive",
@@ -1308,6 +1691,86 @@
         "stack"
        ],
        "answer": false
+      },
+      {
+       "id": "u14b-14",
+       "type": "mc",
+       "q": "p.12 Segment Register 표의 Grows Positive? 칸(가려짐)을 Code, Heap, Stack 순서로 쓰면?",
+       "explain": "p.12 \"1: positive direction, 0: negative direction\". code·heap 은 주소가 커지는 쪽으로, stack 은 28KB 에서 26KB 로 거꾸로(backward) 자란다.",
+       "src": "14강 p.12",
+       "wiki": "스택 세그먼트",
+       "tags": [
+        "stack"
+       ],
+       "img": "duo/img/os14-p12-stack.png",
+       "imgAlt": "p.12 negative-growth 를 지원하는 세그먼트 레지스터 표 — Grows Positive? 칸이 가려져 있다",
+       "explainImg": "duo/img/os14-p12-stack-ans.png",
+       "choices": [
+        "1, 1, 0",
+        "0, 0, 1",
+        "1, 1, 1",
+        "1, 0, 0"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u14b-15",
+       "type": "sa",
+       "q": "p.14 code sharing 그림. 프로세스 A·B 의 세그먼트 표가 같은 물리 code(32KB)를 가리킨다. 가려진 Prot 칸에 들어갈 권한의 full term 은? (영어, 하이픈 하나)",
+       "explain": "공유하려면 아무도 code 를 고쳐 쓸 수 없어야 한다. 그래서 Read-Execute(쓰기 없음). p.13 표의 Code 행과 같다.",
+       "src": "14강 p.13~14",
+       "wiki": "코드 공유와 protection bit",
+       "tags": [
+        "protection"
+       ],
+       "img": "duo/img/os14-p14-share.png",
+       "imgAlt": "p.14 두 프로세스가 code 세그먼트를 공유하는 그림 — Prot 칸이 가려져 있다",
+       "explainImg": "duo/img/os14-p14-share-ans.png",
+       "answer": "Read-Execute",
+       "alts": [
+        "read execute",
+        "RE"
+       ]
+      },
+      {
+       "id": "u14b-16",
+       "type": "cloze",
+       "q": "p.15 protection 하드웨어 그림. 범위 비교(<)가 No 면 ① ___, 범위는 통과했지만 RW 검사가 No 면 ② ___ 이다.",
+       "explain": "검사 순서는 범위 → base 더하기(+/−) → 권한. 범위 밖이 ①, 범위 안인데 접근 종류(예: code 에 store)가 권한과 안 맞으면 ②.",
+       "src": "14강 p.15",
+       "wiki": "segmentation fault",
+       "tags": [
+        "protection"
+       ],
+       "img": "duo/img/os14-p15-protect.png",
+       "imgAlt": "p.15 범위 검사와 RW 검사가 있는 변환 그림 — 두 실패 이름이 ①②로 가려져 있다",
+       "explainImg": "duo/img/os14-p15-protect-ans.png",
+       "answer": [
+        "Segmentation Fault",
+        "Protection Fault"
+       ],
+       "bank": [
+        "Segmentation Fault",
+        "Protection Fault",
+        "Page Fault",
+        "Bus Error",
+        "TLB miss"
+       ]
+      },
+      {
+       "id": "u14b-17",
+       "type": "num",
+       "q": "[규칙 적용] 세그먼트 테이블: Code base 32K·size 2K, Heap base 34K·size 2K, Stack base 28K·size 2K. VA 14비트 = 세그먼트 2비트(00 Code, 01 Heap, 11 Stack) + offset 12비트. stack 의 VA 0x3900(= 14592) 의 PA 는? (바이트)",
+       "explain": "offset = 14592 − 12288 = 2304. 음수 offset = 2304 − 4096 = −1792, |−1792| ≤ 2048 통과. PA = 28672 − 1792 = 26880 (= 26.25KB).",
+       "src": "14강 p.12 규칙 적용",
+       "wiki": "스택 세그먼트",
+       "diff": 3,
+       "tags": [
+        "stack"
+       ],
+       "answer": 26880,
+       "unit": "B",
+       "tol": 0
       }
      ]
     },
@@ -1418,6 +1881,12 @@
        "explain": "p.23 splitting. addr 20 chunk 의 앞 1바이트를 주고 나머지 9바이트가 addr 21 에 남는다.",
        "src": "14강 p.22~23",
        "wiki": "splitting과 coalescing",
+       "tags": [
+        "free-space"
+       ],
+       "img": "duo/img/os14-p23-split.png",
+       "imgAlt": "p.23 malloc(1) 로 splitting 한 뒤 free list — 두 번째 노드가 가려져 있다",
+       "explainImg": "duo/img/os14-p23-split-ans.png",
        "answer": [
         "21",
         "9"
@@ -1437,6 +1906,8 @@
        "explain": "p.24~25. 합치지 않은 조각은 external fragmentation 과 같은 효과를 낸다.",
        "src": "14강 p.24~25",
        "wiki": "splitting과 coalescing",
+       "img": "duo/img/os14-p36-freed.png",
+       "imgAlt": "p.36 100바이트 chunk 두 개를 free 한 뒤 — free list 가 216 → 0 → 108 → 324 로 조각나 있다",
        "answer": true
       },
       {
@@ -1522,6 +1993,86 @@
         "free-space"
        ],
        "answer": false
+      },
+      {
+       "id": "u14c-15",
+       "type": "num",
+       "q": "p.17 Not compacted 그림(각 칸 8KB). OS 가 0~16KB, Allocated 가 24·40·56KB 에서 8KB 씩이다. 한 번에 줄 수 있는 가장 큰 연속 free 공간은 몇 KB 인가?",
+       "explain": "free 는 16~24, 32~40, 48~56 세 조각으로 합 24KB(p.16 \"24KB free\") 지만, 가장 큰 연속 조각은 8KB 라 20KB 요청을 못 준다 — external fragmentation. compaction 뒤에는 40~64KB 가 한 덩어리(24KB)가 된다.",
+       "src": "14강 p.16~17",
+       "wiki": "external fragmentation",
+       "tags": [
+        "fragmentation"
+       ],
+       "img": "duo/img/os14-p17-compaction.png",
+       "imgAlt": "p.17 compaction 전후 물리 메모리",
+       "answer": 8,
+       "unit": "KB",
+       "tol": 0
+      },
+      {
+       "id": "u14c-16",
+       "type": "mc",
+       "q": "p.24 그림: free(10) 으로 가운데 10바이트를 돌려줘 free list 가 (addr 10, len 10) → (0, 10) → (20, 10) 이 됐다. coalescing 하면 free list 는?",
+       "explain": "p.25 \"merge returning a free chunk with existing chunks into a large single free chunk if addresses of them are nearby\". 0~30 이 모두 붙어 있으니 하나로 합쳐 addr 0, len 30.",
+       "src": "14강 p.24~25",
+       "wiki": "splitting과 coalescing",
+       "tags": [
+        "free-space"
+       ],
+       "img": "duo/img/os14-p24-coalesce.png",
+       "imgAlt": "p.24 free(10) 직후 30-byte heap 과 세 노드 free list",
+       "choices": [
+        "(addr 0, len 30) 한 개",
+        "(0, 10) → (10, 10) → (20, 10)",
+        "(0, 20) → (20, 10)",
+        "(10, 30) 한 개"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u14c-17",
+       "type": "num",
+       "q": "p.33: 4KB heap 의 free chunk(size 4088)에서 malloc(100) 을 했다. header 는 8바이트. 남은 free chunk 의 size(가려진 칸)는?",
+       "explain": "요청 100 + header 8 = 108 을 떼어 간다. 4088 − 108 = 3980. free list 노드는 addr 108, len 3980 이 된다.",
+       "src": "14강 p.32~33",
+       "wiki": "embedded free list",
+       "tags": [
+        "free-space"
+       ],
+       "img": "duo/img/os14-p33-alloc.png",
+       "imgAlt": "p.33 첫 malloc(100) 뒤 heap — 남은 chunk 크기가 가려져 있다",
+       "explainImg": "duo/img/os14-p33-alloc-ans.png",
+       "answer": 3980,
+       "unit": "B",
+       "tol": 0
+      },
+      {
+       "id": "u14c-18",
+       "type": "num",
+       "q": "[규칙 적용] p.34 상태(free list: addr 324, len 3764, header 8B)에서 malloc(200) 을 하면 남은 free chunk 의 len 은?",
+       "explain": "200 + 8 = 208 을 떼어 간다. 3764 − 208 = 3556, 새 노드 addr = 324 + 208 = 532.",
+       "src": "14강 p.33~34 규칙 적용",
+       "wiki": "embedded free list",
+       "diff": 2,
+       "tags": [
+        "free-space"
+       ],
+       "answer": 3556,
+       "unit": "B",
+       "tol": 0
+      },
+      {
+       "id": "u14c-19",
+       "type": "sa",
+       "q": "[용어] Merge returning a free chunk with existing chunks into a large single free chunk if addresses of them are nearby. (1 word, c…)",
+       "explain": "p.25 정의. 반대 방향 연산은 큰 chunk 를 둘로 나누는 splitting(p.22).",
+       "src": "14강 p.25",
+       "wiki": "splitting과 coalescing",
+       "tags": [
+        "free-space"
+       ],
+       "answer": "coalescing"
       }
      ]
     },
@@ -1569,6 +2120,9 @@
        "tags": [
         "할당 전략"
        ],
+       "img": "duo/img/os14-p39-fits.png",
+       "imgAlt": "p.39 요청 15 에 대한 Best-fit·Worst-fit 결과 리스트 — 바뀐 노드가 가려져 있다",
+       "explainImg": "duo/img/os14-p39-fits-ans.png",
        "choices": [
         "10 → 30 → 5",
         "10 → 15 → 20",
@@ -1587,6 +2141,9 @@
        "tags": [
         "할당 전략"
        ],
+       "img": "duo/img/os14-p39-fits.png",
+       "imgAlt": "p.39 요청 15 에 대한 Best-fit·Worst-fit 결과 리스트 — 바뀐 노드가 가려져 있다",
+       "explainImg": "duo/img/os14-p39-fits-ans.png",
        "choices": [
         "10 → 15 → 20",
         "10 → 30 → 5",
@@ -1737,6 +2294,56 @@
         "마지막",
         "가장 큰"
        ]
+      },
+      {
+       "id": "u14d-14",
+       "type": "mc",
+       "q": "[규칙 적용] free list head → 10 → 30 → 20. 요청 15, 12, 8 을 차례로 First Fit 으로 처리한 뒤 free list 는?",
+       "explain": "15: 첫 충분한 30 → 10 → 15 → 20. 12: 첫 충분한 15 → 10 → 3 → 20. 8: 첫 충분한 10 → 2 → 3 → 20. 매번 앞에서부터 다시 찾는다.",
+       "src": "14강 p.38~39 규칙 적용",
+       "wiki": "할당 전략",
+       "diff": 3,
+       "tags": [
+        "할당 전략"
+       ],
+       "choices": [
+        "2 → 3 → 20",
+        "10 → 3 → 20",
+        "2 → 18 → 5",
+        "10 → 30 → 20"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u14d-15",
+       "type": "mc",
+       "q": "[규칙 적용] 같은 리스트 10 → 30 → 20 에 요청 15, 12, 8 을 차례로 Best Fit 으로 처리한 뒤 free list 는?",
+       "explain": "15: 후보 30·20 중 가장 작은 20 → 10 → 30 → 5. 12: 후보 30 → 10 → 18 → 5. 8: 후보 10·18 중 10 → 2 → 18 → 5. 남는 조각(2, 5)이 작게 쌓이는 것이 Best Fit 의 약점이다.",
+       "src": "14강 p.37, p.39 규칙 적용",
+       "wiki": "할당 전략",
+       "diff": 3,
+       "tags": [
+        "할당 전략"
+       ],
+       "choices": [
+        "2 → 18 → 5",
+        "2 → 3 → 20",
+        "10 → 18 → 5",
+        "10 → 30 → 5"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u14d-16",
+       "type": "sa",
+       "q": "[용어] Finding the largest free chunk and allocating the amount of the request, keeping the remaining chunk on the free list. (2 words, W… F…)",
+       "explain": "p.37 Worst Fit 정의. 큰 조각을 남겨 다음 요청에 쓰게 하려는 생각이지만 Best Fit 처럼 full search 가 필요하다.",
+       "src": "14강 p.37",
+       "wiki": "할당 전략",
+       "tags": [
+        "할당 전략"
+       ],
+       "answer": "Worst Fit"
       }
      ]
     }
@@ -1857,6 +2464,9 @@
        "tags": [
         "VPN"
        ],
+       "img": "duo/img/os15-p14-va21.png",
+       "imgAlt": "p.14 VA 21 의 비트와 변환 — 물리 주소의 PFN 비트가 가려져 있다",
+       "explainImg": "duo/img/os15-p14-va21-ans.png",
        "answer": 117,
        "tol": 0
       },
@@ -1870,6 +2480,9 @@
        "tags": [
         "VPN"
        ],
+       "img": "duo/img/os15-p18-quiz.png",
+       "imgAlt": "p.18 Quiz — 16바이트 물리 메모리, 4바이트 page, page table 과 결과 칸(가림)",
+       "explainImg": "duo/img/os15-p18-quiz-ans.png",
        "answer": 5,
        "tol": 0
       },
@@ -1958,6 +2571,64 @@
        "diff": 1,
        "answer": 8,
        "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u15a-15",
+       "type": "num",
+       "q": "p.16 그림: 64바이트 주소 공간의 page 0~3 이 화살표로 page frame 에 놓여 있다. 가려진 page table 에서 VPN 2 의 PFN 은?",
+       "explain": "화살표를 따라가면 page 2 는 \"page 2 of AS\" 가 있는 page frame 5 에 있다. 표 전체는 VPN 0→3, 1→7, 2→5, 3→2 (p.15 와 같다).",
+       "src": "15강 p.15~16",
+       "wiki": "페이지 테이블",
+       "tags": [
+        "page table"
+       ],
+       "img": "duo/img/os15-p16-pt.png",
+       "imgAlt": "p.16 page table 의 PFN 열이 가려진 그림과 물리 메모리 배치",
+       "explainImg": "duo/img/os15-p16-pt-ans.png",
+       "answer": 5,
+       "tol": 0
+      },
+      {
+       "id": "u15a-16",
+       "type": "num",
+       "q": "p.18 Quiz: 16바이트 물리 메모리, 4바이트 page, page table 0→5, 1→6, 2→1, 3→2. 논리 주소 13 의 물리 주소는?",
+       "explain": "13 = 11 | 01 → VPN 3, offset 1. PFN 2 → PA = 2 × 4 + 1 = 9. 그림에서 물리 주소 9 의 값은 n.",
+       "src": "15강 p.18",
+       "wiki": "VPN과 offset",
+       "tags": [
+        "VPN"
+       ],
+       "img": "duo/img/os15-p18-quiz.png",
+       "imgAlt": "p.18 Quiz — page table 과 물리 메모리, 결과 칸이 가려져 있다",
+       "explainImg": "duo/img/os15-p18-quiz-ans.png",
+       "answer": 9,
+       "tol": 0
+      },
+      {
+       "id": "u15a-17",
+       "type": "sa",
+       "q": "[용어] Physical memory is also split into some number of pages called a ___. (2 words, p… f…)",
+       "explain": "p.10. 가상 쪽 고정 크기 단위는 page(virtual page), 물리 쪽은 page frame 이다. PFN = Page Frame Number.",
+       "src": "15강 p.10",
+       "wiki": "페이징",
+       "tags": [
+        "paging"
+       ],
+       "answer": "page frame"
+      },
+      {
+       "id": "u15a-18",
+       "type": "num",
+       "q": "[규칙 적용] 32비트 VA, page 8KB 이면 VPN 은 몇 비트인가?",
+       "explain": "offset = log2 8192 = 13비트, VPN = 32 − 13 = 19비트. page 를 키우면 VPN 이 줄어 page table 이 작아진다.",
+       "src": "15강 p.19, p.30 규칙 적용",
+       "wiki": "VPN과 offset",
+       "tags": [
+        "VPN"
+       ],
+       "answer": 19,
+       "unit": "bit",
        "tol": 0
       }
      ]
@@ -2190,6 +2861,41 @@
         "PTE 크기",
         "base"
        ]
+      },
+      {
+       "id": "u15b-15",
+       "type": "mc",
+       "q": "p.24 CoW: fork 로 A·B 가 page 7 을 공유하다가 B 가 page 7 에 썼다. 가려진 B 의 PTE 7 (PFN, Valid, Prot)은?",
+       "explain": "Copy on Write: frame 7 을 비어 있던 frame 8 로 복사하고(그림의 \"page 7 (B)\"), B 의 PTE 만 8 을 가리키게 바꾼다. 쓸 수 있어야 하므로 valid 1, RW. A 의 PTE 7 은 그대로 7.",
+       "src": "15강 p.23~24",
+       "wiki": "copy-on-write",
+       "tags": [
+        "CoW"
+       ],
+       "img": "duo/img/os15-p24-cow.png",
+       "imgAlt": "p.24 CoW 뒤 두 프로세스의 page table — B 의 7번 항목이 가려져 있다",
+       "explainImg": "duo/img/os15-p24-cow-ans.png",
+       "choices": [
+        "8, 1, RW",
+        "7, 1, RW",
+        "7, 1, RE",
+        "8, 0, RW"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u15b-16",
+       "type": "num",
+       "q": "[규칙 적용] 16비트 VA, page 1KB, page table VPN 0→3, 1→7, 2→5, 3→2. VA 0x0A10 의 PA 는? (10진수)",
+       "explain": "offset 10비트. 0x0A10 = 2576 → VPN = 2576 / 1024 = 2 (몫), offset = 2576 − 2048 = 528. PFN 5 → PA = 5 × 1024 + 528 = 5648.",
+       "src": "15강 p.14~15 규칙 적용",
+       "wiki": "VPN과 offset",
+       "diff": 2,
+       "tags": [
+        "VPN"
+       ],
+       "answer": 5648,
+       "tol": 0
       }
      ]
     },
@@ -2269,6 +2975,8 @@
        "tags": [
         "TLB"
        ],
+       "img": "duo/img/os15-p38-tlbentry.png",
+       "imgAlt": "p.38 TLB entry 그림 — VPN 27 을 모든 항목과 병렬 비교",
        "choices": [
         "fully associative — 전체를 병렬 탐색",
         "direct mapped",
@@ -2287,6 +2995,8 @@
        "tags": [
         "TLB"
        ],
+       "img": "duo/img/os15-p35-miss.png",
+       "imgAlt": "p.35 TLB miss 그림 — TLB 를 거친 뒤 PTEA/PTE 왕복이 추가된다",
        "pairs": [
         [
          "TLB 없음",
@@ -2317,6 +3027,8 @@
        "tags": [
         "TLB"
        ],
+       "img": "duo/img/os15-p36-array.png",
+       "imgAlt": "p.36 a[0]~a[9] 가 VPN 6·7·8 에 놓인 그림",
        "answer": 3,
        "unit": "번",
        "tol": 0
@@ -2434,6 +3146,82 @@
         "TLB"
        ],
        "answer": false
+      },
+      {
+       "id": "u15c-15",
+       "type": "cloze",
+       "q": "p.29 그림: TLB 없이 paging 하면 메모리 접근 하나에 ① ___ 와 ② ___ 두 번이 든다.",
+       "explain": "① page table 에서 PTE 를 읽어 PFN 을 얻고 ② 그 PFN 으로 만든 PA 에서 data 를 읽는다. 이것이 performance degradation 이고 해결책이 TLB 다.",
+       "src": "15강 p.29",
+       "wiki": "페이징의 문제",
+       "tags": [
+        "paging 문제"
+       ],
+       "img": "duo/img/os15-p29-perf.png",
+       "imgAlt": "p.29 Performance Degradation 그림 — 두 메모리 접근 이름이 ①②로 가려져 있다",
+       "explainImg": "duo/img/os15-p29-perf-ans.png",
+       "answer": [
+        "Fetch PTE",
+        "Access data word"
+       ],
+       "bank": [
+        "Fetch PTE",
+        "Access data word",
+        "Update TLB",
+        "Raise exception",
+        "Flush TLB"
+       ]
+      },
+      {
+       "id": "u15c-16",
+       "type": "order",
+       "q": "p.33 그림(TLB 없음)의 ①~⑤ 를 순서대로 놓으시오.",
+       "explain": "p.33: 1) VA → 2~3) PTEA/PTE (page table 은 메모리에 있다) → 4) PA → 5) Data. 메모리 왕복이 두 번이다.",
+       "src": "15강 p.33",
+       "wiki": "페이징의 문제",
+       "tags": [
+        "TLB"
+       ],
+       "img": "duo/img/os15-p33-noTLB.png",
+       "imgAlt": "p.33 CPU·MMU·Memory 사이 ①~⑤ 화살표",
+       "answer": [
+        "CPU 가 VA 를 MMU 에 보낸다",
+        "MMU 가 PTEA 로 메모리에 PTE 를 요청한다",
+        "메모리가 PTE 를 MMU 에 돌려준다",
+        "MMU 가 PA 를 메모리에 보낸다",
+        "메모리가 data word 를 CPU 에 보낸다"
+       ]
+      },
+      {
+       "id": "u15c-17",
+       "type": "num",
+       "q": "[규칙 적용] page 4KB, TLB 는 처음 비어 있고 충분히 크다. VA 0x1004, 0x1F00, 0x2000, 0x1008, 0x3004, 0x2FFC 를 차례로 접근하면 TLB miss 는 몇 번인가?",
+       "explain": "VPN = VA 의 위 비트(4KB → 0x1000 단위): 1, 1, 2, 1, 3, 2. 처음 보는 VPN 에서만 miss → 1, 2, 3 의 3번. 나머지 3번은 hit.",
+       "src": "15강 p.35~36 규칙 적용",
+       "wiki": "TLB hit와 miss",
+       "diff": 2,
+       "tags": [
+        "TLB"
+       ],
+       "answer": 3,
+       "unit": "번",
+       "tol": 0
+      },
+      {
+       "id": "u15c-18",
+       "type": "num",
+       "q": "[규칙 적용] TLB hit rate 98%, 메모리 접근 50ns, TLB 조회 시간 무시. hit 은 메모리 1번, miss 는 2번일 때 평균 접근 시간은 몇 ns 인가?",
+       "explain": "0.98 × 50 + 0.02 × 100 = 49 + 2 = 51 ns. miss 가 2% 만 있어도 TLB 없는 100ns 대비 거의 절반이다.",
+       "src": "15강 p.34~35 적용",
+       "wiki": "TLB hit와 miss",
+       "diff": 2,
+       "tags": [
+        "TLB",
+        "EAT"
+       ],
+       "answer": 51,
+       "unit": "ns",
+       "tol": 0.001
       }
      ]
     },
@@ -2452,6 +3240,9 @@
        "tags": [
         "TLB miss"
        ],
+       "img": "duo/img/os15-p41-hwtlb.png",
+       "imgAlt": "p.41 hardware-managed TLB miss 처리 그림 — 단계 이름이 가려져 있다",
+       "explainImg": "duo/img/os15-p41-hwtlb-ans.png",
        "answer": [
         "Jump to the current page table (PTBR)",
         "Find the correct PTE",
@@ -2472,6 +3263,9 @@
        "tags": [
         "TLB miss"
        ],
+       "img": "duo/img/os15-p43-swtlb.png",
+       "imgAlt": "p.43 software-managed TLB miss 처리 그림 — 단계 이름이 가려져 있다",
+       "explainImg": "duo/img/os15-p43-swtlb-ans.png",
        "answer": [
         "하드웨어가 exception 을 올림 (kernel mode, trap handler 로)",
         "OS 의 trap handler 가 호출됨",
@@ -2552,6 +3346,8 @@
        "tags": [
         "ASID"
        ],
+       "img": "duo/img/os15-p47-ctx.png",
+       "imgAlt": "p.47 A 와 B 의 VPN 10 항목이 함께 있는 TLB 표 — 아래 설명이 가려져 있다",
        "choices": [
         "어느 프로세스의 항목인지 구분할 수 없다",
         "PFN 이 겹친다",
@@ -2592,6 +3388,9 @@
        "tags": [
         "ASID"
        ],
+       "img": "duo/img/os15-p49-asid.png",
+       "imgAlt": "p.49 TLB 표에 새로 생긴 열(가림)",
+       "explainImg": "duo/img/os15-p49-asid-ans.png",
        "answer": "address space identifier",
        "alts": [
         "ASID",
@@ -2654,6 +3453,40 @@
         "건너뛰기",
         "이전"
        ]
+      },
+      {
+       "id": "u15d-14",
+       "type": "sa",
+       "q": "[용어] context switch 때 모든 valid bit 를 0 으로 만들어 TLB 내용을 비우는 것. (1 word, f…)",
+       "explain": "p.48 \"Simply flush the TLB on context switches … sets all valid bits to 0\". 단순하지만 다음 프로세스가 TLB miss 를 많이 겪는다 → ASID 가 더 나은 해결.",
+       "src": "15강 p.48",
+       "wiki": "ASID와 TLB flush",
+       "tags": [
+        "ASID"
+       ],
+       "answer": "flush",
+       "alts": [
+        "TLB flush"
+       ]
+      },
+      {
+       "id": "u15d-15",
+       "type": "mc",
+       "q": "[규칙 적용] TLB 에 (VPN 10, PFN 100, ASID A), (VPN 10, PFN 170, ASID B) 가 있다. 지금 프로세스 B 가 실행 중이고 VPN 10 에 접근하면?",
+       "explain": "ASID 가 있으면 TLB 는 VPN 과 ASID 가 둘 다 맞는 항목만 hit 으로 본다. 현재 ASID 는 B → PFN 170. flush 없이도 A 의 항목과 구분된다.",
+       "src": "15강 p.49 규칙 적용",
+       "wiki": "ASID와 TLB flush",
+       "diff": 2,
+       "tags": [
+        "ASID"
+       ],
+       "choices": [
+        "TLB hit, PFN 170",
+        "TLB hit, PFN 100",
+        "TLB miss (VPN 이 겹쳐서)",
+        "TLB 를 flush 한 뒤 miss"
+       ],
+       "answer": 0
       }
      ]
     }
@@ -2730,6 +3563,9 @@
        "src": "16강 p.14",
        "wiki": "hybrid approach",
        "diff": 2,
+       "img": "duo/img/os16-p14-hybridva.png",
+       "imgAlt": "p.14 hybrid 32비트 VA 와 Seg value 표 — Content 열이 가려져 있다",
+       "explainImg": "duo/img/os16-p14-hybridva-ans.png",
        "pairs": [
         [
          "00",
@@ -2794,6 +3630,8 @@
        "src": "16강 p.15",
        "wiki": "hybrid approach",
        "diff": 2,
+       "img": "duo/img/os16-p15-hybridflow.png",
+       "imgAlt": "p.15 hybrid 변환 하드웨어 — Segment Table(Bound, Page Table Base), 비교, 덧셈, page table",
        "answer": [
         "VA 위 2비트로 세그먼트(SN) 고르기",
         "VPN 을 Bounds[SN] 와 비교",
@@ -2865,6 +3703,67 @@
        "wiki": "hybrid approach",
        "diff": 2,
        "answer": false
+      },
+      {
+       "id": "u16a-14",
+       "type": "num",
+       "q": "p.10 linear page table 그림(VPN 0~15). valid 가 1 인 PTE 는 몇 개인가?",
+       "explain": "code 의 VPN 0, heap 의 VPN 4, stack 의 VPN 13·14·15 → 5개. 나머지 11개는 invalid 인데도 표 안에 자리를 차지한다 — p.11 \"Most of the page table is unused\". 이것이 hybrid·multi-level 이 나온 이유다.",
+       "src": "16강 p.10~11",
+       "wiki": "고급 페이지 테이블",
+       "tags": [
+        "hybrid"
+       ],
+       "img": "duo/img/os16-p10-linear.png",
+       "imgAlt": "p.10 16-page 주소 공간과 linear page table, 물리 메모리",
+       "answer": 5,
+       "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u16a-15",
+       "type": "sa",
+       "q": "[용어] Combine segmentation and paging: instead of a single page table for the whole address space, one page table per logical segment. (2 words, h… a…)",
+       "explain": "p.12. 세그먼트마다 base(= 그 세그먼트 page table 의 물리 주소)와 bound(= page table 의 끝)를 둔다.",
+       "src": "16강 p.12",
+       "wiki": "hybrid approach",
+       "tags": [
+        "hybrid"
+       ],
+       "answer": "hybrid approach"
+      },
+      {
+       "id": "u16a-16",
+       "type": "num",
+       "q": "[규칙 적용] hybrid, 32비트 VA, 4KB page, 위 2비트 Seg(10 = Heap), PTE 4B. Heap 의 Base = 0x1000, Bound = 3. VA 0x80002ABC 의 PTE 주소는? (10진수)",
+       "explain": "Seg = 10 → Heap. VPN = 다음 18비트 = 0x00002 = 2 < Bound 3 통과. PTEAddr = Base + VPN × 4 = 0x1000 + 8 = 0x1008 = 4104. offset 0xABC 는 PTE 를 찾은 뒤 PFN 에 붙인다.",
+       "src": "16강 p.14~15 규칙 적용",
+       "wiki": "hybrid approach",
+       "diff": 3,
+       "tags": [
+        "hybrid"
+       ],
+       "answer": 4104,
+       "tol": 0
+      },
+      {
+       "id": "u16a-17",
+       "type": "mc",
+       "q": "[규칙 적용] 위와 같은 hybrid 설정에서 Heap 의 Bound 가 2 라면 VA 0x80002ABC 접근은?",
+       "explain": "p.15 그림의 비교기: VPN < Bound 여야 한다. 2 < 2 는 거짓 → No → Memory Trap.",
+       "src": "16강 p.15 규칙 적용",
+       "wiki": "hybrid approach",
+       "diff": 2,
+       "tags": [
+        "hybrid"
+       ],
+       "choices": [
+        "VPN 2 ≥ Bound 2 → Memory Trap (exception)",
+        "PTE 주소 0x1008 에서 정상 변환",
+        "Stack 세그먼트로 넘어간다",
+        "Bound 는 검사하지 않는다"
+       ],
+       "answer": 0
       }
      ]
     },
@@ -2980,6 +3879,9 @@
        "tags": [
         "multi-level"
        ],
+       "img": "duo/img/os16-p24-va5844.png",
+       "imgAlt": "p.24 VA 5844 의 2단계 변환 — PT index 와 offset 이 가려져 있다",
+       "explainImg": "duo/img/os16-p24-va5844-ans.png",
        "answer": 11,
        "tol": 0
       },
@@ -3082,6 +3984,94 @@
        "alts": [
         "Page Directory Base Register"
        ]
+      },
+      {
+       "id": "u16b-15",
+       "type": "num",
+       "q": "p.19 그림: 같은 주소 공간을 linear table 은 page 4장(PFN 201~204)에 둔다. multi-level table(page directory 포함)은 page 몇 장을 쓰는가?",
+       "explain": "page directory 1장(PFN 200) + valid PTE 가 있는 page table 조각 2장(PFN 201, 204) = 3장. 가운데 두 조각은 전부 invalid 라 \"Not Allocated\".",
+       "src": "16강 p.19",
+       "wiki": "multi-level page table",
+       "tags": [
+        "multi-level"
+       ],
+       "img": "duo/img/os16-p19-pdir.png",
+       "imgAlt": "p.19 linear page table 과 multi-level page table 비교 — page directory 의 PFN 칸이 가려져 있다",
+       "explainImg": "duo/img/os16-p19-pdir-ans.png",
+       "answer": 3,
+       "unit": "장",
+       "tol": 0
+      },
+      {
+       "id": "u16b-16",
+       "type": "num",
+       "q": "p.19 그림에서 page directory 의 마지막 PDE(valid 1, 가려짐)가 가리키는 page table 조각의 PFN 은?",
+       "explain": "page directory 항목 = (valid, PFN). 마지막 page table 조각(VPN 12~15 담당)은 그림 오른쪽 아래의 PFN 204 page 다. 첫 PDE 는 PFN 201.",
+       "src": "16강 p.19",
+       "wiki": "page directory",
+       "tags": [
+        "multi-level"
+       ],
+       "img": "duo/img/os16-p19-pdir.png",
+       "imgAlt": "p.19 page directory 의 PFN 칸이 가려진 그림",
+       "explainImg": "duo/img/os16-p19-pdir-ans.png",
+       "answer": 204,
+       "tol": 0
+      },
+      {
+       "id": "u16b-17",
+       "type": "sa",
+       "q": "[용어] To track whether a page of the page table is valid, use a new structure called a ___. (2 words, p… d…)",
+       "explain": "p.18. page directory 의 항목(PDE)은 page table 조각 하나의 valid 와 PFN 을 담는다. 시작 위치는 PDBR.",
+       "src": "16강 p.18~19",
+       "wiki": "page directory",
+       "tags": [
+        "multi-level"
+       ],
+       "answer": "page directory"
+      },
+      {
+       "id": "u16b-18",
+       "type": "num",
+       "q": "[규칙 적용] 조건: address space 16KB, page 64B, PTE 4B, 2단계 page table. VA 0x1234 의 PD index 는?",
+       "explain": "0x1234 = 01 0010 0011 0100 (14비트) → PD 0100 = 4 | PT 1000 = 8 | offset 110100 = 52.",
+       "src": "16강 p.22~24 규칙 적용",
+       "wiki": "다단계 주소 변환 계산",
+       "diff": 2,
+       "tags": [
+        "multi-level"
+       ],
+       "answer": 4,
+       "tol": 0
+      },
+      {
+       "id": "u16b-19",
+       "type": "num",
+       "q": "[규칙 적용] 조건: address space 16KB, page 64B, PTE 4B, 2단계 page table. VA 0x1234 의 PTE 가 PFN 17 이면 PA 는? (10진수)",
+       "explain": "offset = 52. PA = 17 × 64 + 52 = 1088 + 52 = 1140.",
+       "src": "16강 p.24 규칙 적용",
+       "wiki": "다단계 주소 변환 계산",
+       "diff": 2,
+       "tags": [
+        "multi-level"
+       ],
+       "answer": 1140,
+       "tol": 0
+      },
+      {
+       "id": "u16b-20",
+       "type": "num",
+       "q": "[규칙 적용] 32비트 VA, 4KB page, 4B PTE 의 2단계 표(10 | 10 | 12). 프로세스가 VPN 0~1023 과 맨 위 VPN 1047552~1048575 만 쓰면 표 전체 크기는 몇 KB 인가?",
+       "explain": "page table 조각 하나가 VPN 1024개를 덮는다. 쓰는 범위가 조각 2개에 딱 들어가므로 directory 4KB + 조각 2 × 4KB = 12KB. linear 였다면 4MB.",
+       "src": "16강 p.18~20 규칙 적용",
+       "wiki": "multi-level page table",
+       "diff": 3,
+       "tags": [
+        "multi-level"
+       ],
+       "answer": 12,
+       "unit": "KB",
+       "tol": 0
       }
      ]
     },
@@ -3115,6 +4105,9 @@
        "tags": [
         "multi-level"
        ],
+       "img": "duo/img/os16-p26-3level.png",
+       "imgAlt": "p.26 1GB/512B 2단계 분할 표 — page directory 항목 수와 크기가 가려져 있다",
+       "explainImg": "duo/img/os16-p26-3level-ans.png",
        "answer": 64,
        "unit": "KB",
        "tol": 0
@@ -3177,6 +4170,8 @@
        "src": "16강 p.29",
        "wiki": "3단계 page table",
        "diff": 3,
+       "img": "duo/img/os16-p29-3walk.png",
+       "imgAlt": "p.29 3단계 walk — Level 0 PDT[91] → Level 1 PDT[44] → Page Table[118]",
        "answer": 2115190033,
        "tol": 0
       },
@@ -3203,6 +4198,9 @@
        "tags": [
         "inverted"
        ],
+       "img": "duo/img/os16-p32-inverted.png",
+       "imgAlt": "p.32 inverted page table — hash 로 찾은 항목의 index 가 무엇이 되는지와 아래 문장이 가려져 있다",
+       "explainImg": "duo/img/os16-p32-inverted-ans.png",
        "answer": [
         "1",
         "physical",
@@ -3310,6 +4308,32 @@
         "inverted"
        ],
        "answer": false
+      },
+      {
+       "id": "u16c-15",
+       "type": "sa",
+       "q": "[용어] Keeps a single page table that has a page table entry for each physical page of the system. (3 words, i… p… t…)",
+       "explain": "p.32 정의 그대로. 표가 하나이고 PTE 수 = 물리 page 수, VA 는 hash 로 PTE 를 찾는다.",
+       "src": "16강 p.32",
+       "wiki": "inverted page table",
+       "tags": [
+        "inverted"
+       ],
+       "answer": "inverted page table"
+      },
+      {
+       "id": "u16c-16",
+       "type": "num",
+       "q": "[규칙 적용] 1GB VA, 512B page, 4B PTE 의 3단계 표(7 | 7 | 7 | 9). VA 0x0ABCDEF 의 PD Index 1 은?",
+       "explain": "0x0ABCDEF = 11259375. offset = 하위 9비트 = 495, PT = 다음 7비트 = 102, PD1 = 다음 7비트 = 43, PD0 = 맨 위 7비트 = 1. (VA >> 16) & 127 = 171 & 127 = 43.",
+       "src": "16강 p.27~29 규칙 적용",
+       "wiki": "3단계 page table",
+       "diff": 3,
+       "tags": [
+        "multi-level"
+       ],
+       "answer": 43,
+       "tol": 0
       }
      ]
     },
@@ -3398,6 +4422,8 @@
        "tags": [
         "THP"
        ],
+       "img": "duo/img/os16-p41-promote.png",
+       "imgAlt": "p.41 Page Table 의 연속 page 들이 Huge Page 하나로 합쳐지는 그림",
        "answer": "promotion",
        "alts": [
         "promote"
@@ -3435,6 +4461,8 @@
        "tags": [
         "THP"
        ],
+       "img": "duo/img/os16-p44-demote.png",
+       "imgAlt": "p.44 huge page 안에 안 쓰는 page 가 있는 그림",
        "answer": "demotion",
        "alts": [
         "demote"
@@ -3480,6 +4508,9 @@
        "tags": [
         "Sv39"
        ],
+       "img": "duo/img/os16-p48-sv39.png",
+       "imgAlt": "p.48 Sv39 PTE 와 X/W/R 표 — Meaning 열이 가려져 있다",
+       "explainImg": "duo/img/os16-p48-sv39-ans.png",
        "pairs": [
         [
          "0 0 0",
@@ -3529,6 +4560,9 @@
        "src": "16강 p.46~47",
        "wiki": "huge page",
        "diff": 2,
+       "img": "duo/img/os16-p46-pmd.png",
+       "imgAlt": "p.46 x86_64 PMD entry 비트 그림 — 빨간 상자 비트 이름이 가려져 있다",
+       "explainImg": "duo/img/os16-p46-pmd-ans.png",
        "choices": [
         "Page Size 비트",
         "Present 비트",
@@ -3546,6 +4580,55 @@
        "wiki": "huge page",
        "diff": 2,
        "answer": true
+      },
+      {
+       "id": "u16d-14",
+       "type": "sa",
+       "q": "p.46 x86_64 PMD entry 그림의 빨간 상자(가려짐) 비트 이름은? (2 words)",
+       "explain": "Page Size 가 unset(0)이면 이 PMD entry 는 아래 page table 의 물리 주소를, set(1)이면 2MB page 의 물리 주소를 가리킨다(p.47). 같은 entry 로 표와 huge page 를 구분하는 방법이다.",
+       "src": "16강 p.46~47",
+       "wiki": "huge page",
+       "tags": [
+        "huge page"
+       ],
+       "img": "duo/img/os16-p46-pmd.png",
+       "imgAlt": "p.46 PMD Entry, Page Size unset — 빨간 상자 비트 이름이 가려져 있다",
+       "explainImg": "duo/img/os16-p46-pmd-ans.png",
+       "answer": "Page Size",
+       "alts": [
+        "PS",
+        "page size bit"
+       ]
+      },
+      {
+       "id": "u16d-15",
+       "type": "num",
+       "q": "1GB huge page 하나는 2MB huge page 몇 개와 같은 범위인가?",
+       "explain": "1GB / 2MB = 512. 4KB → 2MB → 1GB 로 한 단계마다 512배($2^9$, page table 한 장의 entry 수)씩 커진다.",
+       "src": "16강 p.38, p.48",
+       "wiki": "huge page",
+       "tags": [
+        "huge page"
+       ],
+       "answer": 512,
+       "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u16d-16",
+       "type": "sa",
+       "q": "[용어] Linux kernel feature that automatically manages huge pages. (3 words, T… H… P…)",
+       "explain": "p.39~40. 사용자가 hugetlbfs 로 미리 예약하는 Explicit Huge Page 와 달리 커널이 promotion/demotion 을 알아서 한다.",
+       "src": "16강 p.39~40",
+       "wiki": "transparent huge page",
+       "tags": [
+        "THP"
+       ],
+       "answer": "Transparent Huge Page",
+       "alts": [
+        "THP",
+        "transparent huge pages"
+       ]
       }
      ]
     }
@@ -3642,6 +4725,9 @@
        "tags": [
         "page fault"
        ],
+       "img": "duo/img/os17-p23-flow.png",
+       "imgAlt": "p.23 Page Fault Control Flow 그림 — 1~6 단계 이름이 가려져 있다",
+       "explainImg": "duo/img/os17-p23-flow-ans.png",
        "answer": [
         "Reference: 명령이 page table 참조",
         "Trap: present 0 이라 OS 로",
@@ -3713,6 +4799,8 @@
        "explain": "p.16 그림의 Valid 칸과 주소 칸을 같이 읽는다.",
        "src": "17강 p.16",
        "wiki": "page fault",
+       "img": "duo/img/os17-p16-pte-swap.png",
+       "imgAlt": "p.16 swapping 을 지원하는 page table — PTE 0~7, 물리 메모리, 디스크",
        "pairs": [
         [
          "Page hit",
@@ -3767,6 +4855,70 @@
        "wiki": "page fault",
        "diff": 2,
        "answer": false
+      },
+      {
+       "id": "u17a-14",
+       "type": "num",
+       "q": "p.16 그림(PTE 0~7). valid 가 0 인데 주소 칸이 null 이 아닌(디스크 주소가 있는) PTE 는 몇 개인가?",
+       "explain": "PTE 3(→ 디스크 VP 3)과 PTE 6(→ 디스크 VP 6). 이 page 를 참조하면 page fault 가 나고 OS 가 디스크에서 가져온다. PTE 0·5 는 valid 0 + null = 아직 할당 안 된 page 라 접근하면 오류다.",
+       "src": "17강 p.16",
+       "wiki": "page fault",
+       "tags": [
+        "page fault"
+       ],
+       "img": "duo/img/os17-p16-pte-swap.png",
+       "imgAlt": "p.16 swapping 을 지원하는 page table — 아래 Value/Meaning 표는 가려져 있다",
+       "answer": 2,
+       "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u17a-15",
+       "type": "mc",
+       "q": "p.20 그림: VP 3 을 참조해 page fault 가 났고 handler 가 victim 으로 VP 4 를 골랐다. 처리가 끝난 뒤(p.21) PTE 3 과 PTE 4 는?",
+       "explain": "VP 4 를 디스크로 내보내고(VP 4 가 수정됐다면 써야 한다) 그 자리 PP 3 에 VP 3 을 올린다. PTE 4 는 디스크 주소를 가리키게 되고 null 이 아니다. 그다음 fault 를 낸 명령을 재실행하면 page hit.",
+       "src": "17강 p.19~22",
+       "wiki": "page fault",
+       "tags": [
+        "page fault"
+       ],
+       "img": "duo/img/os17-p20-fault.png",
+       "imgAlt": "p.20 page fault 처리 중 — VP 4 가 victim 으로 표시된 그림",
+       "choices": [
+        "PTE 3 valid 1(PP 3), PTE 4 valid 0(디스크 VP 4)",
+        "PTE 3 valid 0, PTE 4 valid 1",
+        "둘 다 valid 1",
+        "PTE 3 valid 1, PTE 4 valid 0 + null"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u17a-16",
+       "type": "num",
+       "q": "p.15 그림: 물리 메모리 frame 4개와 swap block 8개. Proc 3 의 page 중 지금 물리 메모리에 있는 것은 몇 개인가?",
+       "explain": "PFN 0~3 에는 Proc 0·1·2 만 있다. Proc 3 의 VPN 0·1 은 둘 다 swap space(Block 5, 7)에 있다 — 프로세스 전체가 swap out 될 수도 있다. 다시 돌 때 page fault 로 하나씩 올라온다.",
+       "src": "17강 p.15",
+       "wiki": "swap space",
+       "tags": [
+        "swap"
+       ],
+       "img": "duo/img/os17-p15-swapspace.png",
+       "imgAlt": "p.15 Physical Memory 와 Swap Space 의 page 배치",
+       "answer": 0,
+       "unit": "개",
+       "tol": 0
+      },
+      {
+       "id": "u17a-17",
+       "type": "sa",
+       "q": "[용어] Brings the page into memory when it is accessed. (2 words, d… p…)",
+       "explain": "p.52. 미리 가져오는 것은 prefetching. \"접근할 때 비로소\" 가 핵심어다.",
+       "src": "17강 p.52",
+       "wiki": "demand paging",
+       "tags": [
+        "page fault"
+       ],
+       "answer": "demand paging"
       }
      ]
     },
@@ -3907,6 +5059,8 @@
        "tags": [
         "thrashing"
        ],
+       "img": "duo/img/os17-p54-thrash.png",
+       "imgAlt": "p.54 degree of multiprogramming 에 따른 CPU utilization — 급락 구간 이름이 가려져 있다",
        "answer": "thrashing"
       },
       {
@@ -3992,6 +5146,33 @@
         "TLB 를 키운다"
        ],
        "answer": 0
+      },
+      {
+       "id": "u17b-15",
+       "type": "sa",
+       "q": "[용어] At any point in time, programs tend to access a set of active virtual pages called the ___. (2 words, w… s…)",
+       "explain": "p.27. temporal locality 가 좋을수록 working set 이 작다. working set size > main memory size 면 thrashing.",
+       "src": "17강 p.27",
+       "wiki": "working set과 thrashing",
+       "tags": [
+        "thrashing"
+       ],
+       "answer": "working set"
+      },
+      {
+       "id": "u17b-16",
+       "type": "num",
+       "q": "[규칙 적용] memory access 200 ns, page-fault time 8 ms. 성능 저하를 20% 이내(EAT < 240 ns)로 하려면 page fault 가 약 몇 번에 1번 미만이어야 하나?",
+       "explain": "200 + 7,999,800p < 240 → p < 40 / 7,999,800 ≈ 5.0 × $10^{-6}$ → 약 200,000번에 1번. 10% 일 때(400,000번)의 절반이다. 식 EAT = 200 + 7,999,800p 는 p.25.",
+       "src": "17강 p.25~26 규칙 적용",
+       "wiki": "effective access time",
+       "diff": 2,
+       "tags": [
+        "EAT"
+       ],
+       "answer": 200000,
+       "unit": "번",
+       "tol": 0.01
       }
      ]
     },
@@ -4043,6 +5224,9 @@
        "tags": [
         "교체 정책"
        ],
+       "img": "duo/img/os17-p32-opt.png",
+       "imgAlt": "p.32 Optimal 트레이스 표 — 6번째 접근부터 결과가 가려져 있다",
+       "explainImg": "duo/img/os17-p32-opt-ans.png",
        "answer": 6,
        "unit": "번",
        "tol": 0
@@ -4073,6 +5257,9 @@
        "tags": [
         "교체 정책"
        ],
+       "img": "duo/img/os17-p34-fifo.png",
+       "imgAlt": "p.34 FIFO 트레이스 표 — 6번째 접근부터 결과가 가려져 있다",
+       "explainImg": "duo/img/os17-p34-fifo-ans.png",
        "answer": 4,
        "unit": "번",
        "tol": 0
@@ -4088,6 +5275,9 @@
        "tags": [
         "교체 정책"
        ],
+       "img": "duo/img/os17-p39-lru.png",
+       "imgAlt": "p.39 LRU 트레이스 표 — 6번째 접근부터 결과가 가려져 있다",
+       "explainImg": "duo/img/os17-p39-lru-ans.png",
        "answer": 6,
        "unit": "번",
        "tol": 0
@@ -4132,6 +5322,8 @@
        "tags": [
         "Belady"
        ],
+       "img": "duo/img/os17-p35-belady.png",
+       "imgAlt": "p.35 Belady 그래프 — frame 3 에서 4 로 늘 때 page fault 수가 오른다(빨간 원)",
        "answer": 10,
        "unit": "번",
        "tol": 0
@@ -4219,7 +5411,43 @@
        "src": "17강 p.37, 11/9 녹음",
        "wiki": "Random 교체",
        "prof": true,
+       "img": "duo/img/os17-p37-random.png",
+       "imgAlt": "p.37 Random 10,000번 시행의 hit 수 분포",
        "answer": true
+      },
+      {
+       "id": "u17c-15",
+       "type": "mc",
+       "q": "[규칙 적용] Clock, frame 3개(처음 비어 있음). 빈 frame 은 차례로 채우고 새 page 의 reference bit 는 1, hit 이면 bit 를 1 로. 교체 때는 hand(처음 frame 0)부터 1 이면 0 으로 지우고 넘어가고 0 이면 교체한 뒤 hand 를 다음으로 옮긴다. 참조열 1 2 3 2 4 1 뒤 frame 0·1·2 의 page 는?",
+       "explain": "1 2 3 으로 채움(bit 1,1,1, hand 0). 2 hit. 4: frame 0·1·2 를 모두 0 으로 지우고 한 바퀴 돌아 frame 0(page 1) 교체 → 4, hand 1. 1: frame 1(page 2, bit 0) 교체 → 1, hand 2. 결과 4, 1, 3. 모두 1 이면 FIFO 처럼 동작한다.",
+       "src": "17강 p.46~47 규칙 적용",
+       "wiki": "Clock 알고리즘",
+       "diff": 3,
+       "tags": [
+        "Clock"
+       ],
+       "choices": [
+        "4, 1, 3",
+        "4, 2, 1",
+        "1, 4, 3",
+        "3, 4, 1"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u17c-16",
+       "type": "num",
+       "q": "[규칙 적용] frame 3개, 참조열 7 0 1 2 0 3 0 4. FIFO 의 hit 수는?",
+       "explain": "7 0 1 miss, 2 miss(7 뺌) → 0 1 2, 0 hit, 3 miss(0 뺌) → 1 2 3, 0 miss(1 뺌) → 2 3 0, 4 miss(2 뺌) → hit 1. 같은 참조열의 LRU 는 hit 2 — 자주 쓰는 0 을 FIFO 는 들어온 순서만 보고 내보낸다(p.34 \"FIFO still kicks it out\").",
+       "src": "17강 p.33~34 규칙 적용",
+       "wiki": "FIFO 교체",
+       "diff": 2,
+       "tags": [
+        "교체 정책"
+       ],
+       "answer": 1,
+       "unit": "번",
+       "tol": 0
       }
      ]
     },
@@ -4292,6 +5520,8 @@
        "wiki": "페이지 교체 정책",
        "prof": true,
        "diff": 2,
+       "img": "duo/img/os17-p42-loop.png",
+       "imgAlt": "p.42 Looping-Sequential workload 의 cache 크기별 hit rate 그래프",
        "choices": [
         "Random",
         "없다 — 모두 0%",
@@ -4489,6 +5719,65 @@
         "dirty",
         "present"
        ]
+      },
+      {
+       "id": "u17d-15",
+       "type": "mc",
+       "q": "p.45 LRU stack: 참조열 4 7 0 7 1 0 1 2 1 2 7 1 2 에서 a 직전 stack 은 (위부터) 2 1 0 7 4 다. 7 을 참조한 b 직후 stack(가려짐)은?",
+       "explain": "참조된 page 를 stack 맨 위로 옮긴다(중간에서 빼서 위로 → 포인터 여러 개 갱신, p.45). 7 이 위로 가고 나머지 순서는 그대로 → 7 2 1 0 4. 맨 아래(4)가 LRU 라 교체 때 검색이 필요 없다.",
+       "src": "17강 p.45",
+       "wiki": "LRU",
+       "tags": [
+        "교체 정책"
+       ],
+       "img": "duo/img/os17-p45-stack.png",
+       "imgAlt": "p.45 LRU stack 그림 — b 직후 stack 이 가려져 있다",
+       "explainImg": "duo/img/os17-p45-stack-ans.png",
+       "choices": [
+        "7 2 1 0 4",
+        "2 1 0 7 4",
+        "7 4 2 1 0",
+        "2 7 1 0 4"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u17d-16",
+       "type": "mc",
+       "q": "p.47 Clock 예: 원형 A(0) B(1) C(0) D(1) E(1) F(0) G(0) H(1), clock hand 는 B 를 가리킨다. page fault 때 교체되는 page(?)는?",
+       "explain": "hand 가 B 를 본다: use bit 1 → 0 으로 지우고 다음으로. C: 0 → evict. B 는 이번에 살아남는 대신 bit 가 0 이 돼서 다음 바퀴에 0 이면 쫓겨난다.",
+       "src": "17강 p.47",
+       "wiki": "Clock 알고리즘",
+       "tags": [
+        "Clock"
+       ],
+       "img": "duo/img/os17-p47-clock.png",
+       "imgAlt": "p.47 Clock 예 — 교체될 page 표시가 가려져 있다",
+       "explainImg": "duo/img/os17-p47-clock-ans.png",
+       "choices": [
+        "C",
+        "B",
+        "A",
+        "F"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u17d-17",
+       "type": "num",
+       "q": "p.48 (a): reference bit 가 위에서부터 0 0 1 1 0 … 1 1 이고 next victim 화살표가 세 번째(bit 1)를 가리킨다. 실제로 교체되는 page 는 화살표가 가리킨 page 부터 세어 몇 번째인가? (화살표 page = 1번째)",
+       "explain": "1번째(bit 1) → 0 으로, 2번째(bit 1) → 0 으로, 3번째(bit 0) → victim. 그림 (b) 에서 화살표가 그 page 에 가 있고 앞의 두 bit 가 0 이 된 것이 이 과정이다.",
+       "src": "17강 p.48",
+       "wiki": "Clock 알고리즘",
+       "diff": 2,
+       "tags": [
+        "Clock"
+       ],
+       "img": "duo/img/os17-p48-clocka.png",
+       "imgAlt": "p.48 (a) reference bits 와 circular queue, next victim 화살표",
+       "answer": 3,
+       "unit": "번째",
+       "tol": 0
       }
      ]
     }
@@ -4530,6 +5819,9 @@
        "tags": [
         "I/O"
        ],
+       "img": "duo/img/os18-p07-canon.png",
+       "imgAlt": "p.7 Canonical Device — Interface 의 세 레지스터 이름이 ①②③으로 가려져 있다",
+       "explainImg": "duo/img/os18-p07-canon-ans.png",
        "pairs": [
         [
          "Status register",
@@ -4567,6 +5859,8 @@
        "src": "18강 p.8, 11/11 녹음",
        "wiki": "polling과 interrupt",
        "prof": true,
+       "img": "duo/img/os18-p11-intr.png",
+       "imgAlt": "p.11 CPU 가 task 2 를 도는 동안 disk 가 task 1 의 I/O 를 하는 그림",
        "answer": "interrupt",
        "alts": [
         "인터럽트"
@@ -4582,6 +5876,8 @@
        "tags": [
         "polling"
        ],
+       "img": "duo/img/os18-p10-polling.png",
+       "imgAlt": "p.10 CPU utilization 그림 — p 칸의 이름이 가려져 있다",
        "answer": "polling"
       },
       {
@@ -4666,6 +5962,8 @@
        "tags": [
         "DMA"
        ],
+       "img": "duo/img/os18-p13-pio.png",
+       "imgAlt": "p.13 CPU 가 c(copy data from memory)로 바쁜 그림",
        "answer": "programmed I/O",
        "alts": [
         "PIO",
@@ -4707,6 +6005,9 @@
        "tags": [
         "MMIO"
        ],
+       "img": "duo/img/os18-p18-mmio.png",
+       "imgAlt": "p.18 Memory Space 안 장치용 구간 — 이름과 설명이 가려져 있다",
+       "explainImg": "duo/img/os18-p18-mmio-ans.png",
        "answer": "memory-mapped I/O",
        "alts": [
         "memory mapped I/O",
@@ -4753,6 +6054,92 @@
          "장치를 메모리처럼 부름",
          "Memory-mapped I/O"
         ]
+       ]
+      },
+      {
+       "id": "u18a-15",
+       "type": "cloze",
+       "q": "p.3 Prototypical System Architecture: ① ___ (e.g., AXI), ② ___ (e.g., PCIe), ③ ___ (e.g., SCSI, SATA, USB)",
+       "explain": "CPU 와 memory 가 가장 빠르고 짧은 memory bus 에, 그래픽 같은 고성능 장치가 general I/O bus(PCIe)에, 느린 디스크·USB 가 맨 아래 peripheral I/O bus 에 붙는다. 계층을 두는 이유는 physics and cost(p.5).",
+       "src": "18강 p.3, p.5",
+       "wiki": "I/O 시스템 구조",
+       "tags": [
+        "I/O"
+       ],
+       "img": "duo/img/os18-p03-bus.png",
+       "imgAlt": "p.3 세 bus 의 이름이 ①②③으로 가려진 시스템 구조도",
+       "explainImg": "duo/img/os18-p03-bus-ans.png",
+       "answer": [
+        "Memory Bus",
+        "General I/O Bus",
+        "Peripheral I/O Bus"
+       ],
+       "bank": [
+        "Memory Bus",
+        "General I/O Bus",
+        "Peripheral I/O Bus",
+        "System Bus",
+        "Data Bus"
+       ]
+      },
+      {
+       "id": "u18a-16",
+       "type": "cloze",
+       "q": "p.17 port-mapped I/O 명령 `outb(0x1f2, reg)` 에서 ① reg 는 ___ (데이터가 든 곳), ② 0x1f2 는 장치를 가리키는 ___ 다.",
+       "explain": "p.17 \"The caller specifies 1) a register with the data in it and 2) a specific port which names the device.\" in/out 은 x86 의 특권 명령이다(old style). 지금은 memory-mapped I/O 를 쓴다.",
+       "src": "18강 p.17",
+       "wiki": "memory-mapped I/O",
+       "tags": [
+        "MMIO"
+       ],
+       "img": "duo/img/os18-p17-portio.png",
+       "imgAlt": "p.17 outb(0x1f2, reg) — 두 인자의 이름이 ①②로 가려져 있다",
+       "explainImg": "duo/img/os18-p17-portio-ans.png",
+       "answer": [
+        "register",
+        "port"
+       ],
+       "bank": [
+        "register",
+        "port",
+        "page",
+        "interrupt",
+        "sector"
+       ]
+      },
+      {
+       "id": "u18a-17",
+       "type": "order",
+       "q": "p.15 DMA 로 디스크 데이터를 메모리 buffer X 로 옮기는 과정을 순서대로 놓으시오.",
+       "explain": "p.15 그림의 1~6. CPU 는 1~2 단계에서 \"어디(X) · 얼마나(C)\" 만 알려 주고 다른 일을 하다가, 6 단계의 interrupt 로 끝난 것을 안다. 2026F 중간 P3(LDE 순서 쓰기)처럼 단계 순서를 묻는 형식.",
+       "src": "18강 p.14~15",
+       "wiki": "PIO와 DMA",
+       "diff": 2,
+       "tags": [
+        "DMA"
+       ],
+       "answer": [
+        "device driver 가 disk data 를 buffer X 로 옮기라는 요청을 받는다",
+        "device driver 가 disk controller 에 C bytes 를 X 로 보내라고 한다",
+        "disk controller 가 DMA transfer 를 시작한다",
+        "disk controller 가 byte 를 DMA controller 로 보낸다",
+        "DMA controller 가 X 에 쓰며 주소를 늘리고 C 를 줄인다",
+        "C = 0 이 되면 DMA 가 CPU 에 interrupt 를 건다"
+       ]
+      },
+      {
+       "id": "u18a-18",
+       "type": "sa",
+       "q": "[용어] DMA 의 full name — offload some of the work to a special-purpose processor that copies data between memory and a device. (3 words, d… m… a…)",
+       "explain": "p.14. 약어(DMA)가 아니라 full term 을 써야 점수가 나온다. CPU 가 직접 복사하는 것은 programmed I/O(PIO).",
+       "src": "18강 p.14",
+       "wiki": "PIO와 DMA",
+       "tags": [
+        "DMA"
+       ],
+       "answer": "direct memory access",
+       "alts": [
+        "direct-memory-access"
        ]
       }
      ]
@@ -4984,6 +6371,98 @@
        "wiki": "디스크 접근 시간",
        "prof": true,
        "answer": false
+      },
+      {
+       "id": "u18b-15",
+       "type": "cloze",
+       "q": "p.22 Disk Geometry 그림: ① ___ (surface 위 동심원), ② ___ (track 을 나눈 단위), ③ ___ (sector 사이 틈)",
+       "explain": "p.22 \"Each surface consists of concentric rings called tracks. Each track consists of sectors separated by gaps.\" 여러 surface 의 같은 반지름 track 묶음은 cylinder(p.23).",
+       "src": "18강 p.22",
+       "wiki": "HDD 구조",
+       "tags": [
+        "HDD"
+       ],
+       "img": "duo/img/os18-p22-geom.png",
+       "imgAlt": "p.22 디스크 surface 와 Track k 확대 그림 — 세 용어가 ①②③으로 가려져 있다",
+       "explainImg": "duo/img/os18-p22-geom-ans.png",
+       "answer": [
+        "Tracks",
+        "Sectors",
+        "Gaps"
+       ],
+       "bank": [
+        "Tracks",
+        "Sectors",
+        "Gaps",
+        "Cylinders",
+        "Platters",
+        "Blocks"
+       ]
+      },
+      {
+       "id": "u18b-16",
+       "type": "sa",
+       "q": "p.23 그림에서 가려진 이름 — 여러 platter 의 같은 위치 track 이 위아래로 정렬된 묶음은? (1 word)",
+       "explain": "p.23 \"Aligned tracks form a cylinder.\" read/write head 들이 한 arm 에 묶여 같이 움직이므로(move in unison) 한 번 seek 하면 cylinder 전체를 읽을 수 있다.",
+       "src": "18강 p.23",
+       "wiki": "HDD 구조",
+       "tags": [
+        "HDD"
+       ],
+       "img": "duo/img/os18-p23-cyl.png",
+       "imgAlt": "p.23 multiple-platter view — 정렬된 track 묶음의 이름이 가려져 있다",
+       "explainImg": "duo/img/os18-p23-cyl-ans.png",
+       "answer": "cylinder",
+       "alts": [
+        "Cylinder k"
+       ]
+      },
+      {
+       "id": "u18b-17",
+       "type": "order",
+       "q": "p.26 그림 ①~④ — BLUE sector 를 읽은 뒤 RED sector 를 읽기까지 일어나는 일을 순서대로 놓으시오.",
+       "explain": "Taccess = seek + rotation + transfer 의 순서 그대로다. arm 이 먼저 track 을 맞추고(seek), 원판이 돌아 sector 가 오기를 기다린 뒤(rotational latency), 지나가는 동안 읽는다(transfer).",
+       "src": "18강 p.25~27",
+       "wiki": "디스크 접근 시간",
+       "tags": [
+        "디스크 접근"
+       ],
+       "img": "duo/img/os18-p26-access.png",
+       "imgAlt": "p.26 디스크 접근 네 장면 — 아래 이름이 ①~④로 가려져 있다",
+       "explainImg": "duo/img/os18-p26-access-ans.png",
+       "answer": [
+        "Data transfer (BLUE 읽기)",
+        "Seek (RED 의 track 으로 arm 이동)",
+        "Rotational latency (RED 가 head 아래로 올 때까지 대기)",
+        "Data transfer (RED 읽기)"
+       ]
+      },
+      {
+       "id": "u18b-18",
+       "type": "num",
+       "q": "[규칙 적용] 5400 RPM, 평균 seek 10 ms, track 당 300 sector. Taccess = Tavg seek + Tavg rotation + Tavg transfer 는 몇 ms 인가? (소수 둘째 자리)",
+       "explain": "한 바퀴 = 60,000/5400 = 11.11 ms → rotation = 반 바퀴 5.56 ms, transfer = 11.11/300 = 0.037 ms. 10 + 5.556 + 0.037 = 15.59 ms. p.27 공식: rotation = 1/2 × 1/RPM × 60, transfer = 1/RPM × 1/(sectors/track) × 60.",
+       "src": "18강 p.27~28 규칙 적용",
+       "wiki": "디스크 접근 시간",
+       "diff": 2,
+       "tags": [
+        "디스크 접근"
+       ],
+       "answer": 15.59,
+       "unit": "ms",
+       "tol": 0.002
+      },
+      {
+       "id": "u18b-19",
+       "type": "sa",
+       "q": "[용어] Time waiting for first bit of target sector to pass under r/w head. (2 words, r… l…)",
+       "explain": "p.27. Tavg rotation 으로 계산한다. 원판을 끝까지 기다려야 하는 seek 이후의 시간.",
+       "src": "18강 p.27",
+       "wiki": "디스크 접근 시간",
+       "tags": [
+        "디스크 접근"
+       ],
+       "answer": "rotational latency"
       }
      ]
     },
@@ -5002,6 +6481,8 @@
        "tags": [
         "디스크 스케줄링"
        ],
+       "img": "duo/img/os18-p35-fcfs.png",
+       "imgAlt": "p.35 FCFS head 이동 그래프 — 총 이동량이 가려져 있다",
        "answer": 640,
        "tol": 0
       },
@@ -5037,6 +6518,8 @@
        "tags": [
         "디스크 스케줄링"
        ],
+       "img": "duo/img/os18-p36-sstf.png",
+       "imgAlt": "p.36 SSTF head 이동 그래프 — 총 이동량이 가려져 있다",
        "answer": 236,
        "tol": 0
       },
@@ -5062,6 +6545,8 @@
        "tags": [
         "디스크 스케줄링"
        ],
+       "img": "duo/img/os18-p37-scan.png",
+       "imgAlt": "p.37 SCAN head 이동 그래프 — 총 이동량이 가려져 있다",
        "answer": 208,
        "tol": 0
       },
@@ -5090,6 +6575,8 @@
        "tags": [
         "디스크 스케줄링"
        ],
+       "img": "duo/img/os18-p39-cscan.png",
+       "imgAlt": "p.39 C-SCAN head 이동 그래프",
        "answer": 382,
        "tol": 0
       },
@@ -5182,6 +6669,34 @@
        "src": "18강 p.39",
        "wiki": "C-SCAN",
        "answer": false
+      },
+      {
+       "id": "u18c-15",
+       "type": "num",
+       "q": "[규칙 적용] head 50, 디스크 0~199, 요청 82, 170, 43, 140, 24, 16, 190. SSTF 의 총 head 이동량은?",
+       "explain": "50→43(7)→24(19)→16(8)→82(66)→140(58)→170(30)→190(20) = 208. 매번 지금 위치에서 가장 가까운 요청을 고른다. 43(7) vs 82(32) 처럼 거리를 직접 비교할 것.",
+       "src": "18강 p.36 규칙 적용",
+       "wiki": "SSTF",
+       "diff": 2,
+       "tags": [
+        "디스크 스케줄링"
+       ],
+       "answer": 208,
+       "tol": 0
+      },
+      {
+       "id": "u18c-16",
+       "type": "num",
+       "q": "[규칙 적용] head 50, 디스크 0~199, 요청 82, 170, 43, 140, 24, 16, 190. FCFS 의 총 head 이동량은?",
+       "explain": "32 + 88 + 127 + 97 + 116 + 8 + 174 = 642. 도착 순서대로라 오락가락한다.",
+       "src": "18강 p.35 규칙 적용",
+       "wiki": "FCFS",
+       "diff": 1,
+       "tags": [
+        "디스크 스케줄링"
+       ],
+       "answer": 642,
+       "tol": 0
       }
      ]
     },
@@ -5192,12 +6707,13 @@
       {
        "id": "u18d-01",
        "type": "tf",
-       "q": "교수님은 RAID 가 무엇의 약자인지 몰라도 된다고 했다.",
-       "explain": "11/16 녹음. p.42 의 \"Don't memorize\" 와 같은 맥락. 레벨별 장단점과 실패율 계산을 본다.",
-       "src": "11/16 녹음",
-       "wiki": "RAID",
-       "prof": true,
-       "diff": 1,
+       "q": "RAID 0 은 parity 도 사본도 없어서 디스크 하나만 고장 나도 배열의 데이터를 잃는다.",
+       "explain": "p.44~45 \"without parity information, redundancy, or fault tolerance\". 그래서 디스크가 늘수록 배열 실패율 1 − (1 − r)^n 이 커진다 — 슬라이드 결론 \"Don’t use\". (RAID 약자는 p.42 \"Don’t memorize\".)",
+       "src": "18강 p.44~45",
+       "wiki": "RAID 0과 RAID 1",
+       "tags": [
+        "RAID"
+       ],
        "answer": true
       },
       {
@@ -5333,6 +6849,9 @@
        "tags": [
         "parity"
        ],
+       "img": "duo/img/os18-p49-parity.png",
+       "imgAlt": "p.49 parity 계산 — 결과가 가려져 있다",
+       "explainImg": "duo/img/os18-p49-parity-ans.png",
        "answer": 4,
        "tol": 0
       },
@@ -5370,6 +6889,8 @@
        "tags": [
         "RAID"
        ],
+       "img": "duo/img/os18-p48-raid4.png",
+       "imgAlt": "p.48 RAID 4 배치 — Disk 3 에 Ap~Dp parity block",
        "choices": [
         "모든 쓰기가 같은 parity 디스크를 갱신해서 병목",
         "striping 을 안 해서",
@@ -5403,6 +6924,54 @@
         "RAID 0 디스크 10개"
        ],
        "answer": 0
+      },
+      {
+       "id": "u18d-14",
+       "type": "mc",
+       "q": "p.50 RAID 5 그림에서 Disk 1 의 C 줄(가림)에 들어갈 block 은?",
+       "explain": "RAID 5 는 parity 를 줄마다 다른 디스크에 돌려 놓는다: A 줄 parity 는 Disk 3, B 줄은 Disk 2, C 줄은 Disk 1, D 줄은 Disk 0. 그래서 A1·B2 쓰기처럼 서로 다른 parity 디스크를 쓰는 쓰기는 동시에 할 수 있다(parity disk 병목 없음).",
+       "src": "18강 p.50",
+       "wiki": "RAID 5와 RAID 6",
+       "tags": [
+        "RAID"
+       ],
+       "img": "duo/img/os18-p50-raid5.png",
+       "imgAlt": "p.50 RAID 5 배치 — Disk 1 의 한 칸이 가려져 있다",
+       "explainImg": "duo/img/os18-p50-raid5-ans.png",
+       "choices": [
+        "Cp (C 줄의 parity)",
+        "C2",
+        "C1",
+        "Bp"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u18d-15",
+       "type": "num",
+       "q": "[규칙 적용] 2TB 디스크 4개로 RAID 5 를 만들면 쓸 수 있는 용량은 몇 TB 인가?",
+       "explain": "parity 가 분산돼 있어도 줄마다 한 칸은 parity 다 → 공간 효율 1 − 1/n = 3/4. 4 × 2 × 3/4 = 6TB. RAID 6 이면 parity 2칸이라 1 − 2/n.",
+       "src": "18강 p.48, p.50 규칙 적용",
+       "wiki": "RAID 5와 RAID 6",
+       "tags": [
+        "RAID"
+       ],
+       "answer": 6,
+       "unit": "TB",
+       "tol": 0
+      },
+      {
+       "id": "u18d-16",
+       "type": "num",
+       "q": "[규칙 적용] 디스크 고장률 r = 10%, n = 3 인 RAID 1 배열의 실패율은? (소수로)",
+       "explain": "RAID 1 은 사본이 모두 동시에 고장 나야 실패 → $r^n$ = 0.1³ = 0.001. 같은 조건의 RAID 0 은 1 − 0.9³ = 0.271.",
+       "src": "18강 p.47 규칙 적용",
+       "wiki": "RAID 0과 RAID 1",
+       "tags": [
+        "RAID"
+       ],
+       "answer": 0.001,
+       "tol": 0.001
       }
      ]
     }
@@ -5628,6 +7197,80 @@
        "src": "19강 p.3",
        "wiki": "inode",
        "answer": false
+      },
+      {
+       "id": "u19a-14",
+       "type": "cloze",
+       "q": "p.5 그림: 맨 위 Files & directories 트리와 Logical blocks 사이의 점선은 ① ___, Logical blocks 와 Physical disks 사이는 ② ___ 이다.",
+       "explain": "디스크 장치가 섹터 구조를 숨기고 번호 붙은 logical block 배열을 보여 주는 것이 abstraction(18강 p.29), 그 위에 OS 가 이름 붙은 파일·디렉터리 트리를 만들어 주는 것이 virtualization — \"Virtualized view to storage\".",
+       "src": "19강 p.5",
+       "wiki": "파일과 디렉터리",
+       "img": "duo/img/os19-p05-layers.png",
+       "imgAlt": "p.5 저장 장치 계층 그림 — 두 점선의 이름이 ①②로 가려져 있다",
+       "explainImg": "duo/img/os19-p05-layers-ans.png",
+       "answer": [
+        "Virtualization",
+        "Abstraction"
+       ],
+       "bank": [
+        "Virtualization",
+        "Abstraction",
+        "Translation",
+        "Segmentation",
+        "Caching"
+       ]
+      },
+      {
+       "id": "u19a-15",
+       "type": "sa",
+       "q": "p.9 디렉터리 내용 예. 엔트리 (207, \"bookmark\") 에서 207 은 무엇인가? (영어 두 단어)",
+       "explain": "디렉터리는 (user-readable name, inode #) 쌍의 목록이다. 이름 \"bookmark\" 를 찾으면 inode 207 로 가서 그 파일의 메타데이터와 데이터 블록 위치를 얻는다.",
+       "src": "19강 p.9",
+       "wiki": "디렉터리",
+       "tags": [
+        "디렉터리"
+       ],
+       "img": "duo/img/os19-p09-dirent.png",
+       "imgAlt": "p.9 디렉터리 엔트리 예 — 120 fred, 207 bookmark, 235 abc",
+       "answer": "inode number",
+       "alts": [
+        "inode #",
+        "inode",
+        "i-number"
+       ]
+      },
+      {
+       "id": "u19a-16",
+       "type": "mc",
+       "q": "p.10 예제 디렉터리 트리에서 bar.txt 라는 파일의 absolute pathname 을 모두 고르면?",
+       "explain": "root(/) 에서 트리를 따라 내려가며 이름을 / 로 잇는다. 왼쪽은 / → foo → bar.txt, 오른쪽은 / → bar → foo → bar.txt. 이름이 같아도 경로가 다르면 다른 파일이다.",
+       "src": "19강 p.10",
+       "wiki": "경로와 working directory",
+       "tags": [
+        "디렉터리"
+       ],
+       "img": "duo/img/os19-p10-tree.png",
+       "imgAlt": "p.10 예제 디렉터리 트리",
+       "choices": [
+        "/foo/bar.txt 와 /bar/foo/bar.txt",
+        "/bar.txt 하나",
+        "/foo/bar.txt 하나",
+        "/bar/bar.txt 와 /foo/bar.txt"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u19a-17",
+       "type": "sa",
+       "q": "[용어] Every process has one; it is the directory from which all relative pathnames are interpreted. (2 words, w… d…)",
+       "explain": "p.6. 현재 위치는 pwd 로 보고, 로그인하면 home directory 가 working directory 가 된다.",
+       "src": "19강 p.6",
+       "wiki": "경로와 working directory",
+       "diff": 1,
+       "answer": "working directory",
+       "alts": [
+        "current working directory"
+       ]
       }
      ]
     },
@@ -5646,6 +7289,9 @@
        "tags": [
         "권한"
        ],
+       "img": "duo/img/os19-p13-perm.png",
+       "imgAlt": "p.13 rwxr-x--x 의 비트와 자릿값 — 결과 8진수가 가려져 있다",
+       "explainImg": "duo/img/os19-p13-perm-ans.png",
        "answer": 751,
        "tol": 0
       },
@@ -5856,6 +7502,60 @@
        "wiki": "파일 offset과 lseek",
        "diff": 2,
        "answer": false
+      },
+      {
+       "id": "u19b-15",
+       "type": "cloze",
+       "q": "p.20 `strace cat foo` 출력(파일 foo 의 내용은 \"hello\\n\"). open 의 반환값 ___, 첫 read 의 반환값 ___, 두 번째 read 의 반환값 ___",
+       "explain": "open 은 비어 있는 가장 작은 fd 인 3 을 준다(0·1·2 는 터미널). read 는 읽은 바이트 수 — \"hello\\n\" 6바이트. 다음 read 는 남은 게 없어 0(EOF). 4096 은 버퍼 크기일 뿐이다.",
+       "src": "19강 p.19~21",
+       "wiki": "file descriptor",
+       "tags": [
+        "fd"
+       ],
+       "img": "duo/img/os19-p20-strace.png",
+       "imgAlt": "p.20 strace cat foo — 시스템 콜 반환값이 가려져 있다",
+       "explainImg": "duo/img/os19-p20-strace-ans.png",
+       "answer": [
+        "3",
+        "6",
+        "0"
+       ],
+       "bank": [
+        "3",
+        "6",
+        "0",
+        "1",
+        "4096",
+        "-1"
+       ]
+      },
+      {
+       "id": "u19b-16",
+       "type": "sa",
+       "q": "[용어] open() 이 돌려주는, 이후 read/write 에서 파일을 가리키는 프로세스별 정수. (2 words, f… d…)",
+       "explain": "p.15, p.21. non-negative integer, 비어 있는 가장 작은 번호.",
+       "src": "19강 p.15, p.21",
+       "wiki": "file descriptor",
+       "tags": [
+        "fd"
+       ],
+       "answer": "file descriptor",
+       "alts": [
+        "fd"
+       ]
+      },
+      {
+       "id": "u19b-17",
+       "type": "sa",
+       "q": "[규칙 적용] 8진수 640 을 rwx 9 글자로 쓰면?",
+       "explain": "6 = 4 + 2 = rw-, 4 = r--, 0 = ---. owner 는 읽고 쓰기, group 은 읽기만, others 는 아무것도 못 한다. p.26 stat 출력의 Access: (0640/-rw-r-----) 가 이것.",
+       "src": "19강 p.12~13, p.26 규칙 적용",
+       "wiki": "권한 비트",
+       "tags": [
+        "권한"
+       ],
+       "answer": "rw-r-----"
       }
      ]
     },
@@ -5955,6 +7655,9 @@
        "tags": [
         "디렉터리"
        ],
+       "img": "duo/img/os19-p28-mkdir.png",
+       "imgAlt": "p.28 mkdir 직후 ls -al — 새 디렉터리의 link count 가 가려져 있다",
+       "explainImg": "duo/img/os19-p28-mkdir-ans.png",
        "choices": [
         ". 과 ..",
         "없음",
@@ -6039,6 +7742,22 @@
        "src": "위키 rename과 atomic update",
        "wiki": "rename과 atomic update",
        "answer": false
+      },
+      {
+       "id": "u19c-14",
+       "type": "num",
+       "q": "p.28: mkdir foo 직후 foo 안에서 ls -al 을 했다. ./ 줄의 link count(가려짐)는?",
+       "explain": "빈 디렉터리도 엔트리가 두 개 있다. 부모 디렉터리의 \"foo\" 엔트리와 자기 안의 \".\" 가 같은 inode 를 가리키므로 link count 2. 하위 디렉터리를 하나 만들 때마다 그 \"..\" 때문에 1 씩 는다.",
+       "src": "19강 p.28",
+       "wiki": "디렉터리 API",
+       "tags": [
+        "디렉터리"
+       ],
+       "img": "duo/img/os19-p28-mkdir.png",
+       "imgAlt": "p.28 mkdir 과 ls -al 출력 — ./ 의 link count 가 가려져 있다",
+       "explainImg": "duo/img/os19-p28-mkdir-ans.png",
+       "answer": 2,
+       "tol": 0
       }
      ]
     },
@@ -6056,6 +7775,9 @@
        "tags": [
         "link"
        ],
+       "img": "duo/img/os19-p33-hardlink.png",
+       "imgAlt": "p.33 ln file file2 전후 — 디렉터리 엔트리 두 개가 같은 inode 12345 를 가리키고 link count 칸이 가려져 있다",
+       "explainImg": "duo/img/os19-p33-hardlink-ans.png",
        "answer": [
         "이름",
         "inode",
@@ -6272,6 +7994,69 @@
          "inode 에 붙은 이름 수"
         ]
        ]
+      },
+      {
+       "id": "u19d-14",
+       "type": "num",
+       "q": "p.36: echo hello > file, ln file file2, ln file2 file3 를 한 직후 stat file 이 보여 주는 Links(가려짐)는?",
+       "explain": "file · file2 · file3 세 이름이 같은 inode 67158084 를 가리킨다. 이어서 rm file → 2, rm file2 → 1, rm file3 → 0 이 되면 inode 와 데이터 블록이 해제된다.",
+       "src": "19강 p.35~36",
+       "wiki": "hard link",
+       "tags": [
+        "link"
+       ],
+       "img": "duo/img/os19-p36-unlink.png",
+       "imgAlt": "p.36 link 와 unlink 에 따른 stat 출력 — Links 값과 주석이 가려져 있다",
+       "explainImg": "duo/img/os19-p36-unlink-ans.png",
+       "answer": 3,
+       "tol": 0
+      },
+      {
+       "id": "u19d-15",
+       "type": "num",
+       "q": "p.39: ln -s alongerfilename file3 로 만든 file3 의 크기(가려짐)는 몇 바이트인가?",
+       "explain": "symbolic link 의 데이터는 링크한 파일의 pathname 이다. \"alongerfilename\" 은 15글자 → 15바이트. 경로가 길수록 symlink 가 커진다.",
+       "src": "19강 p.39",
+       "wiki": "symbolic link",
+       "tags": [
+        "link"
+       ],
+       "img": "duo/img/os19-p39-symsize.png",
+       "imgAlt": "p.39 ls -al alongerfilename file3 — file3 크기가 가려져 있다",
+       "explainImg": "duo/img/os19-p39-symsize-ans.png",
+       "answer": 15,
+       "unit": "B",
+       "tol": 0
+      },
+      {
+       "id": "u19d-16",
+       "type": "sa",
+       "q": "[용어] 원본 파일을 지운 뒤 symbolic link 가 아무것도 가리키지 않는 상태. (2 words, d… r…)",
+       "explain": "p.40. symlink 는 이름(pathname)을 담고 있어서 이름이 사라지면 찾아갈 곳이 없다. hard link 에는 이런 일이 없다 — inode 를 직접 가리키므로.",
+       "src": "19강 p.40",
+       "wiki": "symbolic link",
+       "tags": [
+        "link"
+       ],
+       "answer": "dangling reference",
+       "alts": [
+        "dangling link",
+        "dangling pointer"
+       ]
+      },
+      {
+       "id": "u19d-17",
+       "type": "num",
+       "q": "[규칙 적용] echo hi > a, ln a b, ln -s a c, rm a 를 차례로 한 뒤 b 가 가리키는 inode 의 Links 는?",
+       "explain": "a 생성 1 → ln a b 2 → ln -s 는 원본 Links 를 바꾸지 않음 2 → rm a 1. cat b 는 hi, cat c 는 \"No such file\" (dangling).",
+       "src": "19강 p.35~40 규칙 적용",
+       "wiki": "hard link",
+       "diff": 2,
+       "tags": [
+        "link"
+       ],
+       "answer": 1,
+       "tol": 0
       }
      ]
     }
@@ -6292,6 +8077,7 @@
        "q": "파일 시스템을 구현할 때 생각할 두 측면을 연결하시오",
        "explain": "p.2 The Way To Think 와 p.6~8.",
        "src": "20강 p.2, p.6~8",
+       "wiki": "vsfs 디스크 배치",
        "tags": [
         "FS 구조"
        ],
@@ -6312,8 +8098,7 @@
          "Bitmap",
          "각 inode·data block 의 free(0)/in-use(1)"
         ]
-       ],
-       "wiki": "vsfs 디스크 배치"
+       ]
       },
       {
        "id": "u20a-02",
@@ -6321,11 +8106,11 @@
        "q": "block 이 4KB 이고 sector 가 512B 면 block 하나는 sector 몇 개인가?",
        "explain": "p.3 \"4 KB = eight 512-byte sectors\". 4096 / 512 = 8.",
        "src": "20강 p.3",
+       "wiki": "vsfs 디스크 배치",
        "diff": 1,
        "answer": 8,
        "unit": "개",
-       "tol": 0,
-       "wiki": "vsfs 디스크 배치"
+       "tol": 0
       },
       {
        "id": "u20a-03",
@@ -6333,13 +8118,13 @@
        "q": "inode 크기 256B, block 4KB 일 때 block 하나에 inode 가 몇 개 들어가나?",
        "explain": "4096 / 256 = 16 (p.5).",
        "src": "20강 p.5",
+       "wiki": "vsfs 디스크 배치",
        "tags": [
         "inode"
        ],
        "answer": 16,
        "unit": "개",
-       "tol": 0,
-       "wiki": "vsfs 디스크 배치"
+       "tol": 0
       },
       {
        "id": "u20a-04",
@@ -6347,13 +8132,15 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. 파일 시스템의 inode 는 최대 몇 개인가?",
        "explain": "inode table 이 block 3~7 로 5블록 × 16 = 80 (p.5, 디렉터리 포함).",
        "src": "20강 p.5",
+       "wiki": "vsfs 디스크 배치",
        "tags": [
         "inode"
        ],
+       "img": "duo/img/os20-p05-itable.png",
+       "imgAlt": "p.5 64블록 디스크 — block 3~7 이 Inodes, 8~63 이 Data Region",
        "answer": 80,
        "unit": "개",
-       "tol": 0,
-       "wiki": "vsfs 디스크 배치"
+       "tol": 0
       },
       {
        "id": "u20a-05",
@@ -6361,11 +8148,11 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. data region 은 몇 블록인가?",
        "explain": "block 8~63 → 64 − 8 = 56블록. 앞 8블록이 S, i, d, inode table 5블록.",
        "src": "20강 p.4~8",
+       "wiki": "vsfs 디스크 배치",
        "diff": 2,
        "answer": 56,
        "unit": "블록",
-       "tol": 0,
-       "wiki": "vsfs 디스크 배치"
+       "tol": 0
       },
       {
        "id": "u20a-06",
@@ -6373,17 +8160,20 @@
        "q": "p.8 그림의 디스크 앞쪽 배치 순서",
        "explain": "block 0 = S, 1 = i, 2 = d, 3~7 = I, 8~63 = D.",
        "src": "20강 p.8",
+       "wiki": "vsfs 디스크 배치",
        "tags": [
         "FS 구조"
        ],
+       "img": "duo/img/os20-p08-layout.png",
+       "imgAlt": "p.8 디스크 배치 — block 0~7 의 내용이 가려져 있다",
+       "explainImg": "duo/img/os20-p08-layout-ans.png",
        "answer": [
         "Superblock (S)",
         "Inode bitmap (i)",
         "Data bitmap (d)",
         "Inode table (I)",
         "Data region (D)"
-       ],
-       "wiki": "vsfs 디스크 배치"
+       ]
       },
       {
        "id": "u20a-07",
@@ -6391,8 +8181,8 @@
        "q": "파일 시스템을 mount 할 때 OS 는 superblock 을 먼저 읽어 여러 정보를 초기화한다.",
        "explain": "p.8 \"When mounting a file system, OS will read the superblock first\".",
        "src": "20강 p.8",
-       "answer": true,
-       "wiki": "vsfs 디스크 배치"
+       "wiki": "vsfs 디스크 배치",
+       "answer": true
       },
       {
        "id": "u20a-08",
@@ -6400,9 +8190,9 @@
        "q": "bitmap 에서 1 은 free, 0 은 in-use 를 뜻한다.",
        "explain": "p.6: 각 bit 는 free (0) 또는 in-use (1).",
        "src": "20강 p.6",
+       "wiki": "vsfs 디스크 배치",
        "diff": 1,
-       "answer": false,
-       "wiki": "vsfs 디스크 배치"
+       "answer": false
       },
       {
        "id": "u20a-09",
@@ -6410,12 +8200,12 @@
        "q": "파일을 만들 때 inode 하나를 할당하려고 보는 구조는? (영어 두 단어)",
        "explain": "p.7 \"Creating a file allocates an inode using the inode bitmap. Allocating a data block also updates the data bitmap.\"",
        "src": "20강 p.7",
+       "wiki": "vsfs 디스크 배치",
        "answer": "inode bitmap",
        "alts": [
         "i-bmap",
         "inode bmap"
-       ],
-       "wiki": "vsfs 디스크 배치"
+       ]
       },
       {
        "id": "u20a-10",
@@ -6423,6 +8213,7 @@
        "q": "연속 블록을 미리 잡아 두는 ___ 정책을 흔히 쓰며, EXT4 의 ___ 가 그 예다.",
        "explain": "p.7 \"Pre-allocation policy is commonly used for allocate contiguous blocks — e.g., extents in EXT4\".",
        "src": "20강 p.7",
+       "wiki": "extent",
        "answer": [
         "pre-allocation",
         "extents"
@@ -6433,8 +8224,7 @@
         "demand paging",
         "cylinder group",
         "journaling"
-       ],
-       "wiki": "extent"
+       ]
       },
       {
        "id": "u20a-11",
@@ -6442,6 +8232,7 @@
        "q": "inode 에 저장되지 않는 것은?",
        "explain": "p.10: type, size, data block index, protection, time. 이름은 디렉터리 엔트리에 있다(19강).",
        "src": "20강 p.10",
+       "wiki": "vsfs 디스크 배치",
        "tags": [
         "inode"
        ],
@@ -6451,8 +8242,7 @@
         "data block 위치(index)",
         "접근·수정·상태 변경 시간"
        ],
-       "answer": 0,
-       "wiki": "vsfs 디스크 배치"
+       "answer": 0
       },
       {
        "id": "u20a-12",
@@ -6460,7 +8250,12 @@
        "q": "ext2 inode 필드와 뜻을 연결하시오",
        "explain": "p.11 The EXT2 Inode 표.",
        "src": "20강 p.11 · 🎙 11/23 수업",
+       "wiki": "ext2 inode",
+       "prof": true,
        "diff": 2,
+       "img": "duo/img/os20-p11-ext2.png",
+       "imgAlt": "p.11 The EXT2 Inode 표 — 필드 설명 열이 가려져 있다",
+       "explainImg": "duo/img/os20-p11-ext2-ans.png",
        "pairs": [
         [
          "links_count",
@@ -6478,9 +8273,7 @@
          "dtime",
          "inode 가 삭제된 시간"
         ]
-       ],
-       "wiki": "ext2 inode",
-       "prof": true
+       ]
       },
       {
        "id": "u20a-13",
@@ -6488,12 +8281,27 @@
        "q": "ext2 inode 의 block 필드는 60바이트에 disk pointer 15개를 담는다. pointer 하나는 몇 바이트인가?",
        "explain": "60 / 15 = 4B.",
        "src": "20강 p.11 · 🎙 11/23 수업",
+       "wiki": "ext2 inode",
+       "prof": true,
        "diff": 1,
        "answer": 4,
        "unit": "B",
-       "tol": 0,
-       "wiki": "ext2 inode",
-       "prof": true
+       "tol": 0
+      },
+      {
+       "id": "u20a-14",
+       "type": "sa",
+       "q": "[용어] Contains the information for a particular file system, e.g., the number of inodes and the begin location of the inode table; read first when mounting. (1 word, s…)",
+       "explain": "p.8. block 0 에 있다. mount 때 이것부터 읽어야 inode table 이 어디서 시작하는지 알고, 그래야 inode 번호로 위치를 계산할 수 있다(p.9).",
+       "src": "20강 p.8",
+       "wiki": "vsfs 디스크 배치",
+       "tags": [
+        "FS 구조"
+       ],
+       "answer": "superblock",
+       "alts": [
+        "super block"
+       ]
       }
      ]
     },
@@ -6507,6 +8315,7 @@
        "q": "inode 번호로 sector 찾기: inodeRegion = inumber × ___ , 그 값에 inode table ___ 를 더하고, ___ 로 나눈다.",
        "explain": "p.9: sector = (inodeStartAddr + inumber × sizeof(inode)) / sectorSize.",
        "src": "20강 p.9",
+       "wiki": "inode 주소 계산",
        "tags": [
         "inode 계산"
        ],
@@ -6522,8 +8331,7 @@
         "block 크기",
         "PFN",
         "superblock"
-       ],
-       "wiki": "inode 주소 계산"
+       ]
       },
       {
        "id": "u20b-02",
@@ -6531,14 +8339,17 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 32 의 inodeRegion(바이트 offset)은?",
        "explain": "32 × 256 = 8192 (p.9).",
        "src": "20강 p.9 · 🎙 11/23 수업",
+       "wiki": "inode 주소 계산",
+       "prof": true,
        "tags": [
         "inode 계산"
        ],
+       "img": "duo/img/os20-p09-inode32.png",
+       "imgAlt": "p.9 inode 32 의 위치 계산 — 세 결과가 가려져 있다",
+       "explainImg": "duo/img/os20-p09-inode32-ans.png",
        "answer": 8192,
        "unit": "B",
-       "tol": 0,
-       "wiki": "inode 주소 계산",
-       "prof": true
+       "tol": 0
       },
       {
        "id": "u20b-03",
@@ -6546,13 +8357,16 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 32 가 있는 sector 번호는?",
        "explain": "(12288 + 8192) / 512 = 20480 / 512 = 40. 주소로는 20KB (p.9).",
        "src": "20강 p.9 · 🎙 11/23 수업",
+       "wiki": "inode 주소 계산",
+       "prof": true,
        "tags": [
         "inode 계산"
        ],
+       "img": "duo/img/os20-p09-inode32.png",
+       "imgAlt": "p.9 inode 32 의 위치 계산 — 세 결과가 가려져 있다",
+       "explainImg": "duo/img/os20-p09-inode32-ans.png",
        "answer": 40,
-       "tol": 0,
-       "wiki": "inode 주소 계산",
-       "prof": true
+       "tol": 0
       },
       {
        "id": "u20b-04",
@@ -6560,12 +8374,12 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 0 이 있는 sector 번호는?",
        "explain": "(12288 + 0) / 512 = 24. inode table 의 첫 sector.",
        "src": "20강 p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
        "tags": [
         "inode 계산"
        ],
        "answer": 24,
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-05",
@@ -6573,12 +8387,12 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 20 이 있는 sector 번호는?",
        "explain": "20 × 256 = 5120, (12288 + 5120) / 512 = 17408 / 512 = 34.",
        "src": "20강 p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
        "tags": [
         "inode 계산"
        ],
        "answer": 34,
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-06",
@@ -6586,14 +8400,14 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 15 가 있는 sector 번호는? (나머지는 버림)",
        "explain": "15 × 256 = 3840, (12288 + 3840) / 512 = 31.5 → sector 31 의 뒤쪽 절반. sector 하나에 inode 2개.",
        "src": "20강 p.9 규칙 적용 · 🎙 11/23 수업",
+       "wiki": "inode 주소 계산",
+       "prof": true,
        "diff": 2,
        "tags": [
         "inode 계산"
        ],
        "answer": 31,
-       "tol": 0,
-       "wiki": "inode 주소 계산",
-       "prof": true
+       "tol": 0
       },
       {
        "id": "u20b-07",
@@ -6601,14 +8415,14 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 50 이 들어 있는 block 번호는?",
        "explain": "block 하나에 16개 → 50 / 16 = 3 (몫), inode table 시작 block 3 + 3 = 6.",
        "src": "20강 p.5, p.9 규칙 적용 · 🎙 11/23 수업",
+       "wiki": "inode 주소 계산",
+       "prof": true,
        "diff": 2,
        "tags": [
         "inode 계산"
        ],
        "answer": 6,
-       "tol": 0,
-       "wiki": "inode 주소 계산",
-       "prof": true
+       "tol": 0
       },
       {
        "id": "u20b-08",
@@ -6616,13 +8430,13 @@
        "q": "디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 79(마지막 inode)가 있는 sector 번호는?",
        "explain": "79 × 256 = 20224, (12288 + 20224) / 512 = 63.5 → sector 63. block 7 의 마지막 sector 다.",
        "src": "20강 p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
        "diff": 3,
        "tags": [
         "inode 계산"
        ],
        "answer": 63,
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-09",
@@ -6630,13 +8444,13 @@
        "q": "inode table 시작 16KB, inode 128B, sector 512B 일 때 inode 100 의 sector 번호는?",
        "explain": "100 × 128 = 12800, (16384 + 12800) / 512 = 29184 / 512 = 57.",
        "src": "20강 p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
        "diff": 3,
        "tags": [
         "inode 계산"
        ],
        "answer": 57,
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-10",
@@ -6644,11 +8458,11 @@
        "q": "sector 512B, inode 256B 이면 sector 하나에 inode 가 몇 개 들어가나?",
        "explain": "512 / 256 = 2. 디스크는 sector 단위로 읽으니 inode 하나 읽어도 sector 하나를 읽는다.",
        "src": "20강 p.9",
+       "wiki": "inode 주소 계산",
        "diff": 1,
        "answer": 2,
        "unit": "개",
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-11",
@@ -6656,8 +8470,8 @@
        "q": "파일 시스템은 inode 번호만 있으면 계산만으로 그 inode 의 디스크 위치를 안다.",
        "explain": "p.9 \"By an inode number, the file system calculates where an inode is on the disk\". inode table 이 고정 크기 배열이라서.",
        "src": "20강 p.9",
-       "answer": true,
-       "wiki": "inode 주소 계산"
+       "wiki": "inode 주소 계산",
+       "answer": true
       },
       {
        "id": "u20b-12",
@@ -6665,11 +8479,14 @@
        "q": "디렉터리 엔트리 이름 \"foobar\" 의 \"Bytes incl. NUL\" 값은?",
        "explain": "6글자 + NUL 1 = 7 (p.18 표).",
        "src": "20강 p.18",
+       "wiki": "inode 주소 계산",
        "diff": 1,
+       "img": "duo/img/os20-p18-dirdata.png",
+       "imgAlt": "p.18 디렉터리 dir 의 on-disk data — Bytes incl. NUL 열 일부가 가려져 있다",
+       "explainImg": "duo/img/os20-p18-dirdata-ans.png",
        "answer": 7,
        "unit": "B",
-       "tol": 0,
-       "wiki": "inode 주소 계산"
+       "tol": 0
       },
       {
        "id": "u20b-13",
@@ -6677,6 +8494,7 @@
        "q": "p.18 예에서 디렉터리 dir 의 inode 번호가 5 이고 . 과 .. 엔트리가 있다. .. 의 inode 번호 2 가 뜻하는 것은?",
        "explain": ". 은 자기(5), .. 는 부모. 예에서 root 의 inode 번호가 2 다(p.19).",
        "src": "20강 p.18~19",
+       "wiki": "inode 주소 계산",
        "diff": 2,
        "choices": [
         "부모 디렉터리(여기선 root)의 inode",
@@ -6684,8 +8502,35 @@
         "첫 번째 파일 foo",
         "빈 엔트리"
        ],
-       "answer": 0,
-       "wiki": "inode 주소 계산"
+       "answer": 0
+      },
+      {
+       "id": "u20b-14",
+       "type": "num",
+       "q": "[규칙 적용] 디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 45 가 있는 sector 번호는? (나머지는 버림)",
+       "explain": "45 × 256 = 11520, (12288 + 11520) / 512 = 23808 / 512 = 46.5 → sector 46 의 뒤쪽 절반. p.9 의 세 단계(inodeRegion → + inodeStartAddr → / sectorSize)를 그대로 따른다.",
+       "src": "20강 p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
+       "diff": 2,
+       "tags": [
+        "inode 계산"
+       ],
+       "answer": 46,
+       "tol": 0
+      },
+      {
+       "id": "u20b-15",
+       "type": "num",
+       "q": "[규칙 적용] 디스크 64블록(4KB), 0 = superblock, 1 = inode bitmap, 2 = data bitmap, 3~7 = inode table(시작 12KB), inode 256B, sector 512B. inode 45 는 몇 번 block(4KB)에 있는가?",
+       "explain": "block 하나에 inode 16개. 45 / 16 = 2 (몫) → inode table 의 세 번째 block(iblock 2) = 디스크 block 3 + 2 = 5. 바이트로 보면 (12288 + 11520) / 4096 = 5.8 → 5.",
+       "src": "20강 p.5, p.9 규칙 적용",
+       "wiki": "inode 주소 계산",
+       "diff": 2,
+       "tags": [
+        "inode 계산"
+       ],
+       "answer": 5,
+       "tol": 0
       }
      ]
     },
@@ -6699,13 +8544,13 @@
        "q": "direct pointer 13개만 있는 single-level index, block 4KB 일 때 최대 파일 크기는 몇 KB 인가?",
        "explain": "13 × 4KB = 52KB (p.13).",
        "src": "20강 p.13",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
        "answer": 52,
        "unit": "KB",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-02",
@@ -6713,13 +8558,13 @@
        "q": "block 4KB, pointer 4B 일 때 indirect block 하나에 들어가는 pointer 수는?",
        "explain": "4096 / 4 = 1024.",
        "src": "20강 p.14",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
        "answer": 1024,
        "unit": "개",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-03",
@@ -6727,13 +8572,16 @@
        "q": "direct 12개 + single indirect 1개, block 4KB, pointer 4B 일 때 최대 파일 크기는 몇 KB 인가?",
        "explain": "(12 + 1024) × 4KB = 4144KB (p.14).",
        "src": "20강 p.14",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
+       "img": "duo/img/os20-p14-indirect.png",
+       "imgAlt": "p.14 indirect pointer 그림 — 용량 계산 줄이 가려져 있다",
+       "explainImg": "duo/img/os20-p14-indirect-ans.png",
        "answer": 4144,
        "unit": "KB",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-04",
@@ -6741,13 +8589,16 @@
        "q": "double indirect pointer 하나가 추가로 가리키는 data block 수는?",
        "explain": "1024 × 1024 = 1,048,576 (p.15). 용량 4GB.",
        "src": "20강 p.15",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
+       "img": "duo/img/os20-p15-double.png",
+       "imgAlt": "p.15 double indirect pointer 그림 — 블록 수와 용량 줄이 가려져 있다",
+       "explainImg": "duo/img/os20-p15-double-ans.png",
        "answer": 1048576,
        "unit": "개",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-05",
@@ -6755,13 +8606,13 @@
        "q": "double indirect pointer 하나가 덮는 용량은 몇 GB 인가? (block 4KB, pointer 4B)",
        "explain": "$1024^2$ × 4KB = $2^{20}$ × $2^{12}$ = $2^{32}$ B = 4GB.",
        "src": "20강 p.15",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
        "answer": 4,
        "unit": "GB",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-06",
@@ -6769,14 +8620,14 @@
        "q": "direct 12 + single + double indirect, block 4KB 일 때 최대 data block 수는?",
        "explain": "12 + 1024 + 1024² = 12 + 1024 + 1,048,576 = 1,049,612 → 용량은 4GB 를 조금 넘는다 (p.16).",
        "src": "20강 p.16",
+       "wiki": "multi-level index",
        "diff": 2,
        "tags": [
         "index"
        ],
        "answer": 1049612,
        "unit": "개",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-07",
@@ -6784,14 +8635,14 @@
        "q": "triple indirect pointer 하나가 덮는 용량은 몇 TB 인가? (block 4KB, pointer 4B)",
        "explain": "$1024^3$ × 4KB = $2^{30}$ × $2^{12}$ = $2^{42}$ B = 4TB. 슬라이드 p.13 이 언급한 triple indirect 에 같은 규칙 적용.",
        "src": "20강 p.13·15 규칙 적용",
+       "wiki": "multi-level index",
        "diff": 3,
        "tags": [
         "index"
        ],
        "answer": 4,
        "unit": "TB",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-08",
@@ -6799,14 +8650,14 @@
        "q": "block 1KB, pointer 4B, direct 12개 + single indirect 1개면 최대 파일 크기는 몇 KB 인가?",
        "explain": "indirect block 하나에 1024/4 = 256 pointer → (12 + 256) × 1KB = 268KB.",
        "src": "20강 p.14 규칙 적용",
+       "wiki": "multi-level index",
        "diff": 3,
        "tags": [
         "index"
        ],
        "answer": 268,
        "unit": "KB",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-09",
@@ -6814,6 +8665,7 @@
        "q": "direct 12 + single indirect + double indirect (4KB, 4B) 에서 파일의 block 번호 500 은 어느 pointer 로 찾나?",
        "explain": "direct 는 0~11, single indirect 는 12~1035 (12 + 1024 − 1). 500 은 그 안.",
        "src": "20강 p.14~16 적용",
+       "wiki": "multi-level index",
        "diff": 2,
        "tags": [
         "index"
@@ -6824,8 +8676,7 @@
         "double indirect",
         "triple indirect"
        ],
-       "answer": 0,
-       "wiki": "multi-level index"
+       "answer": 0
       },
       {
        "id": "u20c-10",
@@ -6833,6 +8684,7 @@
        "q": "같은 구조에서 파일 block 번호 2000 은 어느 pointer 로 찾나?",
        "explain": "single indirect 는 1035 까지다. 1036 부터 double indirect.",
        "src": "20강 p.14~16 적용",
+       "wiki": "multi-level index",
        "diff": 2,
        "tags": [
         "index"
@@ -6843,8 +8695,7 @@
         "direct",
         "찾을 수 없음"
        ],
-       "answer": 0,
-       "wiki": "multi-level index"
+       "answer": 0
       },
       {
        "id": "u20c-11",
@@ -6852,6 +8703,7 @@
        "q": "inode 는 이미 메모리에 있고 index block 은 캐시에 없다. double indirect 로 가는 data block 하나를 읽는 데 디스크 read 는 몇 번인가?",
        "explain": "double indirect block 1 + indirect block 1 + data 1 = 3. p.15 \"Uncached index blocks require extra disk reads.\"",
        "src": "20강 p.15",
+       "wiki": "multi-level index",
        "diff": 3,
        "tags": [
         "index",
@@ -6859,8 +8711,7 @@
        ],
        "answer": 3,
        "unit": "번",
-       "tol": 0,
-       "wiki": "multi-level index"
+       "tol": 0
       },
       {
        "id": "u20c-12",
@@ -6868,8 +8719,8 @@
        "q": "multi-level index 의 indirect block 은 파일이 충분히 커질 때 할당된다.",
        "explain": "p.14 \"If a file grows large enough, an indirect block is allocated, inode's slot for an indirect pointer is set to point to it.\"",
        "src": "20강 p.14",
-       "answer": true,
-       "wiki": "multi-level index"
+       "wiki": "multi-level index",
+       "answer": true
       },
       {
        "id": "u20c-13",
@@ -6877,6 +8728,7 @@
        "q": "indirect pointer 는 data 가 아니라 ___ 들을 담은 block 을 가리키고, double indirect pointer 는 ___ block 의 pointer 를 담은 block 을 가리킨다.",
        "explain": "p.14~15.",
        "src": "20강 p.14~15",
+       "wiki": "multi-level index",
        "tags": [
         "index"
        ],
@@ -6890,8 +8742,60 @@
         "inode",
         "bitmap",
         "superblock"
+       ]
+      },
+      {
+       "id": "u20c-14",
+       "type": "cloze",
+       "q": "p.17 Multi-Level Index 그림: 초록 화살표 ① ___, 빨간 block 72 를 거치는 ② ___, 파란 block 3942 → 104 를 거치는 ③ ___",
+       "explain": "inode 의 12칸은 data block 을 바로 가리키고(direct), 72 는 pointer 1024개를 담은 indirect block, 3942 는 indirect block 들의 pointer 를 담은 double indirect block 이다. 그래서 block 1034 를 읽으려면 3942 → 104 → 1034 로 두 번 더 디스크를 읽는다.",
+       "src": "20강 p.16~17",
+       "wiki": "multi-level index",
+       "tags": [
+        "index"
        ],
-       "wiki": "multi-level index"
+       "img": "duo/img/os20-p17-multilevel.png",
+       "imgAlt": "p.17 multi-level index 그림 — 세 종류 block 이름이 ①②③으로 가려져 있다",
+       "explainImg": "duo/img/os20-p17-multilevel-ans.png",
+       "answer": [
+        "Direct Blocks",
+        "Indirect Blocks",
+        "Double Indirect Blocks"
+       ],
+       "bank": [
+        "Direct Blocks",
+        "Indirect Blocks",
+        "Double Indirect Blocks",
+        "Triple Indirect Blocks",
+        "Bitmap Blocks"
+       ]
+      },
+      {
+       "id": "u20c-15",
+       "type": "num",
+       "q": "[규칙 적용] block 1KB, pointer 4B, direct 12 + single indirect 1 + double indirect 1 이면 최대 파일 크기는 몇 KB 인가?",
+       "explain": "indirect block 하나에 1024/4 = 256 pointer. (12 + 256 + 256²) × 1KB = (12 + 256 + 65536) KB = 65804 KB (약 64MB). block 이 작으면 pointer 수가 제곱으로 줄어 최대 크기가 크게 준다.",
+       "src": "20강 p.14~16 규칙 적용",
+       "wiki": "multi-level index",
+       "diff": 3,
+       "tags": [
+        "index"
+       ],
+       "answer": 65804,
+       "unit": "KB",
+       "tol": 0
+      },
+      {
+       "id": "u20c-16",
+       "type": "sa",
+       "q": "[용어] Points to a block that contains more pointers (not data). (2 words, i… p…)",
+       "explain": "p.14 정의. 한 단계 더 가면 double indirect pointer — \"points to a block of indirect-block pointers\"(p.15).",
+       "src": "20강 p.14",
+       "wiki": "multi-level index",
+       "tags": [
+        "index"
+       ],
+       "answer": "indirect pointer"
       }
      ]
     },
@@ -6905,6 +8809,7 @@
        "q": "open(\"/foo/bar\", O_RDONLY) 에서 디스크를 읽는 순서",
        "explain": "p.19~21: root 부터 경로를 따라 inode → data 를 번갈아 읽고 bar 의 inode 를 찾으면 권한 검사 후 fd 를 돌려준다.",
        "src": "20강 p.19~21",
+       "wiki": "파일 접근 경로",
        "tags": [
         "I/O 수"
        ],
@@ -6914,8 +8819,7 @@
         "foo inode",
         "foo data",
         "bar inode"
-       ],
-       "wiki": "파일 접근 경로"
+       ]
       },
       {
        "id": "u20d-02",
@@ -6923,13 +8827,13 @@
        "q": "open(\"/foo/bar\") (각 디렉터리 data 는 block 하나, 캐시 없음) 의 디스크 read 는 몇 번인가?",
        "explain": "root inode, root data, foo inode, foo data, bar inode = 5 (p.21 timeline).",
        "src": "20강 p.21",
+       "wiki": "파일 접근 경로",
        "tags": [
         "I/O 수"
        ],
        "answer": 5,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-03",
@@ -6937,14 +8841,17 @@
        "q": "이미 연 bar 에서 read() 한 번(block 하나)이 일으키는 I/O 는 몇 번인가? (atime 갱신 포함)",
        "explain": "bar inode read → data read → bar inode write(last-access time) = 3 (p.20~21).",
        "src": "20강 p.20~21",
+       "wiki": "파일 접근 경로",
        "diff": 2,
        "tags": [
         "I/O 수"
        ],
+       "img": "duo/img/os20-p21-readtl.png",
+       "imgAlt": "p.21 File Read Timeline — 첫 read() 줄이 가려져 있다",
+       "explainImg": "duo/img/os20-p21-readtl-ans.png",
        "answer": 3,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-04",
@@ -6952,14 +8859,14 @@
        "q": "open(\"/foo/bar\") 뒤 read() 를 3번(block 3개) 하면 총 I/O 는 몇 번인가?",
        "explain": "open 5 + read 3 × 3 = 14. close 는 디스크 I/O 가 없다 (p.20).",
        "src": "20강 p.20~21",
+       "wiki": "파일 접근 경로",
        "diff": 2,
        "tags": [
         "I/O 수"
        ],
        "answer": 14,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-05",
@@ -6967,8 +8874,8 @@
        "q": "읽기 전용 예에서 close() 는 추가 디스크 I/O 가 필요 없다.",
        "explain": "p.20 \"close releases the descriptor and needs no additional disk I/O\".",
        "src": "20강 p.20",
-       "answer": true,
-       "wiki": "파일 접근 경로"
+       "wiki": "파일 접근 경로",
+       "answer": true
       },
       {
        "id": "u20d-06",
@@ -6976,6 +8883,7 @@
        "q": "새 block 을 할당하는 write() 의 I/O 다섯 개 순서",
        "explain": "p.22 의 1~5 번.",
        "src": "20강 p.22",
+       "wiki": "파일 접근 경로",
        "tags": [
         "I/O 수"
        ],
@@ -6985,8 +8893,7 @@
         "data bitmap 쓰기",
         "inode 쓰기",
         "실제 data block 쓰기"
-       ],
-       "wiki": "파일 접근 경로"
+       ]
       },
       {
        "id": "u20d-07",
@@ -6994,13 +8901,16 @@
        "q": "block 을 새로 할당하는 write() 한 번의 I/O 수는?",
        "explain": "p.22 \"It generates five I/Os\".",
        "src": "20강 p.22",
+       "wiki": "파일 접근 경로",
        "tags": [
         "I/O 수"
        ],
+       "img": "duo/img/os20-p23-writetl.png",
+       "imgAlt": "p.23 File Creation Timeline — 첫 write() 줄이 가려져 있다",
+       "explainImg": "duo/img/os20-p23-writetl-ans.png",
        "answer": 5,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-08",
@@ -7008,14 +8918,17 @@
        "q": "/foo 가 있을 때 create(\"/foo/bar\") 의 I/O 수는? (디렉터리 data 는 block 하나, 캐시 없음)",
        "explain": "읽기 4 + inode bitmap 2 + foo data 쓰기 1 + bar inode 2 + foo inode 쓰기 1 = 10 (p.23 timeline).",
        "src": "20강 p.23",
+       "wiki": "파일 접근 경로",
        "diff": 3,
        "tags": [
         "I/O 수"
        ],
+       "img": "duo/img/os20-p23-createtl.png",
+       "imgAlt": "p.23 File Creation Timeline — create 줄 전체가 가려져 있다",
+       "explainImg": "duo/img/os20-p23-createtl-ans.png",
        "answer": 10,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-09",
@@ -7023,14 +8936,14 @@
        "q": "create(\"/foo/bar\") (10번) 뒤 block 할당 write() 를 3번 하면 총 I/O 는?",
        "explain": "10 + 3 × 5 = 25.",
        "src": "20강 p.22~23",
+       "wiki": "파일 접근 경로",
        "diff": 2,
        "tags": [
         "I/O 수"
        ],
        "answer": 25,
        "unit": "번",
-       "tol": 0,
-       "wiki": "파일 접근 경로"
+       "tol": 0
       },
       {
        "id": "u20d-10",
@@ -7038,9 +8951,9 @@
        "q": "overwrite(이미 있는 block 덮어쓰기)도 data bitmap 을 읽고 써야 한다.",
        "explain": "p.22 \"File may allocate a block (unless the block is being overwritten)\". 새 block 을 할당할 때만 bitmap 을 고친다.",
        "src": "20강 p.22",
+       "wiki": "파일 접근 경로",
        "diff": 2,
-       "answer": false,
-       "wiki": "파일 접근 경로"
+       "answer": false
       },
       {
        "id": "u20d-11",
@@ -7048,14 +8961,14 @@
        "q": "/1/2/3/…/100/file.txt 처럼 경로가 길면 open 이 비싼 이유는?",
        "explain": "p.24. 그래서 DRAM 캐시를 적극적으로 쓴다.",
        "src": "20강 p.24",
+       "wiki": "파일 접근 경로",
        "choices": [
         "디렉터리마다 inode 1번 + data 최소 1번을 읽어 수백 번 read 가 될 수 있어서",
         "fd 가 부족해서",
         "bitmap 을 매번 써서",
         "superblock 을 매번 읽어서"
        ],
-       "answer": 0,
-       "wiki": "파일 접근 경로"
+       "answer": 0
       },
       {
        "id": "u20d-12",
@@ -7063,14 +8976,14 @@
        "q": "현대 시스템의 파일 캐시 방식은?",
        "explain": "p.24: 초기에는 fixed-size cache(낭비 가능), 지금은 unified page cache.",
        "src": "20강 p.24",
+       "wiki": "파일 접근 경로",
        "choices": [
         "dynamic partitioning — unified page cache",
         "고정 크기 static partitioning",
         "캐시를 쓰지 않음",
         "TLB 에 파일 block 저장"
        ],
-       "answer": 0,
-       "wiki": "파일 접근 경로"
+       "answer": 0
       },
       {
        "id": "u20d-13",
@@ -7078,6 +8991,8 @@
        "q": "write buffering 은 쓰기를 ___ 모아 I/O 를 줄인다. 내구성이 필요하면 ___ 를 불러야 하고, close() 는 flush 를 보장하지 ___.",
        "explain": "p.25 \"Use fsync() for durability. Direct I/O alone does not guarantee it. close() does not guarantee the flush!\"",
        "src": "20강 p.25 · 🎙 11/23 수업",
+       "wiki": "파일 접근 경로",
+       "prof": true,
        "answer": [
         "지연시켜",
         "fsync()",
@@ -7090,9 +9005,53 @@
         "즉시",
         "lseek()",
         "한다"
-       ],
+       ]
+      },
+      {
+       "id": "u20d-14",
+       "type": "num",
+       "q": "[규칙 적용] open(\"/a/b/c\", O_RDONLY) 의 디스크 read 는 몇 번인가? (디렉터리 data 는 각 block 하나, 캐시 없음)",
+       "explain": "root inode, root data, a inode, a data, b inode, b data, c inode = 7. 경로 성분 하나가 늘 때마다 inode + data 2번씩 는다 → 디렉터리 깊이 d 면 2d + 1.",
+       "src": "20강 p.19~21 규칙 적용",
        "wiki": "파일 접근 경로",
-       "prof": true
+       "diff": 2,
+       "tags": [
+        "I/O 수"
+       ],
+       "answer": 7,
+       "unit": "번",
+       "tol": 0
+      },
+      {
+       "id": "u20d-15",
+       "type": "mc",
+       "q": "p.23 create(\"/foo/bar\") 줄에서 inode bitmap 을 read 하고 write 하는 이유는?",
+       "explain": "p.7 \"Creating a file allocates an inode using the inode bitmap.\" 그다음 bar inode 를 read·write(초기화)하고, foo data 에 (bar, inode#) 엔트리를 쓰고, foo inode 를 갱신한다. data bitmap 은 첫 write() 에서 block 을 할당할 때 쓴다.",
+       "src": "20강 p.7, p.23",
+       "wiki": "파일 접근 경로",
+       "diff": 2,
+       "tags": [
+        "I/O 수"
+       ],
+       "img": "duo/img/os20-p23-createtl.png",
+       "imgAlt": "p.23 File Creation Timeline — create 줄이 가려져 있다",
+       "explainImg": "duo/img/os20-p23-createtl-ans.png",
+       "choices": [
+        "새 파일 bar 에 줄 빈 inode 를 찾아 in-use 로 표시하려고",
+        "foo 디렉터리에 data block 을 더 주려고",
+        "root inode 의 권한을 바꾸려고",
+        "읽기 캐시를 비우려고"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u20d-16",
+       "type": "sa",
+       "q": "[용어] 현대 시스템이 쓰는, 가상 메모리 page 와 파일 block 이 같은 메모리 풀을 나눠 쓰는 dynamic partitioning 캐시. (3 words, u… p… c…)",
+       "explain": "p.24. 예전에는 fixed-size cache 로 메모리를 고정 분할(static partitioning)해서 낭비가 생길 수 있었다.",
+       "src": "20강 p.24",
+       "wiki": "파일 접근 경로",
+       "answer": "unified page cache"
       }
      ]
     }
@@ -7113,14 +9072,16 @@
        "q": "옛 Unix 파일 시스템의 문제로 p.2 가 든 것은?",
        "explain": "p.2: 단순하고 구현이 쉬운 것은 좋았지만 성능이 나빴다.",
        "src": "21강 p.2",
+       "wiki": "cylinder group",
+       "img": "duo/img/os21-p02-oldfs.png",
+       "imgAlt": "p.2 Old Unix File System 의 디스크 배치 — Super Block, Inode Bmap, Data Bmap, inodes, Data",
        "choices": [
         "Terrible performance",
         "파일/디렉터리 추상화가 없다",
         "구현이 어렵다",
         "디렉터리를 지원하지 않는다"
        ],
-       "answer": 0,
-       "wiki": "cylinder group"
+       "answer": 0
       },
       {
        "id": "u21a-02",
@@ -7128,6 +9089,7 @@
        "q": "옛 FS 는 디스크를 ___ memory 처럼 다뤄서, 파일의 data block 이 inode 에서 멀리 떨어져 비싼 ___ 가 생겼다.",
        "explain": "p.3 Problem 1: high positioning costs.",
        "src": "21강 p.3",
+       "wiki": "cylinder group",
        "tags": [
         "FFS"
        ],
@@ -7141,8 +9103,7 @@
         "sequential",
         "page fault",
         "interrupt"
-       ],
-       "wiki": "cylinder group"
+       ]
       },
       {
        "id": "u21a-03",
@@ -7150,8 +9111,10 @@
        "q": "옛 FS 에서 파일이 지워지고 새 파일이 빈 block 들에 흩어져 놓이면 그 파일을 읽을 때 디스크를 오가야 한다.",
        "explain": "p.4 Problem 2: fragmentation. B, D 를 지운 자리에 E1~E4 가 흩어진다.",
        "src": "21강 p.4",
-       "answer": true,
-       "wiki": "cylinder group"
+       "wiki": "cylinder group",
+       "img": "duo/img/os21-p04-frag.png",
+       "imgAlt": "p.4 B·D 를 지운 자리에 E1~E4 가 흩어진 블록 배치",
+       "answer": true
       },
       {
        "id": "u21a-04",
@@ -7159,11 +9122,11 @@
        "q": "FFS 의 full term 은?",
        "explain": "p.5. UC Berkeley 가 설계. 핵심은 \"disk aware\".",
        "src": "21강 p.5",
+       "wiki": "cylinder group",
        "answer": "Fast File System",
        "alts": [
         "FFS"
-       ],
-       "wiki": "cylinder group"
+       ]
       },
       {
        "id": "u21a-05",
@@ -7171,9 +9134,9 @@
        "q": "FFS 는 open/read/write 같은 API 를 바꾸고 내부 구현은 그대로 두었다.",
        "explain": "p.5: API 는 그대로 두고 내부 구현을 바꿨다.",
        "src": "21강 p.5",
+       "wiki": "cylinder group",
        "diff": 1,
-       "answer": false,
-       "wiki": "cylinder group"
+       "answer": false
       },
       {
        "id": "u21a-06",
@@ -7181,14 +9144,14 @@
        "q": "FFS 가 디스크를 나누는 단위, 연속된 N 개 cylinder 의 묶음은? (현대 FS 는 block group 이라 부름)",
        "explain": "p.6.",
        "src": "21강 p.6",
+       "wiki": "cylinder group",
        "tags": [
         "FFS"
        ],
        "answer": "cylinder group",
        "alts": [
         "block group"
-       ],
-       "wiki": "cylinder group"
+       ]
       },
       {
        "id": "u21a-07",
@@ -7196,14 +9159,17 @@
        "q": "cylinder 하나는 무엇인가? (18강 복습)",
        "explain": "p.6 \"A single cylinder is a set of tracks on different surfaces of HDD\".",
        "src": "21강 p.6",
+       "wiki": "cylinder group",
+       "img": "duo/img/os21-p06-cyl.png",
+       "imgAlt": "p.6 cylinder 그림 — 두 이름표가 가려져 있다",
+       "explainImg": "duo/img/os21-p06-cyl-ans.png",
        "choices": [
         "서로 다른 surface 의 같은 반지름 track 묶음",
         "track 하나의 sector 묶음",
         "platter 하나",
         "연속된 block 8개"
        ],
-       "answer": 0,
-       "wiki": "cylinder group"
+       "answer": 0
       },
       {
        "id": "u21a-08",
@@ -7211,14 +9177,14 @@
        "q": "cylinder group 마다 superblock 사본을 두는 이유는?",
        "explain": "p.8 \"A copy of the superblock for reliability reason\".",
        "src": "21강 p.8",
+       "wiki": "cylinder group",
        "choices": [
         "reliability",
         "seek 감소",
         "bitmap 을 줄이려고",
         "extent 를 쓰려고"
        ],
-       "answer": 0,
-       "wiki": "cylinder group"
+       "answer": 0
       },
       {
        "id": "u21a-09",
@@ -7226,9 +9192,13 @@
        "q": "cylinder group 안의 구조를 연결하시오",
        "explain": "p.8.",
        "src": "21강 p.8",
+       "wiki": "cylinder group",
        "tags": [
         "FFS"
        ],
+       "img": "duo/img/os21-p08-cgroup.png",
+       "imgAlt": "p.8 cylinder group 하나의 구조 — 앞 세 칸이 ①②③으로 가려져 있다",
+       "explainImg": "duo/img/os21-p08-cgroup-ans.png",
        "pairs": [
         [
          "Superblock 사본",
@@ -7246,8 +9216,7 @@
          "Inodes / Data blocks",
          "20강의 단순 FS 와 같은 구조"
         ]
-       ],
-       "wiki": "cylinder group"
+       ]
       },
       {
        "id": "u21a-10",
@@ -7255,8 +9224,8 @@
        "q": "cylinder group 을 쓰는 목적은 서로 관련된 두 파일을 같은 group 에 둬서 이어서 접근할 때 긴 seek 를 피하는 것이다.",
        "explain": "p.7.",
        "src": "21강 p.7",
-       "answer": true,
-       "wiki": "cylinder group"
+       "wiki": "cylinder group",
+       "answer": true
       },
       {
        "id": "u21a-11",
@@ -7264,11 +9233,11 @@
        "q": "cylinder group 하나가 4KB block 8개로 이뤄져 있다면 group 하나의 크기는 몇 KB 인가?",
        "explain": "p.7 그림 \"A cylinder (or block) group, composed of 8 blocks\" → 8 × 4KB = 32KB.",
        "src": "21강 p.7",
+       "wiki": "cylinder group",
        "diff": 1,
        "answer": 32,
        "unit": "KB",
-       "tol": 0,
-       "wiki": "cylinder group"
+       "tol": 0
       }
      ]
     },
@@ -7282,6 +9251,7 @@
        "q": "FFS 의 기본 정책은 \"keep ___ stuff together\" 다.",
        "explain": "p.9.",
        "src": "21강 p.9",
+       "wiki": "FFS 배치 정책",
        "tags": [
         "FFS 정책"
        ],
@@ -7293,8 +9263,7 @@
         "random",
         "large",
         "hot"
-       ],
-       "wiki": "FFS 배치 정책"
+       ]
       },
       {
        "id": "u21b-02",
@@ -7302,6 +9271,7 @@
        "q": "FFS 가 새 디렉터리를 둘 cylinder group 을 고르는 기준은?",
        "explain": "p.9 Policy 1. 디렉터리 data 와 inode 를 그 group 에 둔다.",
        "src": "21강 p.9",
+       "wiki": "cylinder group",
        "tags": [
         "FFS 정책"
        ],
@@ -7311,8 +9281,7 @@
         "부모 디렉터리와 같은 group",
         "아무 group 이나"
        ],
-       "answer": 0,
-       "wiki": "cylinder group"
+       "answer": 0
       },
       {
        "id": "u21b-03",
@@ -7320,6 +9289,7 @@
        "q": "FFS 배치 정책을 연결하시오",
        "explain": "p.9, p.15.",
        "src": "21강 p.9, p.15",
+       "wiki": "FFS 배치 정책",
        "tags": [
         "FFS 정책"
        ],
@@ -7340,8 +9310,7 @@
          "큰 파일",
          "덩어리(chunk)로 나눠 여러 group 에"
         ]
-       ],
-       "wiki": "FFS 배치 정책"
+       ]
       },
       {
        "id": "u21b-04",
@@ -7349,6 +9318,7 @@
        "q": "/a/b, /a/c, /a/d, /b/f 를 만들면 FFS 는?",
        "explain": "p.9 예. 파일은 자기 디렉터리 group 에, 디렉터리 /a 와 /b 는 서로 다른 group 에.",
        "src": "21강 p.9",
+       "wiki": "FFS 배치 정책",
        "tags": [
         "FFS 정책"
        ],
@@ -7358,8 +9328,7 @@
         "넷 다 다른 group",
         "/b/f 만 /a 와 같은 group"
        ],
-       "answer": 0,
-       "wiki": "FFS 배치 정책"
+       "answer": 0
       },
       {
        "id": "u21b-05",
@@ -7367,9 +9336,11 @@
        "q": "inode 를 group 들에 고르게 흩뿌리는 방식은 같은 디렉터리 파일들의 name-based locality 를 지키지 못한다.",
        "explain": "p.12 대조 예: /a/c, /a/d, /a/e 접근이 group 1개가 아니라 3개에 걸친다.",
        "src": "21강 p.12",
+       "wiki": "FFS 배치 정책",
        "diff": 2,
-       "answer": true,
-       "wiki": "FFS 배치 정책"
+       "img": "duo/img/os21-p12-spread.png",
+       "imgAlt": "p.12 inode 를 group 마다 흩뿌린 대조 예의 group/inodes/data 표",
+       "answer": true
       },
       {
        "id": "u21b-06",
@@ -7377,6 +9348,7 @@
        "q": "SEER trace 의 distance 를 연결하시오",
        "explain": "p.13. proc/src/foo.c → proc/src/bar.c 는 1, proc/src/foo.c → proc/obj/foo.o 는 2.",
        "src": "21강 p.13~14",
+       "wiki": "FFS 배치 정책",
        "pairs": [
         [
          "0",
@@ -7394,8 +9366,7 @@
          "같은 파일 접근 비율 (Observation 1)",
          "약 7%"
         ]
-       ],
-       "wiki": "FFS 배치 정책"
+       ]
       },
       {
        "id": "u21b-07",
@@ -7403,10 +9374,13 @@
        "q": "SEER trace 에서 같은 파일에 대한 접근은 몇 % 였나?",
        "explain": "p.14 Observation 1.",
        "src": "21강 p.14",
+       "wiki": "FFS 배치 정책",
+       "img": "duo/img/os21-p14-seer.png",
+       "imgAlt": "p.14 SEER trace 누적 분포 그래프 — Observation 의 비율이 가려져 있다",
+       "explainImg": "duo/img/os21-p14-seer-ans.png",
        "answer": 7,
        "unit": "%",
-       "tol": 0,
-       "wiki": "FFS 배치 정책"
+       "tol": 0
       },
       {
        "id": "u21b-08",
@@ -7414,11 +9388,14 @@
        "q": "SEER trace 에서 같은 파일이거나 같은 디렉터리 파일에 대한 접근은 약 몇 % 였나?",
        "explain": "p.14 Observation 2. distance 2 미만은 약 65% (Observation 3).",
        "src": "21강 p.14",
+       "wiki": "FFS 배치 정책",
        "diff": 2,
+       "img": "duo/img/os21-p14-seer.png",
+       "imgAlt": "p.14 SEER trace 누적 분포 그래프 — Observation 의 비율이 가려져 있다",
+       "explainImg": "duo/img/os21-p14-seer-ans.png",
        "answer": 40,
        "unit": "%",
-       "tol": 0,
-       "wiki": "FFS 배치 정책"
+       "tol": 0
       },
       {
        "id": "u21b-09",
@@ -7426,8 +9403,8 @@
        "q": "SEER trace 결과는 FFS 의 \"같은 디렉터리 파일을 가까이\" 가정을 뒷받침한다.",
        "explain": "약 40% 가 같은 파일·같은 디렉터리, 약 65% 가 distance 2 미만이었다.",
        "src": "21강 p.13~14",
-       "answer": true,
-       "wiki": "FFS 배치 정책"
+       "wiki": "FFS 배치 정책",
+       "answer": true
       },
       {
        "id": "u21b-10",
@@ -7435,6 +9412,7 @@
        "q": "p.10 배치 예의 가정이 아닌 것은?",
        "explain": "p.10: group 당 inode 10·data 10(비현실적), 디렉터리 1 block, 파일 2 block.",
        "src": "21강 p.10",
+       "wiki": "FFS 배치 정책",
        "diff": 2,
        "choices": [
         "파일 하나가 data block 10개를 쓴다",
@@ -7442,8 +9420,45 @@
         "디렉터리는 data block 하나",
         "파일은 block 두 개"
        ],
-       "answer": 0,
-       "wiki": "FFS 배치 정책"
+       "answer": 0
+      },
+      {
+       "id": "u21b-11",
+       "type": "mc",
+       "q": "[규칙 적용] p.10: group 당 inode 10·data 10, 디렉터리 data 1 block, 파일 2 block. /, /a, /b 와 /a/c, /a/d, /a/e, /b/f 를 FFS 정책대로 놓았다(group 0 은 /). 가려진 group 1·2 줄(inodes / data)은?",
+       "explain": "Policy 1: 디렉터리 /a, /b 는 디렉터리가 적은 서로 다른 group(1, 2)에. Policy 2: 파일은 자기 디렉터리 group 에, data 는 자기 inode 와 같은 group 에 → group 1 inode a c d e, data a(1) cc dd ee(2씩), group 2 inode b f, data b ff. 같은 디렉터리 파일이 한 group 에 모인다.",
+       "src": "21강 p.9~11 규칙 적용",
+       "wiki": "FFS 배치 정책",
+       "diff": 3,
+       "tags": [
+        "FFS 정책"
+       ],
+       "img": "duo/img/os21-p10-ffsalloc.png",
+       "imgAlt": "p.10 FFS 할당 예 — group 1·2 줄이 가려져 있다",
+       "explainImg": "duo/img/os21-p10-ffsalloc-ans.png",
+       "choices": [
+        "1: acde / accddee,  2: bf / bff",
+        "1: abcdef / aabbccddeeff,  2: 비어 있음",
+        "1: a / a,  2: b / b,  3~6: c d e f 하나씩",
+        "1: ab / ab,  2: cdef / ccddeeff"
+       ],
+       "answer": 0
+      },
+      {
+       "id": "u21b-12",
+       "type": "num",
+       "q": "p.12 대조 예(inode 를 group 마다 하나씩 흩뿌림)에서 /a/c, /a/d, /a/e 세 파일에 접근하면 몇 개 group 에 걸치는가?",
+       "explain": "c, d, e 의 inode·data 가 group 3, 4, 5 에 따로 있다 → 3개. FFS 정책이면 셋 다 group 1 하나. \"Name-based locality is not preserved.\"",
+       "src": "21강 p.12",
+       "wiki": "FFS 배치 정책",
+       "tags": [
+        "FFS 정책"
+       ],
+       "img": "duo/img/os21-p12-spread.png",
+       "imgAlt": "p.12 대조 예의 group/inodes/data 표",
+       "answer": 3,
+       "unit": "개",
+       "tol": 0
       }
      ]
     },
@@ -7457,17 +9472,19 @@
        "q": "큰 파일을 한 group 에 다 넣으면 생기는 문제는?",
        "explain": "p.15. 그래서 큰 파일은 chunk 로 나눠 여러 group 에 흩는다.",
        "src": "21강 p.15",
+       "wiki": "large-file exception",
        "tags": [
         "large file"
        ],
+       "img": "duo/img/os21-p15-largefile.png",
+       "imgAlt": "p.15 큰 파일이 G2 를 채우는 경우와 chunk 로 여러 group 에 흩는 경우",
        "choices": [
         "그 group 이 차서 같은 디렉터리의 작은 파일들이 다른 group 으로 밀려 locality 가 깨진다",
         "inode 가 부족해진다",
         "superblock 이 지워진다",
         "fsync 가 실패한다"
        ],
-       "answer": 0,
-       "wiki": "large-file exception"
+       "answer": 0
       },
       {
        "id": "u21c-02",
@@ -7475,11 +9492,11 @@
        "q": "일을 한 번에 더 많이 해서 overhead 비율을 줄이는 것을 슬라이드는 무엇이라 부르나?",
        "explain": "p.15 \"Amortization: reducing overhead by doing more work\". chunk 를 충분히 크게 잡으면 seek 비용이 상쇄된다.",
        "src": "21강 p.15",
+       "wiki": "large-file exception",
        "answer": "amortization",
        "alts": [
         "amortize"
-       ],
-       "wiki": "large-file exception"
+       ]
       },
       {
        "id": "u21c-03",
@@ -7487,14 +9504,17 @@
        "q": "disk bandwidth 40MB/s, positioning 10ms 에서 peak 의 50% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나?",
        "explain": "절반은 seek, 절반은 전송 → 전송 시간 10ms 동안 40 × 1024 KB/s × 0.01 s = 409.6KB (p.16).",
        "src": "21강 p.16",
+       "wiki": "large-file exception",
        "diff": 2,
        "tags": [
         "large file"
        ],
+       "img": "duo/img/os21-p16-chunk.png",
+       "imgAlt": "p.16 chunk 크기와 bandwidth 그래프, 계산 — 결과가 가려져 있다",
+       "explainImg": "duo/img/os21-p16-chunk-ans.png",
        "answer": 409.6,
        "unit": "KB",
-       "tol": 0.001,
-       "wiki": "large-file exception"
+       "tol": 0.001
       },
       {
        "id": "u21c-04",
@@ -7502,14 +9522,14 @@
        "q": "disk bandwidth 100MB/s, positioning 5ms 에서 peak 의 50% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나? (1MB = 1024KB)",
        "explain": "100 × 1024 KB/s × 0.005 s = 512KB. p.16 식에 숫자만 바꿈.",
        "src": "21강 p.16 규칙 적용",
+       "wiki": "large-file exception",
        "diff": 3,
        "tags": [
         "large file"
        ],
        "answer": 512,
        "unit": "KB",
-       "tol": 0.001,
-       "wiki": "large-file exception"
+       "tol": 0.001
       },
       {
        "id": "u21c-05",
@@ -7517,8 +9537,8 @@
        "q": "p.16 에 따르면 peak 의 90% 를 내려면 chunk 가 약 4MB 필요하다.",
        "explain": "p.16 \"90% of peak performance on about 4 MB chunk size\".",
        "src": "21강 p.16",
-       "answer": true,
-       "wiki": "large-file exception"
+       "wiki": "large-file exception",
+       "answer": true
       },
       {
        "id": "u21c-06",
@@ -7526,14 +9546,17 @@
        "q": "inode 기반 단순 방식에서 indirect block 하나(4KB, pointer 4B)가 가리키는 data 는 몇 MB 이고, 그만큼씩 다른 group 에 놓이나?",
        "explain": "1024 pointer × 4KB = 4MB (p.17). direct 12 block 은 inode 와 같은 group.",
        "src": "21강 p.17",
+       "wiki": "large-file exception",
        "diff": 2,
        "tags": [
         "large file"
        ],
+       "img": "duo/img/os21-p17-inodeapp.png",
+       "imgAlt": "p.17 inode 구조 기반 배치 — 두 계산 값이 가려져 있다",
+       "explainImg": "duo/img/os21-p17-inodeapp-ans.png",
        "answer": 4,
        "unit": "MB",
-       "tol": 0,
-       "wiki": "large-file exception"
+       "tol": 0
       },
       {
        "id": "u21c-07",
@@ -7541,6 +9564,7 @@
        "q": "SSD 에서 FFS 식 locality 가 여전히 도움이 될 수 있는 이유로 p.18 이 든 것은?",
        "explain": "p.18: SSD 는 seek 가 없고 FTL 이 물리 매핑을 바꾸지만, readahead·sequential write 의 이득은 남는다.",
        "src": "21강 p.18",
+       "wiki": "large-file exception",
        "diff": 2,
        "choices": [
         "readahead cache 와 sequential write 기회",
@@ -7548,8 +9572,7 @@
         "cylinder 가 있어서",
         "FTL 이 없어서"
        ],
-       "answer": 0,
-       "wiki": "large-file exception"
+       "answer": 0
       },
       {
        "id": "u21c-08",
@@ -7557,6 +9580,7 @@
        "q": "ext4 기능과 설명을 연결하시오",
        "explain": "p.19~23.",
        "src": "21강 p.19~23",
+       "wiki": "extent",
        "tags": [
         "ext4"
        ],
@@ -7577,8 +9601,7 @@
          "Journaling",
          "뒤에 다룰 예정"
         ]
-       ],
-       "wiki": "extent"
+       ]
       },
       {
        "id": "u21c-09",
@@ -7586,12 +9609,12 @@
        "q": "extent 는 심하게 조각났거나 sparse 한 파일에서도 indirect block 보다 항상 효율적이다.",
        "explain": "p.20: 연속 block 이 없으면 block 마다 extent 하나가 필요해 사실상 더 비싼 indirect block 이 된다.",
        "src": "21강 p.20",
+       "wiki": "extent",
        "diff": 2,
        "tags": [
         "ext4"
        ],
-       "answer": false,
-       "wiki": "extent"
+       "answer": false
       },
       {
        "id": "u21c-10",
@@ -7599,13 +9622,13 @@
        "q": "extent 하나는 최대 $2^{15}$ 개의 연속 block 을 나타낸다. block 4KB 면 최대 몇 MB 인가?",
        "explain": "32768 × 4KB = 128MB (p.21).",
        "src": "21강 p.21",
+       "wiki": "extent",
        "tags": [
         "ext4"
        ],
        "answer": 128,
        "unit": "MB",
-       "tol": 0,
-       "wiki": "extent"
+       "tol": 0
       },
       {
        "id": "u21c-11",
@@ -7613,6 +9636,7 @@
        "q": "delayed block allocation 의 장점이 아닌 것은?",
        "explain": "p.23: 성능과 신뢰성 사이 trade-off 가 있다(flush 전에 죽으면 잃는다). throughput 30% 향상, CPU 50% 감소.",
        "src": "21강 p.23",
+       "wiki": "large-file exception",
        "diff": 2,
        "tags": [
         "ext4"
@@ -7623,8 +9647,7 @@
         "CPU cycle 절약",
         "금방 지워질 파일의 불필요한 할당을 피함"
        ],
-       "answer": 0,
-       "wiki": "large-file exception"
+       "answer": 0
       },
       {
        "id": "u21c-12",
@@ -7632,6 +9655,7 @@
        "q": "preallocation 은 ___ 시스템 콜로 쓰며, extent tree 는 ___ 이 적을 때 효율적이라 연속 할당이 중요하다.",
        "explain": "p.22. DB 와 streaming media server 가 쓴다.",
        "src": "21강 p.22",
+       "wiki": "extent",
        "tags": [
         "ext4"
        ],
@@ -7645,8 +9669,67 @@
         "mmap()",
         "locality",
         "journaling"
+       ]
+      },
+      {
+       "id": "u21c-13",
+       "type": "num",
+       "q": "[규칙 적용] disk bandwidth 80MB/s, positioning 4ms. peak 의 50% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나? (1MB = 1024KB)",
+       "explain": "50% = seek 시간과 전송 시간이 같다 → 4ms 동안 전송: 80 × 1024 KB/s × 0.004 s = 327.68 KB. p.16 계산식 그대로.",
+       "src": "21강 p.16 규칙 적용",
+       "wiki": "large-file exception",
+       "diff": 2,
+       "tags": [
+        "large file"
        ],
-       "wiki": "extent"
+       "answer": 327.68,
+       "unit": "KB",
+       "tol": 0.001
+      },
+      {
+       "id": "u21c-14",
+       "type": "num",
+       "q": "[규칙 적용] disk bandwidth 40MB/s, positioning 10ms. peak 의 90% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나? (1MB = 1024KB)",
+       "explain": "90% 면 전송 시간 : seek 시간 = 9 : 1 → 전송 90ms. 40 × 1024 × 0.09 = 3686.4 KB ≈ 3.6MB. p.16 그래프의 \"90%, 3.69M\" 과 같은 값(슬라이드는 약 4MB 라고 적었다).",
+       "src": "21강 p.16 규칙 적용",
+       "wiki": "large-file exception",
+       "diff": 3,
+       "tags": [
+        "large file"
+       ],
+       "answer": 3686.4,
+       "unit": "KB",
+       "tol": 0.001
+      },
+      {
+       "id": "u21c-15",
+       "type": "sa",
+       "q": "[용어] Represent contiguous chunks of blocks (start, length) instead of representing each block. (1 word, e…)",
+       "explain": "p.20. 연속이면 indirect block 의 250칸 대신 extent 하나로 끝난다. 심하게 조각나면 block 마다 extent 가 필요해 오히려 비싸다.",
+       "src": "21강 p.20",
+       "wiki": "extent",
+       "tags": [
+        "ext4"
+       ],
+       "answer": "extent",
+       "alts": [
+        "extents"
+       ]
+      },
+      {
+       "id": "u21c-16",
+       "type": "sa",
+       "q": "[용어] Block allocations are postponed to page flush time rather than during the write(). (3 words, d… b… a…)",
+       "explain": "p.23. 여러 할당 요청을 하나로 합쳐 fragmentation 과 CPU 를 줄이지만, flush 전에 죽으면 잃는 성능-신뢰성 trade-off 가 있다.",
+       "src": "21강 p.23",
+       "wiki": "large-file exception",
+       "tags": [
+        "ext4"
+       ],
+       "answer": "delayed block allocation",
+       "alts": [
+        "delayed allocation"
+       ]
       }
      ]
     }
@@ -7864,6 +9947,32 @@
        "wiki": "kalloc",
        "prof": true,
        "answer": false
+      },
+      {
+       "id": "uaa-14",
+       "type": "cloze",
+       "q": "[코드 빈칸] 내 kalloc: push_off(); int id = cpuid(); acquire(&kmem[___].lock); r = kmem[id].freelist; if(r) kmem[id].freelist = ___; release(&kmem[id].lock); if(!r){ for(int i = 0; i < NCPU; i++){ if(i == id) continue; acquire(&kmem[___].lock); … release(&kmem[i].lock); … } } pop_off();",
+       "explain": "먼저 자기 CPU 리스트(kmem[id])의 head 를 떼어 낸다(freelist = r->next). 비었으면 다른 CPU i 의 lock 만 잡고 몇 장을 떼어 온 뒤 놓는다 — 내 lock 과 남의 lock 을 동시에 쥐지 않으니 circular wait 가 생기지 않는다. cpuid 를 쓰는 동안 push_off 로 CPU 이동을 막는다.",
+       "src": "과제2 제출 코드 kalloc.c",
+       "wiki": "steal",
+       "prof": true,
+       "diff": 3,
+       "tags": [
+        "kalloc"
+       ],
+       "answer": [
+        "id",
+        "r->next",
+        "i"
+       ],
+       "bank": [
+        "id",
+        "r->next",
+        "i",
+        "0",
+        "cpuid()",
+        "r"
+       ]
       }
      ]
     },
@@ -8297,6 +10406,102 @@
        ],
        "answer": 3,
        "tol": 0
+      },
+      {
+       "id": "uac-14",
+       "type": "cloze",
+       "q": "[코드 빈칸] 내 uvmcopy(4KB 경로): if(flags & ___){ flags = flags & ~PTE_W; flags = flags | ___; } *pte = PA2PTE(pa) | flags; if(mappages(new, i, PGSIZE, pa, flags) != 0) goto err; ___((void*)pa);",
+       "explain": "쓰기 가능한 page 만 COW 로 바꾼다(text 처럼 원래 W 가 없는 page 는 그대로 공유). 부모 PTE(*pte)와 자식 PTE(mappages) 모두 W 끄고 COW 켠 같은 flags 를 갖는다. 새 frame 을 만들지 않고 같은 pa 를 가리키므로 공유자 수를 1 올린다.",
+       "src": "과제3 제출 코드 vm.c uvmcopy",
+       "wiki": "COW fork",
+       "prof": true,
+       "diff": 3,
+       "tags": [
+        "COW"
+       ],
+       "answer": [
+        "PTE_W",
+        "PTE_COW",
+        "krefinc"
+       ],
+       "bank": [
+        "PTE_W",
+        "PTE_COW",
+        "krefinc",
+        "PTE_R",
+        "PTE_U",
+        "kfree"
+       ]
+      },
+      {
+       "id": "uac-15",
+       "type": "cloze",
+       "q": "[코드 빈칸] 내 cowfault(4KB 경로): if(((*pte & PTE_V)==0) || ((*pte & ___)==0) || ((*pte & PTE_U)==0)) return -1; pa = PTE2PA(*pte); flags = PTE_FLAGS(*pte); mem = kalloc(); if(mem == 0) return -1; memmove(mem, (char*)pa, ___); flags = flags | PTE_W; flags = flags & ~PTE_COW; *pte = PA2PTE(___) | flags; kfree((void*)pa);",
+       "explain": "COW 표시가 없는 page(예: text)에 쓰려 했다면 복사하지 말고 실패(kill). 검사 뒤에 새 page 를 받아 옛 page 4096B 를 복사하고, 내 PTE 를 새 page(mem)로 바꾸며 W 를 켜고 COW 를 지운다. kfree(pa) 는 옛 page 의 count 를 1 줄일 뿐이다.",
+       "src": "과제3 제출 코드 vm.c cowfault",
+       "wiki": "COW fork",
+       "prof": true,
+       "diff": 3,
+       "tags": [
+        "COW"
+       ],
+       "answer": [
+        "PTE_COW",
+        "PGSIZE",
+        "mem"
+       ],
+       "bank": [
+        "PTE_COW",
+        "PGSIZE",
+        "mem",
+        "PTE_W",
+        "pa",
+        "4"
+       ]
+      },
+      {
+       "id": "uac-16",
+       "type": "cloze",
+       "q": "[코드 빈칸] 내 copyout: if((*pte & PTE_W) == 0){ if((*pte & ___) == 0) return -1; if(cowfault(pagetable, ___) == -1) return -1; } pa0 = PTE2PA(*pte);",
+       "explain": "커널은 direct mapping 으로 PA 에 바로 쓰므로 COW page 에 써도 page fault 가 나지 않는다. 그래서 copyout 이 직접 W 를 보고, COW 면 page 단위 주소 va0 로 cowfault 를 불러 복사한 뒤 pte 에서 새 PA 를 다시 읽는다. W 도 COW 도 없으면(text) −1.",
+       "src": "과제3 제출 코드 vm.c copyout",
+       "wiki": "copyout과 COW",
+       "prof": true,
+       "diff": 3,
+       "tags": [
+        "COW"
+       ],
+       "answer": [
+        "PTE_COW",
+        "va0"
+       ],
+       "bank": [
+        "PTE_COW",
+        "va0",
+        "PTE_V",
+        "dstva",
+        "len"
+       ]
+      },
+      {
+       "id": "uac-17",
+       "type": "mc",
+       "q": "cowfault 마지막의 `kfree((void*)pa)` 가 다른 프로세스가 아직 쓰는 옛 page 를 망가뜨리지 않는 이유는?",
+       "explain": "fork 로 공유자가 2 면 count 2 → 1 이 되고 page 는 살아 있다. 마지막 공유자의 쓰기나 exit 에서 0 이 될 때 비로소 junk(1)로 채우고 free list 로 간다.",
+       "src": "과제3, 위키 reference count",
+       "wiki": "reference count",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "refcount"
+       ],
+       "choices": [
+        "과제 3 의 kfree 는 reference count 를 1 줄이고 0 이 될 때만 free list 에 넣기 때문",
+        "kfree 가 page 를 1 로 채우지 않기 때문",
+        "TLB 에 옛 매핑이 남아 있어서",
+        "memmove 가 page 를 옮겼기 때문"
+       ],
+       "answer": 0
       }
      ]
     },
