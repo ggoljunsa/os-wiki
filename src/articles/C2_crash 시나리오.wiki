@@ -2,6 +2,8 @@ key: crash 시나리오
 title: crash 시나리오: 세 쓰기 중 몇 개가 디스크에 닿았나
 category: 22강 FSCK and Journaling
 ---
+{info}22강 슬라이드 기준으로 수업 전에 쓰고, 11/25 수업 녹음(65:53~70:22)의 설명을 더했다.{/info}
+
 22강 p.8~11 을 다룬다. [[crash consistency]] 의 예제(inode 2 에 블록 5 를 덧붙이기)에서 세 쓰기 I[v2], B[v2], Db 중 일부만 디스크에 닿고 crash 가 나는 경우를 전부 따진다. 하나만 닿은 경우가 셋(Case 1a~1c), 둘만 닿은 경우가 셋(Case 2a~2c)이다.
 
 판정할 때 보는 것은 두 가지다.
@@ -23,12 +25,12 @@ consistency 로 보면 아무 문제가 없다. 사용자는 방금 쓴 4 KB 를
 
 이번에는 inode 만 새 판이다. inode 는 "두 번째 블록은 5 번" 이라고 말한다. 그런데 블록 5 에는 Db 가 아직 안 갔다. 파일을 읽으면 블록 5 에 예전부터 있던 내용, 즉 garbage 가 나온다.
 
-문제는 하나 더 있다. bitmap 은 아직 B[v1] 이라 5 번이 0 이다. inode 는 쓰고 있다고 하고 bitmap 은 비었다고 한다. 이게 '''file-system inconsistency''' 다. 이대로 두면 다음에 다른 파일이 블록 5 를 받아 가서 두 파일이 한 블록을 나눠 쓰게 된다.
+문제는 하나 더 있다. bitmap 은 아직 B[v1] 이라 5 번이 0 이다. inode 는 쓰고 있다고 하고 bitmap 은 비었다고 한다. 이게 '''file-system inconsistency''' 다. 이대로 두면 다음에 다른 파일이 블록 5 를 받아 가서 두 파일이 한 블록을 나눠 쓰게 된다. 교수님은 이걸 두 파일 사이의 race 로 설명하고 "this kind of inconsistency is quite important" 라고 했다.
 
 === Case 1c: B[v2] 만 ===
 {def}p.9 Case 1c: "Just the updated bitmap (B[v2]) is written to disk. The bitmap indicates that block 5 is allocated, but there is no inode that points to it. '''The file system is inconsistent again.''' Space leak, as the block 5 would never be used by the file system."{/def}
 
-bitmap 만 새 판이다. 5 번이 1 이니 파일 시스템은 블록 5 를 누가 쓰고 있다고 믿는다. 하지만 어떤 inode 도 5 를 가리키지 않는다. 아무도 안 쓰는데 할당된 것으로 표시된 블록이다. 블록 5 는 다시는 할당되지 않으니 공간이 새어 나간다. 이게 '''space leak''' 이다.[* 메모리에서 malloc 한 뒤 포인터를 잃어버린 memory leak 과 같은 모양이다. 디스크에서는 재부팅해도 bitmap 이 그대로 남으니 저절로 풀리지 않는다.]
+bitmap 만 새 판이다. 5 번이 1 이니 파일 시스템은 블록 5 를 누가 쓰고 있다고 믿는다. 하지만 어떤 inode 도 5 를 가리키지 않는다. 아무도 안 쓰는데 할당된 것으로 표시된 블록이다. 블록 5 는 다시는 할당되지 않으니 공간이 새어 나간다. 이게 '''space leak''' 이다. 교수님 표현으로는 crash 가 날 때마다 이런 블록이 쌓여 "파일 시스템의 용량을 점점 잃는다".[* 메모리에서 malloc 한 뒤 포인터를 잃어버린 memory leak 과 같은 모양이다. 디스크에서는 재부팅해도 bitmap 이 그대로 남으니 저절로 풀리지 않는다.]
 
 {mini}
 # 다음 각 경우를 판정하라: (가) Db 만 (나) I[v2] 만 (다) B[v2] 만. "consistent", "불일치 + garbage", "불일치(space leak)" 중에서.
@@ -48,6 +50,8 @@ bitmap 만 새 판이다. 5 번이 1 이니 파일 시스템은 블록 5 를 누
 {def}p.10 Case 2a: "The inode (I[v2]) and bitmap (B[v2]) are written to disk, but not data (Db). The file system metadata is completely consistent. Block 5 has garbage in it."{/def}
 
 inode 는 5 를 가리키고 bitmap 도 5 가 쓰인다고 한다. metadata 끼리는 완벽하게 맞는다. 그런데 블록 5 에는 Db 가 안 갔으니 garbage 다. 파일 시스템 구조만 보면 멀쩡한데 파일 내용이 틀렸다. 이 경우가 고약한 이유는 [[fsck]] 에서 나온다. metadata 만 보는 검사로는 이 상황을 찾아낼 수 없다.
+
+그런데 교수님은 2a 를 "usually okay" 라고 했다. 망가진 것은 그 파일 하나의 내용뿐이고 문제가 그 파일 안에 갇혀(isolated) 있다. 파일 시스템 전체의 문제는 아니라는 뜻이다. 1b 와 비교하면 차이가 보인다. 1b 는 bitmap 이 틀려서 '''다른 파일'''까지 블록 5 를 받아 갈 수 있다.[* 교수님은 여섯 경우를 다 본 뒤 이렇게 정리했다. data block 쓰기는 그 자체로 불일치를 만들지 않는다. 불일치를 만드는 것은 bitmap 과 inode 가 어긋나는 것이다. 그래서 "inode 와 data bitmap 을 atomic 하게 갱신해야 한다" 가 결론이 된다.]
 
 === Case 2b: I[v2] + Db, B[v2] 없음 ===
 {def}p.10 Case 2b: "The inode (I[v2]) and the data block (Db) are written, but not the bitmap (B[v2]). We have the inode pointing to the correct data on disk. Inconsistency between the inode and the old version of the bitmap (B1). Another file could occupy the block 5."{/def}

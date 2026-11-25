@@ -2,7 +2,7 @@ key: Fast File System
 title: Fast File System (21강)
 category: 21강 Fast File System, 핵심
 ---
-{warn}21강 슬라이드 `21-Fast_File_System.pdf`(25쪽)만 보고 '''수업 전'''(2026-11-23)에 썼다. 11/23 수업은 20강 끝(p.25)에서 멈췄으니 21강은 다음 수업이다. 녹음이 오면 아래에 "실제 수업 기록" 절을 붙인다. 교재는 [[OSTEP]] 41장 "Locality and The Fast File System" 이다.{/warn}
+{info}21강 슬라이드 `21-Fast_File_System.pdf`(25쪽) 기준이다. 11/25(수) 수업에서 p.1~23 을 전부 나갔고, 남은 13분 동안 22강 p.1~12 까지 갔다. 녹음 내용은 아래 "실제 수업 기록" 절에 있다. 교재는 [[OSTEP]] 41장 "Locality and The Fast File System" 이다.{/info}
 
 [[파일 시스템 구현|20강]] 의 vsfs 는 옛 Unix 파일 시스템과 같은 모양이다. 단순하고 잘 돌아가지만 '''느렸다'''. 21강은 왜 느렸는지, 그리고 UC Berkeley 의 '''FFS(Fast File System)''' 가 같은 API 를 그대로 두고 디스크 안 배치만 바꿔서 어떻게 빠르게 만들었는지 본다. 뒤쪽 p.18~23 은 SSD 에서도 이게 의미가 있는지, 그리고 요즘 리눅스의 ext4 가 더한 기능(extent, preallocation, delayed allocation)이다.
 
@@ -38,7 +38,9 @@ category: 21강 Fast File System, 핵심
 == 문제 2: 조각난 빈 공간 (p.4) ==
 [[img:L21-04.png|p.4 — A1 A2 B1 B2 C1 C2 D1 D2 에서 B, D 를 지운 뒤 E(4 블록)를 만들면 E1 E2 와 E3 E4 가 떨어져 놓인다|large]]
 
-위 그림의 첫 줄은 파일 A~D 가 두 블록씩 나란히 있는 상태다. B 와 D 를 지우면 빈칸이 두 군데 생긴다. 여기에 네 블록짜리 E 를 만들면 빈 블록을 앞에서부터 쓰니 E1 E2 는 B 자리에, E3 E4 는 D 자리에 들어간다. E 를 처음부터 끝까지 읽으려면 디스크를 왔다 갔다 해야 한다.[* p.4 의 마지막 문장 "because they are contiguous" 는 반대다. E 의 블록들이 '''연속이 아니기(not contiguous)''' 때문에 왔다 갔다 한다. OSTEP 원문도 "E's blocks are not contiguous" 다.] 이것이 디스크 위의 [[external fragmentation]] 이다. 14강에서 메모리 segment 를 두고 본 문제가 파일 시스템에서도 나온다.
+위 그림의 첫 줄은 파일 A~D 가 두 블록씩 나란히 있는 상태다. B 와 D 를 지우면 빈칸이 두 군데 생긴다. 여기에 네 블록짜리 E 를 만들면 빈 블록을 앞에서부터 쓰니 E1 E2 는 B 자리에, E3 E4 는 D 자리에 들어간다. E 를 처음부터 끝까지 읽으려면 디스크를 왔다 갔다 해야 한다.[* p.4 의 마지막 문장 "because they are contiguous" 는 반대다. E 의 블록들이 '''연속이 아니기(not contiguous)''' 때문에 왔다 갔다 한다. OSTEP 원문도 "E's blocks are not contiguous" 다. 교수님도 수업에서 이 줄을 따로 짚지는 않았지만 "although they are not consecutive, we can allocate them" 이라고 읽었다.] 이것이 디스크 위의 [[external fragmentation]] 이다. 14강에서 메모리 segment 를 두고 본 문제가 파일 시스템에서도 나온다.
+
+교수님은 여기서 용량과 성능을 나눠서 설명했다. 블록 크기가 모두 같으니 빈 블록이 흩어져 있어도 E 는 만들 수 있다. paging 이 external fragmentation 을 피한 것과 같은 이유다. 그러니 '''용량 문제는 아니다'''. 문제는 E1 E2 를 읽은 뒤 seek 와 rotation 을 기다려야 E3 E4 를 읽는다는 것, 즉 '''성능'''이다.[* 교수님은 Windows 의 "조각 모음"(defragmentation) 유틸리티를 예로 들었다. 흩어진 블록을 모아 주면 빨라지는 이유가 이것이다. 그런 유틸리티가 따로 필요하다는 것 자체가 overhead 이니, 처음부터 파일 시스템 설계에 디스크 특성을 넣자는 것이 FFS 다.]
 
 아래 그림은 위 그림의 세 줄을 이어서 움직이고, 마지막에 E 를 처음부터 읽는 head 를 따라간다.
 
@@ -51,6 +53,8 @@ FFS 의 생각은 "자료구조와 할당 정책이 디스크를 알아야 한�
 * 디스크를 여러 '''그룹'''으로 나누고 그룹마다 작은 vsfs 를 하나씩 둔다 → [[cylinder group]]
 * 서로 관련 있는 것(inode 와 그 데이터, 같은 디렉터리의 파일)을 같은 그룹에 둔다 → [[FFS 배치 정책]]
 * 큰 파일 하나가 그룹을 독차지하지 않게 덩어리로 나눠 흩뜨린다 → [[large-file exception]]
+
+교수님은 "API 는 그대로, 안쪽만 바꾼다" 를 컴퓨터 시스템 설계 전체의 방식이라고 했다. ISA 는 그대로 두고 microarchitecture 를 바꾸고, 같은 load/store 뒤에 cache 를 넣고, 같은 가상 주소 뒤에 TLB 를 넣는다. FFS 는 같은 일을 파일 시스템에 했다.[* 07:47~08:30. "all of the computer system design is about keeping the same API and changing the entire implementation."]
 
 {analogy}
 창고 한 곳에 재고 장부(inode)는 입구에, 물건(데이터)은 창고 끝 아무 선반에 두면 물건 하나 꺼낼 때마다 창고를 가로지른다. FFS 는 창고를 구역으로 나누고, 구역마다 장부와 선반을 같이 둔다. 같은 주문에 들어갈 물건은 같은 구역에 둔다.
@@ -70,14 +74,76 @@ FFS 의 생각은 "자료구조와 할당 정책이 디스크를 알아야 한�
 == SSD 에서도 의미가 있나 (p.18) ==
 {def}p.18 Is this useful for SSDs? No seek time in SSD. FTL changes the physical block mapping. Question: Does locality helps serving the requests on SSDs? Readahead cache. Additional chance for sequential writes.{/def}
 
-FFS 의 모든 아이디어는 seek 를 줄이는 것이었다. SSD 에는 seek 가 없고, 안쪽의 FTL(flash translation layer)이 논리 블록을 실제 위치에 마음대로 다시 매핑한다. 그러면 locality 가 소용없을까? 슬라이드는 질문을 던지고 실마리 두 개만 적는다. '''readahead cache'''(이어진 블록을 미리 읽어 두기)와 '''sequential write''' 의 기회다. 수업에서 교수님 답이 나오면 여기 채운다.[* 18강 수업(11/16)에서 교수님은 SSD 를 "학기 말에 시간이 나면" 다룬다고 했다.]
+FFS 의 모든 아이디어는 seek 를 줄이는 것이었다. SSD 에는 seek 가 없고, 안쪽의 FTL(flash translation layer)이 논리 블록을 실제 위치에 마음대로 다시 매핑한다. 그러면 locality 가 소용없을까? 슬라이드는 질문을 던지고 실마리 두 개만 적는다. '''readahead cache'''(이어진 블록을 미리 읽어 두기)와 '''sequential write''' 의 기회다.
+
+교수님의 답은 "숫자는 안 맞지만 생각은 그대로 쓸 수 있다" 였다.[* 42:36~43:32. 18강 수업(11/16)에서는 SSD 를 "학기 말에 시간이 나면" 다룬다고 했는데, 21강에서는 이 정도로만 짚고 넘어갔다.]
+* 요즘 저장 장치의 대역폭은 p.16 의 40 MB/s 보다 훨씬 크다. 그래서 "90% 를 내려면 4 MB" 같은 깔끔한 숫자 설계는 그대로 옮길 수 없다.
+* 하지만 SSD 도 '''블록 배치 안에 locality 가 있다'''. 그러니 "관련된 것을 가까이 둔다" 는 아이디어는 물리적 배치에 locality 가 있는 저장 장치라면 어디에나 쓸 수 있다.
+* 같은 이유로 요즘은 cylinder group 이 아니라 '''block group''' 이라고 부른다. cylinder 는 디스크에만 있는 개념이고, 파일 시스템은 원래 linear block 번호만 보고 cylinder 를 모른다([[cylinder group]]).
+
+== 실제 수업 기록 (11/25 수, 녹음 기준) ==
+{info}녹음 `운체 261125_163331.m4a`(71분)를 faster-whisper 로 전사한 것을 읽고 정리했다. 전사 상태는 좋다. 21강은 p.1~23 을 다 나갔고(57:48 "this is the end of this slide", 질문 없음), 58:15 부터 22강으로 넘어가 p.12 Summary 까지 갔다. 22강 쪽 기록은 [[FSCK와 Journaling]] 에 있다.{/info}
+
+{|
+! 시각 || 슬라이드 || 교수님이 한 것
+|-
+| 00:00~01:43 || p.1~2 || 20강 simple FS 요약. "구현은 쉽고, 파일 시스템을 만드는 lab 은 없지만 만들 수 있을 것이다." 문제는 성능
+|-
+| 01:43~04:16 || p.3 || '''질문: 무엇이 파일 시스템 성능을 좌우하나?''' data structure, 그리고 "locality is quite important". 디스크는 찾기는 느리고 연속 읽기는 빠르다. positioning cost 를 설계에 넣어야 한다
+|-
+| 04:16~07:22 || p.4 || 용량 문제가 아니라 성능 문제. 조각 모음 유틸리티 이야기
+|-
+| 07:22~08:33 || p.5 || API 그대로, 구현만. ISA·cache·TLB 도 같은 방식
+|-
+| 08:33~11:18 || p.6 || 같은 cylinder 면 seek 가 없다(rotation 은 남는다). 요즘 이름 block group 의 이유 → [[cylinder group]]
+|-
+| 11:18~14:19 || p.7 || '''질문: 메모리 접근에 locality 가 생기는 이유는?''' 배열·순차 코드(spatial), 누적 변수·loop(temporal). 디스크에서는 같은 실행 파일 반복 실행, 문서를 자주 저장하기
+|-
+| 14:19~18:43 || p.8~9 || superblock → bitmap → inode → data 의 구조적 locality. 메타데이터를 잘라 그룹마다. '''학생 질문: 그룹마다 사본은 너무 많지 않나?''' → 사본이 아니라 나눈 것 → [[cylinder group]]
+|-
+| 18:43~25:46 || p.9~11 || '''질문: 한 디렉터리의 파일을 한 그룹에 두면 문제는?''' 학생 "capacity". 디렉터리 계층이 있는 이유 = 같이 쓰는 것을 모아 둔다. 예제 읽기 → [[FFS 배치 정책]]
+|-
+| 25:46~28:30 || p.12 || '''질문: 그룹 load balancing 의 이점은?''' 없다. 평균 seek 가 늘어난다. "we should not have load balanced groups"
+|-
+| 28:30~33:51 || p.13~14 || 설계에는 evidence 가 필요하다. SEER 1994, 거리 = 가계도. 7%·40%·65%, Random 선에도 locality
+|-
+| 33:51~42:36 || p.15~17 || 큰 파일은 throughput 이 병목이라 chunk 로 흩어도 된다. 50% → 409.6 KB, 90% → 3.69 MB, "usually we want at least 90%". indirect block 하나 = 4 MB, page table(2 MB)과 비교 → [[large-file exception]]
+|-
+| 42:36~43:38 || p.18 || SSD: 숫자는 다르지만 블록 배치에 locality 가 있어 아이디어는 그대로
+|-
+| 43:38~47:49 || p.19 || 여담: Windows NTFS, macOS APFS, 서버의 ext4. ext4 = FFS + 넷, journaling 은 다른 강의에서
+|-
+| 47:49~54:04 || p.20~21 || extent ≈ segmentation. 왜 B-tree 인가(offset 검색, depth) → [[extent]]
+|-
+| 54:04~57:48 || p.22~23 || preallocation, delayed allocation 의 reliability 대가 → [[preallocation과 delayed allocation]]
+|-
+| 58:15~71:30 || 22강 p.1~12 || crash consistency, Case 1a~2c, atomic 이 불가능한 이유 → [[FSCK와 Journaling]]
+|}
+
+=== 교수님이 짚은 것 ===
+* 수업 중 질문이 다섯 번 나왔다. ① 성능을 좌우하는 것(locality) ② 메모리 locality 의 원인 ③ 파일 하나는 그룹 하나에 두나(그렇다, 아니면 seek 가 여러 번) ④ 한 디렉터리를 한 그룹에 둘 때 문제(capacity) ⑤ 그룹 load balancing 의 이점(없다).
+* "we need some evidence for any design"(29:09). SEER trace 가 그 evidence 라는 흐름으로 p.13~14 를 설명했다.
+* p.16 계산을 50% 와 90% 둘 다 풀어 줬다. 4 MB 를 indirect block 한 개(1024 × 4 KB)와 이어 붙였다.
+* 슬라이드에 한 줄뿐인 "extent tree works like B-tree" 를 길게 설명했다. 왜 검색 트리가 필요한지, 왜 red-black tree 가 아니라 B-tree 인지.
+* delayed allocation 은 "trade-off between performance and reliability" 를 두 번 말하고, 이 말로 22강 crash consistency 로 넘어갔다.
+
+=== 공지 ===
+녹음 71분 안에 시험·퀴즈·과제 공지는 없다. 처음에 "파일 시스템을 만드는 lab 은 없다" 고 한 것(01:13) 말고는 과제 이야기가 없었다.[* 11/11 수업에서 "lab 은 하나만 더(과제 3)" 라고 한 것과 맞는다. [[과제3 xv6 cow]] 참고.] 다음 시간은 22강 p.13 file system checker 부터다.
 
 == 시험에 나온다면 ==
-{info}수업 전이라 교수 강조는 아직 없다. 중간고사 형식(객관식 + full-term 용어 + 손 계산)에 맞춰 보면 이렇다.
-* 손 계산: [[large-file exception]] 의 chunk 크기(40 MB/s × 10 ms = 409.6 KB), [[FFS 배치 정책]] 의 그룹 배치 그리기, [[extent]] 의 최대 크기(2^15 × 4 KB = 128 MB).
-* 용어: cylinder group(block group), disk aware, large-file exception, amortization, extent, preallocation, delayed allocation.
-* 객관식: 디렉터리는 디렉터리 수가 적고 free inode 가 많은 그룹에, 파일은 자기 디렉터리 그룹에. SEER 관찰 수치(7%, 40%, 65%).
-{/info}
+{exam}
+'''chunk 크기 계산(p.16).''' 교수님이 50%(10 ms 전송 → 409.6 KB)와 90%(90 ms 전송 → 3.69 MB)를 둘 다 직접 풀고 "usually we want to achieve at least 90%" 라고 했다. 숫자만 바꿔 손으로 푸는 문제로 나오기 좋다. → [[large-file exception]]
+{/exam}
+
+{exam}
+'''배치 정책과 load balancing.''' 교수님이 "그룹 load balancing 의 이점은?" 을 물은 뒤 "in terms of performance, we should not have load balanced groups" 라고 답했다. 디렉터리는 퍼뜨리고 파일은 디렉터리 옆에 모으는 정책, p.10 그림 채우기와 같이 본다. → [[FFS 배치 정책]]
+{/exam}
+
+{exam}
+'''extent 와 B-tree.''' 슬라이드에 없는 설명을 4 분 가까이 했다. block pointer 는 배열이라 offset 으로 블록을 바로 계산하지만 extent 는 길이가 제각각이라 검색해야 하고, B-tree 는 자식이 많아 depth 가 낮아서 디스크에 맞는다. → [[extent]]
+{/exam}
+
+* 그 밖에 용어: cylinder group(block group), disk aware, large-file exception, amortization, extent, preallocation(fallocate), delayed block allocation. 수치: SEER 7%·40%·65%, extent 최대 2^15 블록 = 128 MB, delayed allocation 30%·50%.
 
 == 시험 직전 체크 ==
 # 옛 Unix FS: 단순하지만 대역폭의 2%. 원인은 positioning cost 와 fragmentation.

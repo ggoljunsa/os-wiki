@@ -2,7 +2,7 @@ key: FSCK와 Journaling
 title: FSCK와 Journaling (22강)
 category: 22강 FSCK and Journaling, 핵심
 ---
-{warn}22강 슬라이드 `22-FSCK-and_Journaling.pdf`(37쪽)만 보고 썼다. 11/25(수) 수업 분량이지만 녹음은 아직 없다. 녹음이 오면 아래 "실제 수업 기록" 절을 채운다. 교재는 [[OSTEP]] 42장 "Crash Consistency: FSCK and Journaling" 이다.{/warn}
+{info}22강 슬라이드 `22-FSCK-and_Journaling.pdf`(37쪽) 기준이다. 11/25(수) 수업은 21강을 끝낸 뒤 58분부터 22강에 들어가 p.12(Crash Consistency 단원 Summary)까지 했다. p.13 fsck 부터는 다음 수업이다. 녹음 내용은 아래 "실제 수업 기록" 절에 있다. 교재는 [[OSTEP]] 42장 "Crash Consistency: FSCK and Journaling" 이다.{/info}
 
 [[파일 시스템 구현|20강]] 에서 파일 하나에 블록을 덧붙이면 디스크에 쓰는 블록이 여러 개라는 것을 셌다. data bitmap, data block, inode 가 따로따로 디스크에 간다. 그 사이에 전원이 나가면 어떻게 될까? 22강은 이 질문 하나로 37쪽을 끌고 간다. 파일 시스템이 쓰는 해법은 두 가지다.
 * '''fsck''': crash 가 난 뒤에 디스크 전체를 훑어서 앞뒤가 안 맞는 곳을 고친다. 옛날 방식이다.
@@ -74,8 +74,36 @@ category: 22강 FSCK and Journaling, 핵심
 # '''TxE'''(transaction end block). TxE 까지 있으면 replay, 없으면 skip. [[journal commit과 recovery]]
 {/answer}
 
-== 실제 수업 기록 ==
-{info}11/25(수) 녹음 대기. 녹음이 오면 시각별 표, 교수님 질문, 공지를 여기에 적는다.{/info}
+== 실제 수업 기록 (11/25 수, 녹음 기준, p.1~12) ==
+{info}녹음 `운체 261125_163331.m4a`(71분) 가운데 58:15~71:30 이 22강이다. 앞 58분은 21강이고 [[Fast File System]] 에 정리했다. 교수님은 시작하며 "today we will not discuss about the whole concept … we will discuss about the reliability first" 라고 했고, p.12 Summary 에서 끝냈다. '''p.13 fsck 부터 p.37 까지는 다음 수업 녹음을 기다린다.'''{/info}
+
+{|
+! 시각 || 슬라이드 || 교수님이 한 것
+|-
+| 58:15~59:20 || p.1~3 || 21강 delayed allocation 의 reliability ↔ performance trade-off 에서 이어 간다. 파일 시스템의 reliability 는 crash consistency, 즉 crash 뒤에도 consistent 한 것이다
+|-
+| 59:20~60:31 || p.3 || '''질문: consistency 가 무엇인가?''' "rather than consistency, it is much closer to the integrity". bitmap, inode, data block 이 서로 같은 정보를 말해야 한다 → [[crash consistency]]
+|-
+| 60:31~62:53 || p.3 || crash 는 주로 전원 문제. 프로세스는 전원이 나가면 사라져도 되지만 파일 시스템은 살아남아야 한다. 19강 rename, 20강 bitmap·inode 쓰기 순서도 같은 문제였다. 해법은 FS check 와 journaling, 다음 시간에
+|-
+| 62:53~65:04 || p.4~6 || append 예제. inode 의 size 와 pointer 는 같은 블록이라 atomic 하게 바꿀 수 있지만, 위치가 다른 쓰기가 세 군데 → [[crash consistency]]
+|-
+| 65:04~65:53 || p.7 || 성능 때문에 바로 쓰지 않고, 디스크 쓰기 사이에 순서도 없다
+|-
+| 65:53~68:31 || p.8~9 || 1a 는 데이터를 잃었을 뿐 consistency 문제가 아니다. 1b 는 다른 파일이 같은 블록을 받아 갈 수 있어 "this kind of inconsistency is quite important". 1c 는 용량을 점점 잃는다 → [[crash 시나리오]]
+|-
+| 68:31~70:22 || p.10~11 || 2a 는 문제가 한 파일 안에 갇혀서 "usually okay". 2b 는 1b 와 같은 불일치. data block 쓰기 자체는 불일치를 만들지 않는다
+|-
+| 70:22~71:30 || p.12 || inode 와 bitmap 을 atomic 하게 쓰고 싶지만 디스크 head 가 하나라 한 번에 한 블록뿐이다. 다음 시간에 fsck 와 "atomic 이 필요 없게 하는 방법"(journaling)
+|}
+
+=== 교수님이 짚은 것 ===
+* consistency 를 integrity 에 가깝다고 정의했다. 여러 metadata 가 같은 사실을 말해야 한다는 뜻이다.
+* "프로세스는 crash consistency 가 필요 없다" 는 대비로 파일 시스템이 왜 특별한지 설명했다. 20강에서 "consistency should be the main design" 이라고 한 것과 같은 이야기다.
+* 여섯 경우 가운데 1b(블록을 두 파일이 나눠 쓸 수 있다)를 "quite important" 라고 했고, 2a 는 "usually okay" 라고 했다. 판정의 기준이 '''파일 시스템 전체가 망가지나, 한 파일만 망가지나''' 였다.
+
+=== 공지 ===
+22강 구간(58:15~71:30)에 시험·퀴즈·과제 공지는 없다. p.6 의 "I[v1]", p.10 의 "B1" 같은 슬라이드 오타도 따로 언급하지 않았다. 교수님은 말로 "inode update", "old version of the bitmap" 이라고 읽었다.
 
 == 슬라이드 메모 ==
 {warn}
@@ -88,7 +116,11 @@ category: 22강 FSCK and Journaling, 핵심
 {/warn}
 
 == 시험에 나온다면 ==
-{info}녹음이 없어 교수 강조는 아직 모른다. 중간고사 형식(객관식 + full term + 규칙 주고 손으로 돌리기)에 맞춰 보면 이렇다.
+{exam}
+'''여섯 경우 판정(p.8~11).''' 교수님이 하나씩 읽으며 1b 는 "quite important", 1c 는 "용량을 점점 잃는다", 2a 는 "usually okay" 라고 무게를 매겼다. 세 쓰기 중 무엇이 닿았는지 주고 결과를 고르는 문제로 나오기 좋다. → [[crash 시나리오]]
+{/exam}
+
+{info}p.13 이후(fsck, journaling)는 아직 수업 전이라 교수 강조를 모른다. 중간고사 형식(객관식 + full term + 규칙 주고 손으로 돌리기)에 맞춰 보면 이렇다.
 * 손으로 돌리기: 세 블록 중 어떤 것이 쓰였을 때 결과 판정([[crash 시나리오]]), crash 지점별 recovery 결과([[journal commit과 recovery]]), 4 단계 순서 배열.
 * 용어: crash consistency, fsck, write-ahead logging, TxB / TxE, TID, physical logging, checkpoint, circular log, journal superblock, Ordered / Writeback / Journal mode.
 * 객관식: fsck 가 못 고치는 경우(Case 2a), fsck 가 bitmap 과 inode 가 다를 때 믿는 쪽(inode), TxE 를 따로 쓰는 이유.

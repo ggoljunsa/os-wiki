@@ -2,6 +2,8 @@ key: crash consistency
 title: crash consistency: 블록 하나 덧붙이는 데 쓰기가 세 번
 category: 22강 FSCK and Journaling
 ---
+{info}22강 슬라이드 기준으로 수업 전에 쓰고, 11/25 수업 녹음(58:15~65:53, 70:22~71:30)의 설명을 더했다.{/info}
+
 22강 p.2~7 과 p.12 를 다룬다. [[FSCK와 Journaling|22강 허브]] 에서 말한 crash-consistency problem 을, 슬라이드가 쓰는 작은 예제 하나 위에서 구체적으로 본다. 이 예제는 22강 끝까지 계속 나오니 숫자를 기억해 두면 편하다.
 
 == 예제: 파일 끝에 4 KB 를 덧붙인다 (p.4) ==
@@ -16,6 +18,11 @@ category: 22강 FSCK and Journaling
 
 할 일은 파일을 열고(`open`), 끝으로 가서(`lseek`), 4 KB 를 쓰고(`write`), 닫는(`close`) 것이다. 19강에서 본 평범한 append 다.
 
+=== consistency 란 (수업 중 질문) ===
+교수님은 예제에 들어가기 전에 "consistency 가 무엇인가?" 를 물었다. 답은 "rather than consistency, it is much closer to the '''integrity'''" 였다. consistency 는 원래 서로 다른 시점(viewpoint)에서 봐도 같은 것이 보인다는 뜻이다. 파일 시스템에서는 data bitmap, inode, data block 이 각자 다른 것을 기록하지만 서로 관련돼 있으니, 셋에서 '''같은 사실'''을 읽을 수 있어야 한다. inode 는 블록 5 를 쓴다고 하는데 bitmap 은 비었다고 하면 consistent 하지 않다.
+
+'''crash''' 는 주로 전원 문제다. 교수님은 프로세스와 비교했다. 프로세스의 자료구조는 전원이 나가면 사라져도 된다. 다시 실행하면 그만이다. 파일 시스템은 전원이 나간 뒤에도 살아남아야 하니 crash consistency 가 필요하다.[* 교수님은 19강 rename 의 atomic 보장과 20강에서 bitmap → data → inode 순서로 쓴 것도 모두 "영속 자료구조를 어떻게 갱신하나" 라는 같은 질문에서 나왔다고 묶었다.]
+
 == inode 안을 들여다보면 (p.5~6) ==
 [[img:L22-05.png|p.5 — 갱신 전 I[v1]. size 1, 첫 pointer 가 4(Da), 나머지 셋은 null|large]]
 
@@ -26,7 +33,7 @@ category: 22강 FSCK and Journaling
 
 [[img:L22-06.png|p.6 — 갱신 뒤. data bitmap 5 번이 켜지고, inode 의 size 가 2, 두 번째 pointer 가 5 로 바뀌고, data block 5 번에 Db 가 들어간다|large]]
 
-블록을 하나 덧붙인 뒤에는 세 군데가 바뀐다. 위 그림에서 노랗게 칠한 곳이 그 셋이다.
+블록을 하나 덧붙인 뒤에는 세 군데가 바뀐다.[* 교수님은 inode 의 size 와 pointer 두 칸은 같은 블록 안에 있으니 한 번에(atomic 하게) 고칠 수 있다고 짚었다. 문제는 위치가 서로 다른 블록 세 개다.] 위 그림에서 노랗게 칠한 곳이 그 셋이다.
 * data bitmap 의 '''5 번''' 비트가 켜진다. 새 판을 '''B[v2]''' 라고 부른다.
 * inode 가 '''I[v2]''' 가 된다. size 가 2 로, 두 번째 pointer 가 5 로 바뀐다(파란 숫자).
 * data block 5 번에 새 내용 '''Db''' 가 들어간다.
@@ -49,7 +56,7 @@ category: 22강 FSCK and Journaling
 
 디스크 입장에서 append 는 블록 세 개를 따로 쓰는 일이다. inode 가 든 블록 하나, data bitmap 블록 하나, data block 하나다. 디스크는 이 셋을 한 번에 쓰지 못하고 하나씩 쓴다.
 
-게다가 세 쓰기는 바로 일어나지도 않는다. 20강 [[caching과 buffering]] 에서 본 write buffering 때문이다. `write()` 가 끝나도 바뀐 inode, bitmap, 새 데이터는 한동안 메모리(page cache 또는 [[buffer cache]])에 dirty 상태로 머문다. 파일 시스템은 나중에 모아서 디스크로 내보낸다. 내보내는 순서도 디스크 스케줄러가 바꿀 수 있다.[* 18강 [[디스크 스케줄링]] 에서 본 것처럼 디스크와 OS 는 요청 순서를 성능에 맞춰 바꾼다. 22강 p.27 에서 이 사실이 다시 문제가 된다.]
+게다가 세 쓰기는 바로 일어나지도 않는다. 20강 [[caching과 buffering]] 에서 본 write buffering 때문이다. `write()` 가 끝나도 바뀐 inode, bitmap, 새 데이터는 한동안 메모리(page cache 또는 [[buffer cache]])에 dirty 상태로 머문다. 파일 시스템은 나중에 모아서 디스크로 내보낸다. 내보내는 순서도 디스크 스케줄러가 바꿀 수 있다. 교수님 표현으로는 디스크 쓰기 사이에 "순서가 없다".[* 18강 [[디스크 스케줄링]] 에서 본 것처럼 디스크와 OS 는 요청 순서를 성능에 맞춰 바꾼다. 22강 p.27 에서 이 사실이 다시 문제가 된다.]
 
 그래서 세 쓰기 중 한두 개만 디스크에 닿은 순간에 전원이 나갈 수 있다. 그러면 디스크는 옛 상태도 새 상태도 아닌 어중간한 상태로 남는다. 슬라이드는 이걸 "funny (inconsistent) state" 라고 부른다. 경우를 다 나눠 보면 여섯 가지가 나오고, 그건 [[crash 시나리오]] 에서 하나씩 본다.
 
@@ -69,7 +76,7 @@ category: 22강 FSCK and Journaling
 
 여섯 가지 경우를 다 본 뒤 슬라이드가 내리는 결론이 이 장이다. 우리가 원하는 것은 옛 상태(I[v1], B[v1], Da 만)에서 새 상태(I[v2], B[v2], Db)로 '''한 번에''' 건너가는 것이다. 중간 상태가 디스크에 남지 않아야 한다. 9강에서 lock 으로 critical section 을 [[atomic]] 하게 만든 것과 같은 바람이다. 차이는 상대가 다른 스레드가 아니라 '''전원''' 이라는 점이다. lock 으로는 정전을 막을 수 없다.[* 19강 [[rename과 atomic update]] 에서 본 "임시 파일에 쓰고 fsync 한 뒤 rename" 패턴도 같은 문제를 응용 프로그램 쪽에서 푸는 방법이다. 파일 시스템이 rename 하나는 atomic 하게 해 준다는 약속에 기대는 것이다.]
 
-디스크가 한 번에 한 블록만 쓰는 한, 블록 세 개를 진짜로 동시에 바꾸는 방법은 없다. 그래서 두 가지 길이 나온다.
+디스크가 한 번에 한 블록만 쓰는 한, 블록 세 개를 진짜로 동시에 바꾸는 방법은 없다. 교수님은 이유를 디스크 구조에서 찾았다. head 가 하나라 한 번에 블록 하나만 쓸 수 있다.[* 디스크에 battery 가 있으면 전원이 나가도 남은 쓰기를 마칠 전력을 줄 수 있어 기회가 생긴다고 덧붙였다. 하지만 일반적인 디스크에서는 불가능하다는 것이 결론이다(70:47~71:16).] 그래서 두 가지 길이 나온다.
 * 어중간한 상태가 생기는 것은 받아들이고, 다음 부팅 때 찾아서 고친다 → [[fsck]]
 * 어중간한 상태가 생겨도 되돌리거나 마저 끝낼 수 있게 미리 적어 둔다 → [[data journaling]]
 
@@ -80,10 +87,12 @@ category: 22강 FSCK and Journaling
 {mini}
 # p.12 의 "ideally" 문장에서 빈칸을 채우라: 파일 시스템을 한 consistent state 에서 다른 consistent state 로 ___ 하게 옮기고 싶다.
 # 그게 쉽지 않은 이유 두 가지(슬라이드 표현).
+# 수업에서 교수님은 consistency 를 어떤 단어에 더 가깝다고 했나? 파일 시스템에서 무엇과 무엇이 같은 말을 해야 하나?
 {/mini}
 {answer}
 # '''atomically'''.
 # ① 디스크는 한 번에 쓰기 하나만 commit 한다(one write at a time). ② 그 쓰기들 사이에 crash 나 전원 차단이 올 수 있다.
+# '''integrity'''. data bitmap, inode, data block 이 서로 같은 정보를 말해야 한다.
 {/answer}
 
 == 시험 직전 체크 ==

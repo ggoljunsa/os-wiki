@@ -2,18 +2,22 @@ key: large-file exception
 title: large-file exception: 큰 파일은 덩어리로 나눠 흩는다
 category: 21강 Fast File System
 ---
-{warn}21강 '''수업 전'''(2026-11-23) 슬라이드 기준.{/warn}
+{info}21강 슬라이드 기준으로 수업 전(11/23)에 쓰고, 11/25 수업 녹음(33:51~43:38)의 설명을 더했다.{/info}
 
 21강 p.15~17 을 다룬다. [[FFS 배치 정책]] 대로 "파일은 inode 와 같은 그룹에" 를 지키면 큰 파일 하나가 문제가 된다. 이 문서는 그 예외 규칙과, 덩어리 크기를 정하는 계산(40 MB/s × 10 ms = 409.6 KB)을 다룬다. 이번 강의에서 숫자로 손 계산할 거리가 가장 분명한 곳이다.
 
 == 큰 파일 하나가 그룹을 독차지한다 (p.15) ==
 {def}p.15: General policy of file placement: A large file entirely fills the block group where it is first written. It hurts file-access locality from "related" files being placed together; other small files in the same directory should be placed in other groups. For a large file, chunks are spread across the disk. Hurt performance, but can be addressed by choosing large enough chunk size. '''Amortization''': reducing overhead by doing more work.{/def}
 
-[[img:L21-15.png|p.15 — 위: 큰 파일의 블록 0~9 가 그룹 G2 를 꽉 채운다. 아래: 두 블록씩 덩어리(chunk)로 나눠 G2~G6 에 흩는다|large]]
+[[img:L21-15.png|p.15 — 위: 큰 파일의 블록 0~9 가 그룹 G2 를 꽉 채운다. 아래: 두 블록씩 덩어리(chunk)로 나눠 G2(0 1)·G4(2 3)·G6(4 5)·G8(6 7)·G0(8 9) 에 한 그룹씩 건너 흩는다|large]]
 
 규칙을 그대로 따르면 큰 파일은 처음 쓰인 그룹을 통째로 채운다. 위 그림 위쪽이 그 모습이다. 그러면 같은 디렉터리의 다른 작은 파일들이 들어갈 자리가 없어 다른 그룹으로 밀려난다. 정책 2 가 지키려던 locality 가 큰 파일 하나 때문에 깨진다.
 
-그래서 큰 파일에는 예외를 둔다. 일정 크기의 '''chunk''' 로 잘라 여러 그룹에 나눠 둔다(그림 아래쪽). 그러면 그룹마다 다른 파일이 들어갈 자리가 남는다. 대신 큰 파일을 처음부터 끝까지 읽을 때 chunk 사이마다 seek 가 생긴다. 이 손해를 줄이는 방법이 '''amortization''' 이다. chunk 를 충분히 크게 잡으면 seek 한 번 하고 오래 읽으니 seek 비용이 상대적으로 작아진다.
+그래서 큰 파일에는 예외를 둔다. 일정 크기의 '''chunk''' 로 잘라 여러 그룹에 나눠 둔다(그림 아래쪽). 그림에서 chunk 는 G2 에서 시작해 G4, G6, G8 로 한 그룹씩 건너뛰고, 마지막 chunk(8 9)는 G0 으로 돌아간다. 그러면 그룹마다 다른 파일이 들어갈 자리가 남는다. 대신 큰 파일을 처음부터 끝까지 읽을 때 chunk 사이마다 seek 가 생긴다. 이 손해를 줄이는 방법이 '''amortization''' 이다. chunk 를 충분히 크게 잡으면 seek 한 번 하고 오래 읽으니 seek 비용이 상대적으로 작아진다.
+
+그런데 큰 파일만 이렇게 나눠도 괜찮은 이유가 있다. 교수님은 작은 파일과 큰 파일의 병목이 다르다고 설명했다.
+* 작은 파일은 디렉터리 inode → 디렉터리 data → 파일 inode → 파일 data 를 차례로 읽는 '''metadata 접근'''이 시간을 잡아먹는다. 그래서 디렉터리와 파일을 한 그룹에 모아야 한다.
+* 큰 파일은 그 앞부분 비용이 전체에서 작고, 디스크의 '''throughput''' 이 병목이다. chunk 사이 seek 를 amortize 할 만큼 chunk 가 크면 성능을 거의 잃지 않는다.[* 35:27~36:23. 교수님은 이 절을 시작하며 "앞서 한 학생이 큰 파일은 여러 그룹에 어떻게 두냐고 물었다" 고 했다. 그 질문이 여기서 답해진 셈이다.]
 
 아래 그림이 p.15 의 두 그림을 이어서 움직인다. 위에서는 같은 디렉터리의 작은 파일 s 가 G3 로 밀려나고, 아래에서는 큰 파일을 chunk 로 흩은 덕에 s 가 G2 에 들어간다.
 
@@ -32,7 +36,9 @@ category: 21강 Fast File System
 
 슬라이드는 단위를 지워 가며 같은 식을 쓴다. 40 MB/sec × 1024 KB/1 MB × 1 sec/1000 ms × 10 ms = 409.6 KB.
 
-목표를 '''90%''' 로 올리면 전송 시간이 seek 의 9 배여야 한다. 90 ms × 40 MB/s = 3686.4 KB ≈ '''3.6 MB''' 다. 그래프의 "90%, 3.69M" 이고 슬라이드의 "about 4 MB" 다.[* 일반식은 원하는 비율 p 에 대해 전송 시간 = 10 ms × p / (1 − p) 다. p = 0.5 면 10 ms, 0.9 면 90 ms, 0.99 면 990 ms(약 39.6 MB)다. 그래프 오른쪽 끝이 솟구치는 이유다.]
+교수님은 이 그래프를 trade-off 로 읽었다. chunk 가 작으면 chunk 수가 늘고 그만큼 다른 그룹으로 가는 seek 가 늘어 bandwidth 를 못 쓴다. chunk 가 크면 한 그룹에 다른 파일을 넣을 자리가 줄어 name-based locality 를 못 쓴다. 그 사이의 균형점을 찾는 것이다. 감을 잡으라고 거꾸로도 셈했다. chunk 가 4 MB 면 40 MB/s 로 전송에 0.1 초가 든다. positioning 10 ms 와 비교하면 시간의 대부분이 전송이다.
+
+목표를 '''90%''' 로 올리면 전송 시간이 seek 의 9 배여야 한다. 90 ms × 40 MB/s = 3686.4 KB ≈ '''3.6 MB''' 다. 그래프의 "90%, 3.69M" 이고 슬라이드의 "about 4 MB" 다. 교수님은 "usually we want to achieve at least 90%" 라며 이 설정에서는 4 MB 를 고른다고 했다.[* 일반식은 원하는 비율 p 에 대해 전송 시간 = 10 ms × p / (1 − p) 다. p = 0.5 면 10 ms, 0.9 면 90 ms, 0.99 면 990 ms(약 39.6 MB)다. 그래프 오른쪽 끝이 솟구치는 이유다.]
 
 == FFS 의 실제 방법: inode 구조를 따라 (p.17) ==
 {def}p.17: A simple approach based on the structure of inode. The first twelve direct blocks were placed in the same group as the inode. Each subsequent indirect block, and all the blocks it pointed to, was placed in a different block group. Every 1024 blocks (4 MB) of the file in a separate group.{/def}
@@ -43,7 +49,9 @@ FFS 는 chunk 를 따로 계산하지 않고 20강 [[multi-level index]] 구조�
 * direct block 12 개(48 KB)는 inode 와 같은 그룹. 작은 파일은 여기서 끝난다.
 * indirect block 하나와 그것이 가리키는 1024 블록(4 MB)은 다른 그룹 하나에.
 * 다음 1024 블록은 또 다른 그룹에.
-그러니 chunk 크기는 '''4 MB''' 이고, 위 계산대로라면 peak 의 90% 남짓을 낸다.[* OSTEP 은 여기에 단서를 붙인다. 디스크 대역폭은 해마다 빨리 늘지만 seek 시간은 거의 줄지 않으니, 같은 비율을 유지하려면 chunk 가 점점 커져야 한다.]
+그러니 chunk 크기는 '''4 MB''' 이고, 위 계산대로라면 peak 의 90% 남짓을 낸다. 교수님은 이 4 MB 가 p.16 에서 계산한 숫자와 같다는 점을 "good reason" 으로 들었다.
+
+교수님은 여기서 16강 page table 과 비교했다. page table 한 page 도 4 KB 지만 PTE 가 8 B(64 비트)라 엔트리가 512 개다. 그래서 page table page 하나가 덮는 범위는 512 × 4 KB = 2 MB 다([[huge page]] 크기와 같다). 파일 시스템의 블록 포인터는 4 B 라 1024 개가 들어가고, 덮는 범위는 4 MB 다.[* 녹음에서는 포인터 수를 "1000" 이라고 말했다. 정확히는 4 KB / 4 B = 1024 다.][* OSTEP 은 여기에 단서를 붙인다. 디스크 대역폭은 해마다 빨리 늘지만 seek 시간은 거의 줄지 않으니, 같은 비율을 유지하려면 chunk 가 점점 커져야 한다.]
 
 {analogy}
 마트에서 장을 볼 때 매장마다 주차(seek)하고 물건 하나씩 사면 주차에 시간을 다 쓴다. 한 매장에서 많이 사면(큰 chunk) 주차 시간이 차지하는 비율이 줄어든다(amortization).
@@ -54,12 +62,14 @@ FFS 는 chunk 를 따로 계산하지 않고 20강 [[multi-level index]] 구조�
 # 대역폭 40 MB/s, positioning 10 ms 에서 75% 를 내려면 전송 시간과 chunk 는?
 # FFS 의 p.17 방식에서 1 MB 파일의 블록은 그룹 몇 개에 걸쳐 놓이나?
 # amortization 을 한 문장으로.
+# chunk 4 MB, 대역폭 40 MB/s, positioning 10 ms 면 전송 시간과 대역폭 비율은?
 {/mini}
 {answer}
 # 100 × 1024 KB/s × 0.010 s = '''1024 KB''' (1 MB).
 # 전송 = 10 × 0.75 / 0.25 = '''30 ms''', chunk = 40 × 1024 × 0.030 = '''1228.8 KB'''.
 # 1 MB = 256 블록. direct 12 블록은 inode 그룹, 나머지 244 블록은 indirect 하나가 가리키므로 다른 그룹 하나 → '''2 개'''.
 # 고정 비용(seek)이 드는 일을 할 때 한 번에 일을 많이 해서 그 비용의 비율을 줄이는 것("reducing overhead by doing more work").
+# 전송 4 / 40 = '''0.1 s = 100 ms''' (교수님이 수업에서 든 숫자). 비율 100 / (10 + 100) ≈ '''90.9%'''.
 {/answer}
 
 == 시험 직전 체크 ==
@@ -68,6 +78,8 @@ FFS 는 chunk 를 따로 계산하지 않고 20강 [[multi-level index]] 구조�
 # 50% 목표: chunk = 대역폭 × positioning = 40 MB/s × 10 ms = 409.6 KB.
 # 90%: 전송 90 ms → 약 3.6 MB(≈ 4 MB).
 # FFS: direct 12 개는 inode 그룹, indirect 마다(1024 블록 = 4 MB) 다른 그룹.
+# 큰 파일만 흩어도 되는 이유: 작은 파일은 metadata 접근, 큰 파일은 throughput 이 병목.
+# 비교: page table page 는 PTE 8 B × 512 = 2 MB, FS 포인터 블록은 4 B × 1024 = 4 MB.
 
 == 관련 문서 ==
 * [[Fast File System]] · [[FFS 배치 정책]] · [[cylinder group]]

@@ -10541,8 +10541,9 @@
        "type": "cloze",
        "q": "옛 FS 는 디스크를 ___ memory 처럼 다뤄서, 파일의 data block 이 inode 에서 멀리 떨어져 비싼 ___ 가 생겼다.",
        "explain": "p.3 Problem 1: high positioning costs.",
-       "src": "21강 p.3",
+       "src": "21강 p.3 · 🎙 11/25 수업",
        "wiki": "cylinder group",
+       "prof": true,
        "tags": [
         "FFS"
        ],
@@ -10564,8 +10565,9 @@
        "type": "tf",
        "q": "옛 FS 에서 파일이 지워지고 새 파일이 빈 block 들에 흩어져 놓이면 그 파일을 읽을 때 디스크를 오가야 한다.",
        "explain": "p.4 Problem 2: fragmentation. B, D 를 지운 자리에 E1~E4 가 흩어진다.",
-       "src": "21강 p.4",
+       "src": "21강 p.4 · 🎙 11/25 수업",
        "wiki": "cylinder group",
+       "prof": true,
        "img": "duo/img/os21-p04-frag.png",
        "imgAlt": "p.4 B·D 를 지운 자리에 E1~E4 가 흩어진 블록 배치",
        "answer": true,
@@ -10589,8 +10591,9 @@
        "type": "tf",
        "q": "FFS 는 open/read/write 같은 API 를 바꾸고 내부 구현은 그대로 두었다.",
        "explain": "p.5: API 는 그대로 두고 내부 구현을 바꿨다.",
-       "src": "21강 p.5",
+       "src": "21강 p.5 · 🎙 11/25 수업",
        "wiki": "cylinder group",
+       "prof": true,
        "diff": 1,
        "answer": false,
        "introCard": 1
@@ -10600,8 +10603,9 @@
        "type": "sa",
        "q": "FFS 가 디스크를 나누는 단위, 연속된 N 개 cylinder 의 묶음은? (현대 FS 는 block group 이라 부름)",
        "explain": "p.6.",
-       "src": "21강 p.6",
+       "src": "21강 p.6 · 🎙 11/25 수업",
        "wiki": "cylinder group",
+       "prof": true,
        "tags": [
         "FFS"
        ],
@@ -10701,6 +10705,62 @@
        "unit": "KB",
        "tol": 0,
        "introCard": 1
+      },
+      {
+       "id": "u21a-12",
+       "type": "tf",
+       "q": "FFS 의 cylinder group 마다 들어 있는 inode bitmap·data bitmap·inode table 은 디스크 전체 것의 사본(copy)이다.",
+       "explain": "수업 중 학생 질문(\"그룹마다 사본은 너무 많지 않나?\")에 대한 교수님 답: bitmap·inode 는 사본이 아니라 잘라서(slice) 그룹마다 나눈 것이라 내용이 겹치지 않는다. 그룹의 superblock 은 자기 그룹 정보를 담고, 전체를 기술하는 master superblock 이 따로 있다. (슬라이드 p.8 은 superblock 사본을 reliability 때문이라고 쓴다.)",
+       "src": "21강 p.8 · 🎙 11/25 녹음 16:51",
+       "wiki": "cylinder group",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "FFS"
+       ],
+       "answer": false,
+       "introCard": 1
+      },
+      {
+       "id": "u21a-13",
+       "type": "mc",
+       "q": "요즘 파일 시스템(ext2/3/4)이 cylinder group 대신 block group 이라는 이름을 쓰는 이유로 맞는 것은?",
+       "explain": "교수님(09:46~10:41): cylinder 는 디스크 개념이라 SSD 에는 없지만 관련 데이터를 가까이 두는 동기는 SSD 에도 적용된다. 또 파일 시스템은 linear block abstraction 만 봐서 cylinder 를 모른다.",
+       "src": "21강 p.6 · 🎙 11/25 녹음 09:46",
+       "wiki": "cylinder group",
+       "prof": true,
+       "tags": [
+        "FFS"
+       ],
+       "choices": [
+        "파일 시스템은 linear block 번호만 보고 cylinder 를 모르며, 같은 동기가 cylinder 가 없는 SSD 에도 통하기 때문",
+        "요즘 디스크에는 track 이 없기 때문",
+        "block group 은 cylinder group 보다 항상 작기 때문",
+        "block group 에는 superblock 이 없기 때문"
+       ],
+       "answer": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u21a-14",
+       "type": "mc",
+       "q": "같은 cylinder 안에 있는 두 블록을 이어서 읽을 때 없어지는 비용과 남는 비용은?",
+       "explain": "교수님(08:58~09:18): 같은 cylinder 면 head 를 옮기지 않아 seek time 은 없어지지만, 원판이 원하는 sector 까지 돌아오는 rotation 은 그대로다. 그룹으로 묶으면 seek 가 있어도 짧다.",
+       "src": "21강 p.6 · 🎙 11/25 녹음 08:58",
+       "wiki": "cylinder group",
+       "prof": true,
+       "diff": 1,
+       "tags": [
+        "FFS"
+       ],
+       "choices": [
+        "seek 는 없어지고 rotation 은 남는다",
+        "rotation 은 없어지고 seek 는 남는다",
+        "둘 다 없어진다",
+        "둘 다 남는다"
+       ],
+       "answer": 0,
+       "introCard": 1
       }
      ],
      "intro": [
@@ -10736,8 +10796,9 @@
        "type": "cloze",
        "q": "FFS 의 기본 정책은 \"keep ___ stuff together\" 다.",
        "explain": "p.9.",
-       "src": "21강 p.9",
+       "src": "21강 p.9 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "tags": [
         "FFS 정책"
        ],
@@ -10757,8 +10818,9 @@
        "type": "mc",
        "q": "FFS 가 새 디렉터리를 둘 cylinder group 을 고르는 기준은?",
        "explain": "p.9 Policy 1. 디렉터리 data 와 inode 를 그 group 에 둔다.",
-       "src": "21강 p.9",
+       "src": "21강 p.9 · 🎙 11/25 수업",
        "wiki": "cylinder group",
+       "prof": true,
        "tags": [
         "FFS 정책"
        ],
@@ -10776,8 +10838,9 @@
        "type": "match",
        "q": "FFS 배치 정책을 연결하시오",
        "explain": "p.9, p.15.",
-       "src": "21강 p.9, p.15",
+       "src": "21강 p.9, p.15 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "tags": [
         "FFS 정책"
        ],
@@ -10825,8 +10888,9 @@
        "type": "tf",
        "q": "inode 를 group 들에 고르게 흩뿌리는 방식은 같은 디렉터리 파일들의 name-based locality 를 지키지 못한다.",
        "explain": "p.12 대조 예: /a/c, /a/d, /a/e 접근이 group 1개가 아니라 3개에 걸친다.",
-       "src": "21강 p.12",
+       "src": "21강 p.12 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "diff": 2,
        "img": "duo/img/os21-p12-spread.png",
        "imgAlt": "p.12 inode 를 group 마다 흩뿌린 대조 예의 group/inodes/data 표",
@@ -10865,8 +10929,9 @@
        "type": "num",
        "q": "SEER trace 에서 같은 파일에 대한 접근은 몇 % 였나?",
        "explain": "p.14 Observation 1.",
-       "src": "21강 p.14",
+       "src": "21강 p.14 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "img": "duo/img/os21-p14-seer.png",
        "imgAlt": "p.14 SEER trace 누적 분포 그래프 — Observation 의 비율이 가려져 있다",
        "explainImg": "duo/img/os21-p14-seer-ans.png",
@@ -10880,8 +10945,9 @@
        "type": "num",
        "q": "SEER trace 에서 같은 파일이거나 같은 디렉터리 파일에 대한 접근은 약 몇 % 였나?",
        "explain": "p.14 Observation 2. distance 2 미만은 약 65% (Observation 3).",
-       "src": "21강 p.14",
+       "src": "21강 p.14 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "diff": 2,
        "img": "duo/img/os21-p14-seer.png",
        "imgAlt": "p.14 SEER trace 누적 분포 그래프 — Observation 의 비율이 가려져 있다",
@@ -10923,8 +10989,9 @@
        "type": "mc",
        "q": "[규칙 적용] : group 당 inode 10·data 10, 디렉터리 data 1 block, 파일 2 block. /, /a, /b 와 /a/c, /a/d, /a/e, /b/f 를 FFS 정책대로 놓았다(group 0 은 /). 가려진 group 1·2 줄(inodes / data)은?",
        "explain": "Policy 1: 디렉터리 /a, /b 는 디렉터리가 적은 서로 다른 group(1, 2)에. Policy 2: 파일은 자기 디렉터리 group 에, data 는 자기 inode 와 같은 group 에 → group 1 inode a c d e, data a(1) cc dd ee(2씩), group 2 inode b f, data b ff. 같은 디렉터리 파일이 한 group 에 모인다.",
-       "src": "21강 p.9~11 규칙 적용",
+       "src": "21강 p.9~11 규칙 적용 · 🎙 11/25 수업",
        "wiki": "FFS 배치 정책",
+       "prof": true,
        "diff": 3,
        "tags": [
         "FFS 정책"
@@ -10957,6 +11024,39 @@
        "unit": "개",
        "tol": 0,
        "introCard": 0
+      },
+      {
+       "id": "u21b-13",
+       "type": "mc",
+       "q": "같은 디렉터리의 파일들을 cylinder group 마다 하나씩 흩어 그룹 사이 load balancing 을 하면 성능은 어떻게 되나?",
+       "explain": "교수님 질문(26:49)과 답: 활성 그룹이 디스크 여기저기라(예: 그룹 0 → 6) seek 가 길어진다. \"In terms of performance, we should not have load balanced groups.\" 얻는 것은 utilization 정도이고 name-based locality 도 깨진다.",
+       "src": "21강 p.12 · 🎙 11/25 녹음 26:49",
+       "wiki": "FFS 배치 정책",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "FFS 정책"
+       ],
+       "choices": [
+        "그룹 사이를 멀리 오가 평균 seek time 이 늘어난다",
+        "평균 seek time 이 줄어든다",
+        "seek 는 그대로이고 rotation 이 준다",
+        "inode 가 부족해진다"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u21b-14",
+       "type": "tf",
+       "q": "SEER trace 에서 파일을 무작위 순서로 연 비교 trace(Random)에도 어느 정도 locality 가 보였다. 디렉터리 구조 자체가 locality 를 만든다는 뜻이다.",
+       "explain": "교수님(32:03~32:43): random trace 도 실제 디렉터리 구조 위에서 만든 것이라 locality 가 조금 나온다. 사람의 실제 사용(Trace)은 그보다 큰 locality 를 보인다.",
+       "src": "21강 p.14 · 🎙 11/25 녹음 32:03",
+       "wiki": "FFS 배치 정책",
+       "prof": true,
+       "diff": 2,
+       "answer": true,
+       "introCard": 1
       }
      ],
      "intro": [
@@ -10992,8 +11092,9 @@
        "type": "mc",
        "q": "큰 파일을 한 group 에 다 넣으면 생기는 문제는?",
        "explain": "p.15. 그래서 큰 파일은 chunk 로 나눠 여러 group 에 흩는다.",
-       "src": "21강 p.15",
+       "src": "21강 p.15 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "tags": [
         "large file"
        ],
@@ -11026,8 +11127,9 @@
        "type": "num",
        "q": "disk bandwidth 40MB/s, positioning 10ms 에서 peak 의 50% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나?",
        "explain": "절반은 seek, 절반은 전송 → 전송 시간 10ms 동안 40 × 1024 KB/s × 0.01 s = 409.6KB (p.16).",
-       "src": "21강 p.16",
+       "src": "21강 p.16 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "diff": 2,
        "tags": [
         "large file"
@@ -11061,8 +11163,9 @@
        "type": "tf",
        "q": "disk bandwidth 40MB/s, positioning 10ms 일 때 peak 의 90% 를 내려면 chunk 가 약 4MB 필요하다.",
        "explain": "p.16 \"90% of peak performance on about 4 MB chunk size\".",
-       "src": "21강 p.16",
+       "src": "21강 p.16 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "answer": true,
        "introCard": 0
       },
@@ -11071,8 +11174,9 @@
        "type": "num",
        "q": "inode 기반 단순 방식에서 indirect block 하나(4KB, pointer 4B)가 가리키는 data 는 몇 MB 이고, 그만큼씩 다른 group 에 놓이나?",
        "explain": "1024 pointer × 4KB = 4MB (p.17). direct 12 block 은 inode 와 같은 group.",
-       "src": "21강 p.17",
+       "src": "21강 p.17 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "diff": 2,
        "tags": [
         "large file"
@@ -11137,8 +11241,9 @@
        "type": "tf",
        "q": "extent 는 심하게 조각났거나 sparse 한 파일에서도 indirect block 보다 항상 효율적이다.",
        "explain": "p.20: 연속 block 이 없으면 block 마다 extent 하나가 필요해 사실상 더 비싼 indirect block 이 된다.",
-       "src": "21강 p.20",
+       "src": "21강 p.20 · 🎙 11/25 수업",
        "wiki": "extent",
+       "prof": true,
        "diff": 2,
        "tags": [
         "ext4"
@@ -11151,8 +11256,9 @@
        "type": "num",
        "q": "extent 하나는 최대 $2^{15}$ 개의 연속 block 을 나타낸다. block 4KB 면 최대 몇 MB 인가?",
        "explain": "32768 × 4KB = 128MB (p.21).",
-       "src": "21강 p.21",
+       "src": "21강 p.21 · 🎙 11/25 수업",
        "wiki": "extent",
+       "prof": true,
        "tags": [
         "ext4"
        ],
@@ -11166,8 +11272,9 @@
        "type": "mc",
        "q": "delayed block allocation 의 장점이 아닌 것은?",
        "explain": "p.23: 성능과 신뢰성 사이 trade-off 가 있다(flush 전에 죽으면 잃는다). throughput 30% 향상, CPU 50% 감소.",
-       "src": "21강 p.23",
+       "src": "21강 p.23 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "diff": 2,
        "tags": [
         "ext4"
@@ -11186,8 +11293,9 @@
        "type": "cloze",
        "q": "preallocation 은 ___ 시스템 콜로 쓰며, extent tree 는 ___ 이 적을 때 효율적이라 연속 할당이 중요하다.",
        "explain": "p.22. DB 와 streaming media server 가 쓴다.",
-       "src": "21강 p.22",
+       "src": "21강 p.22 · 🎙 11/25 수업",
        "wiki": "extent",
+       "prof": true,
        "tags": [
         "ext4"
        ],
@@ -11225,8 +11333,9 @@
        "type": "num",
        "q": "[규칙 적용] disk bandwidth 40MB/s, positioning 10ms. peak 의 90% 를 내려면 seek 한 번마다 몇 KB 를 전송해야 하나? (1MB = 1024KB)",
        "explain": "90% 면 전송 시간 : seek 시간 = 9 : 1 → 전송 90ms. 40 × 1024 × 0.09 = 3686.4 KB ≈ 3.6MB. p.16 그래프의 \"90%, 3.69M\" 과 같은 값(슬라이드는 약 4MB 라고 적었다).",
-       "src": "21강 p.16 규칙 적용",
+       "src": "21강 p.16 규칙 적용 · 🎙 11/25 수업",
        "wiki": "large-file exception",
+       "prof": true,
        "diff": 3,
        "tags": [
         "large file"
@@ -11267,6 +11376,136 @@
         "delayed allocation"
        ],
        "introCard": 1
+      },
+      {
+       "id": "u21c-17",
+       "type": "mc",
+       "q": "큰 파일만 chunk 로 나눠 여러 cylinder group 에 흩어도 성능 손해가 작은 이유는?",
+       "explain": "교수님(35:27~36:23): 작은 파일의 overhead 는 디렉터리 inode → 디렉터리 data → 파일 inode → data 로 이어지는 metadata 접근에서 온다. 큰 파일은 전송량이 커서 throughput 이 병목이고, seek 비용은 큰 chunk 로 상쇄된다.",
+       "src": "21강 p.15 · 🎙 11/25 녹음 35:27",
+       "wiki": "large-file exception",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "large file"
+       ],
+       "choices": [
+        "큰 파일은 디스크 throughput 이 병목이라, chunk 가 크면 seek 비용이 amortize 되기 때문",
+        "큰 파일은 inode 가 없기 때문",
+        "큰 파일은 항상 캐시에 있기 때문",
+        "큰 파일은 디렉터리 밖에 있기 때문"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u21c-18",
+       "type": "num",
+       "q": "chunk 4MB 를 대역폭 40MB/s 인 디스크에서 전송하는 데 걸리는 시간은 몇 ms 인가?",
+       "explain": "4MB / 40MB/s = 0.1 s = 100 ms (교수님이 수업에서 든 숫자). positioning 10 ms 와 합치면 100 / 110 ≈ 90.9% 의 시간이 전송 → 대역폭의 약 90%.",
+       "src": "21강 p.16 · 🎙 11/25 녹음 38:27",
+       "wiki": "large-file exception",
+       "prof": true,
+       "diff": 1,
+       "tags": [
+        "large file"
+       ],
+       "answer": 100,
+       "unit": "ms",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u21c-19",
+       "type": "tf",
+       "q": "4KB indirect block 은 4B 포인터 1024 개로 4MB 를 가리키고, 4KB page table page 는 8B PTE 512 개로 2MB 를 가리킨다.",
+       "explain": "교수님(41:41~42:17)의 비교. 4096 / 4 = 1024 → 1024 × 4KB = 4MB. 4096 / 8 = 512 → 512 × 4KB = 2MB. FFS 가 indirect block 하나마다 그룹을 바꾸는 단위 4MB 는 p.16 의 90% 계산과 맞는다.",
+       "src": "21강 p.17 · 🎙 11/25 녹음 41:41",
+       "wiki": "large-file exception",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "large file"
+       ],
+       "answer": true,
+       "introCard": 0
+      },
+      {
+       "id": "u21c-20",
+       "type": "num",
+       "q": "[손으로] block pointer 방식(블록 4KB = 4096B)에서 파일의 바이트 offset 10,000 은 0 번부터 셀 때 몇 번 블록에 있나?",
+       "explain": "10000 / 4096 = 2.44 → 블록 2 (세 번째 블록; 교수님은 \"block 3\" 이라고 셈). 블록 크기가 고정이라 나눗셈 한 번이면 된다. extent 는 길이가 제각각이라 이렇게 못 하고 extent tree 를 검색해야 한다.",
+       "src": "21강 p.21 · 🎙 11/25 녹음 51:38",
+       "wiki": "extent",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "ext4"
+       ],
+       "answer": 2,
+       "unit": "번",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u21c-21",
+       "type": "mc",
+       "q": "ext4 가 extent 들을 red-black tree 가 아니라 B-tree 로 관리하는 이유는?",
+       "explain": "교수님(52:54~53:53): 2-3-4 tree 는 red-black tree 와 같고 B-tree 는 그 일반형이다. B-tree 는 부모 하나에 자식이 많아 depth 가 낮다. 디스크에서는 부모 → 자식을 따라갈 때마다 블록을 읽으니 depth 가 낮을수록 좋다.",
+       "src": "21강 p.21 · 🎙 11/25 녹음 52:54",
+       "wiki": "extent",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "ext4"
+       ],
+       "choices": [
+        "노드마다 자식이 많아 깊이가 얕고, 디스크에서는 노드 하나를 읽는 것이 비싸서",
+        "B-tree 는 정렬이 필요 없어서",
+        "red-black tree 는 검색을 못 해서",
+        "B-tree 는 메모리를 쓰지 않아서"
+       ],
+       "answer": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u21c-22",
+       "type": "mc",
+       "q": "seek 가 없는 SSD 에서도 \"관련된 블록을 가까이 둔다\" 는 FFS 아이디어를 쓸 수 있는 근거로 맞는 것은?",
+       "explain": "교수님(42:48~43:32): 대역폭이 훨씬 커서 4MB 같은 숫자 설계는 그대로 못 쓰지만, 물리적 배치에 locality 가 있는 저장 장치라면 아이디어는 적용된다. 슬라이드 p.18 의 실마리는 readahead cache 와 sequential write 기회.",
+       "src": "21강 p.18 · 🎙 11/25 녹음 42:48",
+       "wiki": "Fast File System",
+       "prof": true,
+       "diff": 2,
+       "choices": [
+        "SSD 도 물리적 블록 배치에 locality 가 있다",
+        "SSD 에도 cylinder 가 있다",
+        "SSD 의 대역폭이 40MB/s 로 HDD 와 같다",
+        "SSD 에는 FTL 이 없다"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u21c-23",
+       "type": "mc",
+       "q": "ext4 의 delayed block allocation 이 write buffering(디스크 쓰기를 미뤄 모으는 것)과 다른 점은?",
+       "explain": "교수님(55:37~): \"this delayed block allocation is about allocation, not the write\". 기다리는 동안 파일이 커지면 큰 chunk 를 한 번에 잡을 수 있다. 미리 잡아 두는 것은 preallocation(fallocate). 대가: flush 전에 crash 가 나면 할당도 안 됐으니 파일 데이터를 다 잃는다.",
+       "src": "21강 p.23 · 🎙 11/25 녹음 55:37",
+       "wiki": "preallocation과 delayed allocation",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "ext4"
+       ],
+       "choices": [
+        "쓰기뿐 아니라 블록을 고르는 일(할당) 자체를 page flush 때까지 미룬다",
+        "데이터를 디스크에 즉시 쓴다",
+        "fsync 를 자동으로 부른다",
+        "블록을 미리 크게 잡아 둔다"
+       ],
+       "answer": 0,
+       "introCard": 1
       }
      ],
      "intro": [
@@ -11305,8 +11544,9 @@
        "type": "mc",
        "q": "파일 시스템 자료구조가 메모리 자료구조와 달리 crash 를 신경 써야 하는 이유는?",
        "explain": "영속 자료구조는 재부팅 뒤에도 그대로 읽힌다. 갱신 도중 전원이 나가면 반쯤 고친 상태가 영원히 남는다. 디스크는 오히려 한 번에 한 블록만 쓴다.",
-       "src": "22강 p.3",
+       "src": "22강 p.3 · 🎙 11/25 수업",
        "wiki": "FSCK와 Journaling",
+       "prof": true,
        "diff": 1,
        "tags": [
         "crash consistency"
@@ -11395,8 +11635,9 @@
        "type": "tf",
        "q": "write() 가 돌아오면 바뀐 inode, bitmap, data block 세 블록이 이미 디스크에 쓰여 있다.",
        "explain": "성능 때문에 dirty 블록은 page cache / buffer cache 에 머물다 나중에 쓰인다. 그래서 한두 개만 쓰인 상태에서 crash 가 날 수 있다.",
-       "src": "22강 p.7",
+       "src": "22강 p.7 · 🎙 11/25 수업",
        "wiki": "crash consistency",
+       "prof": true,
        "diff": 1,
        "answer": false,
        "introCard": 1
@@ -11406,8 +11647,9 @@
        "type": "mc",
        "q": "append 의 세 쓰기(I[v2], B[v2], Db) 중 Db 만 디스크에 닿고 crash 가 났다. 결과는?",
        "explain": "Case 1a. Db 를 가리키는 inode 도, 할당 표시도 없으니 블록 5 는 그냥 빈 블록이다. 사용자 데이터는 사라졌지만 구조는 멀쩡하다.",
-       "src": "22강 p.8",
+       "src": "22강 p.8 · 🎙 11/25 수업",
        "wiki": "crash 시나리오",
+       "prof": true,
        "tags": [
         "crash 시나리오"
        ],
@@ -11425,8 +11667,9 @@
        "type": "mc",
        "q": "세 쓰기 중 I[v2] 만 디스크에 닿고 crash 가 났다. 결과는?",
        "explain": "Case 1b. inode ↔ bitmap 불일치 + 블록 5 의 옛 내용(garbage)을 읽는다. \"metadata 는 맞다\" 는 I + B 가 같이 쓰인 2a 다.",
-       "src": "22강 p.8",
+       "src": "22강 p.8 · 🎙 11/25 수업",
        "wiki": "crash 시나리오",
+       "prof": true,
        "tags": [
         "crash 시나리오"
        ],
@@ -11444,8 +11687,9 @@
        "type": "sa",
        "q": "data bitmap 만 새 판이 쓰여서, 아무 inode 도 가리키지 않는 블록이 할당된 것으로 남아 다시는 안 쓰이게 된 현상은? (2 words)",
        "explain": "Case 1c. bitmap 은 5 를 썼다고 하는데 가리키는 inode 가 없다.",
-       "src": "22강 p.9",
+       "src": "22강 p.9 · 🎙 11/25 수업",
        "wiki": "crash 시나리오",
+       "prof": true,
        "tags": [
         "crash 시나리오"
        ],
@@ -11461,8 +11705,9 @@
        "type": "tf",
        "q": "I[v2] 와 B[v2] 는 디스크에 쓰였고 Db 만 못 쓰인 채 crash 가 나면, 파일 시스템 metadata 는 서로 완전히 일치한다.",
        "explain": "Case 2a. inode 와 bitmap 이 둘 다 5 를 쓴다고 하니 metadata 는 consistent. 대신 블록 5 가 garbage 다.",
-       "src": "22강 p.10",
+       "src": "22강 p.10 · 🎙 11/25 수업",
        "wiki": "crash 시나리오",
+       "prof": true,
        "tags": [
         "crash 시나리오"
        ],
@@ -11542,8 +11787,9 @@
        "type": "cloze",
        "q": "원하는 것은 파일 시스템을 한 consistent state 에서 다른 consistent state 로 ___ 옮기는 것이지만, 디스크는 한 번에 쓰기 ___ 만 commit 한다.",
        "explain": "Summary: crash 나 전원 차단이 쓰기들 사이에 올 수 있어서 쉽지 않다.",
-       "src": "22강 p.12",
+       "src": "22강 p.12 · 🎙 11/25 수업",
        "wiki": "crash consistency",
+       "prof": true,
        "tags": [
         "crash consistency"
        ],
@@ -11558,6 +11804,84 @@
         "여러 개",
         "lazily"
        ],
+       "introCard": 0
+      },
+      {
+       "id": "u22a-14",
+       "type": "mc",
+       "q": "파일 시스템의 consistency 가 뜻하는 것으로 가장 알맞은 것은?",
+       "explain": "교수님(59:26~60:31): \"rather than consistency, it is much closer to the integrity\". bitmap 은 블록이 비었다는데 inode 는 쓰고 있다고 하면 inconsistent 다.",
+       "src": "22강 p.3 · 🎙 11/25 녹음 59:26",
+       "wiki": "crash consistency",
+       "prof": true,
+       "diff": 1,
+       "tags": [
+        "crash consistency"
+       ],
+       "choices": [
+        "data bitmap, inode, data block 처럼 서로 관련된 구조가 같은 사실을 말하는 것(integrity 에 가깝다)",
+        "모든 파일 내용이 최신인 것",
+        "디스크 쓰기가 순서대로 일어나는 것",
+        "파일 시스템이 디스크 하나에만 있는 것"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22a-15",
+       "type": "tf",
+       "q": "프로세스의 메모리 자료구조도 파일 시스템처럼 crash consistency 를 보장해야 한다.",
+       "explain": "교수님(61:06~61:28): 프로세스 구조는 전원이 나가면 사라져도 되니(다시 실행하면 된다) crash consistency 가 필요 없다. 파일 시스템은 전원이 나간 뒤에도 남아야 하므로 필요하다.",
+       "src": "22강 p.3 · 🎙 11/25 녹음 61:06",
+       "wiki": "crash consistency",
+       "prof": true,
+       "diff": 1,
+       "tags": [
+        "crash consistency"
+       ],
+       "answer": false,
+       "introCard": 0
+      },
+      {
+       "id": "u22a-16",
+       "type": "mc",
+       "q": "I[v2] 와 B[v2] 는 쓰이고 Db 만 못 쓰인 채 crash 가 난 경우를, I[v2] 만 쓰인 경우보다 덜 심각하게 보는 이유는?",
+       "explain": "Case 2a. 교수님(69:05~69:24): \"the problem is isolated into a single file … usually okay\". I[v2] 만 쓰인 1b 는 bitmap 이 블록 5 를 free 라고 해서 다른 파일까지 같은 블록을 받아 갈 수 있다(\"quite important\"). fsck 는 2a 의 garbage 를 못 찾는다.",
+       "src": "22강 p.8~10 · 🎙 11/25 녹음 69:05",
+       "wiki": "crash 시나리오",
+       "prof": true,
+       "diff": 2,
+       "tags": [
+        "crash 시나리오"
+       ],
+       "choices": [
+        "metadata 는 맞고 망가진 것은 그 파일 하나의 내용뿐이라 문제가 한 파일에 갇히기 때문",
+        "fsck 가 garbage 를 찾아 고쳐 주기 때문",
+        "블록 5 가 free 로 표시되기 때문",
+        "다른 파일이 블록 5 를 가져가기 때문"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22a-17",
+       "type": "mc",
+       "q": "디스크가 inode 블록과 bitmap 블록을 한 번에(atomic 하게) 쓸 수 없는 이유로 맞는 것은?",
+       "explain": "교수님(70:41~71:09): 여러 블록의 atomic write 는 디스크에서 불가능하다. head 가 하나라 한 번에 한 블록. 디스크에 battery 가 있으면 남은 쓰기를 flush 할 전력이 있어 기회가 있지만 일반적으로는 안 된다. 그래서 fsck 와 journaling 이 나온다.",
+       "src": "22강 p.12 · 🎙 11/25 녹음 70:41",
+       "wiki": "crash consistency",
+       "prof": true,
+       "diff": 1,
+       "tags": [
+        "crash consistency"
+       ],
+       "choices": [
+        "head 가 하나라 한 번에 블록 하나만 쓴다",
+        "디스크는 4KB 보다 큰 블록을 못 쓴다",
+        "inode 와 bitmap 이 서로 다른 파티션에 있다",
+        "OS 가 디스크 쓰기를 막는다"
+       ],
+       "answer": 0,
        "introCard": 0
       }
      ],
