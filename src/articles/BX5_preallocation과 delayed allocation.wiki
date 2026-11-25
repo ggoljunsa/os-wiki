@@ -23,6 +23,10 @@ category: 21강 Fast File System
 
 대가는 '''신뢰성'''이다. flush 전에 전원이 나가면 메모리에만 있던 데이터는 사라진다. 20강 p.25 의 "write 는 저장을 보장하지 않는다, fsync 를 써라" 와 같은 문제가 더 길어진다. 슬라이드가 "trade-off between performance and reliability" 라고 쓴 것이 이것이다.
 
+아래 그림은 파일 A, B 를 번갈아 쓰고 임시 파일 T 를 만들었다 지우는 같은 작업을 두 방식으로 한다. 위는 write() 마다 블록을 잡아 A 가 세 군데로 흩어지고 T 자리에 구멍이 남는다. 아래는 flush 때 A 와 B 를 각각 이어서 잡는다.
+
+[[anim:delayed_alloc|p.23 — 아래쪽 디스크 줄에 T 가 끝내 나타나지 않는 것도 보라]]
+
 {analogy}
 preallocation 은 단체 여행에서 버스 좌석을 출발 전에 한 줄로 통째 예약하는 것이다. delayed allocation 은 손님이 다 모일 때까지 좌석 배정을 미뤘다가, 인원이 확정되면 한 번에 붙어 앉게 배정하는 것이다. 다만 배정 전에 손님 명단(메모리)을 잃어버리면 처음부터 다시 받아야 한다.
 {/analogy}

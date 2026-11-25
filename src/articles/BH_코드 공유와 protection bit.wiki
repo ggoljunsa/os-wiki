@@ -26,6 +26,10 @@ category: 14강 Segmentation, 용어
 
 [[img:L14-14.png|p.14 Example: Code Sharing. Process A 와 B 의 세그먼트 테이블이 code 를 같은 32KB(RE)로 가리키고, heap·stack 은 각자 다른 곳|large]]
 
+A 의 fetch, B 의 read 는 통과하고 B 의 store 만 권한 검사에서 걸린다. 범위 검사와 base 더하기는 통과한 뒤라는 점을 본다.
+
+[[anim:code_share_protect|같은 32KB code 를 둘이 쓰고, 쓰기는 Protection Fault]]
+
 == p.15 Protection 검사 순서 ⭐⭐ ==
 하드웨어는 범위(offset < size), 더하기, 권한 순서로 검사한다. 권한 위반은 '''Protection Fault''' 이고, [[segmentation fault]]와 구별한다.
 

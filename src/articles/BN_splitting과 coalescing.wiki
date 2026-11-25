@@ -33,6 +33,10 @@ category: 14강 Segmentation, 용어
    free list: head → (0, '''30''') → NULL
 </pre>
 
+p.23 splitting 과 p.25 coalescing 을 이어서 보면 이렇다. 가운데 chunk 를 free 한 직후에는 malloc(15) 가 실패한다.
+
+[[anim:split_coalesce|(0,10)→(21,9), 그다음 조각 셋이 (0,30) 하나로]]
+
 {warn}coalescing 을 안 하면 빈 공간 합이 충분해도 큰 요청이 실패한다([[external fragmentation]]). 30 바이트가 다 비었는데 조각 3개(각 10)라면 `malloc(15)` 가 실패한다. 13강 [[free list]]의 16KB·32KB·48KB 세 노드도 같은 모습이었다.{/warn}
 
 {quiz}free list 가 (addr 0, len 10) → (addr 20, len 10) 일 때 `malloc(4)` 를 하고 나면? 요청은 리스트 뒤쪽 chunk 에서 떼어 준다고 하자.{/quiz}

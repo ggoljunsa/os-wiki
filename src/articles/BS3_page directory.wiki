@@ -21,6 +21,10 @@ page directory 의 한 줄이 '''PDE'''(page directory entry)다. PDE 하나는 
 
 p.19 그림에서 PDBR = 200 이다. PFN 200 의 page directory 는 [ (1, 201), (0, −), (0, −), (1, 204) ] 이다. page table 의 page 0·3 만 PFN 201·204 에 있고 page 1·2 는 "Not Allocated" 다.
 
+같은 p.19 그림을 움직여 보면 이렇다. 가운데 두 page-table page 가 빠지고, 그 범위로 접근하면 PDE 단계에서 바로 exception 이 난다.
+
+[[anim:pd_valid_saving|linear 4 page → PD 1 + PT 2 page, VPN 5 는 PDE 에서 exception]]
+
 == p.22 PDE 의 valid 와 PTE 와의 차이 ==
 {def}p.22: "The page directory needs '''one entry per page of the page table'''." "The PDE is invalid: Raise an exception because the access is invalid." "The PDE is valid, we have more work to do: Fetch the page table entry (PTE) from the page of the page table pointed to by this page directory entry (PDE)."{/def}
 

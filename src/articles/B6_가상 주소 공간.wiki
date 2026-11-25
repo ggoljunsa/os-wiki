@@ -31,6 +31,10 @@ category: 13강 Virtual Memory
 </pre>
 슬라이드는 heap이 아래로, stack이 위로 자라는 그림이다. 크기 16KB는 설명용 가정이고, 실제는 [[동적 재배치의 한계|훨씬 크다]].
 
+그림 앞부분은 malloc 과 함수 호출로 두 영역이 자라는 모습이고, 뒷부분은 아래 mem.c 의 두 프로세스가 같은 heap 주소를 찍는 장면이다.
+
+[[anim:heap_stack_grow|heap↓ stack↑ 다음, 0xcf2010 두 개가 서로 다른 물리 칸으로 가는 것까지]]
+
 == p.23~24 mem.c: 모든 주소는 가상이다 ⭐⭐ ==
 
 <pre class="c">

@@ -1,0 +1,98 @@
+key: data journaling
+title: data journaling: 고치기 전에 저널에 먼저 적는다
+category: 22강 FSCK and Journaling
+---
+22강 p.19~25 를 다룬다. [[fsck]] 가 너무 느려서 나온 두 번째 방법이다. crash 가 난 뒤에 디스크 전체를 뒤지는 대신, 고치기 '''전에''' 무엇을 할지 먼저 적어 둔다. 그 메모를 '''저널(journal)''' 이라 부른다.
+
+== write-ahead logging (p.20) ==
+{def}p.20 Journaling (WAL: Write-Ahead Logging): "Before overwriting the structures in place, first write down a '''little note''' describing what you are about to do. Writing this note is the "'''write ahead'''" part, and we write it to a structure that we organize as a "'''log'''". If a crash takes places during the update of the structures, you can go back and look at the note you made and try again. Know exactly what to fix after a crash, instead of having to scan the entire disk."{/def}
+
+슬라이드의 문장을 하나씩 풀면 이렇다.
+* 디스크 위 자료구조를 제자리에서 덮어쓰기 전에, 무엇을 할지 작은 메모로 먼저 적는다.
+* 메모를 '''먼저''' 쓰는 것이 이름의 "write ahead" 부분이다. 메모를 모아 두는 곳은 "log" 형태로 만든다. 그래서 '''write-ahead logging''' 이다.
+* 제자리 갱신 도중 crash 가 나면, 메모를 보고 다시 하면 된다.
+* 그러면 crash 뒤에 '''무엇을 고칠지 정확히 안다'''. 디스크 전체를 훑을 필요가 없다.
+
+fsck 와 비교하면 차이가 분명하다. fsck 는 crash 뒤에 어디가 망가졌는지 모르니 전부 본다. journaling 은 crash 전에 할 일을 적어 뒀으니 그 부분만 본다.[* write-ahead logging 은 파일 시스템보다 데이터베이스에서 먼저 쓰인 기법이다. OSTEP 42장도 "this idea was invented in database management systems" 라고 쓴다.]
+
+== ext3 는 저널을 어디에 두나 (p.21) ==
+{def}p.21: "How Linux '''ext3''' incorporates journaling into the file system. The earlier version ext2 does not support journaling. Note: ext file systems (ext2/3/4) are the most popular file system in Linux. Ext3 file system: the new key structure is the journal itself. It occupies some small amount of space within the partition or (on) another (device)."{/def}
+
+[[img:L22-21.png|p.21 — 위가 ext2, 아래가 ext3. ext3 는 Super 와 Group 0 사이에 Journal 이 하나 더 있다|large]]
+
+위 그림의 윗줄이 journaling 이 없는 ext2 다. superblock 뒤에 block group 이 0 번부터 N 번까지 이어진다.[* block group 은 21강 [[cylinder group]] 을 리눅스에서 부르는 이름이다.] 아랫줄 ext3 는 같은 모양에 '''Journal''' 이라는 칸 하나가 더 붙었다. 나머지 구조는 ext2 와 같다. 그래서 ext2 디스크를 ext3 로 바꿀 때 저널만 만들어 붙이면 됐다.
+
+저널은 파티션 안의 작은 공간에 두거나, 아예 다른 장치에 둘 수 있다.[* 슬라이드는 "within the partition or one another" 로 끝나는데, OSTEP 원문 "or on another device" 를 줄인 것이다.]
+
+{mini}
+# WAL 의 full term 을 쓰라. "write ahead" 는 무엇보다 먼저 쓴다는 뜻인가?
+# journaling 이 fsck 보다 crash 뒤 복구가 빠른 이유를 p.20 마지막 문장으로 설명하라.
+# ext2 와 ext3 의 디스크 배치에서 ext3 에만 있는 것은?
+{/mini}
+{answer}
+# '''Write-Ahead Logging'''. 제자리(in place)의 자료구조를 덮어쓰기 '''전에''' 메모(log)를 먼저 쓴다는 뜻이다.
+# crash 뒤 '''무엇을 고칠지 정확히 알아서''' 디스크 전체를 훑을 필요가 없다.
+# '''Journal'''. Super 와 Group 0 사이에 있다.
+{/answer}
+
+== 저널에 무엇을 적나 (p.22~23) ==
+{def}p.22 Data Journaling: "Data journaling is available as a mode with the ext3 file system. Example: our canonical update again. We wish to update inode (I[v2]), bitmap (B[v2]), and data block (Db) to disk. Before writing them to their final disk locations, we are now first going to write them to the log (a.k.a. journal)."{/def}
+
+[[crash consistency]] 의 예제를 그대로 쓴다. inode I[v2], bitmap B[v2], data block Db 세 블록을 써야 한다. 이번에는 제자리(final disk location)에 바로 쓰지 않고, 먼저 저널에 쓴다. 이름이 '''data''' journaling 인 이유는 metadata(I, B)뿐 아니라 '''사용자 data(Db)까지''' 저널에 쓰기 때문이다.
+
+[[img:L22-23.png|p.23 — 저널에 쓴 transaction 하나. TxB, I[v2], B[v2], Db, TxE 다섯 블록이 이어져 있다|large]]
+
+위 그림이 저널에 쓰인 모양이다. 다섯 블록이 이어져 있고, 이 묶음 하나를 '''transaction''' 이라 부른다.
+* '''TxB''' (transaction begin block): transaction 의 시작 표시다. 안에 '''TID'''(transaction identifier)가 들어 있다.
+* 가운데 세 블록 I[v2], B[v2], Db: 바꿀 블록의 '''내용 그대로'''다. 블록을 통째로 적는 이 방식을 '''physical logging''' 이라 한다.[* 반대말은 logical logging 이다. "파일 X 에 블록 하나 append" 처럼 할 일을 짧게 적는다. 공간은 덜 들지만 복구가 복잡하다. 슬라이드에는 physical logging 만 나온다.]
+* '''TxE''' (transaction end block): 이 transaction 이 끝났다는 표시다. 여기에도 같은 TID 가 들어 있다.
+
+TxB 와 TxE 에 같은 TID 를 넣는 이유는 나중에 짝을 맞추기 위해서다. 저널에는 transaction 이 여러 개 쌓이니, 어느 TxB 와 어느 TxE 가 한 묶음인지 알아야 한다.
+
+== 저널에 쓴 다음: checkpoint (p.24~25) ==
+{def}p.24 Checkpoint: "Once this transaction is safely on disk, we are ready to overwrite the old structures in the file system. This process is called '''checkpointing'''. To checkpoint the file system, we issue the writes I[v2], B[v2], and Db to their disk locations."{/def}
+
+transaction 이 저널에 안전하게 다 쓰이면, 그때 비로소 제자리의 옛 자료구조를 덮어쓴다. inode table 의 inode 2 자리에 I[v2] 를, data bitmap 자리에 B[v2] 를, 블록 5 에 Db 를 쓴다. 이 과정이 '''checkpoint''' 다.
+
+결국 같은 블록을 '''두 번''' 쓴다. 한 번은 저널에, 한 번은 제자리에. 그 대가로 제자리에 쓰다가 crash 가 나도 저널에 사본이 남아 있다.
+
+{def}p.25 Our initial sequence of operations: "1. '''Journal write''': Write the transaction to the log and wait for these writes to complete (TxB, all pending data, metadata updates, TxE). 2. '''Checkpoint''': Write the pending metadata and data updates to their final locations."{/def}
+
+여기까지의 순서는 두 단계다.
+# Journal write: TxB, 바꿀 블록들, TxE 를 저널에 쓰고 끝날 때까지 기다린다.
+# Checkpoint: 같은 블록들을 제자리에 쓴다.
+
+이 순서에는 아직 구멍이 있다. 1 단계에서 다섯 블록을 저널에 쓰는 도중 crash 가 나면 어떻게 되나? 그 이야기가 p.26 부터이고, [[journal commit과 recovery]] 에서 다룬다. 결국 TxE 를 따로 떼어 쓰는 "Journal commit" 단계가 끼어들고, 뒤에 "Free" 단계까지 붙어서 최종 순서는 네 단계가 된다.
+
+[[anim:journal_write_flow|네 단계 전체: 저널에 쓰기 → TxE(commit) → 제자리에(checkpoint) → 저널 칸 비우기(free). 같은 블록이 저널에 한 번, 제자리에 한 번 가는 것을 보라]]
+
+{analogy}
+은행 창구 직원이 계좌 셋을 고쳐야 한다. 먼저 업무 일지에 "시작 #17, A 계좌 잔액 → 3만 원, B 계좌 → 5만 원, 끝 #17" 을 적는다(저널). 일지를 다 적은 뒤에 실제 장부를 고친다(checkpoint). 장부를 고치다 정전이 나도 일지를 보고 다시 고치면 된다.
+{/analogy}
+
+{mini}
+# p.23 의 transaction 다섯 블록을 저널에 쓰이는 순서대로 쓰라.
+# TxB 와 TxE 에 공통으로 들어 있는 것은?
+# 바꿀 블록의 내용을 그대로 저널에 적는 방식의 이름은?
+# checkpoint 에서 I[v2] 는 디스크 어디에 쓰이나? Db 는?
+# data journaling 에서 Db 는 디스크에 모두 몇 번 쓰이나?
+{/mini}
+{answer}
+# '''TxB → I[v2] → B[v2] → Db → TxE'''.
+# '''TID'''(transaction identifier). 같은 값이라 짝을 맞출 수 있다.
+# '''physical logging'''.
+# I[v2] 는 '''inode table 의 inode 2 자리''', Db 는 '''data block 5'''. 둘 다 "final disk location".
+# '''2 번'''(저널에 한 번, checkpoint 로 제자리에 한 번).
+{/answer}
+
+== 시험 직전 체크 ==
+# WAL = Write-Ahead Logging. 제자리에 덮어쓰기 전에 저널에 메모를 먼저.
+# 장점: crash 뒤 고칠 곳을 정확히 안다(전체 스캔 없음).
+# ext2 는 journaling 없음. ext3 는 Super 와 Group 0 사이에 Journal.
+# transaction = TxB(TID) + 블록 내용(physical logging) + TxE(TID).
+# checkpoint = 저널에 안전하게 쓴 뒤 같은 블록을 final location 에.
+# data journaling 은 Db 까지 저널에 → data 를 두 번 쓴다.
+
+== 관련 문서 ==
+* [[FSCK와 Journaling]] (22강 허브) · [[fsck]] (앞 방법) · [[journal commit과 recovery]] (다음) · [[circular log]] · [[ext3 journaling mode]]
+* [[crash consistency]] (예제) · [[cylinder group]] (21강, block group) · [[vsfs 디스크 배치]]

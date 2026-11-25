@@ -15,6 +15,10 @@ OS 는 "블록 n 을 읽어라" 라고만 한다. Disk controller 가 n 을 (sur
 # 연속된 logical block 을 이웃한 sector 에 그대로 놓는다. 간단하고, I/O 의 spatial [[locality]] 를 살린다.
 # Bad sector 에 놓일 블록 몇 개는 멀쩡한 sector 로 옮긴다(remap). 이 블록을 읽으면 head 가 멀리 다녀와야 해서 성능이 떨어질 수 있다.
 
+아래 그림은 p.30 의 디스크에서 블록 0~5 를 차례로 읽는다. 0~3 은 head 가 가만히 있어도 디스크가 돌면서 줄줄이 읽힌다. remap 된 블록 4 는 head 를 안쪽 track 으로 보냈다가 돌아오게 하고, 그사이 지나가 버린 블록 5 때문에 거의 한 바퀴를 더 기다린다.
+
+[[anim:lba_remap|p.30 — 블록 4 에서 head 가 움직이는 것과, 왼쪽 아래 회전 대기 막대가 얼마나 길어지는지 보라]]
+
 {info}[[디스크 스케줄링]]의 예제(p.34)도 "logical blocks", "LBA" 로 위치를 적는다. 이웃한 번호가 실제로도 가깝다는 가정 덕분에 번호 차이를 head 이동 거리로 쓸 수 있다.{/info}
 
 {quiz}Logical block 번호를 (surface, track, sector) 로 바꾸는 주체는?{/quiz}

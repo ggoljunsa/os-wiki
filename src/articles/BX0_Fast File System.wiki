@@ -40,6 +40,10 @@ category: 21강 Fast File System, 핵심
 
 위 그림의 첫 줄은 파일 A~D 가 두 블록씩 나란히 있는 상태다. B 와 D 를 지우면 빈칸이 두 군데 생긴다. 여기에 네 블록짜리 E 를 만들면 빈 블록을 앞에서부터 쓰니 E1 E2 는 B 자리에, E3 E4 는 D 자리에 들어간다. E 를 처음부터 끝까지 읽으려면 디스크를 왔다 갔다 해야 한다.[* p.4 의 마지막 문장 "because they are contiguous" 는 반대다. E 의 블록들이 '''연속이 아니기(not contiguous)''' 때문에 왔다 갔다 한다. OSTEP 원문도 "E's blocks are not contiguous" 다.] 이것이 디스크 위의 [[external fragmentation]] 이다. 14강에서 메모리 segment 를 두고 본 문제가 파일 시스템에서도 나온다.
 
+아래 그림은 위 그림의 세 줄을 이어서 움직이고, 마지막에 E 를 처음부터 읽는 head 를 따라간다.
+
+[[anim:ffs_fragment|p.4 — E2 에서 E3 로 갈 때 head 가 C1·C2 를 건너뛰는 것을 보라]]
+
 == FFS: disk aware 하게 (p.5) ==
 {def}p.5: "FFS is Fast File System designed by a group at UC Berkeley. The design of FFS is that file system structures and allocation policies should be '''disk aware''' to improve performance. Keep same API with file system (open(), read(), write(), etc). Changing the internal implementation."{/def}
 
@@ -86,3 +90,4 @@ FFS 의 모든 아이디어는 seek 를 줄이는 것이었다. SSD 에는 seek 
 == 관련 문서 ==
 * [[파일 시스템 구현]] (20강, 출발점) · [[cylinder group]] · [[FFS 배치 정책]] · [[large-file exception]] · [[extent]] · [[preallocation과 delayed allocation]]
 * [[디스크 접근 시간]] · [[HDD 구조]] (18강) · [[external fragmentation]] (14강) · [[기말고사]]
+* 다음 강의: [[FSCK와 Journaling]] (22강, crash consistency · fsck · journaling)

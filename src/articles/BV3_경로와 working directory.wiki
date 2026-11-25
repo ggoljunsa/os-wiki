@@ -16,6 +16,10 @@ category: 19강 File and Directory
 
 같은 `dgist/file1` 이라도 서 있는 곳이 `/` 라면 `/dgist/file1` 을 찾게 되고, 그런 파일은 없다. 상대 경로의 뜻은 출발점에 따라 바뀐다.
 
+아래 그림이 위 두 문단을 차례로 보여 준다. 파란 점은 `/` 에서, 초록 점은 working directory 인 `home` 에서 출발한다. 마지막에 `chdir("/")` 로 출발점을 옮기면 같은 `dgist/file1` 이 실패한다.
+
+[[anim:cwd_relative_path|p.6 — 두 점이 같은 file1 에 닿는 것과, 출발점이 바뀐 뒤 빨간 점이 멈추는 곳을 보라]]
+
 == working directory 는 프로세스마다 하나 ==
 {def}p.6: "Every process has a working directory (sometimes called the current working directory). This is a directory from which all relative pathnames are interpreted."{/def}
 

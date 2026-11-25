@@ -1,0 +1,61 @@
+key: ext3 journaling mode
+title: ext3/4 journaling mode: Ordered · Writeback · Journal
+category: 22강 FSCK and Journaling
+---
+22강 p.35 를 다룬다. 지금까지 본 [[data journaling]] 은 사용자 data(Db)까지 저널에 쓴다. 안전하지만 모든 data 를 두 번 쓰니 쓰기 양이 두 배가 된다. ext3/4 는 그래서 저널에 무엇을 넣을지 고르는 모드를 셋 둔다.
+
+== 세 모드 (p.35) ==
+{def}p.35 Ext3/4 Journaling Mode:
+* '''Ordered''' (default): Journals metadata. Data blocks are written to their final location '''before''' the metadata is updated in the journal.
+* '''Writeback''': Journals only metadata, but data can be written to disk '''in any order'''.
+* '''Journal''': Journals both data and metadata by writing all new data to the journal first, then to its final location.
+{/def}
+
+=== Journal 모드 ===
+22강 p.22~34 에서 본 그대로다. I[v2], B[v2], Db 를 모두 저널에 쓰고, commit 한 뒤, 셋 다 제자리에 쓴다. data 도 metadata 도 저널로 지켜지니 가장 안전하다. 대신 Db 같은 사용자 data 를 디스크에 두 번 쓴다. 큰 파일을 쓰면 쓰기 양이 거의 두 배가 된다.
+
+=== Ordered 모드 (기본값) ===
+저널에는 '''metadata(I[v2], B[v2])만''' 쓴다. Db 는 저널에 안 들어가고 제자리(블록 5)에 한 번만 쓴다. 조건이 하나 붙는다. '''Db 를 제자리에 먼저 쓰고''', 그다음에 metadata 를 저널에 쓴다.
+
+순서가 왜 중요한지는 [[crash 시나리오]] 의 Case 1b, 2a 를 떠올리면 된다. inode 가 블록 5 를 가리키는데 블록 5 에 Db 가 아직 없으면 garbage 를 읽는다. Ordered 모드는 Db 가 이미 디스크에 있는 것을 확인한 뒤에야 "inode 가 5 를 가리킨다" 는 metadata 를 commit 한다. 그래서 commit 된 inode 가 garbage 를 가리키는 일이 없다. 20강에서 data block 을 먼저 쓰고 inode 를 마지막에 쓴 것과 같은 생각이다.[* [[파일 접근 경로]] 의 "왜 inode 를 마지막에 쓰나". 저널이 있든 없든 "가리키는 쪽보다 가리켜지는 쪽을 먼저 쓴다" 는 규칙은 같다.]
+
+=== Writeback 모드 ===
+저널에는 metadata 만 쓰는 것은 Ordered 와 같다. 차이는 Db 를 '''언제 쓰든 상관하지 않는다'''는 것이다. Db 가 metadata commit 보다 늦게 디스크에 갈 수도 있다. 그 사이에 crash 가 나면 recovery 가 I[v2] 를 replay 해서 inode 는 블록 5 를 가리키는데, 블록 5 에는 Db 가 없다. metadata 는 consistent 하지만 파일 내용은 garbage 인, [[crash 시나리오|Case 2a]] 와 같은 상태다.[* 슬라이드는 Writeback 의 위험을 따로 적지 않는다. "data can be written to disk in any order" 에서 나오는 결과다. 순서를 지키느라 기다리지 않으니 Ordered 보다 빠를 수 있다.]
+
+[[anim:journal_modes|같은 append 를 세 모드로 쓸 때 저널 쓰기(파란 칸)와 제자리 쓰기(초록 칸)의 순서. Ordered 의 Db 가 맨 앞에 있는 것과, Writeback 의 Db 가 아무 데나 끼어드는 것을 비교하라]]
+
+{|
+! 모드 || 저널에 쓰는 것 || data(Db) 를 쓰는 시점 || crash 뒤 data
+|-
+| Journal || data + metadata || 저널에 한 번, checkpoint 때 제자리에 한 번 || 안전 (data 도 replay)
+|-
+| Ordered (기본) || metadata 만 || metadata 를 저널에 쓰기 '''전에''' 제자리에 || commit 된 inode 는 garbage 를 안 가리킨다
+|-
+| Writeback || metadata 만 || 순서 상관없음 || metadata 는 맞아도 data 가 garbage 일 수 있다
+|}
+
+{analogy}
+이사 갈 때 주소 변경 신고(metadata)와 짐 옮기기(data). Journal 모드는 짐을 창고에 한 번 맡겼다가 새집으로 다시 옮긴다. Ordered 는 짐을 먼저 새집에 옮기고 나서 주소를 바꾼다. Writeback 은 주소부터 바꿀 수도 있어서, 친구가 찾아오면 빈집일 수 있다.
+{/analogy}
+
+{mini}
+# ext3/4 의 기본 journaling mode 는?
+# 다음 쓰기 순서는 어느 모드인가? (가) Db → TxB, I[v2], B[v2] → TxE → I[v2], B[v2] 제자리 (나) TxB, I[v2], B[v2], Db → TxE → I[v2], B[v2], Db 제자리
+# Ordered 모드에서 Db 를 metadata 보다 먼저 제자리에 쓰는 이유를 한 문장으로.
+# 사용자 data 를 디스크에 두 번 쓰는 모드는?
+{/mini}
+{answer}
+# '''Ordered'''.
+# (가) '''Ordered''' (나) '''Journal'''(data journaling).
+# commit 된 inode 가 '''아직 안 쓰인 블록(garbage)을 가리키지 않게''' 하려고.
+# '''Journal''' 모드. 저널에 한 번, checkpoint 로 제자리에 한 번.
+{/answer}
+
+== 시험 직전 체크 ==
+# Ordered(기본): metadata 만 저널, data 는 그 전에 제자리.
+# Writeback: metadata 만 저널, data 순서 무관 → garbage 가능.
+# Journal: data + metadata 모두 저널 → 가장 안전, data 두 번 쓰기.
+
+== 관련 문서 ==
+* [[FSCK와 Journaling]] (22강 허브) · [[data journaling]] · [[circular log]] · [[crash 시나리오]]
+* [[파일 접근 경로]] (20강, 쓰기 순서) · [[preallocation과 delayed allocation]] (21강, ext4)

@@ -21,6 +21,10 @@ OS 는 어떤 page 가 swap space 의 어느 칸에 있는지 기억해야 다�
 
 [[img:L17-15.png|p.15 Physical Memory and Swap Space: 물리 frame 4개에 Proc 0·1·2 의 page, swap block 에 나머지 page 와 Free 칸|large]]
 
+p.15 배치에서 page 하나가 나가고 하나가 들어오는 예시다. 칸 크기가 page 하나라는 점과, OS 가 위치를 기록해 둔다는 점을 본다.
+
+[[anim:swap_space_move|PFN 0 의 VPN 0 은 Block 2 로, Block 0 의 VPN 1 은 PFN 0 으로]]
+
 {quiz}Swap space 를 관리하는 단위는?{/quiz}
 {answer}'''page-sized unit''' (p.14). 디스크 block 하나에 page 하나.{/answer}
 

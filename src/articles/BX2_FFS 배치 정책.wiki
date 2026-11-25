@@ -30,6 +30,10 @@ p.9 의 예는 `/a/b`, `/a/c`, `/a/d`, `/b/f` 네 파일이다. 앞의 셋은 �
 
 비교용 정책은 "어느 그룹의 inode table 도 빨리 차지 않게 inode 를 고르게 흩는다" 이다. 공평해 보이지만 위 그림처럼 같은 디렉터리의 c, d, e 가 그룹 3, 4, 5 로 흩어진다. 슬라이드 표현으로 "'''Name-based locality is not preserved'''". `/a` 안의 파일을 차례로 열면 그룹 하나가 아니라 셋을 오가야 한다.
 
+아래 그림은 p.10 과 p.12 의 표를 한 글자씩 나란히 채운 다음, `/a/c`, `/a/d`, `/a/e` 를 차례로 열 때 어느 그룹 줄을 읽는지 표시한다.
+
+[[anim:ffs_placement|p.10·p.12 — 주황 테두리가 왼쪽은 한 줄에 머물고 오른쪽은 세 줄을 옮겨 다니는 것을 보라]]
+
 == 정말 그렇게 쓰나: SEER trace (p.13~14) ==
 {def}p.13: SEER traces, a large body of traces of user behavior on mobile machines collected in 1994. Analyze how "far away (distance)" file accesses were from one another in the directory tree.
 Zero distance (same file): a file f is opened, and then re-opened next.

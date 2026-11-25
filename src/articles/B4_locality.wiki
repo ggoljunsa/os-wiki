@@ -37,6 +37,10 @@ return sum;
 
 [[img:L13-09.png|p.9 Locality Example. data/instruction 각각 spatial·temporal 하나씩|medium]]
 
+p.9 루프를 cache 쪽에서 보면 이렇다. int 4바이트, block 64바이트로 가정했다. a[i] 는 block 마다 첫 원소만 miss 이고, sum 과 루프 몸체는 매 반복 다시 쓰인다.
+
+[[anim:locality_stride|a[0]·a[16] 만 miss. 표의 네 칸이 그림 어디에 있는지 짚어 보기]]
+
 {warn}함정: "명령어는 spatial만, 데이터는 temporal만"이 아니다. 데이터에도 둘(a[i] spatial, sum temporal), 명령어에도 둘(순차 spatial, 루프 temporal)이 다 있다. 표 네 칸을 그대로 외운다.{/warn}
 
 {tip}🎙 10/19 수업: "메모리 계층이 통하는 이유는 단 하나, locality." "system programming 수업에서 배웠을 것." 요즘은 애플리케이션 명령어가 많아져 instruction reference 최적화도 중요하다. 프로그램은 대부분의 시간을 루프에서 쓰므로 명령어의 temporal locality가 크다. 캐시는 64-byte block 단위로 spatial locality를 이용한다.{/tip}

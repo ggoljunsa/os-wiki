@@ -73,6 +73,10 @@ inode 는 고정 크기(256 B) 구조라서 배열로 늘어놓을 수 있다. �
    superblock  inode 사용  block 사용  (256 B × 16/블록)
 </pre>
 
+p.3 부터 p.8 까지 칸을 채운 순서를 아래 그림이 그대로 되풀이한다. 마지막 장면은 mount 할 때 OS 가 블록 0 부터 읽고, 거기 적힌 값으로 inode table 과 data region 을 찾는 모습이다.
+
+[[anim:vsfs_layout_build|p.3~8 — 칸이 채워지는 순서(D → I → i·d → S)와 오른쪽의 16 · 80 을 맞춰 보라]]
+
 {analogy}
 아파트 단지로 치면 superblock 은 단지 입구의 안내판(몇 동 몇 호까지 있는지), bitmap 은 관리사무소의 빈집 목록, inode table 은 세대별 명부, data region 은 실제 집이다. 명부(inode)에 "이 세대 짐은 몇 동 몇 호 창고에 있다" 고 적혀 있다.
 {/analogy}

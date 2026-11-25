@@ -56,6 +56,10 @@ head->next = NULL;
    조각 4개, coalescing 필요
 </pre>
 
+p.31~36 을 한 번에 돌린 그림이다. head 노드가 어디로 옮겨 가는지, 반납된 chunk 가 리스트 어느 쪽에 붙는지 본다.
+
+[[anim:embedded_free_list|4088 → 3980 → 3764, 그다음 head → 216 → 0 → 108 → 324]]
+
 {warn}p.36 의 노드는 len:100 으로 그려져 있지만 실제로 반납된 영역은 header 포함 108 바이트씩이다(주소 0, 108, 216, 324 의 간격이 108). 숫자가 어긋나 보이면 header 8 바이트를 떠올릴 것.{/warn}
 
 {quiz}같은 4KB heap(노드 8 바이트, header 8 바이트)에서 `malloc(50)` 한 번 뒤 free chunk 의 addr 과 len 은?{/quiz}

@@ -31,6 +31,10 @@ category: 20강 File System Implementation
 * "Direct I/O alone does not guarantee it." 캐시를 우회하는 direct I/O 를 써도 그것만으로 영구 저장이 보장되지는 않는다.
 * "'''close() does not guarantee the flush!'''" 파일을 닫아도 버퍼 내용이 디스크에 갔다는 보장은 없다. 교수님도 수업 마지막에 "close does not guarantee the flush, … fsync the file to guarantee" 라고 강조하고 수업을 끝냈다.
 
+아래 그림은 같은 블록을 세 번 고친 두 프로그램을 나란히 둔다. 위는 fsync() 를 불렀고 아래는 close() 만 했다. 전원이 나간 뒤 디스크에 남은 것이 다르다.
+
+[[anim:write_buffer_fsync|p.25 — write 세 번이 디스크 쓰기 몇 번이 되는지, close() 에서는 무엇이 움직이지 않는지 보라]]
+
 19강 [[rename과 atomic update]] 의 "tmp 에 쓰고 → '''fsync''' → close → rename" 순서에서 fsync 가 빠지면 안 되는 이유가 여기 있다.
 
 {analogy}

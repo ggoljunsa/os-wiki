@@ -1,0 +1,73 @@
+key: circular log
+title: circular log: 저널은 유한하다
+category: 22강 FSCK and Journaling
+---
+22강 p.31~34 를 다룬다. [[journal commit과 recovery]] 까지의 순서대로라면 transaction 이 생길 때마다 저널 뒤에 계속 붙는다. 그런데 저널은 파티션 안의 작은 공간이다([[data journaling|p.21]]). 언젠가는 가득 찬다.
+
+== 저널이 가득 차면 (p.31) ==
+{def}p.31: "The log is of a finite size. Two problems arise when the log becomes full: 1. The larger the log, the longer recovery will take. 2. When the log is full, no further transactions can be committed to the disk, thus making the file system useless."{/def}
+
+[[img:L22-31.png|p.31 — 저널에 Tx1, Tx2, Tx3, Tx4, Tx5 … 가 계속 쌓인다|large]]
+
+위 그림처럼 transaction 이 Tx1, Tx2, … 로 쌓이기만 하면 두 가지 문제가 생긴다.
+* '''recovery 가 길어진다.''' crash 뒤에 저널을 처음부터 끝까지 읽고 replay 해야 하니, 저널이 클수록 오래 걸린다. 저널이 디스크만큼 커지면 [[fsck]] 와 다를 게 없다.
+* '''가득 차면 더 commit 할 수 없다.''' 새 transaction 을 적을 자리가 없으니 파일 시스템에 아무것도 쓸 수 없다. 슬라이드 표현으로는 파일 시스템이 "useless" 가 된다.
+
+== 다 쓴 칸을 다시 쓴다 (p.32) ==
+{def}p.32: "To address these problems, journaling file systems treat the log as a '''circular''' data structure, re-using it over and over. This is why the journal is referred to as a '''circular log'''. To do so, the file system must take action some time after a checkpoint. Specifically, once a transaction has been checkpointed, the file system should '''free''' the space."{/def}
+
+해법은 저널을 원형으로 쓰는 것이다. 끝까지 쓰면 처음으로 돌아와 다시 쓴다. 그래서 저널을 '''circular log''' 라고 부른다.[* 원형 큐(circular buffer)와 같은 구조다. 10강 [[bounded buffer]] 의 `fill_ptr` 와 `use_ptr` 가 `% MAX` 로 돌던 것을 떠올리면 된다.]
+
+어느 칸을 다시 써도 될까? checkpoint 가 끝난 transaction 의 칸이다. checkpoint 가 끝났다는 것은 그 블록들이 이미 제자리에 있다는 뜻이다. crash 가 나도 그 transaction 을 replay 할 필요가 없으니 저널 사본은 버려도 된다. 그래서 checkpoint 뒤 어느 시점에 그 transaction 이 차지한 공간을 '''free''' 한다.
+
+거꾸로, checkpoint 가 안 끝난 transaction 은 절대 덮어쓰면 안 된다. 제자리에 아직 반영이 안 됐는데 저널 사본까지 사라지면 crash 때 되살릴 방법이 없다.
+
+== journal superblock (p.33) ==
+{def}p.33: "'''Journal super block''': Mark the oldest and newest transactions in the log. The journaling system records which transactions have not been checkpointed."{/def}
+
+[[img:L22-33.png|p.33 — 저널 맨 앞의 Journal Super 가 oldest(Tx1)와 newest(Tx5 다음) 두 위치를 가리킨다|large]]
+
+저널이 원형이면 "어디서부터 어디까지가 살아 있는 transaction 인가" 를 따로 적어야 한다. 그 정보를 저널 맨 앞의 '''journal superblock''' 에 둔다.[* 파일 시스템 전체의 superblock([[vsfs 디스크 배치|20강 p.8]])과는 다른 것이다. 저널 안의 superblock 이다.] 위 그림에서 Journal Super 의 화살표 둘이 각각 가장 오래된 transaction(oldest)과 가장 새 transaction(newest)을 가리킨다. 그 사이가 아직 checkpoint 되지 않은 transaction 들이다.
+* recovery 는 oldest 부터 newest 까지만 읽으면 된다.
+* 새 transaction 은 newest 뒤에 쓴다. 저널 끝에 닿으면 앞으로 돌아온다.
+* free 는 oldest 를 앞으로 옮기는 것이다. oldest 앞쪽 칸은 빈 칸이 된다.
+
+[[anim:circular_log|Tx1~Tx8 로 저널이 가득 찬 뒤, Tx1~Tx3 을 checkpoint 하고 journal superblock 의 oldest 를 Tx4 로 옮기면 앞 세 칸이 비어 Tx9·Tx10 이 그 자리로 돌아 들어간다]]
+
+== 최종 순서: 네 단계 (p.34) ==
+{def}p.34 Our revised sequence of operations with finite log: "1. '''Journal write''': Write the transaction to the log and wait for these writes to complete (TxB, all pending data, metadata updates). 2. '''Journal Commit''': Write the transaction commit block (i.e., TxE). 3. '''Checkpoint''': Write the pending metadata and data updates to their final locations. 4. '''Free (Added)''': Some time later, mark the transaction free in the journal by updating the journal superblock."{/def}
+
+p.29 의 세 단계에 '''Free''' 가 붙어 22강의 최종 순서가 된다.
+# Journal write: TxB, data, metadata 를 저널에. 기다린다.
+# Journal commit: TxE 를 저널에. 기다린다.
+# Checkpoint: 같은 블록을 제자리에.
+# Free: 얼마 뒤, journal superblock 을 고쳐 그 transaction 을 free 로 표시.
+
+Free 는 "Some time later" 다. checkpoint 가 끝나자마자 매번 journal superblock 을 고칠 필요는 없다. 여러 transaction 을 모아서 한꺼번에 oldest 를 옮겨도 된다.
+
+{analogy}
+회전 초밥 레일에 접시(transaction)가 돈다. 손님이 다 먹은 접시(checkpoint 끝)만 치워서(free) 그 자리에 새 접시를 올린다. 아직 안 먹은 접시를 치우면 그 손님 음식이 사라진다.
+{/analogy}
+
+{mini}
+# 저널 칸이 8 개이고 Tx1~Tx8 이 차 있다. Tx1~Tx3 이 checkpoint 를 끝냈다. free 를 하면 journal superblock 의 oldest 는 어느 transaction 을 가리키나? 그다음 Tx9 는 몇 번째 칸(0 부터)에 쓰이나?
+# 위 상황에서 Tx4 는 아직 checkpoint 중이다. Tx4 의 칸을 free 해도 되나? 왜?
+# 22강의 최종 네 단계를 순서대로 쓰라.
+# 저널이 커질수록 나빠지는 것 하나, 저널이 가득 차면 생기는 일 하나를 쓰라.
+{/mini}
+{answer}
+# oldest → '''Tx4'''. Tx9 는 끝(7 번 칸) 다음이니 처음으로 돌아와 '''0 번 칸'''(Tx1 이 있던 자리).
+# '''안 된다.''' 제자리 반영이 안 끝났는데 저널 사본을 지우면, crash 때 replay 할 것이 없어진다.
+# '''Journal write → Journal commit → Checkpoint → Free'''.
+# 커질수록 '''recovery 가 오래 걸린다'''. 가득 차면 '''더 commit 할 수 없어''' 파일 시스템을 못 쓴다.
+{/answer}
+
+== 시험 직전 체크 ==
+# 저널은 유한. 크면 recovery 가 길고, 차면 commit 불가(useless).
+# circular log: checkpoint 끝난 transaction 의 공간을 free 해서 재사용.
+# journal superblock: oldest·newest 를 적는다 = 아직 checkpoint 안 된 범위.
+# 최종 4 단계: Journal write → Journal commit → Checkpoint → Free.
+
+== 관련 문서 ==
+* [[FSCK와 Journaling]] (22강 허브) · [[journal commit과 recovery]] (앞) · [[ext3 journaling mode]] (다음)
+* [[data journaling]] · [[bounded buffer]] (10강, 원형 버퍼)

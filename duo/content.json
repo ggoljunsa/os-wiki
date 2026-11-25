@@ -3,7 +3,7 @@
   "id": "os",
   "title": "운영체제 기말",
   "subtitle": "CSE304 · Prof. Yongwoo Lee",
-  "exam": "기말 범위 13강~21강 + 과제 2·3 · 형식: 용어(full term) + 손으로 돌리기",
+  "exam": "기말 범위 13강~22강 + 과제 2·3 · 형식: 용어(full term) + 손으로 돌리기",
   "wiki": "../index.html"
  },
  "units": [
@@ -11286,6 +11286,1072 @@
        "title": "extent 의 장단점",
        "body": "extent = (시작 block, 길이). 디스크 block 50~300 이 파일 block 0~250 이면 extent 하나 — indirect block 이면 250칸을 채우고 삭제 때 250칸을 free 로 표시해야 한다. 하지만 심하게 조각나거나 sparse 하면 block 마다 extent 가 필요해 더 비싼 indirect 가 된다. extent tree 는 B-tree 처럼 동작.",
        "src": "21강 p.20~21"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "u22",
+   "title": "22강 FSCK and Journaling",
+   "desc": "crash consistency · crash 시나리오 · fsck · data journaling · circular log · ext3/4 모드",
+   "lessons": [
+    {
+     "id": "u22a",
+     "title": "crash consistency 와 crash 시나리오",
+     "items": [
+      {
+       "id": "u22a-01",
+       "type": "mc",
+       "q": "파일 시스템 자료구조가 메모리 자료구조와 달리 crash 를 신경 써야 하는 이유는?",
+       "explain": "영속 자료구조는 재부팅 뒤에도 그대로 읽힌다. 갱신 도중 전원이 나가면 반쯤 고친 상태가 영원히 남는다. 디스크는 오히려 한 번에 한 블록만 쓴다.",
+       "src": "22강 p.3",
+       "wiki": "FSCK와 Journaling",
+       "diff": 1,
+       "tags": [
+        "crash consistency"
+       ],
+       "choices": [
+        "전원이 꺼져도 디스크에 남아(persist) 고치다 만 상태도 그대로 남기 때문",
+        "디스크가 메모리보다 빠르기 때문",
+        "파일 시스템은 lock 을 쓸 수 없기 때문",
+        "디스크는 한 번에 여러 블록을 atomic 하게 쓰기 때문"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22a-02",
+       "type": "num",
+       "q": "inode 2(size 1, pointer 4)인 파일 끝에 4 KB 블록 하나를 append 해서 data block 5 를 받았다. 갱신 뒤 inode 의 size(블록 수)는? (가려진 두 칸 중 위쪽)",
+       "explain": "블록이 하나 늘어 size 1 → 2, 두 번째 pointer 가 5 가 된다(I[v2]).",
+       "src": "22강 p.5~6",
+       "wiki": "crash consistency",
+       "diff": 1,
+       "tags": [
+        "crash consistency"
+       ],
+       "img": "duo/img/os22-p06-after.png",
+       "imgAlt": "갱신 뒤 inode 상자(size 와 두 번째 pointer 가 가려짐)와 bitmap·inode·data block 배치",
+       "explainImg": "duo/img/os22-p06-after-ans.png",
+       "answer": 2,
+       "unit": "블록",
+       "tol": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22a-03",
+       "type": "cloze",
+       "q": "[손으로] data bitmap 이 0000 1000 (0 번 비트부터)이고, append 로 새 블록 5 를 할당했다. 갱신 뒤 data bitmap 은 ___ 이다.",
+       "explain": "4 번(Da)은 그대로 1, 5 번이 새로 1 → 0000 1100 = B[v2]. 0 번 비트부터 세니 왼쪽에서 여섯 번째 자리다.",
+       "src": "22강 p.4~6",
+       "wiki": "crash consistency",
+       "tags": [
+        "crash consistency"
+       ],
+       "answer": [
+        "0000 1100"
+       ],
+       "bank": [
+        "0000 1100",
+        "0000 0100",
+        "0000 1000",
+        "0001 1000"
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22a-04",
+       "type": "match",
+       "q": "블록 하나를 append 할 때 바뀌는 것과 그 내용을 연결하시오",
+       "explain": "세 쓰기는 성능 때문에 바로 나가지 않고 메모리에 dirty 로 머물다가 나중에 따로따로 디스크에 쓰인다.",
+       "src": "22강 p.6~7",
+       "wiki": "crash consistency",
+       "tags": [
+        "crash consistency"
+       ],
+       "pairs": [
+        [
+         "I[v2]",
+         "inode: size 2, pointer 4·5"
+        ],
+        [
+         "B[v2]",
+         "data bitmap: 5 번 비트 = 1"
+        ],
+        [
+         "Db",
+         "data block 5 의 새 내용"
+        ],
+        [
+         "page cache / buffer cache",
+         "디스크로 나가기 전 dirty 블록이 머무는 곳"
+        ]
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22a-05",
+       "type": "tf",
+       "q": "write() 가 돌아오면 바뀐 inode, bitmap, data block 세 블록이 이미 디스크에 쓰여 있다.",
+       "explain": "성능 때문에 dirty 블록은 page cache / buffer cache 에 머물다 나중에 쓰인다. 그래서 한두 개만 쓰인 상태에서 crash 가 날 수 있다.",
+       "src": "22강 p.7",
+       "wiki": "crash consistency",
+       "diff": 1,
+       "answer": false,
+       "introCard": 1
+      },
+      {
+       "id": "u22a-06",
+       "type": "mc",
+       "q": "append 의 세 쓰기(I[v2], B[v2], Db) 중 Db 만 디스크에 닿고 crash 가 났다. 결과는?",
+       "explain": "Case 1a. Db 를 가리키는 inode 도, 할당 표시도 없으니 블록 5 는 그냥 빈 블록이다. 사용자 데이터는 사라졌지만 구조는 멀쩡하다.",
+       "src": "22강 p.8",
+       "wiki": "crash 시나리오",
+       "tags": [
+        "crash 시나리오"
+       ],
+       "choices": [
+        "consistency 문제 없음. write 가 없었던 것과 같다",
+        "inode 가 garbage 를 가리킨다",
+        "space leak",
+        "다른 파일이 블록 5 를 가져갈 수 있다"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22a-07",
+       "type": "mc",
+       "q": "세 쓰기 중 I[v2] 만 디스크에 닿고 crash 가 났다. 결과는?",
+       "explain": "Case 1b. inode ↔ bitmap 불일치 + 블록 5 의 옛 내용(garbage)을 읽는다. \"metadata 는 맞다\" 는 I + B 가 같이 쓰인 2a 다.",
+       "src": "22강 p.8",
+       "wiki": "crash 시나리오",
+       "tags": [
+        "crash 시나리오"
+       ],
+       "choices": [
+        "inode 가 블록 5 를 가리키지만 bitmap 은 5 가 비었다고 하고, 읽으면 garbage",
+        "metadata 는 맞고 data 만 garbage",
+        "문제없음",
+        "space leak 만 생긴다"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22a-08",
+       "type": "sa",
+       "q": "data bitmap 만 새 판이 쓰여서, 아무 inode 도 가리키지 않는 블록이 할당된 것으로 남아 다시는 안 쓰이게 된 현상은? (2 words)",
+       "explain": "Case 1c. bitmap 은 5 를 썼다고 하는데 가리키는 inode 가 없다.",
+       "src": "22강 p.9",
+       "wiki": "crash 시나리오",
+       "tags": [
+        "crash 시나리오"
+       ],
+       "answer": "space leak",
+       "alts": [
+        "leak",
+        "spaceleak"
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22a-09",
+       "type": "tf",
+       "q": "I[v2] 와 B[v2] 는 디스크에 쓰였고 Db 만 못 쓰인 채 crash 가 나면, 파일 시스템 metadata 는 서로 완전히 일치한다.",
+       "explain": "Case 2a. inode 와 bitmap 이 둘 다 5 를 쓴다고 하니 metadata 는 consistent. 대신 블록 5 가 garbage 다.",
+       "src": "22강 p.10",
+       "wiki": "crash 시나리오",
+       "tags": [
+        "crash 시나리오"
+       ],
+       "answer": true,
+       "introCard": 1
+      },
+      {
+       "id": "u22a-10",
+       "type": "match",
+       "q": "[손으로] append 의 세 쓰기 중 디스크에 닿은 것과 crash 뒤 결과를 연결하시오",
+       "explain": "규칙: inode 와 bitmap 이 같이 쓰이거나 같이 안 쓰이면 metadata 가 맞고, inode 가 쓰였는데 Db 가 없으면 garbage 다.",
+       "src": "22강 p.8~11",
+       "wiki": "crash 시나리오",
+       "diff": 2,
+       "tags": [
+        "crash 시나리오"
+       ],
+       "pairs": [
+        [
+         "Db 만",
+         "문제없음 (write 가 없었던 것과 같다)"
+        ],
+        [
+         "I[v2] + B[v2]",
+         "metadata 는 맞지만 블록 5 가 garbage"
+        ],
+        [
+         "I[v2] + Db",
+         "옛 bitmap 이라 다른 파일이 블록 5 를 가져갈 수 있다"
+        ],
+        [
+         "B[v2] + Db",
+         "블록 5 가 어느 파일 것인지 모른다"
+        ]
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22a-11",
+       "type": "num",
+       "q": "[손으로] 세 쓰기 I[v2], B[v2], Db 중 정확히 하나 또는 정확히 둘만 디스크에 닿고 crash 가 나는 경우는 모두 몇 가지인가?",
+       "explain": "하나만 3가지(1a·1b·1c) + 둘만 3가지(2a·2b·2c) = 6.",
+       "src": "22강 p.8~11",
+       "wiki": "crash 시나리오",
+       "diff": 1,
+       "tags": [
+        "crash 시나리오"
+       ],
+       "answer": 6,
+       "unit": "가지",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22a-12",
+       "type": "mc",
+       "q": "[손으로] 파일 시스템이 append 의 쓰기 순서를 항상 Db → B[v2] → I[v2] 로 지킨다. 중간에 crash 가 나서 생길 수 있는 inconsistent 상태는?",
+       "explain": "가능한 중간 상태는 Db 만(1a, 문제없음)과 Db + B(2c)뿐이다. inode 를 마지막에 쓰니 garbage 를 가리키는 1b·2a 는 생기지 않는다. 2c 는 fsck 가 bit 5 를 0 으로 되돌려 고친다.",
+       "src": "22강 p.8~11 · 20강 p.23",
+       "wiki": "crash 시나리오",
+       "prof": true,
+       "diff": 3,
+       "tags": [
+        "crash 시나리오"
+       ],
+       "choices": [
+        "B[v2] + Db 만 쓰인 상태 (Case 2c)",
+        "I[v2] 만 쓰인 상태 (Case 1b)",
+        "I[v2] + B[v2] 만 쓰인 상태 (Case 2a)",
+        "없다"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22a-13",
+       "type": "cloze",
+       "q": "원하는 것은 파일 시스템을 한 consistent state 에서 다른 consistent state 로 ___ 옮기는 것이지만, 디스크는 한 번에 쓰기 ___ 만 commit 한다.",
+       "explain": "Summary: crash 나 전원 차단이 쓰기들 사이에 올 수 있어서 쉽지 않다.",
+       "src": "22강 p.12",
+       "wiki": "crash consistency",
+       "tags": [
+        "crash consistency"
+       ],
+       "answer": [
+        "atomically",
+        "하나"
+       ],
+       "bank": [
+        "atomically",
+        "하나",
+        "sequentially",
+        "여러 개",
+        "lazily"
+       ],
+       "introCard": 0
+      }
+     ],
+     "intro": [
+      {
+       "title": "crash-consistency problem",
+       "body": "파일 시스템 자료구조는 **persist** 한다: 전원이 꺼져도 남고 다음 부팅에 그대로 읽힌다. 그런데 갱신 하나가 디스크 블록 여러 개를 바꾸고, 디스크는 **한 번에 한 블록씩** 쓴다. 그 사이 crash 가 나면 고치다 만 상태가 영원히 남는다. 원하는 것은 consistent state 사이를 **atomically** 옮기는 것.",
+       "src": "22강 p.3, p.12"
+      },
+      {
+       "title": "예제: 4 KB append",
+       "body": "inode **2**(I[v1]: size 1, pointer 4), data block **4**(Da)짜리 파일에 블록 하나를 덧붙인다. bitmap 은 8 비트(0 번부터). 갱신 뒤: data bitmap 5 번 = 1 (**B[v2]**, 0000 1000 → 0000 1100), inode **I[v2]**(size 2, pointer 4·5), 블록 5 에 **Db**. inode bitmap 은 그대로.",
+       "img": "duo/img/os22-p06-after-ans.png",
+       "imgAlt": "갱신 뒤: inode size 2, pointer 4·5, data bitmap 5 번 켜짐, 블록 5 에 Db",
+       "src": "22강 p.4~6"
+      },
+      {
+       "title": "세 쓰기와 dirty 블록",
+       "body": "디스크에 따로 쓰는 것 셋: ① **I[v2]** ② **B[v2]** ③ **Db**. 성능 때문에 바로 안 쓰고 **page cache / buffer cache** 에 dirty 로 머물다 나중에 나간다. 그래서 한두 개만 쓰이고 crash 날 수 있다(inconsistent).",
+       "src": "22강 p.7"
+      },
+      {
+       "title": "crash 시나리오 여섯",
+       "body": "**1a** Db 만: 문제없음(write 가 없었던 것). **1b** I 만: inode↔bitmap 불일치 + garbage. **1c** B 만: **space leak**. **2a** I+B: metadata 는 맞고 블록 5 가 garbage. **2b** I+Db: 옛 bitmap → 다른 파일이 5 를 가져갈 수 있음. **2c** B+Db: 어느 파일 것인지 모름. 규칙: inode 와 bitmap 중 하나만 쓰이면 불일치, inode 가 쓰였는데 Db 가 없으면 garbage. inode 를 마지막에 쓰면 1b·2a 가 안 생긴다.",
+       "src": "22강 p.8~11"
+      }
+     ]
+    },
+    {
+     "id": "u22b",
+     "title": "fsck: 디스크 전체 검사",
+     "items": [
+      {
+       "id": "u22b-01",
+       "type": "sa",
+       "q": "fsck 의 full term 은?",
+       "explain": "불일치를 찾아 고치는 Unix 도구.",
+       "src": "22강 p.14",
+       "wiki": "fsck",
+       "diff": 1,
+       "tags": [
+        "fsck"
+       ],
+       "answer": "file system checker",
+       "alts": [
+        "filesystemchecker",
+        "file system check"
+       ],
+       "introCard": 0
+      },
+      {
+       "id": "u22b-02",
+       "type": "mc",
+       "q": "fsck 는 언제 실행되나?",
+       "explain": "mount 전이라 실행 중 다른 파일 시스템 활동이 없다. 끝나면 디스크의 파일 시스템은 consistent 해야 한다.",
+       "src": "22강 p.14",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "choices": [
+        "파일 시스템을 mount 하기 전",
+        "파일을 쓸 때마다",
+        "checkpoint 직후",
+        "mount 한 뒤 백그라운드에서"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22b-03",
+       "type": "tf",
+       "q": "fsck 는 inode 와 bitmap 이 서로 맞는데 블록 내용이 garbage 인 경우(I + B 는 쓰이고 Db 는 못 쓰임)도 찾아내 고친다.",
+       "explain": "Case 2a 는 못 고친다. fsck 의 목표는 metadata 의 internal consistency 이고, 사용자 데이터가 맞는지는 모른다.",
+       "src": "22강 p.15",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "answer": false,
+       "introCard": 0
+      },
+      {
+       "id": "u22b-04",
+       "type": "cloze",
+       "q": "fsck 의 목표는 파일 시스템 ___ 가 internally ___ 하게 만드는 것이다.",
+       "explain": "그래서 data 가 틀린 경우는 못 고친다.",
+       "src": "22강 p.15",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "answer": [
+        "metadata",
+        "consistent"
+       ],
+       "bank": [
+        "metadata",
+        "consistent",
+        "data",
+        "atomic",
+        "durable"
+       ],
+       "introCard": 0
+      },
+      {
+       "id": "u22b-05",
+       "type": "mc",
+       "q": "fsck 가 bitmap 과 inode 의 정보가 서로 다르다는 것을 발견했다. 어느 쪽을 믿고 고치나?",
+       "explain": "inode·indirect·double indirect block 을 훑어 실제로 쓰이는 블록을 구하고, bitmap 을 거기에 맞춘다(Case 1c, 2b).",
+       "src": "22강 p.16",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "choices": [
+        "inode",
+        "bitmap",
+        "superblock",
+        "저널"
+       ],
+       "answer": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22b-06",
+       "type": "num",
+       "q": "[손으로] crash 뒤 data bitmap 의 5 번 비트는 1 인데, 어떤 inode 도 블록 5 를 가리키지 않는다. fsck 가 고친 뒤 5 번 비트의 값은?",
+       "explain": "Case 1c. inode 를 믿으니 아무도 안 쓰는 블록 → 0 으로 해제. space leak 이 풀린다.",
+       "src": "22강 p.16",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "answer": 0,
+       "tol": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22b-07",
+       "type": "num",
+       "q": "[손으로] crash 뒤 inode 2 는 블록 5 를 가리키고 블록 5 에는 새 데이터가 있는데, data bitmap 의 5 번 비트는 0 이다. fsck 가 고친 뒤 5 번 비트의 값은?",
+       "explain": "Case 2b. inode 가 가리키니 할당 표시(1)로 고친다. 이제 다른 파일이 5 를 가져갈 수 없다.",
+       "src": "22강 p.16",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "answer": 1,
+       "tol": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22b-08",
+       "type": "mc",
+       "q": "[손으로] inode bitmap 이 1110 0000 (0 번 비트부터)이다. 어떤 디렉터리의 엔트리는 \".\", \"..\", \"a\" 이고 각각 inode 2, 1, 5 를 가리킨다. fsck 의 디렉터리 검사에 걸리는 것은?",
+       "explain": "비트 0·1·2 만 1 이라 inode 5 는 free 다. 엔트리가 가리키는 inode 가 할당됐는지 검사하는 항목에 걸린다. \".\" 와 \"..\" 는 첫 두 엔트리로 맞다.",
+       "src": "22강 p.17",
+       "wiki": "fsck",
+       "diff": 3,
+       "tags": [
+        "fsck"
+       ],
+       "choices": [
+        "\"a\" 가 할당되지 않은 inode 5 를 가리킨다",
+        "\".\" 가 첫 엔트리가 아니다",
+        "inode 1 이 할당되지 않았다",
+        "문제없다"
+       ],
+       "answer": 0,
+       "introCard": 2
+      },
+      {
+       "id": "u22b-09",
+       "type": "tf",
+       "q": "fsck 는 필드가 깨져서 쉽게 고칠 수 없는 inode 를 suspect 로 보고 지워 버린다(clear).",
+       "explain": "Inode state 검사: type 확인 등, 고칠 수 없으면 clear.",
+       "src": "22강 p.16",
+       "wiki": "fsck",
+       "diff": 1,
+       "answer": true,
+       "introCard": 1
+      },
+      {
+       "id": "u22b-10",
+       "type": "mc",
+       "q": "fsck 의 디렉터리 검사 항목으로 맞는 것은?",
+       "explain": "디렉터리는 파일 시스템이 직접 만든 형식이라 검사할 수 있다. 사용자 파일 내용은 fsck 가 이해하지 못한다.",
+       "src": "22강 p.17",
+       "wiki": "fsck",
+       "tags": [
+        "fsck"
+       ],
+       "choices": [
+        "\".\" 와 \"..\" 가 첫 두 엔트리인지",
+        "사용자 파일 내용의 형식이 맞는지",
+        "저널의 TxE 가 있는지",
+        "파일 이름이 알파벳 순인지"
+       ],
+       "answer": 0,
+       "introCard": 2
+      },
+      {
+       "id": "u22b-11",
+       "type": "mc",
+       "q": "fsck 의 더 크고 근본적인 문제는?",
+       "explain": "Summary: 디스크 전체 스캔에 몇 분~몇 시간 → prohibitive. 그래서 journaling 이 나왔다.",
+       "src": "22강 p.18",
+       "wiki": "fsck",
+       "diff": 1,
+       "tags": [
+        "fsck"
+       ],
+       "choices": [
+        "너무 느리다(디스크 전체를 훑는다)",
+        "모든 inode 를 지운다",
+        "mount 중에만 돈다",
+        "저널이 필요하다"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22b-12",
+       "type": "tf",
+       "q": "fsck 는 사용자 파일의 내용까지 형식을 검사해서 깨진 파일을 복구한다.",
+       "explain": "fsck 는 사용자 파일 내용을 이해하지 못한다. 검사하는 것은 metadata 와 디렉터리 형식이다.",
+       "src": "22강 p.17",
+       "wiki": "fsck",
+       "diff": 1,
+       "answer": false,
+       "introCard": 2
+      }
+     ],
+     "intro": [
+      {
+       "title": "fsck 란",
+       "body": "**fsck** = **file system checker**. 불일치를 찾아 고치는 Unix 도구. superblock, free blocks, inode 상태, inode links 등을 검사. **mount 하기 전**에 돈다(다른 활동 없음). 목표는 **metadata 가 internally consistent** — 그래서 2a(metadata 는 맞고 data 가 garbage)는 못 고친다.",
+       "src": "22강 p.14~15"
+      },
+      {
+       "title": "inode 를 믿는다",
+       "body": "Free blocks 검사: inode·indirect·double indirect block 을 훑어 실제로 쓰이는 블록을 구하고, bitmap 과 다르면 **inode 를 믿는다**. 1c(bitmap 만 1) → 비트를 0 으로, 2b(inode 가 가리키는데 비트 0) → 1 로. Inode state 검사: type 등이 깨져 못 고치는 inode 는 **suspect → clear**.",
+       "src": "22강 p.16"
+      },
+      {
+       "title": "디렉터리 검사",
+       "body": "디렉터리는 파일 시스템이 정한 형식이라 내용까지 검사한다(사용자 파일 내용은 fsck 가 이해 못 함). 예: **\".\" 와 \"..\"** 가 첫 두 엔트리인가, 엔트리가 가리키는 inode 가 **할당**(inode bitmap 1)됐는가.",
+       "src": "22강 p.17"
+      },
+      {
+       "title": "fsck 의 근본 문제",
+       "body": "제대로 만들려면 파일 시스템을 속속들이 알아야 하고, 무엇보다 **too slow**: 망가진 건 블록 몇 개인데 디스크 전체를 훑느라 몇 분~몇 시간 → prohibitive. 그래서 journaling.",
+       "src": "22강 p.18"
+      }
+     ]
+    },
+    {
+     "id": "u22c",
+     "title": "data journaling 과 recovery",
+     "items": [
+      {
+       "id": "u22c-01",
+       "type": "sa",
+       "q": "journaling 의 다른 이름, WAL 의 full term 은?",
+       "explain": "제자리 구조를 덮어쓰기 전에(ahead) 할 일을 log 에 먼저 적는다.",
+       "src": "22강 p.20",
+       "wiki": "data journaling",
+       "diff": 1,
+       "tags": [
+        "journaling"
+       ],
+       "answer": "Write-Ahead Logging",
+       "alts": [
+        "writeaheadlogging",
+        "write ahead log"
+       ],
+       "introCard": 0
+      },
+      {
+       "id": "u22c-02",
+       "type": "mc",
+       "q": "journaling 이 fsck 보다 crash 뒤 복구가 빠른 이유는?",
+       "explain": "p.20 마지막 줄: \"Know exactly what to fix after a crash, instead of having to scan the entire disk\". 쓰는 양은 오히려 늘어난다.",
+       "src": "22강 p.20",
+       "wiki": "data journaling",
+       "tags": [
+        "journaling"
+       ],
+       "choices": [
+        "할 일을 미리 적어 둬서 고칠 곳만 알고 디스크 전체를 훑지 않는다",
+        "디스크에 쓰는 양이 적다",
+        "mount 전에 돌지 않는다",
+        "bitmap 을 쓰지 않는다"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22c-03",
+       "type": "mc",
+       "q": "ext2 와 ext3 의 디스크 배치를 비교했다. ext3 에서 Super 와 Group 0 사이에 새로 들어간 칸(?)은?",
+       "explain": "ext3 의 새 핵심 구조는 journal 자체다. 파티션 안 작은 공간 또는 다른 장치에 둔다.",
+       "src": "22강 p.21",
+       "wiki": "data journaling",
+       "diff": 1,
+       "img": "duo/img/os22-p21-ext3.png",
+       "imgAlt": "ext3 배치: Super, ?, Group 0, Group 1, …, Group N",
+       "explainImg": "duo/img/os22-p21-ext3-ans.png",
+       "choices": [
+        "Journal",
+        "Inode bitmap",
+        "Superblock 사본",
+        "Extent tree"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22c-04",
+       "type": "order",
+       "q": "data journaling 에서 transaction 하나가 저널에 쓰이는 블록 순서",
+       "explain": "TxB(TID) 로 시작해 바꿀 블록 내용(physical logging), TxE(같은 TID) 로 끝난다.",
+       "src": "22강 p.23",
+       "wiki": "data journaling",
+       "tags": [
+        "journaling"
+       ],
+       "answer": [
+        "TxB",
+        "I[v2]",
+        "B[v2]",
+        "Db",
+        "TxE"
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22c-05",
+       "type": "match",
+       "q": "journaling 용어와 뜻을 연결하시오",
+       "explain": "TxB 와 TxE 의 TID 가 같아야 한 transaction 으로 짝이 맞는다. 블록을 통째로 적으니 physical logging 이다.",
+       "src": "22강 p.23~24",
+       "wiki": "data journaling",
+       "tags": [
+        "journaling"
+       ],
+       "pairs": [
+        [
+         "TxB",
+         "transaction 시작 블록, TID 를 담는다"
+        ],
+        [
+         "TxE",
+         "transaction 끝 블록, 같은 TID 를 담는다"
+        ],
+        [
+         "physical logging",
+         "바꿀 블록 내용을 그대로 저널에 적기"
+        ],
+        [
+         "checkpoint",
+         "저널에 쓴 블록을 최종 위치에 덮어쓰기"
+        ]
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22c-06",
+       "type": "num",
+       "q": "data journaling 에서 append 한 번의 새 data block(Db)은 디스크에 모두 몇 번 쓰이나?",
+       "explain": "저널에 한 번(journal write), 최종 위치 블록 5 에 한 번(checkpoint).",
+       "src": "22강 p.22~24",
+       "wiki": "data journaling",
+       "diff": 1,
+       "tags": [
+        "journaling"
+       ],
+       "answer": 2,
+       "unit": "번",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22c-07",
+       "type": "tf",
+       "q": "TxB, I[v2], B[v2], Db, TxE 다섯 블록을 한 번의 sequential write 로 동시에 내보내면 빠르고 안전하다.",
+       "explain": "빠르지만 unsafe 다. 디스크가 내부에서 순서를 바꿔 TxE 를 Db 보다 먼저 쓸 수 있다(그림의 ?? 자리).",
+       "src": "22강 p.27",
+       "wiki": "journal commit과 recovery",
+       "img": "duo/img/os22-p27-unsafe.png",
+       "imgAlt": "저널: TxB, I[v2], B[v2], ??, TxE",
+       "answer": false,
+       "introCard": 1
+      },
+      {
+       "id": "u22c-08",
+       "type": "mc",
+       "q": "[손으로] 다섯 블록을 한 번에 보냈더니 디스크가 TxB, I[v2], B[v2], TxE 를 먼저 쓰고 Db 를 쓰기 전에 전원이 나갔다. 재부팅 뒤 recovery 는?",
+       "explain": "transaction 이 유효해 보이고, 파일 시스템은 Db 자리가 garbage 인 줄 모른다. superblock 같은 블록이면 더 나쁘다. 그래서 TxE 를 따로 쓴다.",
+       "src": "22강 p.27",
+       "wiki": "journal commit과 recovery",
+       "diff": 3,
+       "tags": [
+        "recovery"
+       ],
+       "choices": [
+        "TxE 가 있으니 replay 해서 garbage 가 블록 5 에 쓰인다",
+        "TxE 가 있지만 Db 가 없음을 알아채고 skip 한다",
+        "fsck 를 돌려 고친다",
+        "아무 일도 하지 않는다"
+       ],
+       "answer": 0,
+       "introCard": 2
+      },
+      {
+       "id": "u22c-09",
+       "type": "order",
+       "q": "[손으로] TxE 를 따로 쓰도록 고친 뒤의 세 단계 순서",
+       "explain": "TxE 를 앞 블록들이 다 쓰인 뒤에 따로 쓰니, TxE 가 있으면 transaction 이 온전하다.",
+       "src": "22강 p.29",
+       "wiki": "journal commit과 recovery",
+       "tags": [
+        "recovery"
+       ],
+       "answer": [
+        "Journal write (TxB, data, metadata) 후 대기",
+        "Journal commit (TxE)",
+        "Checkpoint (최종 위치에)"
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22c-10",
+       "type": "mc",
+       "q": "[손으로] 재부팅 뒤 저널에 TxB(id=7), I[v2], B[v2], Db 는 있는데 TxE(id=7) 가 없다. recovery 는 무엇을 하고, 디스크의 inode 2 는 어떤 판인가?",
+       "explain": "commit 전 crash 라 그 갱신은 건너뛴다. 제자리는 checkpoint 전이라 한 번도 안 건드렸으니 옛 판 그대로, consistent.",
+       "src": "22강 p.30",
+       "wiki": "journal commit과 recovery",
+       "diff": 2,
+       "tags": [
+        "recovery"
+       ],
+       "choices": [
+        "skip, inode 2 는 I[v1]",
+        "replay, inode 2 는 I[v2]",
+        "skip, inode 2 는 I[v2]",
+        "fsck 실행, inode 2 는 지워짐"
+       ],
+       "answer": 0,
+       "introCard": 3
+      },
+      {
+       "id": "u22c-11",
+       "type": "mc",
+       "q": "[손으로] 저널에 TxB(id=7) … TxE(id=7) 가 다 있고, checkpoint 도중이라 제자리에는 I[v2] 만 쓰였다. recovery 뒤 inode·bitmap·블록 5 의 상태는?",
+       "explain": "commit 된 transaction 은 replay. 저널의 블록을 순서대로 제자리에 다시 쓰니 이미 쓴 I[v2] 를 또 써도 결과가 같다.",
+       "src": "22강 p.30",
+       "wiki": "journal commit과 recovery",
+       "diff": 2,
+       "tags": [
+        "recovery"
+       ],
+       "choices": [
+        "셋 다 새 판 (I[v2] 도 한 번 더 쓰인다)",
+        "I[v2] 만 새 판",
+        "셋 다 옛 판으로 되돌린다",
+        "bitmap 만 옛 판"
+       ],
+       "answer": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22c-12",
+       "type": "tf",
+       "q": "두 단계 쓰기에서 파일 시스템은 TxB, I[v2], B[v2], Db 의 쓰기가 끝난 것을 확인한 뒤에 TxE 를 쓴다.",
+       "explain": "첫 단계는 TxE 를 뺀 전부, 둘째 단계는 TxE 하나. TxE 가 쓰이는 순간 commit 이다.",
+       "src": "22강 p.28",
+       "wiki": "journal commit과 recovery",
+       "img": "duo/img/os22-p28-twostep.png",
+       "imgAlt": "두 단계 쓰기: 첫 줄 TxB id=1·I[v2]·B[v2]·Db, 둘째 줄에 TxE id=1 추가",
+       "answer": true,
+       "introCard": 2
+      },
+      {
+       "id": "u22c-13",
+       "type": "sa",
+       "q": "TxE(transaction commit block)를 써서 transaction 을 확정하는 단계의 이름은? (2 words)",
+       "explain": "Journal write 와 Checkpoint 사이에 추가된 단계.",
+       "src": "22강 p.29",
+       "wiki": "journal commit과 recovery",
+       "tags": [
+        "recovery"
+       ],
+       "answer": "Journal commit",
+       "alts": [
+        "commit",
+        "journalcommit"
+       ],
+       "introCard": 2
+      }
+     ],
+     "intro": [
+      {
+       "title": "WAL 과 ext3 저널",
+       "body": "**Write-Ahead Logging**: 제자리 구조를 덮어쓰기 **전에** 할 일을 little note 로 **log(journal)** 에 먼저 적는다. crash 뒤 고칠 곳을 정확히 알아 전체 스캔이 필요 없다. ext2 는 journaling 없음, ext3 = Super | **Journal** | Group 0 … Group N (파티션 안 또는 다른 장치).",
+       "img": "duo/img/os22-p21-layout.png",
+       "imgAlt": "ext2: Super, Group 0~N / ext3: Super, Journal, Group 0~N",
+       "src": "22강 p.20~21"
+      },
+      {
+       "title": "transaction 과 checkpoint",
+       "body": "저널: **TxB**(시작, **TID**) · I[v2] · B[v2] · Db(블록 내용 그대로 = **physical logging**) · **TxE**(끝, 같은 TID). 저널에 안전하게 쓴 뒤 같은 블록을 최종 위치에 쓰는 것이 **checkpoint**. data journaling 에서 Db 는 두 번 쓰인다.",
+       "img": "duo/img/os22-p23-tx.png",
+       "imgAlt": "저널: TxB, I[v2], B[v2], Db, TxE",
+       "src": "22강 p.22~25"
+      },
+      {
+       "title": "한 번에 쓰면 unsafe → Journal commit",
+       "body": "다섯 블록을 하나씩 쓰면 느리고, 한 번에 쓰면 디스크가 순서를 바꿔 TxE 를 Db 보다 먼저 쓸 수 있다 → TxE 가 있으니 유효해 보이는 transaction 으로 **garbage 를 replay**. 해법: TxE 를 뺀 블록을 먼저 쓰고 기다린 뒤 **TxE 를 따로** 쓴다(**Journal commit**). 순서: Journal write → Journal commit → Checkpoint.",
+       "img": "duo/img/os22-p28-twostep.png",
+       "imgAlt": "두 단계: TxB·I[v2]·B[v2]·Db 를 먼저, 다음에 TxE",
+       "src": "22강 p.26~29"
+      },
+      {
+       "title": "Recovery",
+       "body": "crash 뒤 저널을 훑는다. **TxE 가 없으면**(commit 전) 그 갱신은 **skip** — 제자리는 안 건드렸으니 옛 상태. **TxE 까지 있으면**(commit 뒤, checkpoint 완료 전) **replay**: 저널의 블록을 제자리에 다시 쓴다. 이미 쓴 블록을 또 써도 결과가 같다.",
+       "src": "22강 p.30"
+      }
+     ]
+    },
+    {
+     "id": "u22d",
+     "title": "circular log 와 journaling mode",
+     "items": [
+      {
+       "id": "u22d-01",
+       "type": "mc",
+       "q": "저널(log)이 가득 찼을 때 생기는 문제 두 가지로 맞는 것은?",
+       "explain": "Making the log finite: recovery 시간, 그리고 commit 불가로 파일 시스템이 useless.",
+       "src": "22강 p.31",
+       "wiki": "circular log",
+       "tags": [
+        "circular log"
+       ],
+       "choices": [
+        "저널이 클수록 recovery 가 오래 걸리고, 가득 차면 더 commit 할 수 없다",
+        "TxB 가 지워지고 TID 가 겹친다",
+        "bitmap 이 커지고 inode 가 부족하다",
+        "fsck 가 돌지 않고 mount 가 실패한다"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22d-02",
+       "type": "sa",
+       "q": "checkpoint 가 끝난 transaction 의 공간을 비워 저널을 처음부터 다시 쓰는 구조, 저널을 부르는 이름은? (2 words)",
+       "explain": "저널을 원형 자료구조로 재사용한다.",
+       "src": "22강 p.32",
+       "wiki": "circular log",
+       "diff": 1,
+       "tags": [
+        "circular log"
+       ],
+       "answer": "circular log",
+       "alts": [
+        "circularlog",
+        "circular journal"
+       ],
+       "introCard": 0
+      },
+      {
+       "id": "u22d-03",
+       "type": "mc",
+       "q": "저널 맨 앞의 journal superblock 이 가리키는 두 위치(? 두 칸)는?",
+       "explain": "아직 checkpoint 되지 않은 transaction 의 범위를 적는다.",
+       "src": "22강 p.33",
+       "wiki": "circular log",
+       "img": "duo/img/os22-p33-jsuper.png",
+       "imgAlt": "Journal Super 에서 나온 두 화살표(이름이 가려짐)가 Tx1 과 Tx5 다음을 가리킨다",
+       "explainImg": "duo/img/os22-p33-jsuper-ans.png",
+       "choices": [
+        "oldest 와 newest transaction",
+        "TxB 와 TxE",
+        "inode bitmap 과 data bitmap",
+        "첫 block group 과 마지막 block group"
+       ],
+       "answer": 0,
+       "introCard": 1
+      },
+      {
+       "id": "u22d-04",
+       "type": "tf",
+       "q": "아직 checkpoint 가 끝나지 않은 transaction 의 저널 칸도 free 해서 새 transaction 에 내줄 수 있다.",
+       "explain": "제자리에 아직 반영이 안 됐는데 저널 사본을 지우면 crash 때 replay 할 것이 없어진다. free 는 checkpoint 가 끝난 transaction 만.",
+       "src": "22강 p.32",
+       "wiki": "circular log",
+       "tags": [
+        "circular log"
+       ],
+       "answer": false,
+       "introCard": 0
+      },
+      {
+       "id": "u22d-05",
+       "type": "order",
+       "q": "[손으로] 유한한 저널을 쓰는 journaling 의 최종 네 단계 순서",
+       "explain": "Free 는 checkpoint 뒤 \"some time later\", journal superblock 을 고쳐 transaction 을 free 로 표시한다.",
+       "src": "22강 p.34",
+       "wiki": "circular log",
+       "prof": true,
+       "tags": [
+        "circular log"
+       ],
+       "answer": [
+        "Journal write",
+        "Journal commit",
+        "Checkpoint",
+        "Free"
+       ],
+       "introCard": 1
+      },
+      {
+       "id": "u22d-06",
+       "type": "num",
+       "q": "[손으로] 칸이 8 개(0~7 번)인 circular log 에 Tx1~Tx8 이 0~7 번 칸에 차 있다. Tx1~Tx3 의 checkpoint 가 끝나 free 했다. 다음 Tx9 는 몇 번 칸에 쓰이나?",
+       "explain": "newest 가 7 번 칸(끝)이니 처음으로 돌아와(wrap) Tx1 이 있던 0 번 칸.",
+       "src": "22강 p.32~33",
+       "wiki": "circular log",
+       "diff": 2,
+       "tags": [
+        "circular log"
+       ],
+       "answer": 0,
+       "unit": "번",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22d-07",
+       "type": "mc",
+       "q": "[손으로] 칸이 8 개인 circular log 에 Tx1~Tx8 이 차 있고, Tx1~Tx3 의 checkpoint 가 끝나 free 했다. journal superblock 의 oldest 는 무엇을 가리키나?",
+       "explain": "free 는 oldest 를 앞으로 옮기는 것. 아직 checkpoint 안 된 가장 오래된 것이 Tx4.",
+       "src": "22강 p.33~34",
+       "wiki": "circular log",
+       "diff": 2,
+       "tags": [
+        "circular log"
+       ],
+       "choices": [
+        "Tx4",
+        "Tx1",
+        "Tx3",
+        "Tx8"
+       ],
+       "answer": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22d-08",
+       "type": "num",
+       "q": "[손으로] 칸이 8 개(0~7)인 circular log 에서 3~7 번 칸에 checkpoint 안 된 Tx4~Tx8 이 있고 0~2 번 칸은 free 다. Tx9, Tx10 을 쓴 뒤 남는 빈칸은 몇 개인가?",
+       "explain": "Tx9 → 0 번, Tx10 → 1 번. 빈칸은 2 번 하나. Tx4~Tx8 칸은 checkpoint 전이라 쓸 수 없다.",
+       "src": "22강 p.31~34",
+       "wiki": "circular log",
+       "diff": 3,
+       "tags": [
+        "circular log"
+       ],
+       "answer": 1,
+       "unit": "개",
+       "tol": 0,
+       "introCard": 0
+      },
+      {
+       "id": "u22d-09",
+       "type": "match",
+       "q": "ext3/4 journaling mode 와 설명을 연결하시오",
+       "explain": "Ordered 와 Writeback 은 둘 다 metadata 만 저널링한다. 차이는 data 를 metadata 보다 먼저 쓰도록 순서를 지키느냐다.",
+       "src": "22강 p.35",
+       "wiki": "ext3 journaling mode",
+       "tags": [
+        "journaling mode"
+       ],
+       "pairs": [
+        [
+         "Ordered",
+         "기본값. metadata 만 저널, data 는 그 전에 최종 위치에"
+        ],
+        [
+         "Writeback",
+         "metadata 만 저널, data 는 순서 상관없이"
+        ],
+        [
+         "Journal",
+         "data 와 metadata 모두 저널에 먼저"
+        ],
+        [
+         "fsck",
+         "저널 없이 crash 뒤 디스크 전체를 검사"
+        ]
+       ],
+       "introCard": 2
+      },
+      {
+       "id": "u22d-10",
+       "type": "mc",
+       "q": "ext3/4 의 기본(default) journaling mode 는?",
+       "explain": "Ordered (default). metadata 만 저널링하되 data 를 먼저 제자리에 쓴다.",
+       "src": "22강 p.35",
+       "wiki": "ext3 journaling mode",
+       "diff": 1,
+       "tags": [
+        "journaling mode"
+       ],
+       "choices": [
+        "Ordered",
+        "Writeback",
+        "Journal",
+        "Data"
+       ],
+       "answer": 0,
+       "introCard": 2
+      },
+      {
+       "id": "u22d-11",
+       "type": "mc",
+       "q": "[손으로] 어떤 모드의 쓰기 순서다: Db(최종 위치) → TxB, I[v2], B[v2](저널) → TxE → I[v2], B[v2](최종 위치). 어느 모드인가?",
+       "explain": "Db 가 저널에 안 들어가고(metadata 만 저널), metadata commit 보다 먼저 제자리에 쓰였다 → Ordered. Journal 모드라면 Db 도 저널에 들어간다.",
+       "src": "22강 p.35",
+       "wiki": "ext3 journaling mode",
+       "diff": 2,
+       "tags": [
+        "journaling mode"
+       ],
+       "choices": [
+        "Ordered",
+        "Journal",
+        "Writeback",
+        "fsck"
+       ],
+       "answer": 0,
+       "introCard": 2
+      },
+      {
+       "id": "u22d-12",
+       "type": "tf",
+       "q": "Writeback 모드에서는 data 가 metadata commit 보다 늦게 쓰일 수 있어서, crash 뒤 inode 가 garbage 블록을 가리킬 수 있다.",
+       "explain": "data 순서를 지키지 않으니 I[v2] 는 replay 되는데 Db 는 없는 상태(Case 2a 와 같은 모양)가 생길 수 있다. Ordered 는 Db 를 먼저 써서 이를 막는다.",
+       "src": "22강 p.35",
+       "wiki": "ext3 journaling mode",
+       "diff": 2,
+       "tags": [
+        "journaling mode"
+       ],
+       "answer": true,
+       "introCard": 2
+      },
+      {
+       "id": "u22d-13",
+       "type": "sa",
+       "q": "ext3/4 에서 사용자 data 까지 저널에 먼저 쓰고 그다음 최종 위치에 쓰는 모드의 이름은? (한 단어)",
+       "explain": "Journal 모드 = data journaling. 가장 안전하지만 data 를 두 번 쓴다.",
+       "src": "22강 p.35",
+       "wiki": "ext3 journaling mode",
+       "tags": [
+        "journaling mode"
+       ],
+       "answer": "Journal",
+       "alts": [
+        "data journaling",
+        "journal mode"
+       ],
+       "introCard": 2
+      }
+     ],
+     "intro": [
+      {
+       "title": "유한한 저널과 circular log",
+       "body": "저널이 크면 recovery 가 오래 걸리고, 가득 차면 더 commit 할 수 없다(useless). 그래서 **circular log**: checkpoint 가 끝난 transaction 의 공간을 **free** 해서 처음부터 다시 쓴다(끝에 닿으면 앞으로 wrap). checkpoint 전 transaction 은 free 하면 안 된다.",
+       "src": "22강 p.31~32"
+      },
+      {
+       "title": "journal superblock 과 4 단계",
+       "body": "저널 맨 앞 **journal superblock** 이 **oldest·newest** transaction 을 적는다 = 아직 checkpoint 안 된 범위. free = oldest 를 앞으로 옮기기. 최종 순서: **Journal write → Journal commit → Checkpoint → Free**(some time later).",
+       "img": "duo/img/os22-p33-jsuper-ans.png",
+       "imgAlt": "Journal Super 의 oldest·newest 화살표와 Tx1~Tx5",
+       "src": "22강 p.33~34"
+      },
+      {
+       "title": "ext3/4 journaling mode",
+       "body": "**Ordered**(기본): metadata 만 저널, data 는 metadata 를 저널에 쓰기 **전에** 최종 위치에. **Writeback**: metadata 만 저널, data 순서 상관없음 → inode 가 garbage 를 가리킬 수 있다. **Journal**: data 와 metadata 모두 저널에 먼저(data 를 두 번 씀).",
+       "src": "22강 p.35"
       }
      ]
     }

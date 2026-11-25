@@ -50,6 +50,10 @@ p.5 Nonvolatile 종류는 다음과 같다.
 
 [[img:L13-07.png|p.7 피라미드. 각 층 오른쪽 빨간 글씨가 이 층이 바로 아래층에서 가져와 담는 것이다|large]]
 
+처음 읽는 word 는 L1·L2 를 지나 DRAM 까지 내려가고, 가져온 64-byte block 은 위층에 남는다. 그래서 바로 옆 word 는 L1 에서 끝난다. 숫자는 p.10 표의 latency 다.
+
+[[anim:mem_hierarchy_fetch|X 첫 접근 111 cycles, X+4 는 1 cycle. 차이가 어디서 나는지 보기]]
+
 == p.10 계층 곳곳의 캐싱 ⭐ ==
 
 {|

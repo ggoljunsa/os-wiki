@@ -98,6 +98,12 @@
     this.btnReset.title = "처음부터";
     ctrl.appendChild(this.btnPlay);
     ctrl.appendChild(this.btnReset);
+    // 폰에서 글자가 작으니: 화면 전체 + 세로 폰이면 90° 돌려 긴 변으로 보기
+    this.btnBig = el("button", "anim-btn anim-big", "⛶ 크게");
+    this.btnBig.type = "button";
+    this.btnBig.title = "화면 가득 (세로 폰은 가로로 돌려서)";
+    ctrl.appendChild(this.btnBig);
+    this.btnBig.addEventListener("click", function () { self.toggleBig(); });
 
     var speedSel = el("select", "anim-speed");
     SPEEDS.forEach(function (s) {
@@ -135,6 +141,19 @@
 
     this.btnPlay.addEventListener("click", function () { self.playing ? self.pause() : self.play(); });
     this.btnReset.addEventListener("click", function () { self.seek(0); if (!self.playing) self.play(); });
+  };
+
+  Anim.prototype.toggleBig = function (force) {
+    var on = force != null ? force : !this.root.classList.contains("anim-full");
+    this.root.classList.toggle("anim-full", on);
+    document.documentElement.classList.toggle("anim-full-open", on);
+    this.btnBig.textContent = on ? "✕ 닫기" : "⛶ 크게";
+    var self = this;
+    if (on) {
+      this._esc = function (ev) { if (ev.key === "Escape") self.toggleBig(false); };
+      document.addEventListener("keydown", this._esc);
+      if (!this.playing) this.play();
+    } else if (this._esc) { document.removeEventListener("keydown", this._esc); this._esc = null; }
   };
 
   Anim.prototype.mountSvg = function () {

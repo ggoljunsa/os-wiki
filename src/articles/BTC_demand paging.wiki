@@ -9,6 +9,10 @@ category: 17강 Swapping, 용어
 
 Dirty page 를 내보내려면 디스크 쓰기가 필요하다. 그래서 clean page 를 우선 내보낸다.
 
+clean victim 과 dirty victim 의 비용 차이, 그리고 p.53 clustering 까지 한 그림으로 보면 이렇다.
+
+[[anim:dirty_writeback|clean 은 I/O 없이, dirty 는 write back, 모아서 한 번에]]
+
 == p.51 PTE 플래그 복습 ==
 15강 [[PTE 플래그]] 복습이다. valid, protection, present, dirty, reference.
 

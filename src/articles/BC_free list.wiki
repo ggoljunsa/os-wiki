@@ -29,6 +29,10 @@ Process A가 32KB 칸에 있고 free list가 16KB → 48KB인 상태에서 A가 
   A 종료:        Free list → [32KB] → [16KB] → [48KB]          (돌려받은 칸이 다시 맨 앞, 처음 상태로 복귀)
 </pre>
 
+free list 를 넣고 빼는 과정을 p.51~53 순서대로 움직이면 이렇다.
+
+[[anim:free_list_alloc|맨 앞 32KB 를 꺼내 쓰고, 끝나면 다시 맨 앞으로]]
+
 {tip}p.53 오른쪽 그림에서 16KB·32KB·48KB 세 칸이 물리적으로 붙어 있는데도 free list에는 따로따로 세 노드로 남아 있다. 붙은 빈 칸을 하나로 합치는 일(coalescing)과, 어떤 칸을 고를지(best fit, first fit …)는 OSTEP 17장 free-space management에서 다룬다. 13강은 칸 크기가 모두 16KB라서 이 문제가 드러나지 않는다.{/tip}
 
 == 관련 문서 ==

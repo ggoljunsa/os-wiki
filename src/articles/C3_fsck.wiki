@@ -1,0 +1,102 @@
+key: fsck
+title: fsck: crash 뒤에 디스크 전체를 검사한다
+category: 22강 FSCK and Journaling
+---
+22강 p.13~18 을 다룬다. [[crash 시나리오]] 의 불일치를 푸는 첫 번째 방법이다. 생각은 단순하다. crash 가 나는 것은 막지 않는다. 대신 다음에 켤 때 디스크를 처음부터 끝까지 읽어 보고, 앞뒤가 안 맞는 곳을 고친다.
+
+== fsck 는 무엇이고 언제 도나 (p.14) ==
+{def}p.14: "The file system checker ('''fsck''') is a Unix tool for finding inconsistencies and repairing them. fsck checks a super block, free blocks, inode states, inode links, etc. fsck is run '''before the file system is mounted'''. No file-system activity is on-going while it runs. Once finished, the on-disk file system should be consistent."{/def}
+
+fsck 는 '''f'''ile '''s'''ystem '''c'''hec'''k'''er 를 줄인 이름이다. 리눅스에서는 지금도 `fsck` 명령으로 남아 있다.[* 컴퓨터를 갑자기 끄고 다시 켰을 때 부팅 화면에 디스크 검사가 길게 도는 것을 본 적이 있다면, 그게 이 도구다. Windows 의 chkdsk 도 같은 역할이다.]
+
+언제 도는지가 중요하다. fsck 는 파일 시스템을 '''mount 하기 전'''에 돈다. mount 전이니 그 파일 시스템을 쓰는 프로그램이 아무도 없다. 검사하는 동안 누가 파일을 만들거나 지우지 않으니, 디스크를 마음 놓고 읽고 고칠 수 있다. 다 끝나면 디스크 위 파일 시스템은 consistent 해야 한다.
+
+검사 대상은 p.14 에 넷이 적혀 있다.
+* superblock
+* free blocks (bitmap)
+* inode 상태
+* inode links (link count)
+마지막의 "etc" 처럼 실제 fsck 는 훨씬 많은 것을 본다. p.16~17 이 그중 몇 개를 예로 든다.
+
+== fsck 가 못 고치는 것 (p.15) ==
+{def}p.15: "The file system checker cannot fix all problems, e.g., the file system looks consistent but the inode points to garbage data (Case 2a). The goal of fsck is to make sure the file system '''metadata is internally consistent'''."{/def}
+
+fsck 의 목표는 '''metadata 끼리''' 앞뒤가 맞게 만드는 것이다. 그래서 metadata 는 다 맞는데 data 가 틀린 경우는 못 고친다. [[crash 시나리오]] 의 Case 2a 가 바로 그렇다. inode 와 bitmap 이 둘 다 새 판이라 서로 맞는다. 블록 5 에 garbage 가 있다는 것은 inode 와 bitmap 만 봐서는 알 수 없다. fsck 는 사용자 파일의 내용이 무엇이어야 하는지 모르기 때문이다.
+
+{mini}
+# fsck 를 mount 전에 돌리는 이유를 한 문장으로.
+# 여섯 crash 경우 중 fsck 가 "문제없다" 고 넘어가지만 실제로는 사용자 데이터가 틀린 경우는?
+# fsck 의 목표를 슬라이드 표현으로 쓰라.
+{/mini}
+{answer}
+# 도는 동안 '''다른 파일 시스템 활동이 없어야''' 디스크를 안전하게 검사하고 고칠 수 있기 때문이다.
+# '''Case 2a'''(I[v2] + B[v2], Db 없음). metadata 는 맞지만 블록 5 가 garbage.
+# "make sure the file system '''metadata is internally consistent'''".
+{/answer}
+
+== fsck 가 하는 일 (p.16~17) ==
+=== inode 상태 ===
+{def}p.16 Inode state: "Each inode is checked for corruption or other problem, e.g., type checking (regular file, directory, symbolic link, etc). When a power loss happens while writing an inode. If there are problems with the inode fields that are not easily fixed, the inode is considered '''suspect''' and '''cleared''' by fsck."{/def}
+
+inode 하나하나를 읽어서 이상한 데가 없는지 본다. 예를 들어 type 칸이 regular file, directory, symbolic link 같은 정해진 값 중 하나인지 확인한다.[* 20강 [[ext2 inode]] 의 `mode` 칸이 file type 을 담는다. 교수님이 20강 수업에서 "file type 을 하나 말해 보라" 고 물었던 그 칸이다.] inode 를 쓰는 도중에 전원이 나가면 칸이 반쯤 깨질 수 있다. 쉽게 고칠 수 없으면 그 inode 는 의심스러운(suspect) 것으로 보고 '''지워 버린다'''.
+
+=== free blocks ===
+{def}p.16 Free blocks: "fsck scans the inodes, indirect blocks, double indirect blocks. Inconsistency between bitmaps and inodes are resolved by '''trusting the information within the inodes'''. (Cases 1c and 2b)"{/def}
+
+fsck 는 모든 inode 를 읽고, 거기서 가리키는 indirect block 과 double indirect block 까지 따라가서 실제로 쓰이는 블록의 목록을 만든다.[* 20강 [[multi-level index]] 의 구조를 그대로 따라간다. 큰 파일이면 double indirect 까지 다 읽어야 하니 이것만으로도 디스크 읽기가 많다.] 그 목록과 bitmap 을 비교해서 다르면 '''inode 쪽을 믿는다'''.
+* Case 1c (bitmap 만 새 판): 어떤 inode 도 5 를 안 가리킨다. 그러니 bitmap 의 5 번을 0 으로 되돌린다. space leak 이 풀린다.
+* Case 2b (inode + Db, bitmap 은 옛 판): inode 가 5 를 가리킨다. 그러니 bitmap 의 5 번을 1 로 고친다. 이제 다른 파일이 5 를 가져갈 수 없다.
+
+20강에서 교수님이 "inode 를 마지막에 쓰면 inode 를 훑어서 bitmap 을 복구할 수 있다" 고 한 것이 이 규칙이다. inode 를 가장 믿을 만한 기준으로 삼으려면, inode 는 다른 것이 다 쓰인 뒤에 써야 한다.
+
+=== 디렉터리 검사 ===
+{def}p.17 Directory checks: "Directories hold specifically formatted information created by the file system itself. fsck does not understand the contents of user files. Thus, fsck performs additional integrity checks on the contents of each directory. Example: making sure that "." and ".." are the first entries; each inode referred to in a directory entry is allocated?"{/def}
+
+사용자 파일의 내용은 fsck 가 해석할 수 없다. 사진인지 문서인지 모르니 맞는지 틀렸는지 판단할 수 없다. 하지만 디렉터리는 다르다. 디렉터리 블록은 파일 시스템이 직접 정한 형식([[디렉터리 구성|20강 p.18]] 의 (inode #, 이름 길이, 이름))으로 쓰니, fsck 가 내용까지 검사할 수 있다.
+* "." 와 ".." 가 첫 두 엔트리인가.
+* 디렉터리 엔트리가 가리키는 inode 가 정말 할당된 inode 인가(inode bitmap 에서 1 인가).
+
+{analogy}
+도서관 장서 점검 날이다. 사서는 대출 기록(inode)을 하나하나 보고 실제로 빌려 간 책 목록을 만든 뒤, 서가 빈칸 표시(bitmap)와 맞춰 본다. 다르면 대출 기록을 믿는다. 하지만 책 속 내용이 찢겨 있는지(garbage)는 장부만 봐서는 모른다.
+{/analogy}
+
+{mini}
+# fsck 가 bitmap 과 inode 가 다를 때 어느 쪽을 믿나? 슬라이드가 이 규칙으로 고친다고 든 Case 둘은?
+# Case 1c 를 fsck 가 고치면 bitmap 5 번은 몇이 되나? Case 2b 는?
+# fsck 가 디렉터리 내용은 검사하면서 사용자 파일 내용은 검사하지 않는 이유는?
+# 쉽게 고칠 수 없는 inode 를 fsck 는 어떻게 하나?
+{/mini}
+{answer}
+# '''inode''' 를 믿는다. Case '''1c''' 와 '''2b'''.
+# 1c → '''0'''(가리키는 inode 가 없으니 해제). 2b → '''1'''(inode 가 가리키니 할당 표시).
+# 디렉터리는 파일 시스템이 정한 형식이라 무엇이 맞는지 알 수 있지만, 사용자 파일은 fsck 가 내용을 이해하지 못한다.
+# suspect 로 보고 '''clear'''(지운다).
+{/answer}
+
+== 결정적인 문제: 너무 느리다 (p.18) ==
+{def}p.18 Summary: "Building a working fsck requires intricate knowledge of the filesystem. fsck have a bigger and fundamental problem: '''Too slow'''. Scanning the entire disk may take many minutes or hours. Performance of fsck became prohibitive."{/def}
+
+fsck 의 문제는 두 가지다. 하나는 만들기 어렵다는 것이다. 파일 시스템의 모든 자료구조를 속속들이 알아야 하고, 경우마다 어떻게 고칠지 정해야 한다. 더 근본적인 문제는 '''느리다'''는 것이다. crash 가 난 곳은 블록 몇 개뿐인데, 그걸 찾으려고 디스크 전체를 훑어야 한다. 디스크가 커질수록 몇 분에서 몇 시간이 걸린다.[* OSTEP 는 이를 "집에서 열쇠를 침실 바닥에 떨어뜨렸는데, 지하실부터 시작해 집 전체를 방마다 뒤지는 것" 에 빗댄다.]
+
+18강에서 디스크 접근 한 번에 ms 가 든다는 것을 봤다. 몇 TB 디스크의 모든 inode 와 indirect block 을 읽는 것은 그 ms 를 수백만 번 쓰는 일이다. 그래서 crash 뒤에 '''고칠 곳만''' 바로 아는 방법이 필요했고, 그게 [[data journaling]] 이다.
+
+{mini}
+# p.18 이 꼽은 fsck 의 "bigger and fundamental problem" 은?
+# fsck 가 느린 이유를, crash 로 망가진 블록 수와 fsck 가 읽는 블록 수를 비교해 한 문장으로.
+{/mini}
+{answer}
+# '''Too slow''' (디스크 전체를 훑느라 몇 분~몇 시간).
+# 망가진 것은 갱신 중이던 블록 몇 개뿐인데, fsck 는 그걸 찾으려고 '''디스크 전체'''(모든 inode·indirect block·bitmap·디렉터리)를 읽는다.
+{/answer}
+
+== 시험 직전 체크 ==
+# fsck = file system checker. mount 전에 돈다(다른 활동 없음).
+# 목표: metadata 가 internally consistent. Case 2a(garbage)는 못 고친다.
+# inode 상태 검사(type 등), 깨진 inode 는 suspect → clear.
+# free blocks: inode·indirect·double indirect 를 훑고, bitmap 과 다르면 inode 를 믿는다(1c, 2b).
+# 디렉터리: "." ".." 가 처음인가, 엔트리의 inode 가 할당됐나.
+# 문제: 만들기 어렵고, 무엇보다 너무 느리다 → journaling.
+
+== 관련 문서 ==
+* [[FSCK와 Journaling]] (22강 허브) · [[crash 시나리오]] · [[data journaling]] (다음 해법)
+* [[ext2 inode]] · [[multi-level index]] · [[디렉터리 구성]] · [[파일 접근 경로]] (20강)

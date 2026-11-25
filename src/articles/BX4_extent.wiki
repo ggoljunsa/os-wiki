@@ -23,6 +23,10 @@ extent 는 칸 하나로 끝난다. 그래서 "more efficient for large files", 
 
 단점도 분명하다. 디스크에 연속된 빈 공간이 없어서 블록이 다 흩어지면 블록마다 extent 가 하나씩 필요하다. 그러면 extent 는 "길이 1" 짜리 포인터를 더 크게 적는 셈이라, 슬라이드 표현으로 "basically a more expensive indirect block scheme" 이 된다. 조각난 파일(fragmented)이나 중간이 비어 있는 파일(sparse)이 그 경우다. 그래서 연속 공간을 확보하는 [[preallocation과 delayed allocation|preallocation]] 이 함께 간다.
 
+아래 그림이 이 비교를 할당, 삭제, 조각난 파일 순서로 보여 준다.
+
+[[anim:extent_vs_ptr|p.20 — 왼쪽 포인터 칸이 차오르는 시간과 오른쪽 extent 줄 수를 비교하라]]
+
 == 얼마나 길게, 어떻게 모으나 (p.21) ==
 {def}p.21: 2^15 contiguous blocks at most, 128 MB at most. Extent tree works like B-tree (and also directory entries).{/def}
 

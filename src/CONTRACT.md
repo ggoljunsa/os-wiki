@@ -298,3 +298,43 @@ python3 build.py                        # index.html 재생성 + 문서에서 �
 | megapage_vs_4k | 과제3: 같은 VA 0x4053A8 을 L2→L1→L0(4 KB) 와 L2→L1 leaf(2 MB) 로, VA 칸 9·9·9·12 → 9·9·21, PTE 512 개 vs 1 개 | 과제3 xv6 cow, superpage |
 | path_lookup | 19강 p.9~10: open("/foo/bar.txt") — p.10 트리에서 / → foo → bar.txt 강조, 오른쪽 inode 2 → 데이터(foo 10) → inode 10 → 데이터(bar.txt 20) → inode 20 → "hello\n" (10·11·20 은 가정값) | 디렉터리 |
 | hard_vs_soft_link | 19강 p.33·p.38·p.40: 왼쪽 ln file file2(같은 inode 12345, Links 1→2), 오른쪽 ln -s(새 inode 13579, 데이터 "file", 점선이 이름 file 로) → cat file2 둘 다 hello → rm file(왼쪽 Links 1, 오른쪽 12345 해제) → cat file2: hello vs No such file (dangling) | 파일과 디렉터리, symbolic link |
+| mem_hierarchy_fetch | 13강 p.7·p.10: L0~L5 피라미드에서 X 첫 접근 L1 miss(1) → L2 miss(+10) → DRAM hit(+100) = 111 cycles, 64B block 이 L2·L1 에 남음 → X+4 는 L1 hit 1 cycle | 메모리 계층 |
+| locality_stride | 13강 p.9 루프: a[0..31](int 4B, block 64B 가정) 커서가 지나가며 a[0]·a[16] 만 miss, 나머지 hit(spatial) · sum 박스와 루프 줄이 매 반복 깜빡(temporal) → miss 2 · hit 30 | locality |
+| heap_stack_grow | 13강 p.21~24: 16KB 주소 공간에서 malloc 으로 heap↓, 함수 호출로 stack↑ → mem.c PID 2413·2414 가 같은 heap 0xcf2010 을 찍지만 MMU 가 서로 다른 물리 칸으로 | 가상 주소 공간 |
+| free_list_alloc | 13강 p.51~53: free list 32KB→16KB→48KB, lookup 으로 맨 앞 32KB 를 빼서 프로세스 적재(base 32KB·bounds 16KB) → exit → 32KB 노드가 리스트 앞으로 복귀 | free list |
+| code_share_protect | 14강 p.13~15: A·B segment table 이 code 를 같은 물리 32KB(RE)로 → A fetch ✓, B read ✓ → B store: ① offset&lt;size ✓ ② base ✓ ③ W∈RE ✗ → Protection Fault | 코드 공유와 protection bit |
+| compaction_move | 14강 p.16~17: 빈 칸 8·4·12KB 라 20KB 요청 실패 → ① stop ② Seg A 24→16, B 36→24, C 56→32 복사 ③ base 레지스터 갱신 → 40~64KB 한 덩어리에 20KB 성공 | compaction |
+| split_coalesce | 14강 p.22~25: 30-byte heap, malloc(1) 로 (20,10) → (21,9) splitting → (p.24 상태) 가운데 free → (10,10)(0,10)(20,10) 이라 malloc(15) 실패 → coalescing (0,30) | splitting과 coalescing |
+| malloc_header_free | 14강 p.26~28: malloc(20) 이 header(size 20, magic 1234567) + 20 = 28B 를 떼어 ptr 반환 → free(ptr): hptr = ptr − 8 로 이동, size 읽고 magic 확인 → 28B 반납 | 할당 헤더 |
+| embedded_free_list | 14강 p.31~36: 4KB heap 노드 (0,4088) → malloc(100)×3 으로 (108,3980) → (324,3764) → free 108·0·216 이 앞에 붙어 head → 216 → 0 → 108 → 324 (조각 4개) | embedded free list |
+| linear_pt_index | 15강 p.15~20: page table [3,7,5,2], VA 21 = 01·0101 → PTBR + 1×4 → PFN 7 → PA 117 → 32비트·4KB 면 2^20 칸 × 4B = 4MB 막대 | 페이지 테이블 |
+| tlb_sw_miss | 15강 p.42~44: software-managed TLB miss ① exception(kernel mode) ② handler ③ page table lookup ④ 특권 명령 TLB write ⑤ return-from-trap ⑥ retry hit → p.44 HW/SW 비교 | TLB miss 처리 |
+| hybrid_seg_pt | 16강 p.13·p.15·p.16: naïve 16칸 PT → segment 별 PT(1·1·3칸) → Seg 10·VPN 0 &lt; Bound 1 → Base+0 → PFN 15 → VPN 3 ≥ Bound → Memory Trap → 가변 크기 표의 external fragmentation | hybrid approach |
+| pd_valid_saving | 16강 p.19·p.22: linear PT 4 page(PFN 201~204) 중 202·203 이 전부 invalid → PD(PFN 200) [(1,201),(0),(0),(1,204)] 로 Not Allocated, 4 → 3 page → VPN 5 는 PDE 에서 exception | page directory |
+| inverted_hash | 16강 p.32·p.35: VPN 100 → hash 500 → 200 ✗ → 400 ✗ → 100 ✓(표 참조 3번) → Table Index = PFN → PA | inverted page table |
+| huge_page_reach | 16강 p.38: TLB 4칸(가정)으로 같은 2MB 영역 8곳 접근 — 4KB page 는 매번 miss·walk(8/8), 2MB page 는 첫 miss 뒤 hit(1/8) | huge page |
+| swap_space_move | 17강 p.14~15: PFN 0~3 · Block 0~7 배치에서 (예시) PFN 0 의 Proc 0 VPN 0 → 빈 Block 2 로 swap out, Block 0 의 VPN 1 → PFN 0 swap in, OS 기록 갱신 | swap space |
+| eat_bar | 17강 p.24~26: 1000번 총 시간 막대 999×200 ns(파랑) vs fault 1번 8 ms(빨강) → ÷1000 = 8,199.8 ns(≈40배) → 220 ns 목표면 p &lt; 1/400,000 | effective access time |
+| working_set_thrash | 17강 p.27·p.54: frame 3개(LRU 가정) — WS {A,B,C} 는 miss 3 뒤 hit 6, WS {A..E} 는 9번 모두 miss·swap 왕복(thrashing) → p.54 CPU utilization 곡선 위 점이 급락 | working set과 thrashing |
+| swap_daemon_watermark | 17강 p.28: frame 20개(LW 5·HW 14 가정) 빈 page 게이지 12 → 4 (LW 아래, daemon 깨어나 evict) → 14 (HW, 잠) → 9 (LW 위, 그대로 잠) | swap daemon |
+| dirty_writeback | 17강 p.50·p.53: clean victim 은 I/O 없이 버림 → dirty victim 은 write back 후 비움(write 1) → dirty C·E·F 를 pending writes 로 모아 한 번에 write | demand paging |
+| device_protocol | 18강 p.6~9: canonical device 의 Status·Command·Data 레지스터 + p.9 코드 네 줄 하이라이트 — ① while(STATUS==BUSY) read 꼬리표 왕복(polling) → ② data 쓰기(PIO) → ③ command 쓰기(장치 시작, BUSY) → ④ 다시 polling → READY | canonical device |
+| port_vs_mmio | 18강 p.16~18: 왼쪽 outb(0x1f2, reg) 가 I/O port 공간의 0x1f2 로(privileged), 오른쪽 mov 두 줄 — 보통 주소는 Main memory, I/O 범위 주소는 HW 가 장치로 | memory-mapped I/O |
+| lba_remap | 18강 p.29~30: OS 가 logical block 0~5 요청 → disk controller → 바깥 track 이웃 sector 0~3 은 회전만으로 줄줄이, bad sector 4 는 안쪽 track remap 위치로 seek, 돌아오니 sector 5 가 지나가 거의 한 바퀴 대기 | logical block |
+| raid0_raid1 | 18강 p.44~47: 디스크 2개를 RAID 0(A1~A8 번갈아, 4 단위에 8 블록)·RAID 1(A1~A4 양쪽 복사, 4 블록) 으로 → Disk 1 고장: RAID 0 은 A2·A4·A6·A8 손실, RAID 1 은 Disk 0 사본 → 0.0975 vs 0.0025 | RAID 0과 RAID 1 |
+| raid4_parity | 18강 p.49: Disk 0~2 = 101, 010, 011 을 bit 자리마다 XOR → parity 100 (Disk 3) → Disk 1 고장 → 101 ⊕ 011 ⊕ 100 을 bit 마다 → 010 복구 | RAID 4와 parity |
+| raid5_parallel | 18강 p.48·p.50: A1 과 B2 동시 쓰기 — RAID 4 는 Ap·Bp 가 둘 다 Disk 3 이라 Bp 대기(2 단위), RAID 5(Ap D3, Bp D2, Cp D1, Dp D0)는 네 디스크 동시(1 단위) | RAID 5와 RAID 6 |
+| cwd_relative_path | 19강 p.6 트리(/ → home → dgist·coruslab, file1·file2): 절대 경로 /home/dgist/file1 은 / 에서, 상대 경로 dgist/file1 은 cwd(home, We are here)에서 → 같은 file1 → chdir("/") 후 같은 상대 경로가 /dgist 를 못 찾음 | 경로와 working directory |
+| perm_octal | 19강 p.12~13: 9 칸에 111 101 001 → 자리값 4·2·1 곱 → 7·5·1 → 751 → 칸이 rwx r-x --x 로 → ls -l /bin/vi 줄 | 권한 비트 |
+| atomic_rename | 19강 p.24 코드 다섯 줄 하이라이트: tmp 엔트리·inode Y 생성 → write 는 메모리에만 → fsync 로 디스크 → close → rename 으로 foo.txt 엔트리가 inode Y 로 한 번에, 옛 inode X 해제. 오른쪽 아래 "지금 꺼지면 foo.txt = 옛/새" 배너 | rename과 atomic update |
+| mkdir_dot_entries | 19강 p.28: mkdir("foo") — inode bitmap 에서 새 inode N(directory) → N 의 블록에 (N, ".")·(P, "..") → 부모 P 블록에 (N, "foo") → P link count 25 → 26, N link count 2 → ls -al 의 ./ 2, ../ 26 | 디렉터리 API |
+| vsfs_layout_build | 20강 p.3~8: 64 블록 8×8 격자를 D(8~63) → I(3~7, 확대: 256 B inode 16 개, 5 × 16 = 80) → i(1)·d(2) bitmap → S(0, 내용 예시) 순서로 채우고 mount 때 S 부터 읽어 I·D 위치를 앎 | vsfs 디스크 배치 |
+| bitmap_alloc | 20강 p.6~7: inode bitmap 1111 0100… 을 ▲ 가 앞에서부터 훑어 4 번 → inode 4, data bitmap 1101 0000… 에서 2 번 → data block 2, inode 4 포인터 = 2, 바뀐 블록 넷 | bitmap과 free space |
+| indirect_walk | 20강 p.17 그림 번호 그대로: 파일 블록 0 → 27 (읽기 2), 블록 12 → 72 → 100 (3), 블록 1036 → 3942 → 104 → 1034 (4), 오른쪽 디스크 읽기 목록 | multi-level index |
+| dir_entry_scan | 20강 p.18 표를 (inode #, 길이, 이름+NUL) 바이트 띠로: lookup("foobar") 가 길이 칸을 보고 건너뛰며 5 번째에서 inode 24 → 대비: 256 B 고정 칸이면 4 KB 에 16 개 | 디렉터리 구성 |
+| write_buffer_fsync | 20강 p.25: 두 줄 — write(v1~v3) 가 page cache 의 같은 블록만 바꿈 → close() 는 아무것도 안 보냄 → 위: fsync() 로 v3 하나 디스크(쓰기 1 번) / 아래: 전원 꺼짐, v3 사라지고 디스크는 v0 | caching과 buffering |
+| ffs_fragment | 21강 p.4: A1 A2 B1 B2 C1 C2 D1 D2 → B, D 삭제 → E1 E2 는 B 자리, E3 E4 는 D 자리 → E 읽기: head 가 C1·C2 를 건너뜀 | Fast File System |
+| ffs_placement | 21강 p.10·p.12 표(그룹 0~7, inode·data 10 칸)를 /, a, b, c, d, e, f 순서로 나란히 채움 → /a/c, /a/d, /a/e 차례로 열기: FFS 는 그룹 1 한 줄, 흩는 쪽은 그룹 3 → 4 → 5 | FFS 배치 정책 |
+| large_file_chunks | 21강 p.15~17: 위 — 큰 파일 0~9 가 G2 를 채워 작은 파일 s 가 G3 로 밀림 / 아래 — chunk 01→G2, 23→G4, 45→G6, 67→G8, 89→G0, s 는 G2 → amortization(409.6 KB 50%, 약 4 MB 90%, FFS 는 4 MB 마다) | large-file exception |
+| extent_vs_ptr | 21강 p.20: 파일 0~250 = 디스크 50~300 — indirect 포인터 칸 250 개가 행마다 차오름 vs extent 한 줄 → 삭제도 칸마다 vs 한 줄 → 조각난 파일은 길이 1 extent 가 블록마다 | extent |
+| delayed_alloc | 21강 p.23: A0 B0 A1 B1 T A2 B2 쓰고 rm T — 위(바로 할당): 디스크에 섞이고 T 자리 구멍, 할당 7 번 / 아래(delayed): page cache 에 모았다가 flush 때 A0~A2, B0~B2 이어서(요청 2 번), T 는 할당 안 함 → flush 전 전원이 나가면 손실 | preallocation과 delayed allocation |

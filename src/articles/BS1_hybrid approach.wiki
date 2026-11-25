@@ -41,6 +41,10 @@ PTEAddr = Base[SN] + (VPN * sizeof(PTE));   // 이 segment 의 page table 에서
 PTE     = AccessMemory(PTEAddr);            // valid · protection 검사
 PA      = (PTE.PFN << SHIFT) | offset;      // offset 은 그대로
 </pre>
+
+p.15 의 흐름을 p.13 그림 숫자로 돌려 보면 이렇다. 두 번째 VA 는 bound 검사에서 Memory Trap 이 난다.
+
+[[anim:hybrid_seg_pt|16칸 → 1·1·3칸, heap VPN 0 은 PFN 15, VPN 3 은 trap]]
 (OSTEP 20.2 의 의사코드를 슬라이드 기호에 맞췄다.)
 
 == p.16 문제 ⭐⭐⭐ ==

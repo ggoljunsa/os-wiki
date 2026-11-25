@@ -27,6 +27,10 @@ TLB miss 가 났을 때 하드웨어(CPU)와 소프트웨어(OS) 중 누가 page
 
 [[img:L15-43.png|p.43 Software-managed TLBs. ① Raises an exception ② Trap handler invoked ③ Lookup translation ④ Update TLB|large]]
 
+p.42~43 의 여섯 단계를 순서대로 움직인 그림이다. 하드웨어 몫(①·⑥)과 OS 몫(②~⑤)을 나눠서 본다. 끝에 p.44 비교가 붙어 있다.
+
+[[anim:tlb_sw_miss|exception → handler → lookup → TLB write → return → retry]]
+
 {tip}software-managed 의 1~6 은 4강 [[제한적 직접 실행]]의 트랩 경로와 같다. 하드웨어가 kernel mode 로 올리고 핸들러로 점프하면 OS 가 일하고, return-from-trap 뒤 하드웨어가 같은 명령을 다시 실행한다. 시스템 콜과 달리 다음 명령이 아니라 재시도다. 2026F 중간 P3 의 "Hardware 단계가 OS 단계를 감싼다"와 같은 구조다.{/tip}
 
 == p.44 장단점 ⭐⭐ ==

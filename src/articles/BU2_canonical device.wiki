@@ -18,6 +18,10 @@ OS 는 이 세 레지스터를 읽고 쓰는 것만으로 장치를 다룬다.
 | data || 장치에 데이터를 주거나 받아 온다
 |}
 
+p.9 는 이 세 레지스터로 요청 하나를 보내는 순서를 코드 네 줄로 보여 준다. 아래 그림이 그 네 줄을 그대로 돌린 것이다. 1·4줄에서 CPU 가 status 를 되풀이해 읽는 것이 [[polling과 interrupt|polling]], 2줄에서 CPU 가 데이터를 직접 옮기는 것이 [[PIO와 DMA|PIO]] 다.
+
+[[anim:device_protocol|p.9 네 줄 — status 가 BUSY 에서 READY 로 바뀔 때까지 read 꼬리표가 몇 번 오가는지 세어 보라]]
+
 == p.7 Canonical Device ==
 [[img:L18-07.png|p.7 interface(레지스터)와 internals(마이크로컨트롤러·메모리·전용 칩)|medium]]
 

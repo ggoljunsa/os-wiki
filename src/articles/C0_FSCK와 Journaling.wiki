@@ -1,0 +1,111 @@
+key: FSCK와 Journaling
+title: FSCK와 Journaling (22강)
+category: 22강 FSCK and Journaling, 핵심
+---
+{warn}22강 슬라이드 `22-FSCK-and_Journaling.pdf`(37쪽)만 보고 썼다. 11/25(수) 수업 분량이지만 녹음은 아직 없다. 녹음이 오면 아래 "실제 수업 기록" 절을 채운다. 교재는 [[OSTEP]] 42장 "Crash Consistency: FSCK and Journaling" 이다.{/warn}
+
+[[파일 시스템 구현|20강]] 에서 파일 하나에 블록을 덧붙이면 디스크에 쓰는 블록이 여러 개라는 것을 셌다. data bitmap, data block, inode 가 따로따로 디스크에 간다. 그 사이에 전원이 나가면 어떻게 될까? 22강은 이 질문 하나로 37쪽을 끌고 간다. 파일 시스템이 쓰는 해법은 두 가지다.
+* '''fsck''': crash 가 난 뒤에 디스크 전체를 훑어서 앞뒤가 안 맞는 곳을 고친다. 옛날 방식이다.
+* '''Journaling''': 고치기 전에 무엇을 할지 먼저 적어 둔다. crash 가 나면 그 메모만 보고 다시 한다. ext3, ext4 가 쓰는 방식이다.
+
+20강 수업 끝 무렵 교수님은 write() 에서 inode 를 맨 마지막에 쓰는 이유를 물었고, 답은 consistency 였다. 그리고 consistency 를 "very important topic" 이라고 부르며 다음 주에 따로 다룬다고 했다.[* 11/23 녹음 56:25~60:50. "consistency should be the main design" 이라는 말도 이때 나왔다. 자세한 것은 [[파일 접근 경로]] 의 "왜 inode 를 마지막에 쓰나" 절.] 그 다음 주 수업이 이 강의다.
+
+== 슬라이드 ↔ 문서 ==
+{|
+! 슬라이드 || 내용 || 문서
+|-
+| p.2~7 || 영속 자료구조, append 한 번에 쓰는 블록 셋(I[v2], B[v2], Db) || [[crash consistency]]
+|-
+| p.8~12 || 하나만 쓰인 경우 셋, 둘만 쓰인 경우 셋, "원자적으로 옮기고 싶다" || [[crash 시나리오]]
+|-
+| p.13~18 || fsck 가 하는 일, 못 하는 일, 너무 느리다 || [[fsck]]
+|-
+| p.19~25 || write-ahead logging, ext3 의 journal, TxB · TxE · physical logging, checkpoint || [[data journaling]]
+|-
+| p.26~30 || 저널 쓰기 중 crash, 한 번에 쓰면 위험한 이유, 두 단계 쓰기, recovery || [[journal commit과 recovery]]
+|-
+| p.31~34 || 저널이 가득 차면, circular log, journal superblock, Free 단계 || [[circular log]]
+|-
+| p.35 || ext3/4 의 Ordered · Writeback · Journal 모드 || [[ext3 journaling mode]]
+|}
+
+== 영속 자료구조는 crash 를 견뎌야 한다 (p.3) ==
+{def}p.3: "Unlike most data structure, file system data structures must '''persist'''. They must survive over the long haul, stored on devices that retain data despite power loss. One major challenge faced by a file system is how to update persistent data structure, avoiding a '''crash-consistency problem''', despite the presence of a power loss or system crash."{/def}
+
+메모리 위의 연결 리스트는 프로그램이 죽으면 같이 사라진다. 다시 실행하면 처음부터 새로 만든다. 파일 시스템의 bitmap, inode, 디렉터리는 그렇지 않다. 전원이 나가도 남아 있어야 하고, 다음 부팅 때 그대로 읽힌다. 그래서 '''갱신하는 도중에''' 전원이 나가면, 반쯤 고친 상태가 디스크에 영원히 남는다.[* 20강 수업에서 교수님이 한 말이 이것이다. 프로그램 버그는 죽이고 다시 실행하면 되지만, 디스크의 데이터는 "forever" 남으니 재시작으로 고칠 수 없다.]
+
+이게 '''crash-consistency problem''' 이다. 디스크는 한 번에 블록 하나씩만 쓰는데, 파일 시스템의 갱신 하나는 블록 여러 개를 바꾼다. 그 사이 어디서든 전원이 끊길 수 있다. 무엇이 어떻게 깨지는지는 [[crash consistency]] 와 [[crash 시나리오]] 에서 하나씩 본다.
+
+슬라이드가 살펴볼 접근은 둘이다.
+* '''fsck''' (file system checker) → [[fsck]]
+* '''Journaling''' (write-ahead logging) → [[data journaling]], [[journal commit과 recovery]], [[circular log]], [[ext3 journaling mode]]
+
+{mini}
+# 파일 시스템 자료구조가 메모리 자료구조와 달리 crash 를 신경 써야 하는 이유를 한 문장으로.
+# p.3 이 소개하는 두 접근의 이름을 쓰라. 두 번째는 괄호 안의 다른 이름까지.
+{/mini}
+{answer}
+# 디스크에 '''persist''' 하기 때문이다. 고치다 만 상태도 전원이 꺼진 뒤 그대로 남는다.
+# '''fsck'''(file system checker), '''Journaling'''('''write-ahead logging''').
+{/answer}
+
+== 한 장으로 보는 22강 ==
+22강은 예제 하나를 끝까지 쓴다. 이미 블록 하나(Da)짜리 파일이 있고, 여기에 4 KB 를 하나 덧붙인다. 그러면 디스크에 세 블록을 새로 써야 한다.
+* '''I[v2]''': inode 의 새 판. size 가 1 에서 2 로, 두 번째 pointer 가 5 를 가리킨다.
+* '''B[v2]''': data bitmap 의 새 판. 5 번 비트가 1 이 된다.
+* '''Db''': 새 data block. 5 번 블록에 들어간다.
+
+이 셋 중 일부만 디스크에 가고 crash 가 나면 문제가 생긴다([[crash 시나리오]]). fsck 는 crash 뒤에 디스크 전체를 읽어서 metadata 끼리 맞춰 준다. 하지만 느리고, 블록 안의 garbage 는 못 알아챈다([[fsck]]). journaling 은 세 블록을 '''먼저 저널에''' 쓰고, 끝 표시(TxE)까지 쓴 다음에 제자리에 쓴다. crash 가 나면 끝 표시까지 있는 것만 다시 쓴다.
+
+[[anim:journal_write_flow|① 저널에 쓰기 → ② TxE 로 commit → ③ 제자리에 쓰기(checkpoint) → ④ 저널 칸 비우기(free). 각 단계 사이에서 crash 가 나면 무엇이 남는지 생각하면서 보라]]
+
+{analogy}
+가계부 장부를 고치는 사람을 떠올려 보자. fsck 는 정전 뒤에 장부 전체를 처음부터 끝까지 검산하는 사람이다. 정확하지만 장부가 두꺼우면 하루가 걸린다. journaling 은 고치기 전에 포스트잇에 "3쪽 12줄을 5000 원으로, 7쪽 합계를 고친다" 라고 먼저 적어 두는 사람이다. 정전이 나면 포스트잇만 보고 다시 한다. 포스트잇 끝에 "여기까지" 라고 적혀 있지 않으면 그 포스트잇은 버린다.
+{/analogy}
+
+{mini}
+# 22강 예제에서 append 한 번에 디스크에 새로 써야 하는 블록 셋을 기호로 쓰라.
+# fsck 와 journaling 중, crash 가 난 '''뒤에''' 디스크 전체를 훑는 쪽은?
+# journaling 에서 crash 뒤 다시 쓸지 말지를 가르는 블록의 이름은?
+{/mini}
+{answer}
+# '''I[v2]''', '''B[v2]''', '''Db'''.
+# '''fsck'''. journaling 은 저널만 본다(p.20 "instead of having to scan the entire disk").
+# '''TxE'''(transaction end block). TxE 까지 있으면 replay, 없으면 skip. [[journal commit과 recovery]]
+{/answer}
+
+== 실제 수업 기록 ==
+{info}11/25(수) 녹음 대기. 녹음이 오면 시각별 표, 교수님 질문, 공지를 여기에 적는다.{/info}
+
+== 슬라이드 메모 ==
+{warn}
+* p.6 그림: 갱신한 뒤인데 inode 칸에 여전히 "I[v1]" 이라고 적혀 있다. 본문 글머리(The Inode is updated (I[v2]))가 맞다. 그림의 inode 상자는 size 2, pointer 5 로 이미 새 판이다.[* OSTEP 42장 그림도 갱신 뒤를 I[v2] 로 적는다.]
+* p.10 Case 2b: "old version of the bitmap (B1)" 은 B[v1] 이다.
+* p.26~27: "Write 5 transactions (TxB, I[v2], B[v2], Db, TxE)" 는 '''블록 5 개'''라는 뜻이다. transaction 은 하나다.
+* p.21: "within the partition or one another" 는 OSTEP 원문 "or on another device" 를 줄이다 생긴 말이다. 저널은 같은 파티션 안에 두거나 다른 장치에 둘 수 있다.
+* p.30: "before the transactions is written to the log" 는 TxE 까지 쓰기 전(commit 전)을 말한다. TxB 와 데이터 몇 개가 저널에 있어도 TxE 가 없으면 건너뛴다.
+* p.36: "Jorunaling" 은 Journaling 오타.
+{/warn}
+
+== 시험에 나온다면 ==
+{info}녹음이 없어 교수 강조는 아직 모른다. 중간고사 형식(객관식 + full term + 규칙 주고 손으로 돌리기)에 맞춰 보면 이렇다.
+* 손으로 돌리기: 세 블록 중 어떤 것이 쓰였을 때 결과 판정([[crash 시나리오]]), crash 지점별 recovery 결과([[journal commit과 recovery]]), 4 단계 순서 배열.
+* 용어: crash consistency, fsck, write-ahead logging, TxB / TxE, TID, physical logging, checkpoint, circular log, journal superblock, Ordered / Writeback / Journal mode.
+* 객관식: fsck 가 못 고치는 경우(Case 2a), fsck 가 bitmap 과 inode 가 다를 때 믿는 쪽(inode), TxE 를 따로 쓰는 이유.
+{/info}
+
+== 시험 직전 체크 ==
+# append 한 번 = I[v2] · B[v2] · Db 세 쓰기. 디스크는 한 번에 하나만 쓴다.
+# 1a(Db 만)는 문제없음. 1b·1c·2b·2c 는 metadata 불일치. 2a 는 metadata 는 맞지만 data 가 garbage.
+# fsck: mount 전에 돌고, 불일치는 inode 를 믿고 고친다. garbage(2a)는 못 고치고, 너무 느리다.
+# WAL: 덮어쓰기 전에 저널에 먼저 적는다. TxB(TID) · 블록 내용(physical logging) · TxE(TID).
+# 순서: Journal write → Journal commit(TxE) → Checkpoint → Free. TxE 는 앞의 쓰기가 끝난 뒤 따로 쓴다.
+# recovery: TxE 까지 있는 transaction 만 replay, 없으면 skip.
+# 저널은 circular log. journal superblock 이 oldest·newest 를 적는다.
+# ext3/4 모드: Ordered(기본, data 먼저 제자리) · Writeback(순서 무관) · Journal(data 도 저널).
+
+== 관련 문서 ==
+* [[기말고사]] · [[파일 시스템 구현]] (20강, vsfs 와 쓰기 순서) · [[Fast File System]] (21강)
+* [[crash consistency]] · [[crash 시나리오]] · [[fsck]]
+* [[data journaling]] · [[journal commit과 recovery]] · [[circular log]] · [[ext3 journaling mode]]
+* [[파일 접근 경로]] (20강, inode 를 마지막에 쓰는 이유) · [[caching과 buffering]] (fsync) · [[rename과 atomic update]] (19강)

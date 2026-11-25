@@ -1,0 +1,115 @@
+key: journal commit과 recovery
+title: journal commit과 recovery: TxE 를 따로 쓰는 이유
+category: 22강 FSCK and Journaling
+---
+22강 p.26~30 을 다룬다. [[data journaling]] 의 처음 순서(Journal write → Checkpoint)에는 구멍이 하나 있다. 저널에 쓰는 '''도중에''' crash 가 나면 어떻게 되나? 슬라이드는 두 가지 쓰기 방식을 비교한 뒤, TxE 를 따로 떼어 쓰는 "Journal commit" 단계를 넣는다. 그리고 crash 뒤 저널을 읽어 복구하는 방법(recovery)을 정리한다.
+
+== 하나씩 쓰면 느리다 (p.26) ==
+{def}p.26: "What happens when a crash occurs during the writes to the journal? Case 1: Transaction each one at a time. Write 5 transactions (TxB, I[v2], B[v2], Db, TxE) in an ordered manner. This is '''slow''' because of waiting for each to complete."{/def}
+
+가장 안전한 방법은 다섯 블록을 하나씩 쓰고, 하나가 끝날 때마다 기다렸다가 다음 것을 쓰는 것이다. 순서가 보장되니 TxE 가 디스크에 있으면 앞의 넷도 반드시 있다. 대신 매번 기다리니 느리다.[* 슬라이드는 "Write 5 transactions" 라고 썼지만, transaction 은 하나고 그 안의 '''블록'''이 다섯이다. p.27 도 같다.] 18강에서 본 대로 디스크 요청 하나마다 seek 와 rotation 을 기다려야 한다.
+
+== 한 번에 쓰면 위험하다 (p.27) ==
+{def}p.27 Case 2: "Transaction all block writes at once. Write 5 transactions (TxB, I[v2], B[v2], Db, TxE) at the same time. A single sequential write: faster way. However, this is '''unsafe'''. The disk internally may perform scheduling in any order. Disk may (1) write TxB, I[v2], B[v2], and TxE and only later (2) write Db. What happens if the disk loses power between (1) and (2)?"{/def}
+
+빠르게 하려면 다섯 블록을 한 번의 큰 sequential write 로 디스크에 넘기면 된다. 저널은 연속된 공간이라 이렇게 쓰면 아주 빠르다. 문제는 '''디스크가 그 안의 순서를 마음대로 바꿀 수 있다'''는 것이다. 18강 [[디스크 스케줄링]] 에서 본 것처럼 디스크 내부도 요청을 성능에 맞춰 재배열한다.
+
+[[img:L22-27.png|p.27 — TxB, I[v2], B[v2], TxE 는 쓰였는데 Db 자리는 아직 ?? 이다|large]]
+
+위 그림이 최악의 경우다. 디스크가 TxB, I[v2], B[v2], TxE 를 먼저 쓰고 Db 는 나중에 쓰려다가, 그 사이에 전원이 나갔다. 저널에는 Db 자리에 예전 내용(??)이 남아 있다.
+
+슬라이드가 이어서 적은 문제는 셋이다.
+* transaction 은 '''유효해 보인다'''. TxB 와 TxE 가 다 있고 TID 도 같다.
+* 파일 시스템은 Db 가 garbage 라는 것을 '''모른다'''. 그래서 recovery 때 이 garbage 를 블록 5 에 그대로 replay 한다.
+* 이게 superblock 같은 중요한 블록에서 일어나면 훨씬 나쁘다. 파일 시스템 전체를 mount 하지 못할 수도 있다.
+
+{mini}
+# 다섯 블록을 하나씩 쓰는 방식(Case 1)의 단점은? 한 번에 쓰는 방식(Case 2)의 단점은?
+# 한 번에 쓸 때, 디스크가 다음 순서로 쓰다가 ⚡ 에서 전원이 나갔다: TxB, I[v2], TxE ⚡ B[v2], Db. 저널을 본 recovery 는 이 transaction 을 replay 하나? 결과는?
+{/mini}
+{answer}
+# Case 1 은 하나마다 기다려서 '''느리다'''. Case 2 는 디스크가 순서를 바꿀 수 있어 '''unsafe''' 하다.
+# TxB 와 TxE 가 다 있으니 '''replay 한다'''. B[v2] 와 Db 자리의 garbage 가 제자리(data bitmap, 블록 5)에 덮어써진다. bitmap 이 garbage 가 되니 Db 하나 틀린 것보다 더 나쁘다.
+{/answer}
+
+== 두 단계로 나눠 쓴다: Journal commit (p.28~29) ==
+{def}p.28: "To avoid this problem, the file system issues the transactional write in two steps. First, writes all blocks '''except for TxE''' to journal. Second, issues the write of TxE."{/def}
+
+[[img:L22-28.png|p.28 — 첫 단계에서 TxB(id=1)·I[v2]·B[v2]·Db 를 쓰고, 다 끝난 뒤 두 번째 단계에서 TxE(id=1) 하나만 쓴다|large]]
+
+해법은 TxE 만 떼어 내는 것이다. 위 그림의 윗줄이 첫 단계다. TxB, I[v2], B[v2], Db 네 블록은 한 번에 보낸다. 이 넷 사이의 순서는 디스크가 바꿔도 괜찮다. 넷이 '''다 끝난 것을 확인한 뒤''' 아랫줄처럼 TxE 를 따로 쓴다.
+
+이렇게 하면 TxE 가 디스크에 있다는 것은 앞의 네 블록이 이미 다 쓰였다는 뜻이 된다. TxE 를 쓰는 순간 transaction 이 '''commit''' 된다. 그래서 이 단계를 '''Journal commit''' 이라 부른다.[* TxE 를 쓰다가 반쯤만 쓰이면 어떡하나? OSTEP 는 디스크가 512 바이트 sector 하나는 atomic 하게 쓴다고 보고, TxE 를 512 바이트 안에 넣어야 한다고 설명한다. 슬라이드에는 없는 이야기다.]
+
+{def}p.29 Our revised sequence of operations: "1. '''Journal write''': Write the transaction to the log and wait for these writes to complete (TxB, all pending data, metadata updates). 2. '''Journal Commit (Added)''': Write the transaction commit block (i.e., TxE). 3. '''Checkpoint''': Write the pending metadata and data updates to their final locations."{/def}
+
+p.25 의 두 단계와 비교하면 TxE 가 1 단계에서 빠져 2 단계로 따로 나왔다. 순서는 이제 셋이다.
+# Journal write: TxB, data, metadata 를 저널에 쓰고 기다린다.
+# Journal commit: TxE 를 쓴다(기다린다).
+# Checkpoint: 같은 블록을 제자리에 쓴다.
+
+{analogy}
+택배 상자에 물건 넷을 넣고 마지막에 봉인 테이프(TxE)를 붙인다. 물건을 넣는 순서는 상관없지만, 테이프는 물건을 다 넣은 걸 확인하고 붙여야 한다. 받는 사람은 테이프가 붙은 상자만 열어 본다.
+{/analogy}
+
+{mini}
+# 두 단계 쓰기에서 첫 단계에 쓰는 블록 넷과 둘째 단계에 쓰는 블록 하나를 쓰라.
+# 첫 단계의 네 블록 사이 순서를 디스크가 바꿔도 괜찮은 이유는?
+# 다음을 올바른 순서로: Checkpoint, Journal commit, Journal write.
+{/mini}
+{answer}
+# 첫 단계 '''TxB, I[v2], B[v2], Db''', 둘째 단계 '''TxE'''.
+# TxE 가 아직 없으니 이 단계에서 crash 가 나면 transaction 은 commit 되지 않은 것으로 보고 통째로 버린다. 네 블록이 어떤 순서로 쓰였든 결과가 같다.
+# '''Journal write → Journal commit → Checkpoint'''.
+{/answer}
+
+== crash 뒤에 저널을 읽는다: Recovery (p.30) ==
+{def}p.30 Recovery: "1. If the crash happens '''before''' the transaction is written to the log, the pending update is '''skipped'''. 2. If the crash happens '''after''' the transaction is written to the log, but before the checkpoint is complete, recover the update as follows: scan the log and look for transactions that have committed to the disk. Transactions are '''replayed'''."{/def}
+
+재부팅하면 파일 시스템은 mount 전에 저널을 읽는다. 그리고 crash 가 언제 났느냐에 따라 둘 중 하나를 한다.
+* '''commit 전에 crash''' (TxE 가 저널에 없다): 이 갱신은 건너뛴다(skip). 제자리에는 아직 아무것도 안 썼으니 디스크는 옛 상태 그대로이고 consistent 하다. 이번 갱신만 사라진다.[* 슬라이드 표현은 "before the transaction is written to the log" 다. 정확히는 TxE 가 쓰이기 전, 즉 commit 전이다. TxB 와 데이터 몇 개가 저널에 있어도 TxE 가 없으면 건너뛴다.]
+* '''commit 뒤, checkpoint 가 끝나기 전에 crash''': 저널을 훑어서 commit 된 transaction(TxB 와 TxE 가 다 있는 것)을 찾고, 그 안의 블록을 제자리에 '''다시 쓴다'''(replay).
+
+replay 는 저널에 적힌 블록 내용을 순서대로 제자리에 덮어쓰는 것이다. checkpoint 도중에 crash 가 나서 I[v2] 는 이미 제자리에 있고 B[v2], Db 는 아직이었다고 하자. replay 는 I[v2] 까지 셋을 다 다시 쓴다. I[v2] 를 한 번 더 써도 같은 내용이니 결과는 같다.[* 이렇게 저널의 새 내용으로 다시 쓰는 방식을 OSTEP 는 redo logging 이라 부른다. 같은 것을 여러 번 해도 결과가 같은 성질 덕분에, recovery 도중에 또 crash 가 나도 처음부터 다시 replay 하면 된다.]
+
+fsck 와 비교하면, recovery 는 저널에 남은 transaction 몇 개만 읽는다. 디스크 전체를 훑지 않는다.
+
+아래 시뮬레이터에서 crash 지점을 바꿔 가며 recovery 결과를 확인해 보라. "저널 쓰기 방식" 을 한 번에 다(unsafe)로 바꾸면 p.27 의 garbage replay 가 재현된다.
+
+[[sim:journal_trace]]
+
+{|
+! crash 지점 || 저널 상태 || recovery || 디스크 결과
+|-
+| Journal write 도중 || TxB, 일부 블록 || TxE 없음 → skip || 옛 상태, consistent
+|-
+| TxE 쓰기 전 || TxB, I, B, Db || TxE 없음 → skip || 옛 상태, consistent
+|-
+| commit 뒤, checkpoint 전 || TxB ~ TxE || replay || 새 상태
+|-
+| checkpoint 도중 || TxB ~ TxE || replay (이미 쓴 것도 다시) || 새 상태
+|-
+| checkpoint 끝, free 전 || TxB ~ TxE || replay (해도 같다) || 새 상태
+|}
+
+{mini}
+# 저널에 TxB(id=7), I[v2], B[v2], Db 는 있는데 TxE 가 없다. recovery 는 무엇을 하나? 디스크의 inode 2 는 I[v1] 인가 I[v2] 인가?
+# 저널에 TxB(id=7) … TxE(id=7) 가 다 있고, 제자리에는 I[v2] 만 쓰였다. recovery 뒤 제자리의 세 블록은?
+# recovery 가 fsck 보다 빠른 이유를 한 문장으로.
+{/mini}
+{answer}
+# commit 안 된 transaction 이라 '''skip'''. 제자리는 한 번도 안 건드렸으니 inode 2 는 '''I[v1]'''.
+# commit 된 transaction 이라 '''replay''' → '''I[v2], B[v2], Db''' 모두 새 판(I[v2] 는 한 번 더 쓰인다).
+# 디스크 전체가 아니라 '''저널에 남은 transaction 만''' 읽고 다시 쓰기 때문이다.
+{/answer}
+
+== 시험 직전 체크 ==
+# 하나씩 쓰기: 안전하지만 느리다. 한 번에 쓰기: 빠르지만 디스크가 순서를 바꿔 unsafe.
+# unsafe 의 결과: TxE 는 있는데 Db 가 garbage → 유효해 보이는 transaction 으로 garbage 를 replay.
+# 해법: TxE 를 뺀 나머지를 먼저 쓰고 기다린 뒤, TxE 를 따로(Journal commit).
+# 순서: Journal write → Journal commit → Checkpoint (→ Free, [[circular log]]).
+# recovery: TxE 없으면 skip, TxE 있으면 replay.
+
+== 관련 문서 ==
+* [[FSCK와 Journaling]] (22강 허브) · [[data journaling]] (앞) · [[circular log]] (다음)
+* [[crash 시나리오]] · [[fsck]] · [[디스크 스케줄링]] (18강, 디스크가 순서를 바꾸는 이유)

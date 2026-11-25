@@ -23,6 +23,10 @@ category: 16강 Advanced Page Table, 핵심
 # 그 자리 항목의 VPN·PID 가 맞는지 비교한다. 그림에서는 500 번에 VPN 200 이 있어 틀리다. 다음 후보 400, 그다음 100 에서 일치한다. ([[hash collision]])
 # 일치한 항목의 Table Index 가 PFN 이다. PA = PFN | VPO.
 
+위 네 단계를 p.32 그림 위에서 움직이면 이렇다. 왼쪽 아래 카운터로 collision 때문에 표를 몇 번 읽는지 센다.
+
+[[anim:inverted_hash|500 → 200 ✗ → 400 ✗ → 100 ✓, 표 참조 3번]]
+
 {tip}PID 가 필요한 이유(영상 39:22): 다른 프로세스가 같은 VPN 을 쓸 수 있다. 시스템 전체 표이므로 (PID, VPN) 쌍이 열쇠다.{/tip}
 
 == p.33~34 장점 2 · 단점 3 ⭐⭐⭐ ==

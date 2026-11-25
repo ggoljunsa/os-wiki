@@ -20,6 +20,10 @@ category: 20강 File System Implementation
 
 그래서 실제로는 길이를 먼저 적고 그 길이만큼만 글자를 적는다. 공간은 아끼지만 대가가 있다. 엔트리 크기가 제각각이니 k 번째 엔트리로 바로 뛰어갈 수 없다. 첫 엔트리를 읽고, 길이를 보고, 다음 엔트리로 넘어가는 식으로 '''처음부터 차례로''' 훑어야 한다. 교수님 말로는 "it is actually the linked list, not an array" 다. 이름을 사전 순으로 정렬해 두면 찾기는 빨라질 것 같지만, 이 구조에서는 정렬을 유지하기도 어렵다.
 
+아래 그림은 p.18 표를 디스크에 놓인 모양대로 한 줄로 펴고 `foobar` 를 찾는다. 길이 칸을 읽어야 다음 엔트리로 건너뛸 수 있어서 다섯 번째에서야 찾는다.
+
+[[anim:dir_entry_scan|p.18 — 주황 화살표가 길이 칸에서 출발하는 것과, 마지막의 고정 256 B 칸 16 개를 비교하라]]
+
 교수님 결론은 이렇다. "the directory organization is optimized for the size, not for the speed." 그래서 실제 컴퓨터에서 파일 이름 검색은 느리다. 운영체제가 따로 색인 데이터베이스를 만들어 두고 검색할 때는 그 데이터베이스를 보는 이유다.[* Windows 의 검색 색인, macOS 의 Spotlight 가 이런 별도 색인이다. 교수님은 이름을 들지 않고 "your operating system will store some indexing based on the database" 라고만 했다.]
 
 {analogy}

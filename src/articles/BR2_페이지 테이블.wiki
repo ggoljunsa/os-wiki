@@ -23,6 +23,10 @@ category: 15강 Paging, 핵심
 
 [[img:L15-16.png|p.16 64바이트 주소 공간의 page 0~3 이 page table 을 통해 frame 3·7·5·2 로|large]]
 
+VA 21 을 이 배열로 바꾸는 과정이다. PTE 는 4바이트로 가정했고, 끝에서는 같은 배열을 32비트·4KB page 로 키웠을 때 크기를 본다.
+
+[[anim:linear_pt_index|VPN 1 → 1번 칸 → PFN 7 → PA 117, 그리고 4MB]]
+
 == p.19~20 페이지 테이블의 위치 ⭐⭐ ==
 슬라이드는 "Page tables can get awfully large" 라고 쓴다. 32비트 주소 공간, 4KB page 로 크기를 계산한다.
 <pre class="ascii">

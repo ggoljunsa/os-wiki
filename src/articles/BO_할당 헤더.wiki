@@ -25,6 +25,10 @@ void free(void *ptr) {
 }
 </pre>
 
+malloc(20) 한 번과 free(ptr) 한 번을 따라가 보면 이렇다. hptr 화살표가 ptr 에서 8바이트 앞으로 가는 순간을 본다.
+
+[[anim:malloc_header_free|28바이트를 떼어 가고, free 는 ptr − 8 에서 size 를 읽는다]]
+
 == p.28 실제로 떼어 가는 크기 ⭐⭐ ==
 p.28 원문: "The size for free region is the size of the header plus the size of the space allocated to the user. If a user requests N bytes, the library searches for a free chunk of size '''N plus the size of the header'''."
 
