@@ -1599,7 +1599,7 @@ body.bed #intro .ibody { font-size: 19px; }
         h('span', null, DATA[cid].short), h('span', { class: 'muted' }, fr.seen + '/' + fr.total + ' · ' + Math.round(100 * fr.f) + '%'));
     });
     return h('div', { class: 'card' }, h('div', { class: 'ctop' }, h('b', null, '🏃 1바퀴 진행'), h('span', { class: 'badge' }, Math.round(100 * sn / Math.max(1, tot)) + '%')),
-      h('p', { class: 'muted small' }, '안 푼 문항만 순서대로 냅니다 · 틀려도 다시 안 냄 · 복습은 1바퀴 뒤에 (설정에서 끄기)'), rows);
+      h('p', { class: 'muted small' }, '안 푼 문항만 순서대로 냅니다 · 틀린 문항은 맞출 때까지 그 레슨에서 다시 · 복습은 1바퀴 뒤에 (설정에서 끄기)'), rows);
   }
   function todayFocusCard() {
     var d = G.days[today()] || {}, ns = NIGHTS.filter(function (n) { return D.dateKey(n.t1) === today() || D.dateKey(n.t1) === D.shiftDay(today(), -1); }).slice(-1)[0];
@@ -1986,7 +1986,7 @@ body.bed #intro .ibody { font-size: 19px; }
     if (!retry) { S.first[it.id + '\u0001' + it._c] = ok; cd.st[it.id] = D.schedule(cd.st[it.id], ok, now, it, ok ? null : gs); if (BED) { BED.qn++; if (ok) BED.qok++; } }
     if (ok) { S.solved++; S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo); beep(true); }
     else {
-      S.combo = 0; S.wrongs++; if (!(G.sweep && S.mode === 'lesson')) S.queue.push(it); beep(false); buzz();
+      S.combo = 0; S.wrongs++; S.queue.push(it); beep(false); buzz();
       if (G.heartsOn && S.mode === 'lesson') { if (G.hearts >= MAX_HEARTS) G.heartsT = now; G.hearts = Math.max(0, heartsNow() - 1); saveG(); }
     }
     saveCourse(cd); saveLog(cd);
@@ -2412,7 +2412,7 @@ body.bed #intro .ibody { font-size: 19px; }
         h('div', { class: 'muted small' }, '🌙 누워서 모드'),
         seg2(['tap', 'key'], G.inputBed || 'tap', function (v) { return v === 'key' ? '⌨ 키보드' : '👆 탭만'; }, function (v) { G.inputBed = v; saveG(); })),
       h('div', { class: 'card' }, h('b', null, '🏃 1바퀴 모드'),
-        h('p', { class: 'muted small' }, '켜면 레슨이 안 푼 문항만 내고, 틀린 문항을 레슨 끝에 다시 내지 않으며, 「이어서 공부」가 복습 대신 진행률이 가장 낮은 과목의 새 문항으로 갑니다. 복습 탭은 그대로 쓸 수 있어요.'),
+        h('p', { class: 'muted small' }, '켜면 레슨이 안 푼 문항만 내고, 틀린 문항은 맞출 때까지 레슨 끝에 다시 내고, 「이어서 공부」가 복습 대신 진행률이 가장 낮은 과목의 새 문항으로 갑니다. 복습 탭은 그대로 쓸 수 있어요.'),
         seg2(['on', 'off'], G.sweep ? 'on' : 'off', function (v) { return v === 'on' ? '켜기' : '끄기'; }, function (v) { G.sweep = v === 'on'; saveG(); })),
       h('div', { class: 'card' }, h('b', null, '❤️ 하트 (틀리면 줄고 0이면 레슨 잠김)'),
         h('p', { class: 'muted small' }, '기본은 끔 — 시험 공부에서는 막히지 않고 계속 푸는 게 낫다. 켜도 복습·오답 연습에서는 줄지 않는다.'),
