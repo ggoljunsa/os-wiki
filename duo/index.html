@@ -2211,50 +2211,130 @@ body.bed #intro .ibody { font-size: 19px; }
     return btoa(bin);
   }
   var syncing = false;
-  function putFile(parts, file, obj) {
-    var p = [String(SYNC.prefix || '').replace(/^\/+|\/+$/g, ''), file].filter(Boolean).join('/');
-    var url = 'https://api.github.com/repos/' + encodeURIComponent(parts[0]) + '/' + encodeURIComponent(parts[1]) + '/contents/' + p.split('/').map(encodeURIComponent).join('/');
-    var hdr = { Authorization: 'Bearer ' + SYNC.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
-    var branch = SYNC.branch || 'main', content = b64utf8(JSON.stringify(obj));
+  function ghPath(file) { return [String(SYNC.prefix || '').replace(/^\/+|\/+$/g, ''), file].filter(Boolean).join('/'); }
+  function ghUrl(parts, p) { return 'https://api.github.com/repos/' + encodeURIComponent(parts[0]) + '/' + encodeURIComponent(parts[1]) + '/contents/' + p.split('/').map(encodeURIComponent).join('/'); }
+  function ghHdr() { return { Authorization: 'Bearer ' + SYNC.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }; }
+  function b64dec(b64) {
+    var bin = atob(String(b64 || '').replace(/\s+/g, '')), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(u);
+  }
+  // 네트워크 단계마다 이름을 붙여서 「Failed to fetch」가 어디서 났는지 보이게 한다
+  function ghFetch(step, url, opt) {
+    return fetch(url, opt).catch(function (e) {
+      throw new Error(step + ' 연결 실패 (' + (e && e.message || e) + ') — 인터넷·VPN·광고차단 확장(api.github.com 차단) 확인. 토큰에 공백·한글이 섞였는지도 확인');
+    });
+  }
+  /** GET → {sha, obj} (없으면 obj null). 1MB 넘는 파일은 blob API 로 받는다 */
+  function getFile(parts, file) {
+    var p = ghPath(file), url = ghUrl(parts, p), branch = SYNC.branch || 'main';
+    return ghFetch('받기 ' + file, url + '?ref=' + encodeURIComponent(branch), { headers: ghHdr(), cache: 'no-store' }).then(function (r) {
+      if (r.status === 404) return { sha: null, obj: null, p: p };
+      if (r.status === 401) throw new Error('토큰 거부(401) — 토큰을 다시 붙여 넣으세요');
+      if (r.status === 403) throw new Error('권한 없음(403) — 토큰의 study-log Contents 권한 확인');
+      if (!r.ok) throw new Error('받기 ' + file + ' ' + r.status);
+      return r.json().then(function (j) {
+        if (j.content && j.encoding === 'base64') return { sha: j.sha, obj: JSON.parse(b64dec(j.content)), p: p };
+        var bu = 'https://api.github.com/repos/' + encodeURIComponent(parts[0]) + '/' + encodeURIComponent(parts[1]) + '/git/blobs/' + j.sha;
+        return ghFetch('받기(blob) ' + file, bu, { headers: ghHdr(), cache: 'no-store' }).then(function (r2) {
+          if (!r2.ok) throw new Error('blob ' + r2.status);
+          return r2.json().then(function (bj) { return { sha: j.sha, obj: JSON.parse(b64dec(bj.content)), p: p }; });
+        });
+      });
+    });
+  }
+  function putRaw(parts, p, sha, obj) {
+    var body = { message: 'duo: ' + p + ' ' + new Date().toISOString(), content: b64utf8(JSON.stringify(obj)), branch: SYNC.branch || 'main' };
+    if (sha) body.sha = sha;
+    return ghFetch('올리기 ' + p, ghUrl(parts, p), { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHdr()), body: JSON.stringify(body) });
+  }
+  function unionBy(a, b, key) {
+    var seen = {}, out = [];
+    (a || []).concat(b || []).forEach(function (e) { if (!e) return; var k = key(e); if (seen[k]) return; seen[k] = 1; out.push(e); });
+    return out.sort(function (x, y) { return (x.t || 0) - (y.t || 0); });
+  }
+  function logKey(e) { return e.t + '|' + e.id + '|' + (e.r ? 1 : 0); }
+  /** 다른 기기에서 올린 기록(remote payload)을 이 기기 기록과 합친다 — 지우지 않고 합집합 */
+  function mergeCourse(cd, rem) {
+    if (!rem || !rem.log) return false;
+    var before = cd.log.length;
+    cd.log = unionBy(cd.log, rem.log, logKey);
+    if (cd.log.length > D.LOG_CAP) cd.log = cd.log.slice(-D.LOG_CAP);
+    // 문항 상태는 합친 기록을 처음부터 다시 돌려 만든다. 기록에 없는 문항(오래돼 잘린 것)은 시도가 많은 쪽을 남긴다
+    var st = {}, inLog = {};
+    cd.log.forEach(function (e) {
+      inLog[e.id] = 1;
+      if (e.r) return;
+      var it = cd.byId[e.id]; if (!it) return;
+      st[e.id] = D.schedule(st[e.id], !!e.ok, e.t, it, e.ok ? null : e.given);
+    });
+    [cd.st, rem.items || {}].forEach(function (src) {
+      Object.keys(src).forEach(function (id) { if (!inLog[id] && (!st[id] || (src[id].n || 0) > (st[id].n || 0))) st[id] = src[id]; });
+    });
+    cd.st = st;
+    var rls = rem.lessons || {};
+    Object.keys(rls).forEach(function (k) { var l = cd.ls[k]; if (!l || (rls[k].c || 0) > (l.c || 0) || (rls[k].n || 0) > (l.n || 0)) cd.ls[k] = rls[k]; });
+    var rs = rem.introSeen || {};
+    Object.keys(rs).forEach(function (k) { if (!cd.intro.seen[k]) cd.intro.seen[k] = rs[k]; });
+    cd.intro.log = unionBy(cd.intro.log, rem.intro, function (e) { return e.t + '|' + e.lesson; });
+    store.set(cd.K.intro, cd.intro); saveCourse(cd); saveLog(cd);
+    if (rem.global) mergeGlobal(rem.global);
+    return cd.log.length !== before;
+  }
+  function mergeGlobal(rg) {
+    var rd = rg.days || {};
+    Object.keys(rd).forEach(function (k) {
+      var l = G.days[k] || (G.days[k] = {}), r = rd[k];
+      Object.keys(r).forEach(function (f) {
+        if (typeof r[f] === 'number') l[f] = Math.max(l[f] || 0, r[f]);
+        else if (r[f] && typeof r[f] === 'object') { var o = l[f] || (l[f] = {}); Object.keys(r[f]).forEach(function (c) { if (typeof r[f][c] === 'number') o[c] = Math.max(o[c] || 0, r[f][c]); }); }
+      });
+    });
+    G.xp = Math.max(G.xp || 0, rg.xp || 0); G.best = Math.max(G.best || 0, rg.best || 0);
+    var rc = rg.courses || {};
+    Object.keys(rc).forEach(function (c) { var l = G.courses[c] || (G.courses[c] = { xp: 0 }); l.xp = Math.max(l.xp || 0, rc[c].xp || 0); });
+    saveG();
+  }
+  function mergeHub(rem) {
+    if (!rem) return;
+    FOCUSLOG = unionBy(FOCUSLOG, rem.focus, function (e) { return JSON.stringify(e); }).slice(-300); store.set(KG.focus, FOCUSLOG);
+    NIGHTS = unionBy(NIGHTS, rem.nights, function (e) { return JSON.stringify(e); }).slice(-120); store.set(KG.nights, NIGHTS);
+    if (rem.global) mergeGlobal(rem.global);
+  }
+  /** 받기 → 합치기 → 올리기. sha 충돌(다른 기기가 그 사이 올림)이면 다시 받아서 합친다 */
+  function syncFile(parts, file, merge, make) {
     function attempt(n) {
-      return fetch(url + '?ref=' + encodeURIComponent(branch), { headers: hdr, cache: 'no-store' }).then(function (r) {
-        if (r.status === 404) return null;
-        if (!r.ok) throw new Error('GET ' + r.status);
-        return r.json().then(function (j) { return j.sha; });
-      }).then(function (sha) {
-        var body = { message: 'duo: ' + file + ' ' + new Date().toISOString(), content: content, branch: branch };
-        if (sha) body.sha = sha;
-        return fetch(url, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, hdr), body: JSON.stringify(body) });
-      }).then(function (r) {
-        if ((r.status === 409 || r.status === 422) && n < 2) return attempt(n + 1);
-        if (!r.ok) return r.text().then(function (t) { throw new Error('PUT ' + r.status + ' ' + t.slice(0, 120)); });
-        return p;
+      return getFile(parts, file).then(function (g) {
+        merge(g.obj);
+        return putRaw(parts, g.p, g.sha, make()).then(function (r) {
+          if ((r.status === 409 || r.status === 422) && n < 3) return attempt(n + 1);
+          if (!r.ok) return r.text().then(function (t) { throw new Error('올리기 ' + r.status + ' ' + t.slice(0, 120)); });
+          return g.p;
+        });
       });
     }
     return attempt(0);
   }
-  var lastAuto = 0;
-  // 레슨을 끝까지 안 풀어도: 그만하기·앱 나가기 때 자동 업로드 (minGap ms 안에 다시 하지 않음)
-  function autoSync(minGap) {
-    if (!(SYNC.auto && SYNC.token)) return;
-    var now = Date.now();
-    if (minGap && now - lastAuto < minGap) return;
-    lastAuto = now; syncNow(true);
-  }
   function syncNow(quiet) {
     if (syncing) return Promise.resolve();
-    var parts = String(SYNC.repo || '').split('/');
+    SYNC.token = String(SYNC.token || '').replace(/[^\x21-\x7e]/g, '');
+    var parts = String(SYNC.repo || '').trim().split('/');
     if (!SYNC.token || parts.length !== 2 || !parts[0] || !parts[1]) { if (!quiet) toast('설정에서 저장소와 토큰을 먼저 입력하세요'); return Promise.resolve(); }
     if (DEMO) { if (!quiet) toast('데모 모드에서는 동기화하지 않습니다'); return Promise.resolve(); }
     if (navigator.onLine === false) { if (!quiet) toast('오프라인 — 연결되면 다시 시도하세요'); return Promise.resolve(); }
     syncing = true;
-    var targets = HUB ? ORDER.filter(function (c) { return DATA[c].log.length; }) : [CUR.id];
-    var chain = Promise.resolve(), done = [];
-    targets.forEach(function (c) { chain = chain.then(function () { return putFile(parts, c + '.json', payload(DATA[c])).then(function (p) { done.push(p); }); }); });
-    if (HUB) chain = chain.then(function () { return putFile(parts, 'hub.json', hubPayload()).then(function (p) { done.push(p); }); });
+    var targets = HUB ? ORDER.slice() : [CUR.id];
+    var chain = Promise.resolve(), done = [], grew = 0;
+    targets.forEach(function (c) {
+      chain = chain.then(function () {
+        return syncFile(parts, c + '.json', function (rem) { if (mergeCourse(DATA[c], rem)) grew++; }, function () { return payload(DATA[c]); }).then(function (p) { done.push(p); });
+      });
+    });
+    if (HUB) chain = chain.then(function () { return syncFile(parts, 'hub.json', mergeHub, hubPayload).then(function (p) { done.push(p); }); });
     return chain.then(function () {
-      setSS({ last: Date.now(), ok: true, msg: '성공 · ' + done.join(', ') });
-      if (!quiet) toast('✓ GitHub 동기화 완료');
+      setSS({ last: Date.now(), ok: true, msg: '성공 · ' + done.join(', ') + (grew ? ' · 다른 기기 기록 합침' : '') });
+      if (!quiet) toast(grew ? '✓ 동기화 — 다른 기기 기록을 합쳤어요' : '✓ GitHub 동기화 완료');
+      if (grew && !S && !CF && !BED) go(current);
     }).catch(function (e) {
       setSS({ last: Date.now(), ok: false, msg: String(e && e.message || e) });
       if (!quiet) toast('동기화 실패: ' + (e && e.message || e));
@@ -2275,7 +2355,7 @@ body.bed #intro .ibody { font-size: 19px; }
   function renderSettings() {
     function field(label, key, attrs) {
       var inp = h('input', Object.assign({ class: 'inp sm', value: SYNC[key] || '' }, attrs || {}));
-      inp.addEventListener('change', function () { SYNC[key] = inp.value.trim(); store.set(KG.sync, SYNC); });
+      inp.addEventListener('change', function () { SYNC[key] = key === 'token' ? inp.value.replace(/[^\x21-\x7e]/g, '') : inp.value.trim(); store.set(KG.sync, SYNC); });
       return h('label', { class: 'fld' }, h('span', null, label), inp);
     }
     function check(label, get, set) {
@@ -2811,6 +2891,7 @@ body.bed #intro .ibody { font-size: 19px; }
   heartsNow(); saveG();
   var scr = P.get('screen');
   if (scr) demoScreen(scr); else go(current);
+  if (!DEMO && SYNC.token && SYNC.repo) setTimeout(function () { syncNow(true); }, 1500);
   if (P.has('probe')) setTimeout(function () {
     var info = { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, screen: scr, auto: window.__autoplay || null, imgOk: [].filter.call(document.images, function (i) { return i.complete && i.naturalWidth > 0; }).length, imgBroken: document.querySelectorAll('.qimg.broken').length };
     var pr = document.createElement('pre'); pr.id = 'probe'; pr.textContent = JSON.stringify(info);
