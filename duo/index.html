@@ -1104,7 +1104,7 @@ body.bed #intro .ibody { font-size: 19px; }
     return;
   }
 
-  var G = Object.assign({ v: 1, xp: 0, goal: 30, days: {}, hearts: MAX_HEARTS, heartsT: Date.now(), heartsOn: false, courses: {}, sound: false, streak: 0, best: 0 }, store.get(KG.g, {}));
+  var G = Object.assign({ v: 1, xp: 0, goal: 30, days: {}, hearts: MAX_HEARTS, heartsT: Date.now(), heartsOn: false, sweep: true, courses: {}, sound: false, streak: 0, best: 0 }, store.get(KG.g, {}));
   var SYNC = Object.assign({ repo: 'ggoljunsa/study-log', branch: 'main', prefix: 'duo', token: '', auto: true }, store.get(KG.sync, {}));
   var FOCUSLOG = store.get(KG.focus, []);
   var NIGHTS = store.get(KG.nights, []);
@@ -1531,6 +1531,11 @@ body.bed #intro .ibody { font-size: 19px; }
   /* ---------- today (hub) ---------- */
   function todayXPByCourse() { var d = G.days[today()] || {}; return d.byC || {}; }
   function planNext() {
+    if (G.sweep) {
+      var pick = null, w0 = weights();
+      ORDER.forEach(function (cid) { if (w0[cid] <= 0) return; var fr = seenFrac(DATA[cid]); if (fr.seen >= fr.total) return; if (!pick || fr.f < pick.f) pick = { cid: cid, f: fr.f }; });
+      if (pick) { var cdp = DATA[pick.cid], Lp = recommendedLesson(cdp); return { cd: cdp, kind: 'lesson', L: Lp, label: cdp.name + ' · ' + Lp.l.title + ' (1바퀴)' }; }
+    }
     var w = weights(), done = todayXPByCourse(), goal = G.goal, best = null;
     ORDER.forEach(function (cid) {
       var target = Math.max(1, goal * w[cid]), r = (done[cid] || 0) / target;
@@ -1561,6 +1566,7 @@ body.bed #intro .ibody { font-size: 19px; }
           h('div', { class: 'ddc' }, DATA[cid].short), h('div', { class: 'ddd muted' }, e.date ? e.date.slice(5).replace('-', '/') : '날짜 없음', !e.confirmed ? h('span', { class: 'tbd' }, '미확정') : null));
       })),
       h('button', { class: 'btn primary go', onclick: continueStudy }, h('span', null, '▶ 이어서 공부'), h('small', null, plan.label)),
+      G.sweep ? sweepCard() : null,
       h('div', { class: 'card' }, h('div', { class: 'ctop' }, h('b', null, '오늘 목표 나누기'), h('span', { class: 'muted small' }, '체감 난이도 가중치')),
         h('div', { class: 'split' }, ORDER.map(function (cid) {
           var target = Math.max(1, Math.round(G.goal * w[cid])), x = done[cid] || 0;
@@ -1574,6 +1580,16 @@ body.bed #intro .ibody { font-size: 19px; }
       h('button', { class: 'btn', onclick: function () { startMixed(); } }, '🔀 섞어서 복습 (전과목)'),
       h('button', { class: 'btn ghost', onclick: sendHubToAI }, '🤖 AI에게 보내기 (전과목)'));
     setView(root);
+  }
+  function sweepCard() {
+    var tot = 0, sn = 0;
+    var rows = ORDER.map(function (cid) {
+      var fr = seenFrac(DATA[cid]); tot += fr.total; sn += fr.seen;
+      return h('button', { class: 'crow', onclick: function () { setCur(cid); go('path'); } },
+        h('span', null, DATA[cid].short), h('span', { class: 'muted' }, fr.seen + '/' + fr.total + ' · ' + Math.round(100 * fr.f) + '%'));
+    });
+    return h('div', { class: 'card' }, h('div', { class: 'ctop' }, h('b', null, '🏃 1바퀴 진행'), h('span', { class: 'badge' }, Math.round(100 * sn / Math.max(1, tot)) + '%')),
+      h('p', { class: 'muted small' }, '안 푼 문항만 순서대로 냅니다 · 틀려도 다시 안 냄 · 복습은 1바퀴 뒤에 (설정에서 끄기)'), rows);
   }
   function todayFocusCard() {
     var d = G.days[today()] || {}, ns = NIGHTS.filter(function (n) { return D.dateKey(n.t1) === today() || D.dateKey(n.t1) === D.shiftDay(today(), -1); }).slice(-1)[0];
@@ -1607,7 +1623,10 @@ body.bed #intro .ibody { font-size: 19px; }
     L.items.forEach(function (it) { var s = st[it.id]; if (s && s.n) { seen++; n += s.n; c += s.c; } });
     return { seen: seen, total: L.items.length, acc: n ? c / n : null, crown: (L.cd.ls[L.l.id] && L.cd.ls[L.l.id].c) || 0 };
   }
+  function unseenOf(L) { return L.items.filter(function (it) { var s = L.cd.st[it.id]; return !s || !s.n; }); }
+  function seenFrac(cd) { var n = cd.items.filter(function (it) { var s = cd.st[it.id]; return s && s.n; }).length; return { seen: n, total: cd.items.length, f: n / Math.max(1, cd.items.length) }; }
   function recommendedLesson(cd) {
+    if (G.sweep) { var fresh = cd.lessons.filter(function (L) { return unseenOf(L).length > 0; })[0]; if (fresh) return fresh; }
     var first0 = cd.lessons.filter(function (L) { return !lessonStats(L).crown; })[0];
     if (first0) return first0;
     var due = cd.lessons.filter(function (L) { return D.dueCount(L.items, cd.st, Date.now()) >= 5; });
@@ -1624,7 +1643,7 @@ body.bed #intro .ibody { font-size: 19px; }
       h('button', { class: 'btn', onclick: function () { go('stats'); } }, '📊 통계'),
       h('button', { class: 'btn', onclick: function () { openWiki(cd.id, ''); } }, '📖 위키')));
     if (cd.C.course.exam) root.appendChild(h('p', { class: 'exam muted small' }, cd.C.course.exam));
-    if (due) root.appendChild(h('button', { class: 'duecard', onclick: function () { startReview(cd); } }, h('b', null, '🔁 오늘의 복습 ' + due + '개'), h('span', null, '간격 복습할 때가 된 문항')));
+    if (due && !G.sweep) root.appendChild(h('button', { class: 'duecard', onclick: function () { startReview(cd); } }, h('b', null, '🔁 오늘의 복습 ' + due + '개'), h('span', null, '간격 복습할 때가 된 문항')));
     var idx = 0;
     cd.C.units.forEach(function (u, ui) {
       var Ls = cd.lessons.filter(function (L) { return L.u === u; });
@@ -1668,7 +1687,8 @@ body.bed #intro .ibody { font-size: 19px; }
   /* ---------- sessions ---------- */
   function startLesson(L, firstItem, noIntro) {
     if (!noIntro && hasIntro(L) && !L.cd.intro.seen[L.l.id]) return openIntro(L, 0, function () { startLesson(L, firstItem, true); });
-    var items = D.pickLesson(L.items, L.cd.st, Date.now(), 12);
+    var un = G.sweep ? unseenOf(L) : [];
+    var items = un.length ? un.slice(0, 12) : D.pickLesson(L.items, L.cd.st, Date.now(), 12);
     if (firstItem) items = [firstItem].concat(items.filter(function (x) { return x !== firstItem; })).slice(0, 12);
     startSession('lesson', items, { lessonId: L.l.id, cid: L.cd.id, title: L.l.title });
   }
@@ -1951,7 +1971,7 @@ body.bed #intro .ibody { font-size: 19px; }
     if (!retry) { S.first[it.id + '\u0001' + it._c] = ok; cd.st[it.id] = D.schedule(cd.st[it.id], ok, now, it, ok ? null : gs); if (BED) { BED.qn++; if (ok) BED.qok++; } }
     if (ok) { S.solved++; S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo); beep(true); }
     else {
-      S.combo = 0; S.wrongs++; S.queue.push(it); beep(false); buzz();
+      S.combo = 0; S.wrongs++; if (!(G.sweep && S.mode === 'lesson')) S.queue.push(it); beep(false); buzz();
       if (G.heartsOn && S.mode === 'lesson') { if (G.hearts >= MAX_HEARTS) G.heartsT = now; G.hearts = Math.max(0, heartsNow() - 1); saveG(); }
     }
     saveCourse(cd); saveLog(cd);
@@ -2296,6 +2316,9 @@ body.bed #intro .ibody { font-size: 19px; }
         seg2(['key', 'tap'], G.input || 'key', function (v) { return v === 'key' ? '⌨ 키보드' : '👆 탭만'; }, function (v) { G.input = v; saveG(); }),
         h('div', { class: 'muted small' }, '🌙 누워서 모드'),
         seg2(['tap', 'key'], G.inputBed || 'tap', function (v) { return v === 'key' ? '⌨ 키보드' : '👆 탭만'; }, function (v) { G.inputBed = v; saveG(); })),
+      h('div', { class: 'card' }, h('b', null, '🏃 1바퀴 모드'),
+        h('p', { class: 'muted small' }, '켜면 레슨이 안 푼 문항만 내고, 틀린 문항을 레슨 끝에 다시 내지 않으며, 「이어서 공부」가 복습 대신 진행률이 가장 낮은 과목의 새 문항으로 갑니다. 복습 탭은 그대로 쓸 수 있어요.'),
+        seg2(['on', 'off'], G.sweep ? 'on' : 'off', function (v) { return v === 'on' ? '켜기' : '끄기'; }, function (v) { G.sweep = v === 'on'; saveG(); })),
       h('div', { class: 'card' }, h('b', null, '❤️ 하트 (틀리면 줄고 0이면 레슨 잠김)'),
         h('p', { class: 'muted small' }, '기본은 끔 — 시험 공부에서는 막히지 않고 계속 푸는 게 낫다. 켜도 복습·오답 연습에서는 줄지 않는다.'),
         seg2(['off', 'on'], G.heartsOn ? 'on' : 'off', function (v) { return v === 'on' ? '켜기' : '끄기'; }, function (v) { G.heartsOn = v === 'on'; if (G.heartsOn) { G.hearts = MAX_HEARTS; G.heartsT = Date.now(); } saveG(); })),
@@ -2416,7 +2439,7 @@ body.bed #intro .ibody { font-size: 19px; }
           h('button', { class: 'btn primary tall', onclick: function () { bedFlow(false); } }, '🃏 카드 흘려보기'),
           h('button', { class: 'btn primary tall', onclick: function () { bedFlow(true); } }, '🎧 듣기')),
         h('button', { class: 'btn', onclick: function () { bedFlow(false, true); } }, '📖 개념 카드부터 흘려보기'),
-        h('button', { class: 'btn', onclick: function () { if (BED.scope !== 'all') setCur(BED.scope); if (HUB && BED.scope === 'all') continueStudy(); else { var L = recommendedLesson(CUR); var cd = CUR; if (D.dueCount(cd.items, cd.st, Date.now()) >= 5 || !L) startReview(cd); else startLesson(L); } } }, '📝 퀴즈 레슨'),
+        h('button', { class: 'btn', onclick: function () { if (BED.scope !== 'all') setCur(BED.scope); if (HUB && BED.scope === 'all') continueStudy(); else { var L = recommendedLesson(CUR); var cd = CUR; if ((!G.sweep && D.dueCount(cd.items, cd.st, Date.now()) >= 5) || !L) startReview(cd); else startLesson(L); } } }, '📝 퀴즈 레슨'),
         h('div', { class: 'row2' },
           h('button', { class: 'btn', onclick: function () { try { document.documentElement.requestFullscreen().catch(function () { }); } catch (e) { toast('전체 화면을 지원하지 않아요'); } } }, '⛶ 전체 화면'),
           h('button', { class: 'btn', onclick: exitBed }, '나가기'))));
