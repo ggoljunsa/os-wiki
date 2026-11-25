@@ -1497,7 +1497,17 @@ body.bed #intro .ibody { font-size: 19px; }
     ({ today: renderToday, path: renderPath, review: renderReview, stats: renderStats, settings: renderSettings, mistakes: renderMistakes, wiki: renderWikiTab, focus: renderFocusStart })[s]();
     renderTop();
   }
-  function home() { if (BED && !BED.slept) bedMenu(); else go(HUB ? 'today' : 'path'); }
+  function home() {
+    if (BED && !BED.slept) return bedMenu();
+    var r = RET; RET = null;
+    if (!r || P.has('screen')) return go(HUB ? 'today' : 'path');
+    if (r.screen === 'path' && r.lessonId) {
+      if (HUB && r.cid && DATA[r.cid] && CUR !== DATA[r.cid]) setCur(r.cid);
+      PATH_FOCUS = r.lessonId; go('path'); return;
+    }
+    go(r.screen);
+    var y = r.y; setTimeout(function () { setY(y); }, 30);
+  }
 
   /* ---------- wiki viewer (in-app iframe) ---------- */
   function openWiki(cid, key) {
@@ -1658,7 +1668,7 @@ body.bed #intro .ibody { font-size: 19px; }
           return h('div', { class: 'nwrap', style: 'transform:translateX(' + off + 'px)' },
             isRec ? h('div', { class: 'bubble' }, '시작!') : null,
             h('button', { class: 'node' + (s.crown ? ' done' : '') + (s.crown >= 5 ? ' gold' : '') + (isRec ? ' rec' : '') + (!s.seen && !isRec ? ' fresh' : ''),
-              style: '--p:' + pctSeen + '%', 'aria-label': L.l.title, onclick: function () { openLesson(L); } }, h('span', null, icon)),
+              style: '--p:' + pctSeen + '%', 'data-l': L.l.id, 'aria-label': L.l.title, onclick: function () { openLesson(L); } }, h('span', null, icon)),
             s.crown ? h('div', { class: 'crown' }, '👑' + s.crown) : null,
             hasIntro(L) ? h('button', { class: 'nintro', title: '개념 카드', 'aria-label': L.l.title + ' 개념 카드', onclick: function (e) { e.stopPropagation(); openIntro(L, 0); } }, '📖') : null,
             h('div', { class: 'nlabel' }, L.l.title));
@@ -1666,7 +1676,8 @@ body.bed #intro .ibody { font-size: 19px; }
     });
     root.appendChild(h('div', { class: 'pend muted small' }, '전 문항 ' + cd.items.length + '개 · ' + (cd.C.course.subtitle || '')));
     setView(root);
-    var r = root.querySelector('.node.rec');
+    var pf = PATH_FOCUS; PATH_FOCUS = null;
+    var r = (pf && root.querySelector('.node[data-l="' + pf + '"]')) || root.querySelector('.node.rec');
     if (r && !P.has('screen')) setTimeout(function () { r.scrollIntoView({ block: 'center' }); }, 50);
   }
   function openLesson(L) {
@@ -1729,8 +1740,12 @@ body.bed #intro .ibody { font-size: 19px; }
       .sort(function (a, b) { return (D.acc(cd.st[a.id]) == null ? 1 : D.acc(cd.st[a.id])) - (D.acc(cd.st[b.id]) == null ? 1 : D.acc(cd.st[b.id])); }).slice(0, 12);
     startSession('tag', D.shuffle(items), { title: '약점: ' + tag });
   }
+  var RET = null, PATH_FOCUS = null;
+  function viewY() { return Math.max($view.scrollTop || 0, window.scrollY || document.documentElement.scrollTop || 0); }
+  function setY(y) { $view.scrollTop = y; window.scrollTo(0, y); }
   function startSession(mode, items, opts) {
     if (!items.length) return toast('풀 문항이 없어요');
+    RET = { screen: current, y: viewY(), lessonId: opts.lessonId || null, cid: opts.cid || null };
     if (G.heartsOn && mode === 'lesson' && heartsNow() <= 0) return outOfHearts();
     tick();
     S = { mode: mode, queue: items.slice(), total: items.length, solved: 0, first: {}, combo: 0, maxCombo: 0, wrongs: 0, t0: Date.now(), activeMs: 0, leaves: 0, lessonId: opts.lessonId, cid: opts.cid, title: opts.title, cur: null };
