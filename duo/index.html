@@ -1237,6 +1237,16 @@ body.bed #intro .ibody { font-size: 19px; }
   function closeModal() { $modal.classList.remove('show'); $modal.innerHTML = ''; }
 
   /* ---------- question images ---------- */
+  // 해설 그림: 틀리면 바로 펼쳐 보여 주고, 맞으면 눌러야 펼친다
+  function expFigure(it, ok) {
+    if (!it.explainImg) return null;
+    var alt = (it.imgAlt ? it.imgAlt + ' — ' : '') + '해설 그림';
+    if (!ok) return figure(it.explainImg, alt, 'exp');
+    var wrap = h('div', null);
+    var btn = h('button', { class: 'btn ghost small', onclick: function (e) { e.stopPropagation(); wrap.innerHTML = ''; wrap.appendChild(figure(it.explainImg, alt, 'exp')); } }, '🖼 관련 슬라이드 보기');
+    wrap.appendChild(btn);
+    return wrap;
+  }
   function figure(src, alt, cls) {
     if (!src) return null;
     var box = h('div', { class: 'qimg' + (cls ? ' ' + cls : '') });
@@ -2004,7 +2014,7 @@ body.bed #intro .ibody { font-size: 19px; }
       !ok ? h('div', { class: 'sans' }, h('b', null, '정답 '), h('span', { html: md(D.answerText(it)) })) : null,
       !ok && gs ? h('div', { class: 'sgiven' }, h('b', null, '내 답 '), h('span', { html: md(gs.indexOf('(self:') === 0 ? '스스로 채점 — 틀렸다' : gs) })) : null,
       h('div', { class: 'sexp', html: md(it.explain || '') }),
-      figure(it.explainImg, (it.imgAlt ? it.imgAlt + ' — ' : '') + '해설 그림', 'exp'),
+      expFigure(it, ok),
       h('div', { class: 'smeta' }, it.src ? h('span', null, '📖 ' + it.src) : null, it.prof ? h('span', { class: 'prof' }, '🎙 교수 강조') : null,
         hasWiki ? h('button', { class: 'wlink', onclick: function () { openWiki(it._c, it.wiki); } }, '위키에서 보기 ›') : null,
         !ok && hasIntro(lessonOf(it)) ? h('button', { class: 'wlink', onclick: function () { openIntro(lessonOf(it), it.introCard || 0); } }, '📖 개념 카드 다시 보기') : null),
