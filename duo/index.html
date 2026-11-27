@@ -374,6 +374,11 @@ body.bed #intro .ibody { font-size: 19px; }
 .cfexp.intro { color: var(--fg); font-size: 18px; line-height: 1.65; }
 @media (hover: hover) and (pointer: fine) { .nintro:hover, #intro .iskip:hover { border-color: var(--blue); color: var(--fg); } }
 
+/* 번호 보기 목록 (Circle all 등) — enumList() */
+.enl { margin: 10px 0 2px; font-weight: 500; }
+.eni { position: relative; padding-left: 2.1em; margin: 7px 0; line-height: 1.45; }
+.eni > b:first-child { position: absolute; left: 0; }
+
 </style>
 </head>
 <body>
@@ -1287,7 +1292,19 @@ body.bed #intro .ibody { font-size: 19px; }
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function md(s) {
-    return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    return enumList(esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'));
+  }
+  /** "… (1) A (2) B (3) C" 처럼 번호 보기가 3개 이상 차례로 나오면 한 줄에 하나씩 내어쓰기로 보여 준다 (Circle all 등) */
+  function enumList(html) {
+    var re = /(^|\s)\((\d{1,2})\)\s/g, seq = [], m;
+    while ((m = re.exec(html))) { if (+m[2] === seq.length + 1) seq.push({ i: m.index + m[1].length, end: re.lastIndex, n: +m[2] }); }
+    if (seq.length < 3) return html;
+    var out = html.slice(0, seq[0].i).replace(/\s+$/, '') + '<div class="enl">';
+    seq.forEach(function (k, j) {
+      var body = html.slice(k.end, j + 1 < seq.length ? seq[j + 1].i : html.length).replace(/\s+$/, '');
+      out += '<div class="eni"><b>(' + k.n + ')</b>' + body + '</div>';
+    });
+    return out + '</div>';
   }
   function M(tag, cls, text) { return h(tag, { class: cls, html: md(text) }); }
   function tex(el) {
