@@ -601,15 +601,53 @@ body.bed #intro .ibody { font-size: 19px; }
     return shuffle(list, rngFrom(item.id + '#' + (attempt || 0)));
   }
 
-  /* ---------- scheduling (Leitner, SM-2-lite) ---------- */
-  function schedule(stat, ok, now, item, givenStr) {
+  /* ---------- scheduling (FSRS-5 축소판, 2026-11-27) ----------
+     문항마다 stability s(일: 기억 확률이 90% 로 떨어질 때까지 걸리는 시간)와 difficulty df(1–10)를 둔다.
+     기억 확률 R(t) = (1 + F·t/s)^C. 맞히면 다음 복습은 R 이 90% 가 되는 날 = s 일 뒤.
+     채점: 틀림 = Again(1) · 탭 4지선다로 맞힘 = Hard(2) · 맞힘 = Good(3). 레슨 안 재출제(r)는 호출하는 쪽에서 뺀다.
+     시험일(setExam)이 있으면 간격을 「남은 날의 절반」 이하로 잘라 시험 전에 다시 보게 한다.
+     b(상자)는 예전 화면·리포트 호환용으로 연속 정답 수(최대 5)만 유지한다. */
+  var FW = [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621];
+  var F_DECAY = -0.5, F_FACTOR = 19 / 81, RETAIN = 0.9, SCHED_V = 2;
+  var EXAMS = {};
+  function setExam(cid, ms) { if (ms) EXAMS[cid] = ms; else delete EXAMS[cid]; }
+  function clampD(d) { return Math.min(10, Math.max(1, d)); }
+  function d0(g) { return clampD(FW[4] - Math.exp(FW[5] * (g - 1)) + 1); }
+  /** 기억 확률 (0–1). 본 적 없으면 null */
+  function recall(st, now) {
+    if (!st || !st.n || !st.s || !st.lt) return null;
+    var t = Math.max(0, (now - st.lt) / DAY);
+    return Math.pow(1 + F_FACTOR * t / st.s, F_DECAY);
+  }
+  function nextInterval(sDays) { return sDays / F_FACTOR * (Math.pow(RETAIN, 1 / F_DECAY) - 1); }
+  function schedule(stat, ok, now, item, givenStr, hard) {
     var st = stat || { b: 0, d: 0, n: 0, c: 0, w: 0 };
+    var g = ok ? (hard ? 2 : 3) : 1;
+    if (!st.s || st.v !== SCHED_V) {
+      // 처음 보는 문항 (또는 예전 Leitner 상태): 첫 채점으로 초기화
+      st.s = FW[g - 1]; st.df = d0(g);
+    } else {
+      var elapsed = (now - (st.lt || now)) / DAY, R = recall(st, now);
+      var dn = st.df - FW[6] * (g - 3) * (10 - st.df) / 9;
+      st.df = clampD(FW[7] * d0(4) + (1 - FW[7]) * dn);
+      if (elapsed < 1) {
+        st.s = st.s * Math.exp(FW[17] * (g - 3 + FW[18]));          // 같은 날 다시 본 경우 (short-term)
+      } else if (g === 1) {
+        st.s = Math.min(st.s, FW[11] * Math.pow(st.df, -FW[12]) * (Math.pow(st.s + 1, FW[13]) - 1) * Math.exp(FW[14] * (1 - R)));
+      } else {
+        st.s = st.s * (1 + Math.exp(FW[8]) * (11 - st.df) * Math.pow(st.s, -FW[9]) * (Math.exp(FW[10] * (1 - R)) - 1) * (g === 2 ? FW[15] : 1));
+      }
+      st.s = Math.max(0.05, st.s);
+    }
+    st.v = SCHED_V;
     st.n = (st.n || 0) + 1; st.lt = now;
-    var mult = item && item.prof ? 0.7 : 1;
     if (ok) {
       st.c = (st.c || 0) + 1;
       st.b = Math.min(5, (st.b || 0) + 1);
-      st.d = now + Math.round(BOX_DAYS[st.b] * DAY * mult);
+      var iv = Math.max(1, nextInterval(st.s)) * (item && item.prof ? 0.8 : 1);
+      var ex = item && EXAMS[item._c || '*'] || EXAMS['*'];
+      if (ex && ex > now) iv = Math.min(iv, Math.max(0.5, (ex - now) / DAY / 2));
+      st.d = now + Math.round(iv * DAY);
     } else {
       st.w = (st.w || 0) + 1;
       st.b = 0;
@@ -619,6 +657,8 @@ body.bed #intro .ibody { font-size: 19px; }
     }
     return st;
   }
+  /** 기록(log) 한 줄이 Hard 인가 — 단답·계산을 탭 4지선다로 맞힌 경우 */
+  function isHard(e) { return !!(e && e.ok && e.mode === 'tap'); }
   function acc(st) { return st && st.n ? st.c / st.n : null; }
 
   function shuffle(arr, rnd) {
@@ -652,11 +692,12 @@ body.bed #intro .ibody { font-size: 19px; }
     n = n || 15; stats = stats || {};
     var seen = items.filter(function (it) { return stats[it.id] && stats[it.id].n; });
     var due = seen.filter(function (it) { return stats[it.id].d <= now; });
-    due.sort(function (a, b) { return (b.prof ? 1 : 0) - (a.prof ? 1 : 0) || stats[a.id].d - stats[b.id].d; });
+    due.sort(function (a, b) { return (b.prof ? 1 : 0) - (a.prof ? 1 : 0) || rk(stats[a.id], now) - rk(stats[b.id], now); });
     if (due.length) return { items: due.slice(0, n), due: due.length, fallback: false };
     var weak = seen.slice().sort(function (a, b) { return acc(stats[a.id]) - acc(stats[b.id]) || (stats[a.id].lt - stats[b.id].lt); });
     return { items: weak.slice(0, n), due: 0, fallback: true };
   }
+  function rk(st, now) { var r = recall(st, now); return r == null ? -1 : r; }
   function dueCount(items, stats, now) {
     return items.filter(function (it) { var s = stats[it.id]; return s && s.n && s.d <= now; }).length;
   }
@@ -1048,7 +1089,7 @@ body.bed #intro .ibody { font-size: 19px; }
     dateKey: dateKey, shiftDay: shiftDay, calcStreak: calcStreak,
     normSA: normSA, parseNum: parseNum, grade: grade, serializeGiven: serializeGiven, answerText: answerText,
     schedule: schedule, acc: acc, shuffle: shuffle, pickLesson: pickLesson, pickReview: pickReview, dueCount: dueCount,
-    mistakes: mistakes, weakTags: weakTags,
+    mistakes: mistakes, weakTags: weakTags, recall: recall, setExam: setExam, isHard: isHard, SCHED_V: SCHED_V,
     flatItems: flatItems, makeOutline: makeOutline, makeMeta: makeMeta,
     hash32: hash32, rngFrom: rngFrom, saChoices: saChoices, numChoices: numChoices, tapChoices: tapChoices,
     buildReport: buildReport, buildHubReport: buildHubReport, focusSection: focusSection, validateContent: validateContent
@@ -1136,6 +1177,41 @@ body.bed #intro .ibody { font-size: 19px; }
   function stOf(it) { return cdOf(it).st[it.id]; }
   function allItems() { var a = []; ORDER.forEach(function (c) { a = a.concat(DATA[c].items); }); return a; }
 
+  function examMs(cid) { var e = exam(cid); return e.date ? Date.parse(e.date + 'T09:00:00+09:00') : 0; }
+  /** 시험일을 복습 계산에 알려 주고, 예전 방식 상태가 남아 있으면 기록으로 다시 계산한다 */
+  function setupSched() {
+    ORDER.forEach(function (cid) {
+      D.setExam(cid, examMs(cid));
+      var cd = DATA[cid];
+      var old = Object.keys(cd.st).some(function (id) { var x = cd.st[id]; return x && x.n && x.v !== D.SCHED_V; });
+      if (old) { rebuildSt(cd); saveCourse(cd); }
+    });
+  }
+  /* ---------- 오늘 복습 (1바퀴 모드에서도 하루 상한만큼 먼저) ---------- */
+  var REVIEW_CAP = 40;
+  function reviewQuota() {
+    var t0 = Date.parse(today() + 'T00:00:00+09:00'), now = Date.now(), done = 0, due = 0;
+    ORDER.forEach(function (cid) {
+      var cd = DATA[cid];
+      for (var i = cd.log.length - 1; i >= 0 && cd.log[i].t >= t0; i--) { var e = cd.log[i]; if (!e.r && (e.m === 'review' || e.m === 'mixed' || e.m === 'mistakes')) done++; }
+      due += D.dueCount(cd.items, cd.st, now);
+    });
+    return { done: done, due: due, left: Math.max(0, REVIEW_CAP - done) };
+  }
+  /** 전과목 기한 지난 문항 중 기억 확률이 가장 낮은 것부터 */
+  function dueItems(n) {
+    var now = Date.now(), all = [];
+    ORDER.forEach(function (cid) {
+      var cd = DATA[cid];
+      cd.items.forEach(function (it) { var x = cd.st[it.id]; if (x && x.n && x.d <= now) { var r = D.recall(x, now); all.push({ it: it, r: (r == null ? 0 : r) - (it.prof ? 0.05 : 0) }); } });
+    });
+    return all.sort(function (a, b) { return a.r - b.r; }).slice(0, n).map(function (x) { return x.it; });
+  }
+  function startDue() {
+    var q = reviewQuota(), items = dueItems(Math.max(5, Math.min(15, q.left || 15)));
+    if (!items.length) return toast('지금 복습할 때가 된 문항이 없어요');
+    startSession('review', items, { title: '🔁 오늘 복습' });
+  }
   function today() { return D.dateKey(Date.now()); }
   function dayRec(k) { var d = G.days[k || today()] || (G.days[k || today()] = { xp: 0, lessons: 0 }); return d; }
   function saveG() {
@@ -1558,6 +1634,8 @@ body.bed #intro .ibody { font-size: 19px; }
   function todayXPByCourse() { var d = G.days[today()] || {}; return d.byC || {}; }
   function planNext() {
     if (G.sweep) {
+      var rq = reviewQuota();
+      if (rq.due > 0 && rq.left > 0) return { kind: 'due', label: '🔁 오늘 복습 ' + rq.done + '/' + REVIEW_CAP + ' · 잊을 것 같은 순 (기한 ' + rq.due + '개)' };
       var pick = null, w0 = weights();
       ORDER.forEach(function (cid) { if (w0[cid] <= 0) return; var fr = seenFrac(DATA[cid]); if (fr.seen >= fr.total) return; if (!pick || fr.f < pick.f) pick = { cid: cid, f: fr.f }; });
       if (pick) { var cdp = DATA[pick.cid], Lp = recommendedLesson(cdp); return { cd: cdp, kind: 'lesson', L: Lp, label: cdp.name + ' · ' + Lp.l.title + ' (1바퀴)' }; }
@@ -1576,7 +1654,8 @@ body.bed #intro .ibody { font-size: 19px; }
   }
   function continueStudy() {
     var p = planNext();
-    if (p.kind === 'review') startReview(p.cd);
+    if (p.kind === 'due') startDue();
+    else if (p.kind === 'review') startReview(p.cd);
     else if (p.L) startLesson(p.L);
     else startReview(p.cd);
   }
@@ -1615,7 +1694,9 @@ body.bed #intro .ibody { font-size: 19px; }
         h('span', null, DATA[cid].short), h('span', { class: 'muted' }, fr.seen + '/' + fr.total + ' · ' + Math.round(100 * fr.f) + '%'));
     });
     return h('div', { class: 'card' }, h('div', { class: 'ctop' }, h('b', null, '🏃 1바퀴 진행'), h('span', { class: 'badge' }, Math.round(100 * sn / Math.max(1, tot)) + '%')),
-      h('p', { class: 'muted small' }, '안 푼 문항만 순서대로 냅니다 · 틀린 문항은 맞출 때까지 그 레슨에서 다시 · 복습은 1바퀴 뒤에 (설정에서 끄기)'), rows);
+      h('p', { class: 'muted small' }, '안 푼 문항만 순서대로 · 틀린 문항은 맞출 때까지 그 레슨에서 다시 · 하루 복습 ' + REVIEW_CAP + '개(기억 확률이 낮은 순, FSRS)를 먼저 하고 새 문항으로 (설정에서 끄기)'),
+      (function () { var q = reviewQuota(); return h('button', { class: 'crow', onclick: startDue }, h('span', null, '🔁 오늘 복습'), h('span', { class: 'muted' }, q.done + '/' + REVIEW_CAP + (q.left ? ' · 기한 ' + q.due + '개' : ' · 오늘 몫 끝 ✓'))); })(),
+      rows);
   }
   function todayFocusCard() {
     var d = G.days[today()] || {}, ns = NIGHTS.filter(function (n) { return D.dateKey(n.t1) === today() || D.dateKey(n.t1) === D.shiftDay(today(), -1); }).slice(-1)[0];
@@ -1999,7 +2080,7 @@ body.bed #intro .ibody { font-size: 19px; }
     if (BED) e.bed = 1;
     if (self) e.mode = 'self'; else if ((it.type === 'sa' || it.type === 'num') && Q && Q.mode) e.mode = Q.mode;
     cd.log.push(e);
-    if (!retry) { S.first[it.id + '\u0001' + it._c] = ok; cd.st[it.id] = D.schedule(cd.st[it.id], ok, now, it, ok ? null : gs); if (BED) { BED.qn++; if (ok) BED.qok++; } }
+    if (!retry) { S.first[it.id + '\u0001' + it._c] = ok; cd.st[it.id] = D.schedule(cd.st[it.id], ok, now, it, ok ? null : gs, D.isHard(e)); if (BED) { BED.qn++; if (ok) BED.qok++; } }
     if (ok) { S.solved++; S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo); beep(true); }
     else {
       S.combo = 0; S.wrongs++; S.queue.push(it); beep(false); buzz();
@@ -2284,6 +2365,20 @@ body.bed #intro .ibody { font-size: 19px; }
     (a || []).concat(b || []).forEach(function (e) { if (!e) return; var k = key(e); if (seen[k]) return; seen[k] = 1; out.push(e); });
     return out.sort(function (x, y) { return (x.t || 0) - (y.t || 0); });
   }
+  /** 기록(log)을 처음부터 다시 돌려 문항 상태를 만든다. 기록에 없는 문항(오래돼 잘린 것)은 시도가 많은 쪽을 남긴다 */
+  function rebuildSt(cd, remItems) {
+    var st = {}, inLog = {};
+    cd.log.forEach(function (e) {
+      inLog[e.id] = 1;
+      if (e.r) return;
+      var it = cd.byId[e.id]; if (!it) return;
+      st[e.id] = D.schedule(st[e.id], !!e.ok, e.t, it, e.ok ? null : e.given, D.isHard(e));
+    });
+    [cd.st, remItems || {}].forEach(function (src) {
+      Object.keys(src).forEach(function (id) { if (!inLog[id] && (!st[id] || (src[id].n || 0) > (st[id].n || 0))) st[id] = src[id]; });
+    });
+    cd.st = st;
+  }
   function logKey(e) { return e.t + '|' + e.id + '|' + (e.r ? 1 : 0); }
   /** 다른 기기에서 올린 기록(remote payload)을 이 기기 기록과 합친다 — 지우지 않고 합집합 */
   function mergeCourse(cd, rem) {
@@ -2292,17 +2387,7 @@ body.bed #intro .ibody { font-size: 19px; }
     cd.log = unionBy(cd.log, rem.log, logKey);
     if (cd.log.length > D.LOG_CAP) cd.log = cd.log.slice(-D.LOG_CAP);
     // 문항 상태는 합친 기록을 처음부터 다시 돌려 만든다. 기록에 없는 문항(오래돼 잘린 것)은 시도가 많은 쪽을 남긴다
-    var st = {}, inLog = {};
-    cd.log.forEach(function (e) {
-      inLog[e.id] = 1;
-      if (e.r) return;
-      var it = cd.byId[e.id]; if (!it) return;
-      st[e.id] = D.schedule(st[e.id], !!e.ok, e.t, it, e.ok ? null : e.given);
-    });
-    [cd.st, rem.items || {}].forEach(function (src) {
-      Object.keys(src).forEach(function (id) { if (!inLog[id] && (!st[id] || (src[id].n || 0) > (st[id].n || 0))) st[id] = src[id]; });
-    });
-    cd.st = st;
+    rebuildSt(cd, rem.items);
     var rls = rem.lessons || {};
     Object.keys(rls).forEach(function (k) { var l = cd.ls[k]; if (!l || (rls[k].c || 0) > (l.c || 0) || (rls[k].n || 0) > (l.n || 0)) cd.ls[k] = rls[k]; });
     var rs = rem.introSeen || {};
@@ -2921,6 +3006,7 @@ body.bed #intro .ibody { font-size: 19px; }
   ORDER.forEach(function (c) { touchCourse(DATA[c]); });
   heartsNow(); saveG();
   var scr = P.get('screen');
+  setupSched();
   if (scr) demoScreen(scr); else go(current);
   if (!DEMO && SYNC.token && SYNC.repo) setTimeout(function () { syncNow(true); }, 1500);
   if (P.has('probe')) setTimeout(function () {
