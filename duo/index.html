@@ -661,13 +661,16 @@ body.bed #intro .ibody { font-size: 19px; }
     return items.filter(function (it) { var s = stats[it.id]; return s && s.n && s.d <= now; }).length;
   }
   /** wrong in last `days` days, most-wrong first. */
-  function mistakes(log, now, days) {
-    var since = now - (days || 7) * DAY, by = {}, lastOk = {};
+  /** restMs: 오답 연습에서 이 시간 안에 이미 다룬 문항은 잠시 쉰다 (같은 문항 반복 방지) */
+  function mistakes(log, now, days, restMs) {
+    var since = now - (days || 7) * DAY, by = {}, lastOk = {}, lastDrill = {};
+    if (restMs) (log || []).forEach(function (e) { if (e.m === "mistakes" && e.t > (lastDrill[e.id] || 0)) lastDrill[e.id] = e.t; });
     // 마지막 오답 뒤에 (재출제가 아닌 시도로) 맞힌 문항은 "고친 오답" 이라 목록에서 뺀다
     (log || []).forEach(function (e) { if (e.ok && !e.r && e.t > (lastOk[e.id] || 0)) lastOk[e.id] = e.t; });
     (log || []).forEach(function (e) {
       if (e.t < since || e.ok || e.r) return;
       if (lastOk[e.id] && lastOk[e.id] > e.t) return;
+      if (restMs && lastDrill[e.id] && now - lastDrill[e.id] < restMs) return;
       var m = by[e.id] || (by[e.id] = { id: e.id, count: 0, last: 0, givens: [] });
       m.count++; m.last = Math.max(m.last, e.t);
       if (e.given && m.givens.indexOf(e.given) < 0) m.givens.push(e.given);
@@ -1742,7 +1745,7 @@ body.bed #intro .ibody { font-size: 19px; }
   function startMistakes(cd) {
     var srcs = cd ? [cd] : HUB ? ORDER.map(function (c) { return DATA[c]; }) : [CUR];
     var m = [];
-    srcs.forEach(function (x) { D.mistakes(x.log, Date.now(), 7).forEach(function (k) { if (x.byId[k.id]) m.push({ it: x.byId[k.id], c: k.count }); }); });
+    srcs.forEach(function (x) { D.mistakes(x.log, Date.now(), 7, 12 * 3600e3).forEach(function (k) { if (x.byId[k.id]) m.push({ it: x.byId[k.id], c: k.count }); }); });
     m = m.sort(function (a, b) { return b.c - a.c; }).map(function (x) { return x.it; }).slice(0, 15);
     if (!m.length) m = HUB && !cd ? mixedItems(12) : D.pickReview((cd || CUR).items, (cd || CUR).st, Date.now(), 12).items;
     if (!m.length) return toast('아직 틀린 문항이 없어요');
