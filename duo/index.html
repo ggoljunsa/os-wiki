@@ -662,9 +662,12 @@ body.bed #intro .ibody { font-size: 19px; }
   }
   /** wrong in last `days` days, most-wrong first. */
   function mistakes(log, now, days) {
-    var since = now - (days || 7) * DAY, by = {};
+    var since = now - (days || 7) * DAY, by = {}, lastOk = {};
+    // 마지막 오답 뒤에 (재출제가 아닌 시도로) 맞힌 문항은 "고친 오답" 이라 목록에서 뺀다
+    (log || []).forEach(function (e) { if (e.ok && !e.r && e.t > (lastOk[e.id] || 0)) lastOk[e.id] = e.t; });
     (log || []).forEach(function (e) {
       if (e.t < since || e.ok || e.r) return;
+      if (lastOk[e.id] && lastOk[e.id] > e.t) return;
       var m = by[e.id] || (by[e.id] = { id: e.id, count: 0, last: 0, givens: [] });
       m.count++; m.last = Math.max(m.last, e.t);
       if (e.given && m.givens.indexOf(e.given) < 0) m.givens.push(e.given);
